@@ -30,9 +30,28 @@ export const demoRequest = z.object({
     errorMap: () => ({ message: "We need your permission before we can call you." }),
   }),
 
-  // Anti-spam. Both invisible to a real person — see spam.ts.
-  website: z.string().max(0).optional(),   // honeypot
-  startedAt: z.coerce.number().optional(), // client timestamp
+  /**
+   * Anti-spam. Both invisible to a real person — see spam.ts.
+   *
+   * **The honeypot must pass validation.** It was `.max(0)`, which looks
+   * like the obvious way to say "this should be empty" and quietly did
+   * the opposite of what the route intends.
+   *
+   * route.ts validates at step 3 and checks the honeypot at step 4. With
+   * `.max(0)` a filled honeypot failed at step 3, so `trippedHoneypot()`
+   * was unreachable and the caller got a 422 reading
+   * `{"fields":{"website":["String must contain at most 0 character(s)"]}}`
+   * — which names the trap and tells whoever wrote the bot precisely
+   * which field to leave alone next time.
+   *
+   * The route's own comment says the opposite should happen: a tripped
+   * honeypot gets a 200 and a success body, because a bot that thinks it
+   * succeeded goes away. Letting the value through the schema is what
+   * makes that possible. The length cap is only so nobody can post a
+   * megabyte into it.
+   */
+  website: z.string().max(200).optional(),   // honeypot — see spam.ts
+  startedAt: z.coerce.number().optional(),   // client timestamp
   turnstileToken: z.string().optional(),
 });
 

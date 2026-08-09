@@ -45,7 +45,11 @@ async function send(to: string, subject: string, html: string, replyTo?: string)
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      from: process.env.MAIL_FROM ?? "Potato <hello@potato.ai>",
+      // potatofarm.io, not potato.ai. The old default pointed at a domain
+      // nobody owns, so an unset MAIL_FROM meant Resend sent from an
+      // unverified sender — every notification rejected on SPF, and the
+      // failure only visible in a log nobody was reading yet.
+      from: process.env.MAIL_FROM ?? "PotatoFarm.io <hello@potatofarm.io>",
       to,
       subject,
       html,
@@ -77,7 +81,9 @@ function emailTeam(lead: Lead) {
 
   // Subject line carries the two things that decide who picks it up.
   return send(
-    process.env.SALES_INBOX ?? "sales@potato.ai",
+    // Same again: the fallback has to be an address that exists, because
+    // this is the one that carries the actual lead.
+    process.env.SALES_INBOX ?? "hello@potatofarm.io",
     `Demo request - ${headerSafe(lead.company)} (${lead.teamSize})`,
     `<h2>New demo request</h2><table>${rows}</table><p>Lead ${lead.id}</p>`,
     lead.email

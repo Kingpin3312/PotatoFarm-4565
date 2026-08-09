@@ -398,6 +398,96 @@ section h1.display{margin-bottom:0}
 
 
 /* ==================================================================
+   The booking form
+   ==================================================================
+   The demo page had no form on it at all — just a mailto link — while a
+   validated endpoint sat behind /api/demo waiting for one. This is the
+   page the whole site points at, so it is the one place a form has to
+   work.
+
+   Two rules carried over from the subscribe form, both learned the hard
+   way and both invisible until they bite:
+
+     - **16px on every input, exactly.** Anything smaller and iOS zooms
+       the page on focus, which shifts the layout under somebody's thumb
+       mid-sentence. On a page whose entire audience is holding a phone
+       that is not a detail.
+     - **48px minimum height.** Same tap target as the buttons.
+*/
+/* A link inside body copy.
+ *
+ * The site styles links by class — .btn, .link, .brand, footer a — and
+ * had no rule for a plain one in a sentence, because until this form
+ * there was not a single one. An unstyled anchor falls back to the
+ * browser's blue, which on a cream ground is both off-palette and the
+ * only blue anywhere in the product. Scoped to prose inside main so the
+ * class-based links are untouched. */
+main p a:not([class]){color:var(--accent-type);text-decoration:underline;
+  text-underline-offset:2px;text-decoration-thickness:1px}
+main p a:not([class]):hover{text-decoration-thickness:2px}
+
+/* The form sits under an intro block that has no bottom margin of its
+   own, so without this the first label butts straight up against the
+   sentence above it. */
+.dform{display:grid;gap:18px;max-width:34rem;margin-top:32px}
+.dform-row{display:grid;gap:18px}
+@media(min-width:560px){.dform-row{grid-template-columns:1fr 1fr}}
+
+.dform-field{display:grid;gap:6px;min-width:0}
+.dform-field>label{font-size:var(--caption);color:var(--ink-2);font-weight:500}
+
+/* One selector for every control, so a new field cannot be added in a
+   style nothing else uses. */
+.dform input:not([type=checkbox]),
+.dform select,
+.dform textarea{
+  min-height:48px;padding:12px 14px;font-size:16px;font-family:var(--sans);
+  color:var(--ink);background:var(--raised);border:1px solid var(--rule);
+  border-radius:10px;width:100%;-webkit-appearance:none;appearance:none}
+.dform textarea{min-height:104px;resize:vertical;line-height:1.5}
+.dform select{
+  /* The chevron is a background image rather than a pseudo-element,
+     because a select cannot carry one. */
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5l5-5' stroke='%236B6B6B' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 14px center;padding-right:38px}
+.dform input::placeholder,.dform textarea::placeholder{color:var(--ink-3)}
+.dform input:focus-visible,.dform select:focus-visible,.dform textarea:focus-visible{
+  outline:none;border-color:var(--accent);box-shadow:var(--ring)}
+
+/* A field the server rejected. The border alone would be colour carrying
+   meaning on its own, so the message underneath does the real work. */
+.dform-field[data-invalid] input,
+.dform-field[data-invalid] select,
+.dform-field[data-invalid] textarea{border-color:var(--danger)}
+.dform-err{font-size:.8125rem;color:var(--danger);font-weight:500}
+.dform-err:empty{display:none}
+
+/* Consent. The box is 20px and the whole label is the target, so it is
+   reachable without aiming. */
+.dform-consent{display:grid;grid-template-columns:auto 1fr;gap:12px;
+  align-items:start;cursor:pointer;padding:4px 0;min-height:44px}
+.dform-consent input[type=checkbox]{width:20px;height:20px;margin-top:2px;
+  accent-color:var(--accent);cursor:pointer;flex:none}
+.dform-consent span{font-size:.875rem;color:var(--ink-2);line-height:1.5}
+
+.dform button[type=submit]{
+  min-height:48px;padding:0 26px;border:1px solid var(--accent-edge);border-radius:980px;
+  background:var(--accent);color:var(--on-accent);font-family:var(--sans);font-weight:600;
+  font-size:.9375rem;cursor:pointer;justify-self:start;
+  transition:background 240ms var(--ease)}
+.dform button[type=submit]:hover{background:var(--accent-hover)}
+.dform button[type=submit]:focus-visible{outline:none;box-shadow:var(--ring)}
+.dform button[type=submit][disabled]{opacity:.55;cursor:default}
+
+.dform-note{font-size:.8125rem;color:var(--ink-3);margin:0}
+.dform-note[data-state=error]{color:var(--danger);font-weight:500}
+
+/* What replaces the form once it has gone. */
+.dform-done{font-size:1.0625rem;color:var(--ink);font-weight:600;max-width:40ch}
+.dform-done+p{font-size:.9375rem;color:var(--ink-2);margin-top:10px;max-width:44ch}
+
+
+/* ==================================================================
    Utilities.
 
    These replace 42 inline styles across 11 shapes. Inline values are

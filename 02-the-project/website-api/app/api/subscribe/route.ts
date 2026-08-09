@@ -63,22 +63,48 @@ export async function POST(req: NextRequest) {
       signal: AbortSignal.timeout(10_000),
     });
 
-    // LEAD_WEBHOOK_URL, not LEADS_. Every .env.example defines the
-      // singular; this file read the plural, fell back to "", and POSTed
-      // every newsletter signup to an empty URL. Silent — fetch("")
-      // rejects and the catch below swallowed it.
-      await fetch(process.env.LEAD_WEBHOOK_URL ?? "", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        email: parsed.email, from: parsed.from ?? "unknown",
-        disposable, at: new Date().toISOString(),
-      }),
-      signal: AbortSignal.timeout(5_000),
-    }).catch(() => {
-      // The lead record failing must not fail the reader's request.
-      // They asked for a guide; they get the guide.
-    });
+    /**
+     * Record the lead.
+     *
+     * `LEAD_WEBHOOK_URL`, not `LEADS_`. Every `.env.example` defines the
+     * singular; this file once read the plural, fell back to `""`, and
+     * POSTed every newsletter signup to an empty URL.
+     *
+     * Renaming the variable was only half the fix. `?? ""` left the same
+     * failure in place for the case that actually happens — the variable
+     * simply not being set yet — and the `.catch()` below is designed to
+     * swallow exactly that rejection. The result was a silent no-op that
+     * looked identical to working: the reader gets their guide, the
+     * request returns 200, and nobody is ever told the lead went nowhere.
+     *
+     * So: check first, and say so once at startup-cost if it is missing.
+     * A warning in the log is the difference between "we have no signups"
+     * and "we have signups and no idea".
+     */
+    const leadWebhook = process.env.LEAD_WEBHOOK_URL;
+
+    if (leadWebhook) {
+      await fetch(leadWebhook, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: parsed.email, from: parsed.from ?? "unknown",
+          disposable, at: new Date().toISOString(),
+        }),
+        signal: AbortSignal.timeout(5_000),
+      }).catch((err) => {
+        // The lead record failing must not fail the reader's request.
+        // They asked for a guide; they get the guide. But it is logged,
+        // because a webhook that has been down for a week is a week of
+        // signups nobody can recover.
+        console.error("[subscribe] lead webhook failed for", parsed.email, err);
+      });
+    } else {
+      console.warn(
+        "[subscribe] LEAD_WEBHOOK_URL is not set — captured no record of",
+        parsed.email
+      );
+    }
 
     return NextResponse.json({ ok: true });
   } catch {

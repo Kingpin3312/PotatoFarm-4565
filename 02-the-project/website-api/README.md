@@ -1,6 +1,21 @@
-# Potato.ai — form backend
+# PotatoFarm.io — form backend
 
-One endpoint, `POST /api/demo`. Everything below is wired to it.
+Two endpoints:
+
+| | Called from | Fields |
+|---|---|---|
+| `POST /api/demo` | the form on `demo.html` | name, brokerage, email, phone, team size, message, consent |
+| `POST /api/subscribe` | the guide forms on `guides.html` and the three articles | email, which guide |
+
+Everything below describes `/api/demo`; `/api/subscribe` is a cut-down
+version of the same path with a honeypot and no captcha.
+
+**This folder is not yet a deployable project.** There is no
+`package.json`, no `next.config`, no `tsconfig`, and the route files are
+split across two app directories (`app/` and `src/app/`) — Next.js rejects
+that outright. Both endpoints need folding into the CRM app in
+`02-the-project/app`, which is already a working Next.js project, before
+either can serve a request.
 
 ## What happens to a submission
 

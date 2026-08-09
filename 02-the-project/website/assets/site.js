@@ -101,6 +101,157 @@
  * a reader who has just finished an article should end up back where
  * they were rather than somewhere new.
  */
+/**
+ * The booking form.
+ *
+ * The endpoint returns field-level errors on a 422, so each message lands
+ * under the field it belongs to rather than as one line at the top saying
+ * "some details need checking" — which tells somebody there is a problem
+ * and not where.
+ *
+ * `startedAt` is stamped when the page loads and sent with the
+ * submission. The server rejects anything filled in under three seconds:
+ * nobody types six fields that fast, and a bot always does.
+ */
+document.querySelectorAll("[data-demo]").forEach(function (form) {
+  var startedAt = Date.now();
+  var note = form.querySelector("[data-note]");
+  var button = form.querySelector("button[type=submit]");
+  var resting = note ? note.textContent : "";
+
+  function fieldFor(name) {
+    return form.querySelector('[data-for="' + name + '"]');
+  }
+
+  function clearErrors() {
+    form.querySelectorAll("[data-for]").forEach(function (f) {
+      f.removeAttribute("data-invalid");
+      var slot = f.querySelector("[data-err]");
+      if (slot) slot.textContent = "";
+    });
+  }
+
+  /**
+   * Put each message under its field, and move focus to the first one.
+   * Without the focus move, a person who submits from the bottom of a
+   * long form on a phone gets an error they cannot see.
+   */
+  function showErrors(fields) {
+    var first = null;
+    Object.keys(fields || {}).forEach(function (name) {
+      var wrap = fieldFor(name);
+      if (!wrap) return;
+      var messages = fields[name];
+      if (!messages || !messages.length) return;
+      wrap.setAttribute("data-invalid", "");
+      var slot = wrap.querySelector("[data-err]");
+      if (slot) slot.textContent = messages[0];
+      if (!first) first = wrap.querySelector("input, select, textarea");
+    });
+    if (first) first.focus();
+    return first !== null;
+  }
+
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    clearErrors();
+
+    var data = new FormData(form);
+    var payload = {
+      name: (data.get("name") || "").trim(),
+      company: (data.get("company") || "").trim(),
+      email: (data.get("email") || "").trim(),
+      // Spaces are how people write a phone number and not how E.164
+      // wants one. Strip them here rather than rejecting a number that
+      // is perfectly correct apart from the way it is spaced.
+      phone: (data.get("phone") || "").replace(/[\s()\-.]/g, ""),
+      teamSize: data.get("teamSize"),
+      // `consent` must be the boolean true, not the string "on" a
+      // checkbox sends.
+      consent: data.get("consent") === "on",
+      website: data.get("website") || "",
+      startedAt: startedAt
+    };
+
+    var message = (data.get("message") || "").trim();
+    if (message) payload.message = message;
+
+    button.disabled = true;
+    if (note) { note.textContent = "Sending…"; note.removeAttribute("data-state"); }
+
+    fetch(form.action, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    })
+      .then(function (r) {
+        return r.json().catch(function () { return {}; }).then(function (body) {
+          return { status: r.status, ok: r.ok, body: body };
+        });
+      })
+      .then(function (res) {
+        if (res.ok) {
+          // The form goes. Something still sitting there after a success
+          // invites somebody to wonder whether it worked and send again.
+          var done = document.createElement("p");
+          done.className = "dform-done";
+          done.setAttribute("role", "status");
+          // A paragraph is not focusable on its own, and the form that
+          // held focus is about to be removed — without this, focus falls
+          // back to the top of the document and a screen reader user
+          // loses their place entirely.
+          done.setAttribute("tabindex", "-1");
+          done.textContent = "Booked. We'll come back within a working day.";
+          var sub = document.createElement("p");
+          sub.textContent =
+            "If it's urgent, hello@potatofarm.io reaches the same person faster.";
+          form.replaceWith(done);
+          done.after(sub);
+          done.focus();
+          return;
+        }
+
+        button.disabled = false;
+
+        if (res.status === 422 && showErrors(res.body.fields)) {
+          if (note) { note.textContent = res.body.error || "Some details need checking."; note.setAttribute("data-state", "error"); }
+          return;
+        }
+
+        if (note) {
+          note.textContent =
+            res.body.error ||
+            "That didn't send. Email hello@potatofarm.io and we'll book it by hand.";
+          note.setAttribute("data-state", "error");
+        }
+      })
+      .catch(function () {
+        button.disabled = false;
+        if (note) {
+          // Says what to do instead. "Something went wrong" leaves a
+          // willing lead with nowhere to go.
+          note.textContent =
+            "That didn't send. Email hello@potatofarm.io and we'll book it by hand.";
+          note.setAttribute("data-state", "error");
+        }
+      });
+  });
+
+  // Clearing the error as soon as somebody starts fixing it, rather than
+  // leaving it red until they submit again.
+  form.addEventListener("input", function (e) {
+    var wrap = e.target.closest("[data-for]");
+    if (!wrap || !wrap.hasAttribute("data-invalid")) return;
+    wrap.removeAttribute("data-invalid");
+    var slot = wrap.querySelector("[data-err]");
+    if (slot) slot.textContent = "";
+    if (note && note.getAttribute("data-state") === "error") {
+      note.textContent = resting;
+      note.removeAttribute("data-state");
+    }
+  });
+});
+
 document.querySelectorAll("[data-subscribe]").forEach(function (form) {
   var note = form.querySelector("[data-note]");
   var button = form.querySelector("button");

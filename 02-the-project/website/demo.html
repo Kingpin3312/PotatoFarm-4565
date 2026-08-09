@@ -45,8 +45,92 @@
   <p class="lead">Before we show you anything, we look at how quickly your team replies
      today. That is the whole argument, and it is yours rather than ours.</p>
   <div class="actions">
-    <a href="mailto:hello@potatofarm.io?subject=PotatoFarm.io%20—%20book%20a%20call" class="btn btn-primary">hello@potatofarm.io</a>
+    <a href="#book" class="btn btn-primary">Book a call</a>
+    <a href="mailto:hello@potatofarm.io?subject=PotatoFarm.io%20—%20book%20a%20call" class="btn btn-quiet">hello@potatofarm.io</a>
   </div>
+</div></section>
+
+<section id="book"><div class="wrap">
+  <div class="narrow">
+    <span class="eyebrow" data-reveal>Book a call</span>
+    <h2 data-reveal="60">Six lines, and we'll come back within a working day.</h2>
+    <p data-reveal="120">Or email <a href="mailto:hello@potatofarm.io?subject=PotatoFarm.io%20—%20book%20a%20call">hello@potatofarm.io</a>
+       if you would rather. It reaches the same person.</p>
+  </div>
+
+  <!-- Posts to the same origin as the site. The endpoint validates every
+       field again server-side — see website-api/src/lib/validation.ts.
+       Anything here is a convenience, never a control. -->
+  <form class="dform" method="post" action="https://potatofarm.io/api/demo" data-demo novalidate>
+    <div class="dform-row">
+      <div class="dform-field" data-for="name">
+        <label for="d-name">Your name</label>
+        <input id="d-name" type="text" name="name" required autocomplete="name" maxlength="80">
+        <p class="dform-err" data-err></p>
+      </div>
+      <div class="dform-field" data-for="company">
+        <label for="d-company">Brokerage</label>
+        <input id="d-company" type="text" name="company" required autocomplete="organization" maxlength="120">
+        <p class="dform-err" data-err></p>
+      </div>
+    </div>
+
+    <div class="dform-row">
+      <div class="dform-field" data-for="email">
+        <label for="d-email">Work email</label>
+        <input id="d-email" type="email" name="email" required autocomplete="email"
+               placeholder="you@brokerage.ae" spellcheck="false" maxlength="160">
+        <p class="dform-err" data-err></p>
+      </div>
+      <div class="dform-field" data-for="phone">
+        <!-- The country code is not optional: the endpoint wants E.164, and
+             a Dubai brokerage's owner is as likely to be on a +44 or +966
+             number as a +971 one. -->
+        <label for="d-phone">Phone, with country code</label>
+        <input id="d-phone" type="tel" name="phone" required autocomplete="tel"
+               placeholder="+971 50 123 4567" inputmode="tel">
+        <p class="dform-err" data-err></p>
+      </div>
+    </div>
+
+    <div class="dform-field" data-for="teamSize">
+      <label for="d-team">How many agents?</label>
+      <select id="d-team" name="teamSize" required>
+        <option value="2-10">2 to 10</option>
+        <option value="11-50">11 to 50</option>
+        <option value="50+">More than 50</option>
+        <!-- Last, and named honestly. The product page says below eight
+             agents this is not worth it; the option stays so somebody can
+             tell us the truth rather than round themselves up. -->
+        <option value="solo">Just me</option>
+      </select>
+      <p class="dform-err" data-err></p>
+    </div>
+
+    <div class="dform-field" data-for="message">
+      <label for="d-message">Anything else? <span style="color:var(--ink-3);font-weight:400">Optional</span></label>
+      <textarea id="d-message" name="message" maxlength="1000"
+                placeholder="Which portals you use, roughly how many enquiries a month, or who answers at nine at night."></textarea>
+      <p class="dform-err" data-err></p>
+    </div>
+
+    <div class="dform-field" data-for="consent">
+      <label class="dform-consent">
+        <input type="checkbox" name="consent" required>
+        <span>You can call or email me about this. Nothing else, and one line back
+              stops it for good.</span>
+      </label>
+      <p class="dform-err" data-err></p>
+    </div>
+
+    <!-- Bots fill this. People never see it. Note it is `website`, not
+         `company` — on this form `company` is a real field, and the
+         subscribe form's honeypot name would silently bin every lead. -->
+    <input type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" class="hp">
+
+    <button type="submit">Book the call</button>
+    <p class="dform-note" data-note>Fifteen minutes. We start with your reply times, not a slide deck.</p>
+  </form>
 </div></section>
 
 <section class="theme-cream"><div class="wrap">
@@ -103,7 +187,8 @@
      property management — that is a different product and we would be a worse version of
      one you already have.</p>
   <p style="margin-top:36px" data-reveal="180">
-    <a href="mailto:hello@potatofarm.io?subject=PotatoFarm.io%20—%20book%20a%20call" class="btn btn-primary">hello@potatofarm.io</a></p>
+    <a href="#book" class="btn btn-primary">Book a call</a>
+    <a href="mailto:hello@potatofarm.io?subject=PotatoFarm.io%20—%20book%20a%20call" class="btn btn-quiet">hello@potatofarm.io</a></p>
 </div></section>
 </main>
 <footer><div class="wrap fgrid">
