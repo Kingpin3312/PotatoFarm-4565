@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { use, useState } from "react";
 import { api } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 
@@ -11,10 +11,16 @@ import { Button } from "@/components/ui/button";
  * `offers.create` was mounted with nothing calling it. A twenty-two-year
  * agent put it plainly: everything before an offer is admin.
  */
-export default function NewOffer({ searchParams }: { searchParams: { listing?: string } }) {
+export default function NewOffer({ searchParams }: {
+  // Next 15 passes `searchParams` as a Promise. Plain `tsc` cannot see
+  // this — the constraint lives in the route types Next generates during
+  // a build — so it only surfaced once the build ran.
+  searchParams: Promise<{ listing?: string }>;
+}) {
+  const { listing } = use(searchParams);
   const create = api.offers.create.useMutation();
   const [f, setF] = useState({
-    listingId: searchParams.listing ?? "",
+    listingId: listing ?? "",
     amountAed: "",
     financing: "UNKNOWN" as "CASH" | "MORTGAGE" | "UNKNOWN",
     preApproved: false,
