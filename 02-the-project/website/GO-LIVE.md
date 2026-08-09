@@ -1,13 +1,13 @@
 # Go live
 
-Nine pages. Nothing on any of them is waiting.
+Ten pages. Nothing on any of them is waiting.
 
 ## Deploy
 
-The site is static. Drop the folder on Netlify, Vercel or Cloudflare
+The site is static. Drop **this folder** on Netlify, Vercel or Cloudflare
 Pages — no build step, no environment variables, nothing to configure.
 
-    potato-launch/
+    02-the-project/website/
       index.html                     home
       product.html                   how it works
       security.html                  security and compliance
@@ -17,18 +17,32 @@ Pages — no build step, no environment variables, nothing to configure.
       trakheesi-permits.html         guide
       uae-aml-for-brokerages.html    guide
       legal.html                     terms and privacy
+      404.html                       not found
       assets/site.css
       assets/site.js
-      sitemap.xml  robots.txt
+      _headers  _redirects
+      sitemap.xml  robots.txt  site.webmanifest
+
+`_headers` and `_redirects` are read by Netlify and Cloudflare Pages. They
+set the security headers and the extensionless URLs (`/product` →
+`product.html`). On Vercel they are ignored and the equivalent belongs in
+`vercel.json` instead.
+
+There was a second, identical copy of this folder at `07-ready-to-deploy/`
+until the two started to drift — one had the deploy config, the other had
+the working files, and neither was complete. There is one copy now, and
+this is it.
 
 The `preview-*.html` files are the same pages with the CSS and JS inlined,
-for looking at on a phone without a server. **Do not deploy those** —
-they duplicate the stylesheet nine times and would be indexed as
-duplicates of the real pages.
+for looking at on a phone without a server. They are generated, and
+git-ignored. **Do not deploy those** — they duplicate the stylesheet ten
+times and would be indexed as duplicates of the real pages.
 
 ## Before you press deploy
 
 - [ ] Point `hello@potatofarm.io` somewhere that a person reads
+- [ ] Stand up `POST /api/subscribe` and `POST /api/demo`, or the forms on
+      the guides and the demo page have nothing behind them
 - [ ] Confirm `app.potatofarm.io` exists, or remove the Log in link
 - [ ] Submit the sitemap in Google Search Console
 - [ ] Check the homepage on a phone in daylight — the whole design
@@ -70,6 +84,14 @@ is an afternoon and each is permanent.
 ## Measured, not assumed
 
 Every colour pair passes WCAG AA, including across the hero gradient at
-both ends. Nine pages, no broken links, no orphans, no duplicate
-metadata, no placeholder text — checked by script, and the scripts are in
-`potato-tests`.
+both ends. Ten pages, no broken links, no orphans, no duplicate metadata,
+no placeholder text — checked by script.
+
+The scripts are in `04-audit-scripts/` at the repository root. They need
+`beautifulsoup4`:
+
+    pip install beautifulsoup4
+    python3 04-audit-scripts/audit.py
+
+Treat their colour findings as advisory for now — several still check a
+palette two generations old, which is being corrected separately.
