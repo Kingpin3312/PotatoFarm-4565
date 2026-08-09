@@ -111,7 +111,28 @@ const config: NextConfig = {
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "X-Frame-Options", value: "SAMEORIGIN" },
-          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+          /**
+           * `microphone=(self)`, and it took building the feature to
+           * notice.
+           *
+           * This read `microphone=()` — an empty allowlist, meaning no
+           * origin at all, including this one. It was correct when it
+           * was written, because nothing used the microphone. The moment
+           * voice notes arrived it became a header that silently blocks
+           * the product's most differentiated interaction:
+           * `getUserMedia` rejects with `NotAllowedError`, which is the
+           * same error a user denying permission produces, so it reads
+           * as the agent having said no rather than as a policy the
+           * server sent.
+           *
+           * Camera and geolocation stay closed. Nothing asks for them,
+           * and the day something does is the day to open them
+           * deliberately rather than in advance.
+           */
+          {
+            key: "Permissions-Policy",
+            value: "camera=(), microphone=(self), geolocation=()",
+          },
           /**
            * HSTS. Two years, subdomains included.
            *

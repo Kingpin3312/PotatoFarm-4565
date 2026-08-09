@@ -255,6 +255,7 @@ checks is broken.
 | 4. Command centre as the front door | **Done.** `/` no longer redirects to the inbox |
 | 5. A real daily briefing | **Done.** Five things, each with why |
 | 6. Client memory model | **Done.** `ClientFact`, written by the intake flow |
+| P1 · Voice on an iPhone | **Done.** `npm run check:voice` |
 
 Three bugs the work turned up, all found by running it:
 
@@ -270,9 +271,34 @@ Three bugs the work turned up, all found by running it:
   switch wired to nothing, and worse than absent because they read as
   covered.
 
-**P1 is next**, and the highest-value item in it is voice that works on
-an iPhone. It is the one place S.MPLE is genuinely stronger, and it
-needs server-side transcription rather than the Web Speech API.
+**Voice on an iPhone is done too** — P1 item 10, taken next because it
+was the one place S.MPLE was genuinely stronger. Recording happens on
+the device with `MediaRecorder` and transcription on the server, through
+any provider with an OpenAI-compatible endpoint.
+
+Two things it turned up:
+
+- **`Permissions-Policy: microphone=()` blocked the microphone
+  outright.** Correct when it was written, because nothing used a
+  microphone. The moment voice arrived it silently blocked the
+  product's most differentiated interaction — and `getUserMedia` fails
+  with the same error a user denying permission produces, so it would
+  have read as the agent saying no.
+- **iOS Safari has no webm encoder.** It does not throw when you ask for
+  one; it quietly records mp4. Sending that under a `.webm` filename
+  gets rejected as corrupt, which looks like a broken microphone. The
+  filename now follows the container the browser actually produced —
+  verified by forcing Safari's behaviour in a real browser and watching
+  `note.mp4` arrive where desktop sends `note.webm`.
+
+It is also now *better* than the browser API rather than merely working
+where that one does not: the transcription request carries a Dubai
+vocabulary hint, so it spells Jumeirah and Trakheesi. Web Speech has no
+equivalent.
+
+**Remaining P1:** deal health scores, the AI action log surfaced in the
+interface, graded autonomy, property-side intelligence and semantic
+search.
 
 ---
 

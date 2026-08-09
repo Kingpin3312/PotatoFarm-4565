@@ -14,6 +14,7 @@
     "db:studio": "prisma studio",
     "audit": "bash ../../04-audit-scripts/run-all.sh",
     "check:intelligence": "esbuild scripts/intelligence.check.ts --bundle --platform=node --format=esm --outfile=.tmp/intel.mjs --external:@prisma/client --log-level=warning && node --env-file-if-exists=.env .tmp/intel.mjs",
+    "check:voice": "esbuild scripts/voice.check.ts --bundle --platform=node --format=esm --outfile=.tmp/voice.mjs --external:@prisma/client --log-level=warning && node .tmp/voice.mjs",
     "check:intake": "esbuild scripts/intake.check.ts --bundle --platform=node --format=esm --outfile=.tmp/intake.mjs --external:@prisma/client --log-level=warning && node --env-file-if-exists=.env .tmp/intake.mjs",
     "check:sigv4": "esbuild scripts/sigv4.check.ts --bundle --platform=node --format=esm --outfile=.tmp/sigv4.mjs --log-level=warning && node .tmp/sigv4.mjs",
     "check:storage": "esbuild scripts/storage.check.ts --bundle --platform=node --format=esm --outfile=.tmp/storage.mjs --external:@prisma/client --log-level=warning && node .tmp/storage.mjs",

@@ -89,6 +89,8 @@ Plain **HTML, CSS and JavaScript**. No framework, no build step, no
 | `lib/intelligence/sweep.ts` | Nightly, in the jobs layer, never in a request |
 | `api/routers/today.ts` | The briefing the command centre reads |
 | `ClientFact` | Memory the CRM has no columns for |
+| `lib/voice/transcribe.ts` | Speech to text, any OpenAI-compatible provider |
+| `lib/record.ts` | Browser recording, including Safari's mp4-only path |
 
 There is also `mobile/` — an Expo shell carrying push, offline policy and
 auth. **It cannot build.** No `app.json`, no `tsconfig.json`, no
@@ -139,12 +141,13 @@ chart; spoken requests ("Ask").
   sentence creates the person, the requirement, the facts, the follow-up
   and a match.
 
-### The five things you can re-run
+### The six things you can re-run
 
 ```bash
 npm run check:tenancy       # two brokerages, one database, no leakage
 npm run check:intake        # one sentence → client, requirement, match
 npm run check:intelligence  # scoring, next-best-action, the nightly sweep
+npm run check:voice         # speech to text, including the iPhone path
 npm run check:sigv4         # request signing vs AWS's published vector
 npm run check:storage       # upload, read back byte-for-byte, delete
 ```

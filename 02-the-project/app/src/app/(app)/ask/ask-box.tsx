@@ -1,10 +1,11 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 import { aedWhole } from "@/lib/money";
+import { MAX_MS, MESSAGES, canRecord, startRecording, type Recorder } from "@/lib/record";
 
 /**
  * The natural-language surface, in one place.
@@ -33,46 +34,120 @@ export function Ask({ compact = false }: { compact?: boolean }) {
   const comps = api.requests.comparables.useMutation();
 
   const [text, setText] = useState("");
-  const [listening, setListening] = useState(false);
   const [focused, setFocused] = useState(false);
-  const rec = useRef<{ stop: () => void } | null>(null);
 
-  function speak() {
+  /**
+   * Four states, not a boolean.
+   *
+   * "Listening" and "working out what you said" are different things to
+   * be told, and collapsing them means an agent who has stopped talking
+   * watches a button that still says Listening and taps it again.
+   */
+  const [voice, setVoice] = useState<"idle" | "recording" | "transcribing">("idle");
+  const [elapsed, setElapsed] = useState(0);
+  const [voiceNote, setVoiceNote] = useState<string | null>(null);
+  const recorder = useRef<Recorder | null>(null);
+
+  // Counting up in the button. Silent recording with no feedback is how
+  // somebody talks for four minutes into a file nobody will transcribe.
+  useEffect(() => {
+    if (voice !== "recording") return;
+    const started = Date.now();
+    setElapsed(0);
+    const t = setInterval(() => setElapsed(Date.now() - started), 200);
+    return () => clearInterval(t);
+  }, [voice]);
+
+  // A recording must not outlive the screen it was started on.
+  useEffect(() => () => recorder.current?.cancel(), []);
+
+  async function beginVoice() {
+    setVoiceNote(null);
+    const r = await startRecording(() => void finishVoice());
+    if (!r.ok) { setVoiceNote(MESSAGES[r.reason]); return; }
+    recorder.current = r.recorder;
+    setVoice("recording");
+  }
+
+  async function finishVoice() {
+    const active = recorder.current;
+    if (!active) return;
+    recorder.current = null;
+    setVoice("transcribing");
+
+    const { blob, durationMs } = await active.stop();
+
     /**
-     * Web Speech where it exists, and it does not exist on an iPhone.
+     * Under 900ms is a mis-tap, and it is dropped without comment.
      *
-     * `webkitSpeechRecognition` is not implemented in iOS Safari, and
-     * every browser on iOS uses the Safari engine — so this fails on
-     * Chrome and Firefox there too. The audit named it: the primary
-     * interaction and the primary device do not currently meet.
-     *
-     * The honest fallback is the keyboard and a message saying so,
-     * rather than a button that appears to work and does nothing.
-     * Server-side transcription is the real fix and is its own change.
+     * The same rule and the same silence as the native app, where
+     * `MESSAGES.too_short` is deliberately null: somebody who brushed
+     * the button does not need it explained to them.
      */
-    const SR = (window as unknown as { webkitSpeechRecognition?: new () => never })
-      .webkitSpeechRecognition;
-    if (!SR) {
-      alert("Your browser won't do speech. Type it instead — it works the same.");
-      return;
+    if (durationMs < 900) { setVoice("idle"); return; }
+
+    try {
+      const form = new FormData();
+      form.append("audio", blob, "note");
+      form.append("durationMs", String(durationMs));
+      const res = await fetch("/api/voice", { method: "POST", body: form });
+
+      /**
+       * 501 means not configured, and that is not a fault to report.
+       *
+       * It falls back to the browser's own speech API where one exists —
+       * which is Chrome and Edge on a desktop, and nothing on an iPhone.
+       * That is the honest split: this feature needs a transcription key
+       * to work on the device it was built for.
+       */
+      if (res.status === 501) {
+        setVoice("idle");
+        if (browserSpeech(setText)) return;
+        setVoiceNote("Speech isn't set up yet. Type it instead — it works the same.");
+        return;
+      }
+
+      const body = (await res.json()) as {
+        text?: string; error?: string; lowConfidence?: boolean; tooShort?: boolean;
+      };
+      setVoice("idle");
+      if (body.tooShort) return;
+      if (!res.ok || !body.text) {
+        setVoiceNote(body.error ?? "That didn't come back. Type it instead.");
+        return;
+      }
+
+      /**
+       * The transcript lands in the box rather than being sent.
+       *
+       * `mobile/lib/voice.ts` calls this out as the decision that keeps
+       * the feature honest: **the model drafts, a person commits.**
+       * Transcription of accented English over road noise is wrong often
+       * enough that acting on it directly would put invented sentences
+       * into a client record. On the web the textarea *is* the draft and
+       * Go is the accept, so it costs nothing to get right.
+       */
+      setText((prev) => (prev.trim() ? `${prev.trim()} ${body.text}` : body.text!));
+      if (body.lowConfidence) {
+        setVoiceNote("Have a read before you send it — some of that was hard to make out.");
+      }
+    } catch {
+      setVoice("idle");
+      setVoiceNote("That didn't come back. Type it instead — it works the same.");
     }
-    const r = new SR() as unknown as {
-      lang: string; interimResults: boolean; continuous: boolean;
-      onresult: (e: { results: { transcript: string }[][] }) => void;
-      onend: () => void; start: () => void; stop: () => void;
-    };
-    r.lang = "en-AE";
-    r.interimResults = true;
-    r.continuous = false;
-    r.onresult = (e) => setText(
-      Array.from(e.results).map((x) => x[0]?.transcript ?? "").join(""));
-    r.onend = () => setListening(false);
-    r.start();
-    rec.current = r;
-    setListening(true);
+  }
+
+  function cancelVoice() {
+    recorder.current?.cancel();
+    recorder.current = null;
+    setVoice("idle");
   }
 
   const c = interpret.data;
+  // Computed at render rather than in state: it cannot change for
+  // the life of the page, and an effect to set it would flash the
+  // button disabled on first paint.
+  const recordingPossible = typeof window === "undefined" ? true : canRecord();
   const showExamples = !compact || focused || text.length > 0;
 
   return (
@@ -96,22 +171,62 @@ export function Ask({ compact = false }: { compact?: boolean }) {
         </p>
       )}
 
-      <div className="mt-3 flex flex-wrap gap-2">
-        <Button
-          variant={listening ? "primary" : "secondary"}
-          onClick={() => (listening ? (rec.current?.stop(), setListening(false)) : speak())}
-        >
-          {listening ? "Listening — tap to stop" : "Speak"}
-        </Button>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        {voice === "recording" ? (
+          <>
+            <Button variant="primary" onClick={() => void finishVoice()}>
+              {/* The count is in the button because that is where the
+                  eye already is, and it is what stops a four-minute
+                  recording nobody will transcribe. */}
+              Stop · {String(Math.floor(elapsed / 1000)).padStart(2, "0")}s
+            </Button>
+            <button
+              onClick={cancelVoice}
+              className="min-h-11 px-2 font-mono text-[10px] uppercase tracking-[0.1em] text-ink-3 hover:text-ink"
+            >
+              Discard
+            </button>
+            <span
+              role="status"
+              className="font-mono text-[10px] uppercase tracking-[0.1em] text-accent-type"
+            >
+              {/* Words, not only the pulsing button. Colour is never the
+                  only signal in this product.
+
+                  Near the ceiling it says so, because a recording that
+                  cuts off mid-sentence with no warning is worse than one
+                  that never started. */}
+              {MAX_MS - elapsed <= 10_000
+                ? `Stops in ${Math.max(0, Math.ceil((MAX_MS - elapsed) / 1000))}s`
+                : "Recording"}
+            </span>
+          </>
+        ) : (
+          <Button
+            variant="secondary"
+            loading={voice === "transcribing"}
+            disabled={voice === "transcribing" || !recordingPossible}
+            onClick={() => void beginVoice()}
+          >
+            {voice === "transcribing" ? "Working out what you said" : "Speak"}
+          </Button>
+        )}
+
         <Button
           variant="primary"
           loading={interpret.isPending}
-          disabled={text.trim().length < 3}
+          disabled={text.trim().length < 3 || voice !== "idle"}
           onClick={() => interpret.mutate({ transcript: text })}
         >
           Go
         </Button>
       </div>
+
+      {voiceNote && (
+        <p role="status" className="mt-2 max-w-[46ch] text-sm leading-snug text-ink-2">
+          {voiceNote}
+        </p>
+      )}
 
       {/* Unclear comes back as one question, not an apology and a list.
           An agent in a car answers one thing. */}
@@ -223,4 +338,38 @@ function Report({ r }: { r: NonNullable<ReturnType<typeof api.requests.comparabl
       </p>
     </section>
   );
+}
+
+/**
+ * The fallback, and only when the server path is switched off.
+ *
+ * `webkitSpeechRecognition` is Chrome and Edge on a desktop. It is not
+ * an iPhone, which is the whole reason the server path exists — so this
+ * is not a second implementation competing with the first, it is what
+ * keeps the Speak button working for a brokerage that has not set a
+ * transcription key yet.
+ *
+ * It is also worse, and not only on coverage: the server path sends a
+ * vocabulary hint, so it spells Jumeirah and Trakheesi. This one hears
+ * "track easy".
+ */
+function browserSpeech(setText: (fn: (prev: string) => string) => void): boolean {
+  const SR = (window as unknown as { webkitSpeechRecognition?: new () => never })
+    .webkitSpeechRecognition;
+  if (!SR) return false;
+
+  const r = new SR() as unknown as {
+    lang: string; interimResults: boolean; continuous: boolean;
+    onresult: (e: { results: { transcript: string }[][] }) => void;
+    start: () => void;
+  };
+  r.lang = "en-AE";
+  r.interimResults = false;
+  r.continuous = false;
+  r.onresult = (e) => {
+    const said = Array.from(e.results).map((x) => x[0]?.transcript ?? "").join("");
+    setText((prev) => (prev.trim() ? `${prev.trim()} ${said}` : said));
+  };
+  r.start();
+  return true;
 }

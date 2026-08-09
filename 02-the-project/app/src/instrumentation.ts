@@ -42,6 +42,7 @@ export async function register() {
   check("CRON_SECRET", "every scheduled job refuses to run");
   check("SEAT_PRICE_FILS", "sign-up refuses to create a subscription");
   check("S3_BUCKET", "no file can be uploaded — no brochure, no floor plan, no KYC document");
+  check("TRANSCRIBE_API_KEY", "the Speak button does nothing on any iPhone");
 
   /**
    * Not in the list above, because it is a warning rather than an

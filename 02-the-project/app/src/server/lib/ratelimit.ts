@@ -45,6 +45,14 @@ const RULES: Record<string, { short: [number, number]; long: [number, number] }>
    */
   "website.demo":      { short: [3, 300], long: [15, 86_400] },
   "website.subscribe": { short: [3, 300], long: [15, 86_400] },
+
+  /**
+   * Voice notes. Looser than the forms, because an agent legitimately
+   * dictates several in a row walking out of a building — but capped,
+   * because every call costs money and the endpoint takes an upload
+   * from anybody with a session.
+   */
+  "voice.transcribe":  { short: [20, 300], long: [200, 86_400] },
 };
 
 export async function limit(action: string, key: string): Promise<Verdict> {
