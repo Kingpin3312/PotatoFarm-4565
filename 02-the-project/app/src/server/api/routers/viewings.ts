@@ -56,11 +56,21 @@ export const viewingsRouter = router({
 
   slots: orgProcedure
     .input(z.object({
-      agentId: z.string(),
+      /**
+       * Whose diary. Defaults to the caller.
+       *
+       * The booking screen wanted its own user id and reached for
+       * `org.mine`, which returns the brokerages you belong to and has no
+       * `userId` on it — there is no "who am I" procedure. An agent
+       * booking their own viewing should not have to look themselves up,
+       * and the server already knows who is asking.
+       */
+      agentId: z.string().optional(),
       listingId: z.string().optional(),
       days: z.number().min(1).max(21).default(7),
     }))
     .query(async ({ ctx, input }) => {
+      const agentId = input.agentId ?? ctx.userId;
       const listing = input.listingId
         ? await ctx.db.listing.findUnique({
             where: { id: input.listingId },
@@ -70,7 +80,7 @@ export const viewingsRouter = router({
 
       const slots = await availableSlots({
         orgId: ctx.orgId,
-        agentId: input.agentId,
+        agentId,
         from: new Date(),
         days: input.days,
         community: listing?.community,
@@ -89,7 +99,11 @@ export const viewingsRouter = router({
    */
   hold: orgProcedure
     .input(z.object({
-      leadId: z.string(), agentId: z.string(),
+      leadId: z.string(),
+      /** Defaults to the caller, as `slots` does — an agent booking their
+       *  own viewing should not have to name themselves. A manager
+       *  booking on someone else's diary still passes it. */
+      agentId: z.string().optional(),
       listingId: z.string().optional(), start: z.date(), durationMins: z.number().default(30),
     }))
     .mutation(async ({ ctx, input }) => {
@@ -99,7 +113,7 @@ export const viewingsRouter = router({
             orgId: ctx.orgId,
             leadId: input.leadId,
             listingId: input.listingId,
-            agentId: input.agentId,
+            agentId: input.agentId ?? ctx.userId,
             scheduledAt: input.start,
             durationMins: input.durationMins,
             status: "SCHEDULED",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { use, useState } from "react";
 import { api } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { QueryError } from "@/components/ui/query-state";
@@ -18,18 +18,18 @@ import { cn } from "@/lib/cn";
  * commits it. A hold that is never confirmed expires on its own.
  */
 export default function Book({ searchParams }: {
-  searchParams: { lead?: string; listing?: string };
+  // Next 15 passes `searchParams` as a Promise, the same as `params`.
+  searchParams: Promise<{ lead?: string; listing?: string }>;
 }) {
-  const leadId = searchParams.lead ?? "";
-  const listingId = searchParams.listing;
+  const { lead, listing: listingId } = use(searchParams);
+  const leadId = lead ?? "";
 
-  const { data: me } = api.org.mine.useQuery();
-  const agentId = me?.userId ?? "";
-
-  const { data, isLoading, isError, refetch } = api.viewings.slots.useQuery(
-    { agentId, listingId, days: 7 },
-    { enabled: Boolean(agentId) }
-  );
+  // No agentId passed: `viewings.slots` defaults to the calling agent,
+  // which is who this screen is for. It used to read `userId` off
+  // `org.mine`, which lists the brokerages you belong to and never had
+  // one — so `agentId` was always "" and the query never ran.
+  const { data, isLoading, isError, refetch } =
+    api.viewings.slots.useQuery({ listingId, days: 7 });
 
   const hold = api.viewings.hold.useMutation();
   const confirm = api.viewings.confirm.useMutation();
@@ -49,7 +49,7 @@ export default function Book({ searchParams }: {
     );
   }
 
-  const slots = data?.slots ?? [];
+  const slots = data ?? [];
   const byDay = slots.reduce<Record<string, typeof slots>>((acc, s) => {
     const k = new Date(s.start).toLocaleDateString("en-GB",
       { weekday: "long", day: "numeric", month: "long" });
@@ -111,7 +111,7 @@ export default function Book({ searchParams }: {
           // stops a second agent offering the same slot while this one
           // is still being agreed.
           hold.mutate(
-            { leadId, agentId, listingId, start: new Date(picked), durationMins: 30 },
+            { leadId, listingId, start: new Date(picked), durationMins: 30 },
             { onSuccess: (v) => confirm.mutate({ viewingId: v.id }) }
           );
         }}>

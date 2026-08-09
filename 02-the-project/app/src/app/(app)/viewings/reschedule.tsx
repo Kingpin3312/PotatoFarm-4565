@@ -18,7 +18,8 @@ export function Reschedule({ viewingId, agentId, listingId, onDone }: {
   const move = api.viewings.reschedule.useMutation({ onSuccess: onDone });
   const [picked, setPicked] = useState<string | null>(null);
 
-  const slots = data?.slots ?? [];
+  // `viewings.slots` returns the array itself, not `{ slots }`.
+  const slots = data ?? [];
 
   return (
     <div className="bg-sunk rounded-xl p-4">

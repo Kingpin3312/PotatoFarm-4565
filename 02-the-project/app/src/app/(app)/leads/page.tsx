@@ -31,7 +31,9 @@ export default function Leads() {
 
   if (isError) return <QueryError retry={() => void refetch()} what="your leads" />;
 
-  const rows = data?.leads ?? [];
+  // `leads.list` returns `{ rows, nextCursor }` — the cursor is how the
+  // list pages, and naming the array `leads` here hid that.
+  const rows = data?.rows ?? [];
   const toggle = (id: string) => setPicked((s) => {
     const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n;
   });
@@ -73,7 +75,8 @@ export default function Leads() {
             className="min-h-11 px-3 text-[15px] text-ink bg-raised border border-rule rounded-lg">
             <option value="">Assign to…</option>
             {(team?.members ?? []).map((m) => (
-              <option key={m.id} value={m.id}>{m.name ?? m.email}</option>
+              // `m.id` is the membership id; assignment wants the user.
+              <option key={m.id} value={m.user.id}>{m.user.name ?? m.user.email}</option>
             ))}
           </select>
           <button className="btn-inline ml-auto" onClick={() => setPicked(new Set())}>
@@ -97,7 +100,7 @@ export default function Leads() {
                 <input type="checkbox" checked={picked.has(l.id)} onChange={() => toggle(l.id)}
                   className="w-5 h-5 accent-[var(--accent)]" />
               </label>
-              <a href={`/inbox/${l.conversationId ?? l.id}`}
+              <a href={`/inbox/${l.conversation?.id ?? l.id}`}
                  className="text-[15px] text-ink no-underline flex-1">
                 {l.name ?? l.phone}
               </a>
@@ -105,7 +108,7 @@ export default function Leads() {
                 {l.source}
               </span>
               <span className="font-mono text-[11px] text-ink-3 w-20 text-right tabular">
-                {l.agentName ?? "unassigned"}
+                {l.assignedTo?.name ?? "unassigned"}
               </span>
             </div>
           ))}

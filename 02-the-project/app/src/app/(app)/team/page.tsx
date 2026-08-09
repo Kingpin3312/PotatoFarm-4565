@@ -91,19 +91,26 @@ export default function Team() {
           ? [...Array(3)].map((_, i) => <div key={i} className="h-14 bg-sunk" aria-busy />)
           : members.map((m) => (
               <div key={m.id} className="flex items-baseline gap-3 py-3.5 border-b border-rule">
-                <span className="text-[15px] text-ink">{m.name ?? m.email}</span>
+                <span className="text-[15px] text-ink">{m.user.name ?? m.user.email}</span>
                 <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-3">
                   {m.role.toLowerCase()}
                 </span>
+                {/* Every Membership row is an accepted one — an
+                    invitation that has not been taken up lives in
+                    `data.pending` and has no membership yet, so
+                    `m.acceptedAt` was a field that could not exist.
+                    Last seen is the useful thing to show instead. */}
                 <span className="ml-auto font-mono text-[11px] text-ink-3">
-                  {m.acceptedAt ? "active" : "invited"}
+                  {m.user.lastSeenAt
+                    ? `seen ${new Date(m.user.lastSeenAt).toLocaleDateString("en-GB")}`
+                    : "not signed in yet"}
                 </span>
                 {/* Removing stops the seat the same day. The billing
                     consequence is stated on this screen already, so this
                     is a plain action rather than a warning. */}
                 {m.role !== "OWNER" && (
                   <button className="btn-inline"
-                    onClick={() => remove.mutate({ userId: m.userId })}>
+                    onClick={() => remove.mutate({ userId: m.user.id })}>
                     Remove
                   </button>
                 )}
