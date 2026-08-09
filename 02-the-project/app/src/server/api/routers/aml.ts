@@ -74,11 +74,89 @@ export const amlRouter = router({
     }),
 
   /** Compliance officer only. Everything the agent must not see. */
-  reports: requirePermission("compliance:read").query(({ ctx }) =>
-    ctx.db.complianceReport.findMany({
-      orderBy: { decidedAt: "desc" }, take: 100,
-    })
-  ),
+  /**
+   * The compliance officer's desk: what is waiting on a decision, and what
+   * is due for review.
+   *
+   * This returned a flat list of `ComplianceReport` rows — decisions
+   * already made — while the screen asked for `pending` and `reviewsDue`,
+   * which are the two things that need doing. It was answering the
+   * opposite question.
+   *
+   * Gated on `compliance:read`, so none of this reaches an agent. Why a
+   * screening was held is exactly what must never be visible on the
+   * floor: tipping off is an offence in itself.
+   */
+  reports: requirePermission("compliance:read").query(async ({ ctx }) => {
+    const now = new Date();
+
+    const [screenings, reviews, filed] = await Promise.all([
+      // Anything not clear, newest first. `AUTO_CLEAR_THRESHOLD` is null
+      // on purpose — nothing clears itself, so everything here is a
+      // person's decision.
+      ctx.db.screening.findMany({
+        where: { result: { in: ["POSSIBLE_MATCH", "CONFIRMED_MATCH"] } },
+        orderBy: { screenedAt: "desc" },
+        take: 100,
+        select: {
+          id: true, kycId: true, result: true, nameChecked: true,
+          lists: true, screenedAt: true, clearedNote: true,
+          kyc: { select: { id: true, legalName: true } },
+        },
+      }),
+
+      // A review that is due is due; one due next week is worth seeing
+      // now, so the window reaches forward 30 days.
+      ctx.db.kycRecord.findMany({
+        where: {
+          reviewDueAt: { not: null, lte: new Date(now.getTime() + 30 * 86_400_000) },
+          status: { notIn: ["REJECTED"] },
+        },
+        orderBy: { reviewDueAt: "asc" },
+        take: 100,
+        select: { id: true, legalName: true, riskRating: true, reviewDueAt: true },
+      }),
+
+      ctx.db.complianceReport.findMany({ orderBy: { decidedAt: "desc" }, take: 100 }),
+    ]);
+
+    const days = (from: Date, to: Date) =>
+      Math.round((to.getTime() - from.getTime()) / 86_400_000);
+
+    return {
+      /**
+       * `id` is the KYC id, not the screening id — the row links to
+       * `/compliance/[kycId]`, which queries `screeningDetail({ kycId })`.
+       * A screening with no KYC record cannot be opened, so it is dropped
+       * rather than rendered as a dead link.
+       */
+      pending: screenings.flatMap((s) =>
+        s.kyc
+          ? [{
+              id: s.kyc.id,
+              name: s.kyc.legalName,
+              result: s.result,
+              heldFor: `${Math.max(0, days(s.screenedAt, now))}d`,
+              listName: s.lists[0] ?? "sanctions list",
+              matchedOn: s.nameChecked,
+            }]
+          : []
+      ),
+
+      reviewsDue: reviews.map((k) => {
+        const left = k.reviewDueAt ? days(now, k.reviewDueAt) : 0;
+        return {
+          id: k.id,
+          name: k.legalName,
+          rating: k.riskRating,
+          dueIn: left < 0 ? `${Math.abs(left)}d overdue` : left === 0 ? "today" : `${left}d`,
+        };
+      }),
+
+      /** Decisions already taken. Kept — it is what this used to return. */
+      filed,
+    };
+  }),
 
   screeningDetail: requirePermission("compliance:read")
     .input(z.object({ kycId: z.string() }))
