@@ -162,7 +162,7 @@ and the advisor layer scales by hiring.
 | Lead generation | **PotatoFarm superior** — Meta lead ads, portals, WhatsApp, website. Not established for S.MPLE. |
 | Lead qualification | **PotatoFarm superior** — the assistant qualifies in the conversation. |
 | Property intelligence | **Partial** — buyer→property matching exists; the reverse view (which buyers for this property) does not. |
-| Pipeline intelligence | **Missing** — no probability, no forecast weighting. |
+| Pipeline intelligence | **Partial** — deals are scored and ranked; leads have no win probability yet. |
 | Transaction management | **PotatoFarm superior** |
 | Agent productivity | **Split** — they have 17 recipes to our 7; we return in seconds where they take hours. |
 | Predictive recommendations | **Missing entirely** — `Lead.score` is a column nothing writes. |
@@ -256,6 +256,7 @@ checks is broken.
 | 5. A real daily briefing | **Done.** Five things, each with why |
 | 6. Client memory model | **Done.** `ClientFact`, written by the intake flow |
 | P1 · Voice on an iPhone | **Done.** `npm run check:voice` |
+| P1 · Deal intelligence | **Done.** `npm run check:deals` |
 
 Three bugs the work turned up, all found by running it:
 
@@ -296,9 +297,8 @@ where that one does not: the transcription request carries a Dubai
 vocabulary hint, so it spells Jumeirah and Trakheesi. Web Speech has no
 equivalent.
 
-**Remaining P1:** deal health scores, the AI action log surfaced in the
-interface, graded autonomy, property-side intelligence and semantic
-search.
+**Remaining P1:** the AI action log surfaced in the interface, graded
+autonomy, property-side intelligence and semantic search.
 
 ---
 

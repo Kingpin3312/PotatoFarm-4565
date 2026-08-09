@@ -4,6 +4,7 @@ import { messagingWindow } from "@/server/lib/whatsapp";
 import { best, type Candidate } from "@/server/lib/matching/score";
 import { movement, scoreLead, type ScoreInput } from "./score";
 import { nextAction, type Subject } from "./next-action";
+import { assessRisk } from "@/server/lib/deals/risk";
 
 /**
  * Score every lead, and decide what to do about each one.
@@ -381,6 +382,139 @@ export async function sweepIntelligence() {
           orgId: org.id, leadId: lead.id, state: "OPEN",
           action: { not: suggestion.action },
         },
+        data: { state: "STALE", resolvedAt: now },
+      });
+      stale += count;
+    }
+  }
+
+  /**
+   * Deals in trouble, on the same list as everything else.
+   *
+   * `Recommendation.dealId` existed from the day the model was written
+   * and nothing wrote to it — the deal risk engine and the command
+   * centre were two systems that never met, so an agent had to know to
+   * go and look at the deals screen to find out a transfer was about to
+   * miss its date.
+   *
+   * A separate pass rather than folded into the lead loop, because a
+   * deal is not a lead: it can outlive one, it can have none, and it is
+   * assessed on completely different signals.
+   */
+  for (const org of orgs) {
+    const live = await db.deal.findMany({
+      where: { orgId: org.id, stage: { notIn: ["COMPLETED", "COLLAPSED"] } },
+      select: {
+        id: true, reference: true, stage: true, financing: true, valueFils: true,
+        sellerHasMortgage: true, contractualCompletionAt: true, leadId: true,
+        milestones: { select: { stage: true, completedAt: true, blockedReason: true } },
+      },
+    });
+    if (!live.length) continue;
+
+    const leadIds = live.map((d) => d.leadId).filter((x): x is string => Boolean(x));
+    const leads = leadIds.length
+      ? await db.lead.findMany({
+          where: { id: { in: leadIds } },
+          select: { id: true, name: true, assignedToId: true,
+                    conversation: { select: { lastInboundAt: true } } },
+        })
+      : [];
+    const byId = new Map(leads.map((l) => [l.id, l]));
+
+    for (const d of live) {
+      const lead = d.leadId ? byId.get(d.leadId) : undefined;
+
+      /**
+       * No agent, no recommendation.
+       *
+       * A deal whose lead is unassigned has nobody to tell. Putting it
+       * on a manager's list would turn the assistant into a report,
+       * which is the thing this whole layer exists not to be.
+       */
+      const agentId = lead?.assignedToId;
+      if (!agentId) continue;
+
+      const last = lead?.conversation?.lastInboundAt ?? null;
+      const risk = assessRisk({
+        reference: d.reference,
+        stage: d.stage,
+        financing: d.financing,
+        sellerHasMortgage: d.sellerHasMortgage,
+        contractualCompletionAt: d.contractualCompletionAt,
+        completed: d.milestones.filter((m) => m.completedAt).map((m) => m.stage),
+        blocked: d.milestones
+          .filter((m) => !m.completedAt && m.blockedReason)
+          .map((m) => ({ stage: m.stage, reason: m.blockedReason! })),
+        daysSinceContact: last
+          ? Math.floor((now.getTime() - last.getTime()) / 86_400_000) : null,
+        counterparty: lead?.name ?? null,
+      }, now);
+
+      /**
+       * Healthy deals produce nothing, and any stale recommendation
+       * goes with them.
+       *
+       * Same rule as leads: "this deal is at risk" left open the morning
+       * after somebody fixed it is how an agent learns to stop reading
+       * the list.
+       */
+      if (!risk.action) {
+        const { count } = await db.recommendation.updateMany({
+          where: { orgId: org.id, dealId: d.id, state: "OPEN" },
+          data: { state: "STALE", resolvedAt: now },
+        });
+        stale += count;
+        continue;
+      }
+
+      /**
+       * Not an upsert.
+       *
+       * The unique key is `[orgId, agentId, leadId, action]`, and for a
+       * deal recommendation `leadId` is null. Postgres treats NULLs as
+       * distinct in a unique index, so an upsert on that key would
+       * insert a fresh row every night rather than updating one. Found
+       * by reading the constraint rather than by running it, which is
+       * the only way this one shows up before it has made ninety
+       * duplicates.
+       */
+      const existing = await db.recommendation.findFirst({
+        where: { orgId: org.id, dealId: d.id, action: risk.action.kind,
+                 state: { in: ["OPEN", "DISMISSED"] } },
+        select: { id: true, state: true, resolvedAt: true },
+      });
+
+      // A dismissal is respected for a fortnight, as with leads.
+      if (existing?.state === "DISMISSED" &&
+          existing.resolvedAt && existing.resolvedAt > new Date(now.getTime() - 14 * 86_400_000)) {
+        continue;
+      }
+
+      const data = {
+        headline: risk.action.headline,
+        reason: risk.reason,
+        // Deals outrank leads: money is committed and a date is fixed.
+        priority: risk.level === "AT_RISK" ? 0.95 : 0.6,
+        valueFils: d.valueFils,
+        state: "OPEN" as const,
+        resolvedAt: null,
+        computedAt: now,
+        expiresAt: new Date(now.getTime() + 3 * 86_400_000),
+      };
+
+      if (existing) {
+        await db.recommendation.update({ where: { id: existing.id }, data });
+      } else {
+        await db.recommendation.create({
+          data: { orgId: org.id, agentId, dealId: d.id, action: risk.action.kind, ...data },
+        });
+      }
+      recommended += 1;
+
+      // One live recommendation per deal, as with a person.
+      const { count } = await db.recommendation.updateMany({
+        where: { orgId: org.id, dealId: d.id, state: "OPEN", action: { not: risk.action.kind } },
         data: { state: "STALE", resolvedAt: now },
       });
       stale += count;

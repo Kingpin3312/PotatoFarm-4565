@@ -22,6 +22,7 @@ import { channelsRouter } from "./routers/channels";
 import { requestsRouter } from "./routers/requests";
 import { vendorsRouter } from "./routers/vendors";
 import { todayRouter } from "./routers/today";
+import { dealsRouter } from "./routers/deals";
 
 /**
  * The API surface.
@@ -39,6 +40,8 @@ import { todayRouter } from "./routers/today";
 export const appRouter = router({
   // The front door. Everything it reads was computed overnight.
   today: todayRouter,
+  // The module that had a nightly health job and no way to look at it.
+  deals: dealsRouter,
   org: orgRouter,
   onboarding: onboardingRouter,
 

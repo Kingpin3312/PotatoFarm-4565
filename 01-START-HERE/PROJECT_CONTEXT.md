@@ -88,6 +88,7 @@ Plain **HTML, CSS and JavaScript**. No framework, no build step, no
 | `lib/intelligence/next-action.ts` | One action per person, ordered by urgency |
 | `lib/intelligence/sweep.ts` | Nightly, in the jobs layer, never in a request |
 | `api/routers/today.ts` | The briefing the command centre reads |
+| `lib/deals/risk.ts` | Deal health — timeline, silence, blockers, money |
 | `ClientFact` | Memory the CRM has no columns for |
 | `lib/voice/transcribe.ts` | Speech to text, any OpenAI-compatible provider |
 | `lib/record.ts` | Browser recording, including Safari's mp4-only path |
@@ -141,13 +142,14 @@ chart; spoken requests ("Ask").
   sentence creates the person, the requirement, the facts, the follow-up
   and a match.
 
-### The six things you can re-run
+### The seven things you can re-run
 
 ```bash
 npm run check:tenancy       # two brokerages, one database, no leakage
 npm run check:intake        # one sentence → client, requirement, match
 npm run check:intelligence  # scoring, next-best-action, the nightly sweep
 npm run check:voice         # speech to text, including the iPhone path
+npm run check:deals         # deal risk, and the reason it gives
 npm run check:sigv4         # request signing vs AWS's published vector
 npm run check:storage       # upload, read back byte-for-byte, delete
 ```

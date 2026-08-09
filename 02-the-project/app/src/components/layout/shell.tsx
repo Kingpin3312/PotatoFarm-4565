@@ -22,6 +22,7 @@ import { api } from "@/lib/trpc";
  * somewhere an agent goes several times a day. Everything else is here.
  */
 export const SETTINGS_NAV = [
+  { href: "/deals", label: "Deals" },
   { href: "/reports", label: "Reports" },
   { href: "/me", label: "Mine" },
   { href: "/leads", label: "Leads" },
@@ -166,6 +167,7 @@ const TABS = [
 /** Behind More, ordered by how often an agent opens them. */
 const MORE = [
   { href: "/ask", label: "Ask" },
+  { href: "/deals", label: "Deals" },
   { href: "/blackbook", label: "Blackbook" },
   { href: "/offers", label: "Offers" },
   { href: "/leads", label: "Leads" },
