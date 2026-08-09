@@ -22,6 +22,7 @@ writes the first row?**
 It produced **six false findings on its first run** and every one came
 from a pattern I wrote from memory rather than from the code:
 
+
   - It named `tx`, `db` and `ctx.db` as receivers and missed
     `crossTenant("sweep").invoice.create`, then reported that invoicing
     could not start.
@@ -39,8 +40,28 @@ script here and it applies hardest to the newest one.
 """
 import glob, os, re, sys
 
+# ---------------------------------------------------------------------
+# Skip anything that is not ours.
+#
+# Every recursive glob in this suite was written when `node_modules` did
+# not exist, because nothing had ever been installed. The moment it did,
+# the checks started reading dependencies: the contrast check failed six
+# times on ag-Grid colours inside Prisma Studio's bundled stylesheet.
+#
+# A check that reports a dependency's CSS as a brand violation is a check
+# nobody runs twice.
+# ---------------------------------------------------------------------
+_SKIP = ("node_modules", "/.next/", "/dist/", "/build/", "/__pycache__/", "/.git/")
+
+
+def ours(paths):
+    """Filter a glob result down to this project's own files."""
+    return [p for p in paths if not any(s in p.replace(os.sep, "/") for s in _SKIP)]
+
+
+
 ROOT = sys.argv[1] if len(sys.argv) > 1 else "potato-crm"
-src = {p: open(p).read() for p in glob.glob(f"{ROOT}/src/**/*.ts*", recursive=True)}
+src = {p: open(p).read() for p in ours(glob.glob(f"{ROOT}/src/**/*.ts*", recursive=True))}
 allsrc = "\n".join(src.values())
 FAILS, NOTES = [], []
 
@@ -97,7 +118,7 @@ for model, _ in DRIVERS:
 # revenue path is not, because a billing procedure nothing calls means
 # nobody can pay.
 screens = "\n".join(open(p2).read() for p2 in
-                    glob.glob(f"{ROOT}/src/app/**/*.tsx", recursive=True))
+                    ours(glob.glob(f"{ROOT}/src/app/**/*.tsx", recursive=True)))
 routers = glob.glob(f"{ROOT}/src/server/api/routers/*.ts")
 
 REVENUE = {"billing"}
@@ -142,7 +163,7 @@ for rf in routers:
         router_inputs[f"{rname}.{m.group(1)}"] = keys
 
 bad = 0
-for sf in glob.glob(f"{ROOT}/src/app/**/*.tsx", recursive=True):
+for sf in ours(glob.glob(f"{ROOT}/src/app/**/*.tsx", recursive=True)):
     body = open(sf).read()
     # Bind the variable to its procedure first, then find that
     # variable's own calls. The first version searched forward from the
@@ -157,7 +178,13 @@ for sf in glob.glob(f"{ROOT}/src/app/**/*.tsx", recursive=True):
             continue
         for call in re.finditer(rf'\b{re.escape(var)}\.(?:mutate|mutateAsync)\(\s*\{{([^}}]*)\}}',
                                 body):
-            passed = set(re.findall(r'(\w+)\s*:', call.group(1)))
+            # `word:` finds object keys, and also finds the tail of a
+            # ternary — `x ?? null : null` reads as a key called `null`.
+            # These are the only words that can appear immediately before
+            # a colon without being a key, so excluding them is exact
+            # rather than a guess.
+            LITERALS = {"null", "undefined", "true", "false"}
+            passed = set(re.findall(r'(\w+)\s*:', call.group(1))) - LITERALS
             unknown = passed - expected
             if unknown:
                 bad += 1
@@ -215,7 +242,7 @@ for rf in routers:
             returns[f"{rname}.{n}"] = keys
 
 bad = 0
-for sf in glob.glob(f"{ROOT}/src/app/**/*.tsx", recursive=True):
+for sf in ours(glob.glob(f"{ROOT}/src/app/**/*.tsx", recursive=True)):
     body = open(sf).read()
     binds = dict(re.findall(
         r"const\s+(\w+)\s*=\s*api\.(\w+\.\w+)\.use\w+\(", body))

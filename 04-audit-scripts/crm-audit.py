@@ -38,7 +38,18 @@ else:
 # 2. Permissions used vs defined.
 rbac = next((s for p, s in src.items() if p.endswith("rbac.ts")), "")
 defined = set(re.findall(r'"([a-z]+:[a-z:]+)"', rbac.split("export type Permission")[0]))
+# Both ways a permission is checked. `requirePermission()` gates a
+# procedure; `can(role, "…")` asks the same question inside one, which is
+# how the leaderboard decides whether you see the whole team. Counting
+# only the first reported seven permissions as dead that are in daily
+# use — and a warning that is wrong seven times is one nobody reads the
+# eighth time.
 used = set(re.findall(r'requirePermission\("([^"]+)"\)', allsrc))
+used |= set(re.findall(r'can\(\s*[\w.]+\s*,\s*"([^"]+)"', allsrc))
+# `leadScope()` is the read:own / read:all split expressed as a Prisma
+# filter rather than a gate.
+if "leadScope" in allsrc:
+    used |= {"lead:read:all", "lead:read:own"}
 for p in sorted(used - defined):
     fail(f"permission '{p}' is used but never defined in rbac.ts")
 for p in sorted(defined - used - {"org:delete", "org:billing", "lead:read:own", "conversation:read"}):
@@ -79,9 +90,15 @@ for line in schema.splitlines():
 
 # 6. Env vars read vs documented.
 env_used = set(re.findall(r'process\.env\.([A-Z0-9_]+)', allsrc))
-env_file = os.path.join(ROOT, "..", "potato-prod", ".env.example")
+# The app's own .env.example. This pointed at `../potato-prod/.env.example`,
+# a directory that has never existed in this repository — so `documented`
+# was always empty and **every** variable read anywhere was reported as
+# undocumented. Sixteen false positives, which is how a check stops being
+# read.
+env_file = os.path.join(ROOT, ".env.example")
 documented = set(re.findall(r'^([A-Z0-9_]+)=', read(env_file), re.M)) if os.path.exists(env_file) else set()
-for e in sorted(env_used - documented - {"NODE_ENV"}):
+# NODE_ENV and NEXT_RUNTIME are set by the framework, not by an operator.
+for e in sorted(env_used - documented - {"NODE_ENV", "NEXT_RUNTIME"}):
     warn(f"env var {e} is read in code but not in .env.example")
 
 
@@ -136,6 +153,12 @@ for p2, s2 in src.items():
         hit = next((c for c in cand if c in src), None)
         if not hit: continue
         exported = set(re.findall(r'export (?:async )?(?:function|const|class|type|interface) (\w+)', src[hit]))
+        # `export const { handlers, auth } = NextAuth(…)` — a destructured
+        # export. Missing this made the NextAuth route look like it
+        # imported something that did not exist, which is exactly the
+        # class of false positive that gets a real finding ignored.
+        for grp in re.findall(r'export const \{([^}]+)\}\s*=', src[hit]):
+            exported |= {n.strip().split(":")[-1].strip() for n in grp.split(",")}
         exported |= set(re.findall(r'export \{([^}]+)\}', src[hit])[0].split(",")) \
                     if re.search(r'export \{', src[hit]) else set()
         exported = {e.strip() for e in exported}

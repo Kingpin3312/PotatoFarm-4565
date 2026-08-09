@@ -12,6 +12,25 @@ brokerage that does not exist.
 """
 import glob, os, re, sys
 
+# ---------------------------------------------------------------------
+# Skip anything that is not ours.
+#
+# Every recursive glob in this suite was written when `node_modules` did
+# not exist, because nothing had ever been installed. The moment it did,
+# the checks started reading dependencies: the contrast check failed six
+# times on ag-Grid colours inside Prisma Studio's bundled stylesheet.
+#
+# A check that reports a dependency's CSS as a brand violation is a check
+# nobody runs twice.
+# ---------------------------------------------------------------------
+_SKIP = ("node_modules", "/.next/", "/dist/", "/build/", "/__pycache__/", "/.git/")
+
+
+def ours(paths):
+    """Filter a glob result down to this project's own files."""
+    return [p for p in paths if not any(s in p.replace(os.sep, "/") for s in _SKIP)]
+
+
 SITE = sys.argv[1] if len(sys.argv) > 1 else "potato-launch"
 CODE = sys.argv[2] if len(sys.argv) > 2 else "potato-crm"
 FAILS, WARNS = [], []
@@ -19,7 +38,7 @@ FAILS, WARNS = [], []
 pages = {os.path.basename(p): open(p).read()
          for p in glob.glob(f"{SITE}/*.html") if "preview" not in p}
 src = "\n".join(open(p).read() for p in
-                glob.glob(f"{CODE}/src/**/*.ts*", recursive=True))
+                ours(glob.glob(f"{CODE}/src/**/*.ts*", recursive=True)))
 
 # 1. A performance figure attributed to a customer, when there are none.
 #
@@ -67,8 +86,8 @@ for name, html in pages.items():
 #    "the stop button" who then finds a "kill switch" and a "mute" has
 #    to work out which is which in the moment they most need to be sure.
 import itertools
-web = "\n".join(open(p2).read() for p2 in glob.glob(f"{CODE}/src/app/**/*.tsx", recursive=True))
-mob = "\n".join(open(p2).read() for p2 in glob.glob(f"{CODE}/mobile/**/*.tsx", recursive=True))
+web = "\n".join(open(p2).read() for p2 in ours(glob.glob(f"{CODE}/src/app/**/*.tsx", recursive=True)))
+mob = "\n".join(open(p2).read() for p2 in ours(glob.glob(f"{CODE}/mobile/**/*.tsx", recursive=True)))
 site_all = "\n".join(pages.values())
 
 ONE_NAME = {
@@ -90,6 +109,8 @@ for concept, variants in ONE_NAME.items():
 # omitting what it does not cover is the failure mode this file exists
 # to catch.
 import glob as _g, re as _re, os as _os
+
+
 for _f in _g.glob(_os.path.join(SITE, "*.html")):
     if "preview" in _os.path.basename(_f):
         continue

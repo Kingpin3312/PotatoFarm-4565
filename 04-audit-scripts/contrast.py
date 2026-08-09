@@ -13,6 +13,27 @@ on a cream panel that no token-level check could see.
 """
 import glob, os, re, sys
 
+# ---------------------------------------------------------------------
+# Skip anything that is not ours.
+#
+# Every recursive glob in this suite was written when `node_modules` did
+# not exist, because nothing had ever been installed. The moment it did,
+# the checks started reading dependencies: the contrast check failed six
+# times on ag-Grid colours inside Prisma Studio's bundled stylesheet.
+#
+# A check that reports a dependency's CSS as a brand violation is a check
+# nobody runs twice.
+# ---------------------------------------------------------------------
+_SKIP = ("node_modules", "/.next/", "/dist/", "/build/", "/__pycache__/", "/.git/")
+
+
+def ours(paths):
+    """Filter a glob result down to this project's own files."""
+    return [p for p in paths if not any(s in p.replace(os.sep, "/") for s in _SKIP)]
+
+
+
+
 ROOT = sys.argv[1] if len(sys.argv) > 1 else "potato-launch"
 FAILS, WARNS = [], []
 
@@ -34,7 +55,7 @@ def selector(raw):
     raw = raw.strip().split("\n")[-1]                     # last line only
     return " ".join(raw.split())[:52] or "(unknown)"
 
-css = "\n".join(open(p).read() for p in glob.glob(f"{ROOT}/**/*.css", recursive=True))
+css = "\n".join(open(p).read() for p in ours(glob.glob(f"{ROOT}/**/*.css", recursive=True)))
 for p in glob.glob(f"{ROOT}/*.html"):
     if "preview" in os.path.basename(p): continue
     for m in re.finditer(r'<style>(.*?)</style>', open(p).read(), re.S):

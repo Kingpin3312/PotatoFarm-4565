@@ -4,14 +4,33 @@ UX audit. Things that break for a person, not for a compiler.
 """
 import glob, os, re, sys
 
+# ---------------------------------------------------------------------
+# Skip anything that is not ours.
+#
+# Every recursive glob in this suite was written when `node_modules` did
+# not exist, because nothing had ever been installed. The moment it did,
+# the checks started reading dependencies: the contrast check failed six
+# times on ag-Grid colours inside Prisma Studio's bundled stylesheet.
+#
+# A check that reports a dependency's CSS as a brand violation is a check
+# nobody runs twice.
+# ---------------------------------------------------------------------
+_SKIP = ("node_modules", "/.next/", "/dist/", "/build/", "/__pycache__/", "/.git/")
+
+
+def ours(paths):
+    """Filter a glob result down to this project's own files."""
+    return [p for p in paths if not any(s in p.replace(os.sep, "/") for s in _SKIP)]
+
+
 ROOT = sys.argv[1] if len(sys.argv) > 1 else "potato-crm"
 ISSUES, NOTES = [], []
 def issue(f, m): ISSUES.append((f, m))
 def note(f, m): NOTES.append((f, m))
 
 files = {p: open(p).read() for p in
-         glob.glob(f"{ROOT}/src/**/*.tsx", recursive=True) +
-         glob.glob(f"{ROOT}/mobile/**/*.tsx", recursive=True)}
+         ours(glob.glob(f"{ROOT}/src/**/*.tsx", recursive=True)) +
+         ours(glob.glob(f"{ROOT}/mobile/**/*.tsx", recursive=True))}
 
 for p, s in files.items():
     b = os.path.basename(p)
@@ -34,7 +53,12 @@ for p, s in files.items():
     # button, and it never announces what the dialog is. What we want is
     # focus on the dialog with an aria-labelledby pointing at its
     # heading.
-    if "showModal" in s:
+    # `showModal()` with the parentheses, not the bare word. The bare
+    # word matched a comment in shell.tsx explaining why that component
+    # deliberately does *not* use showModal, and reported the file for
+    # the thing it had just been written to avoid. A dialog being opened
+    # is always a call.
+    if "showModal()" in s:
         labelled = "aria-labelledby" in s or "aria-label" in s
         focused = re.search(r'showModal\(\)[^}]{0,80}focus\(\)', s) or "autoFocus" in s
         if not (labelled and focused):
@@ -94,6 +118,8 @@ if "requestPermissions" in push:
 # markup is correct, the value is not, and nothing else here could see
 # it.
 import glob as _g, re as _re, os as _os
+
+
 _btn = _os.path.join(ROOT, "src/components/ui/button.tsx")
 if _os.path.exists(_btn):
     _m = _re.search(r'variant:\s*\{(.*?)\n      \}', open(_btn).read(), _re.S)

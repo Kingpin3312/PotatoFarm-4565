@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/cn";
@@ -175,6 +175,30 @@ const MORE = [
 function MobileTabs({ pathname }: { pathname: string }) {
   const [more, setMore] = useState(false);
   const onMore = MORE.some((m) => pathname.startsWith(m.href));
+  const trigger = useRef<HTMLButtonElement>(null);
+
+  /**
+   * Escape closes it, and focus goes back to the button that opened it.
+   *
+   * A native `<dialog>` gives both of these free. This is a `div` with
+   * `role="dialog"` — chosen so the sheet can sit above the tab bar and
+   * animate, which `showModal` fights — and a div gives you nothing. Open
+   * on a keyboard and the only way out was Tab through every link to the
+   * backdrop, which reads as a trap.
+   *
+   * The sheet is closed on every navigation anyway (each Link calls
+   * setMore(false)), so this listener is only bound while it is open.
+   */
+  useEffect(() => {
+    if (!more) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setMore(false);
+      trigger.current?.focus();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [more]);
 
   return (
     <>
@@ -230,6 +254,7 @@ function MobileTabs({ pathname }: { pathname: string }) {
         })}
 
         <button
+          ref={trigger}
           onClick={() => setMore((v) => !v)}
           aria-expanded={more}
           className={cn(

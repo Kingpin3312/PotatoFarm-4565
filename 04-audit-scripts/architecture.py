@@ -37,7 +37,14 @@ def mod(path):
                       ("src/server/assistant/", "assistant"), ("src/server/jobs/", "jobs"),
                       ("src/server/auth/", "auth"), ("src/server/db/", "db"),
                       ("src/app/api/", "http"), ("src/app/", "ui"),
-                      ("src/components/", "ui"), ("src/lib/", "shared")]:
+                      ("src/components/", "ui"), ("src/lib/", "shared"),
+                      # Files the framework calls, not files anything
+                      # imports. Without these they classified as "other"
+                      # and were then reported unreachable — which is
+                      # true of every entry point by definition.
+                      ("src/instrumentation", "boot"),
+                      ("src/middleware", "boot"),
+                      ("src/types/", "types")]:
         if p.startswith(pre): return name
     return "other"
 
@@ -128,7 +135,10 @@ for m, bs in sorted(edges.items(), key=lambda x: -len(x[1]))[:6]:
 
 # ---------- 4. Unreachable ----------
 print("\n" + "=" * 64); print("REACHABILITY"); print("=" * 64)
-entry = {"routers", "jobs", "http", "ui", "api"}
+# `boot` is Next's own hooks — instrumentation.ts and middleware.ts are
+# invoked by the framework and imported by nothing. `types` is ambient
+# declarations, which are consumed by the compiler rather than at runtime.
+entry = {"routers", "jobs", "http", "ui", "api", "boot", "types"}
 reach, queue = set(entry), list(entry)
 while queue:
     n = queue.pop()

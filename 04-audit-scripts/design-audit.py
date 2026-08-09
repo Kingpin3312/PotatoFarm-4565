@@ -7,7 +7,28 @@ uses it, and it decays one hardcoded value at a time. Every finding
 here is countable.
 """
 import glob, os, re, sys
+
+# ---------------------------------------------------------------------
+# Skip anything that is not ours.
+#
+# Every recursive glob in this suite was written when `node_modules` did
+# not exist, because nothing had ever been installed. The moment it did,
+# the checks started reading dependencies: the contrast check failed six
+# times on ag-Grid colours inside Prisma Studio's bundled stylesheet.
+#
+# A check that reports a dependency's CSS as a brand violation is a check
+# nobody runs twice.
+# ---------------------------------------------------------------------
+_SKIP = ("node_modules", "/.next/", "/dist/", "/build/", "/__pycache__/", "/.git/")
+
+
+def ours(paths):
+    """Filter a glob result down to this project's own files."""
+    return [p for p in paths if not any(s in p.replace(os.sep, "/") for s in _SKIP)]
+
 from collections import Counter
+
+
 
 TARGETS = sys.argv[1:] or ["potato-design-v3", "potato-launch", "potato-crm"]
 FAIL, WARN = [], []
@@ -115,7 +136,7 @@ def scan_html(label, files):
         WARN.append(f"{label}: {inline} long inline styles")
 
 for t in TARGETS:
-    css = {p: open(p).read() for p in glob.glob(f"{t}/**/*.css", recursive=True)}
+    css = {p: open(p).read() for p in ours(glob.glob(f"{t}/**/*.css", recursive=True))}
     html = {p: open(p).read() for p in glob.glob(f"{t}/*.html")
             if "preview" not in os.path.basename(p)}
     # Styles inside <style> blocks count as CSS.

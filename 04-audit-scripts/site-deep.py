@@ -6,7 +6,28 @@ markup and accessibility; this covers everything that is wrong while
 being perfectly valid HTML.
 """
 import glob, os, re, sys, json
+
+# ---------------------------------------------------------------------
+# Skip anything that is not ours.
+#
+# Every recursive glob in this suite was written when `node_modules` did
+# not exist, because nothing had ever been installed. The moment it did,
+# the checks started reading dependencies: the contrast check failed six
+# times on ag-Grid colours inside Prisma Studio's bundled stylesheet.
+#
+# A check that reports a dependency's CSS as a brand violation is a check
+# nobody runs twice.
+# ---------------------------------------------------------------------
+_SKIP = ("node_modules", "/.next/", "/dist/", "/build/", "/__pycache__/", "/.git/")
+
+
+def ours(paths):
+    """Filter a glob result down to this project's own files."""
+    return [p for p in paths if not any(s in p.replace(os.sep, "/") for s in _SKIP)]
+
 from html.parser import HTMLParser
+
+
 
 SITE = sys.argv[1] if len(sys.argv) > 1 else "potato-site"
 BUGS, WARN, NOTE = [], [], []
@@ -139,7 +160,7 @@ for name, s in pages.items():
 
 
 # ---------- 8. The backend ----------
-back = {p: open(p).read() for p in glob.glob("potato-backend/src/**/*.ts*", recursive=True)}
+back = {p: open(p).read() for p in ours(glob.glob("potato-backend/src/**/*.ts*", recursive=True))}
 for p, s in back.items():
     b = os.path.basename(p)
     if "rate-limit" in b:
