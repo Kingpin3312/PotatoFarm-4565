@@ -5,3 +5,6 @@ node_modules/
 *.tsbuildinfo
 next-env.d.ts
 .DS_Store
+
+# Bundled output from `npm run check:tenancy`. Regenerated every run.
+.tmp/

@@ -59,7 +59,66 @@ const base = scoped;
  * connection inherits the previous tenant's scope. That is the exact bug
  * that turns row-level security into a false sense of safety.
  */
+/**
+ * One extended client per brokerage, not one per request.
+ *
+ * `$extends` builds a whole proxy over every model on the client. This
+ * was called fresh inside `forOrg()` on every `orgProcedure`
+ * invocation — a page issuing five tRPC calls built five of them, and
+ * threw all five away.
+ *
+ * Safe to cache because the extension closes over exactly two things:
+ * `base`, which is a module singleton, and `orgId`, which is the cache
+ * key. Nothing request-specific is captured — no user, no session, no
+ * transaction. If that ever stops being true this cache becomes a
+ * tenant leak, so the rule is: **nothing from the request may enter this
+ * closure.**
+ *
+ * Bounded, because on a long-lived server the key space is "every
+ * brokerage that has ever made a request" and an unbounded module-level
+ * Map is a slow leak. Oldest-out at the cap is fine — a miss costs one
+ * proxy construction, not a query.
+ */
+const clients = new Map<string, ReturnType<typeof extend>>();
+const MAX_CACHED_ORGS = 200;
+
 export function forOrg(orgId: string) {
+  const hit = clients.get(orgId);
+  if (hit) return hit;
+
+  const client = extend(orgId);
+  if (clients.size >= MAX_CACHED_ORGS) {
+    // Map iterates in insertion order, so the first key is the oldest.
+    const oldest = clients.keys().next().value;
+    if (oldest !== undefined) clients.delete(oldest);
+  }
+  clients.set(orgId, client);
+  return client;
+}
+
+/**
+ * Why every query still opens its own transaction.
+ *
+ * This looks like the obvious thing to fix — two round trips and a held
+ * connection per query, five times on a page issuing five tRPC calls —
+ * and the tempting change is to open one interactive transaction per
+ * request, `set_config` once, and pass `tx` down.
+ *
+ * **Do not.** `set_config(…, true)` is transaction-local, so the scope
+ * must live exactly as long as the statement it protects. Widening it to
+ * the request means a connection is held for the whole request — and
+ * these procedures call Anthropic, Stripe and Meta's Graph API mid-flight.
+ * A Postgres connection pinned open across a model call that can take
+ * twenty seconds exhausts the pool long before the extra round trips
+ * would have cost anything, and it does it under exactly the load where
+ * it hurts.
+ *
+ * The array form is also the documented way to do RLS with Prisma. The
+ * right place to spend the round trips is a connection pooler in front
+ * of Postgres, which is a deployment decision rather than a code one —
+ * see `.env.example`.
+ */
+function extend(orgId: string) {
   return base.$extends({
     query: {
       $allModels: {

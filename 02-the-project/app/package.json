@@ -13,6 +13,7 @@
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
     "audit": "bash ../../04-audit-scripts/run-all.sh",
+    "check:tenancy": "esbuild scripts/tenant-isolation.check.ts --bundle --platform=node --format=esm --outfile=.tmp/tenancy.mjs --external:@prisma/client --log-level=warning && node --env-file-if-exists=.env .tmp/tenancy.mjs",
     "test": "vitest run"
   },
   "dependencies": {
