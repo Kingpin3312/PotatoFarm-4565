@@ -97,9 +97,66 @@ env_used = set(re.findall(r'process\.env\.([A-Z0-9_]+)', allsrc))
 # read.
 env_file = os.path.join(ROOT, ".env.example")
 documented = set(re.findall(r'^([A-Z0-9_]+)=', read(env_file), re.M)) if os.path.exists(env_file) else set()
-# NODE_ENV and NEXT_RUNTIME are set by the framework, not by an operator.
-for e in sorted(env_used - documented - {"NODE_ENV", "NEXT_RUNTIME"}):
-    warn(f"env var {e} is read in code but not in .env.example")
+
+# The Prisma schema reads env too — `directUrl = env("DATABASE_URL_DIRECT")`
+# is a genuine, required variable that never appears as `process.env`.
+# Without this the reverse check below would report it as dead config and
+# somebody would helpfully delete it, which breaks every migration.
+schema_env = set(re.findall(r'env\("([A-Z0-9_]+)"\)', schema))
+
+# Set by the framework, not by an operator, so neither list should carry
+# them.
+FRAMEWORK = {"NODE_ENV", "NEXT_RUNTIME"}
+
+# Read by a dependency rather than by this codebase.
+#
+# `AUTH_SECRET` is the clearest case: NextAuth reads it itself and
+# refuses to start in production without it, so it is both genuinely
+# required and genuinely absent from our source. The reverse check found
+# it on its first run and called it dead configuration, which is exactly
+# the wrong answer — deleting it means nobody can sign in.
+#
+# `instrumentation.ts` does check it, but through `process.env[name]`
+# with the name in a data table, which no regex over source is going to
+# see. Naming it here is the honest way to say "we know, and it is
+# consumed elsewhere".
+LIBRARY_READ = {
+    "AUTH_SECRET",   # NextAuth v5 signs every session cookie with it
+    "AUTH_URL",      # NextAuth, only needed behind a host-rewriting proxy
+}
+
+# ---------------------------------------------------------------------
+# Read but not documented: a failure, not a warning.
+#
+# `.env.example` states in its own header that anything absent from it
+# and present in the code is a bug, and it is right — the whole shape of
+# this product's failures is silence. An unset variable does not throw,
+# it sends `undefined` in a header, gets a 401 back, and surfaces three
+# layers away as "the assistant handed this conversation to a person".
+#
+# This was a `warn()`, which meant the build stayed green while the file
+# that tells an operator what to provision was incomplete. That is the
+# one thing this check exists to prevent.
+# ---------------------------------------------------------------------
+for e in sorted(env_used - documented - FRAMEWORK):
+    fail(f"env var {e} is read in code but is not in .env.example — "
+         f"nobody deploying this will know to set it")
+
+# ---------------------------------------------------------------------
+# Documented but never read: the other direction, and a warning.
+#
+# `.env.example` used to carry twenty of these — Sanity, Turnstile,
+# Upstash, a CRM endpoint, Google Analytics — inherited from a marketing
+# site this application has never been. Dead configuration is worse than
+# none: it invites somebody to go and provision services the product does
+# not use, and it hides the handful that genuinely matter.
+#
+# A warning rather than a failure because a variable can legitimately
+# lead its implementation by a commit or two.
+# ---------------------------------------------------------------------
+for e in sorted(documented - env_used - schema_env - FRAMEWORK - LIBRARY_READ):
+    warn(f"env var {e} is in .env.example and nothing reads it — "
+         f"dead configuration invites somebody to provision it")
 
 
 # 7. Jobs registered vs cron.

@@ -391,15 +391,21 @@ the variables are gone.
 **Names only. No values appear anywhere in this project and none should
 ever be committed.** `app/.env.example` is the template.
 
-**Every variable in that file is read by the code, and every variable the
-code reads is in that file.** `crm-audit.py` fails the build otherwise.
-It used to carry twenty that were not — Sanity, Turnstile, Upstash, a CRM
-endpoint, Google Analytics — inherited from a marketing site this
-application has never been. Dead configuration invites somebody to
-provision services the product does not use.
+`crm-audit.py` checks both directions, and they are weighted
+differently:
+
+- **Read in code and absent from the file — a failure.** An unset
+  variable does not throw. It sends `undefined` in a header, gets a 401
+  back, and surfaces three layers away as "the assistant handed this
+  conversation to a person". Somebody deploying this has to be told.
+- **In the file and read by nothing — a warning.** It used to carry
+  twenty of these — Sanity, Turnstile, Upstash, a CRM endpoint, Google
+  Analytics — inherited from a marketing site this application has never
+  been. Dead configuration invites somebody to provision services the
+  product does not use, and hides the handful that matter.
 
 ```
-DATABASE_URL              DATABASE_URL_UNSCOPED
+DATABASE_URL              DATABASE_URL_UNSCOPED   DATABASE_URL_DIRECT
 AUTH_SECRET               NEXT_PUBLIC_APP_URL
 ANTHROPIC_API_KEY         ASSISTANT_MODEL
 RESEND_API_KEY            MAIL_FROM            SALES_INBOX
@@ -409,6 +415,13 @@ STRIPE_SECRET_KEY         STRIPE_WEBHOOK_SECRET
 CRON_SECRET               SEAT_PRICE_FILS
 SECRET_<ref>              # per-channel credentials, see secrets.ts
 ```
+
+**Three database URLs, and they are three different things.**
+`DATABASE_URL` is the application's, pooled, as a restricted role.
+`DATABASE_URL_UNSCOPED` is the cross-tenant one and needs BYPASSRLS —
+owning the tables is not enough, because `rls.sql` sets FORCE.
+`DATABASE_URL_DIRECT` is unpooled and used only by `prisma migrate`,
+which cannot run through a transaction-mode pooler.
 
 The application **boots without any of them** and prints one report
 naming what is absent and what stops working because of it. It does not
@@ -433,9 +446,16 @@ and the equivalent goes in `vercel.json`.
 Deploy the application first or the site goes live with two dead forms.
 `02-the-project/website/GO-LIVE.md` is the checklist.
 
-**Not done and worth doing before real traffic:** connection pooling.
-Prisma plus serverless plus 23 crons with no PgBouncer or Accelerate will
-exhaust Postgres connections on the first busy day.
+**Put a pooler in front of Postgres before real traffic.** Every
+serverless instance opens its own Prisma pool and 23 crons can fire in
+the same minute; Postgres defaults to 100 connections. The failure is not
+gradual — it is `FATAL: sorry, too many clients already` on the first
+busy afternoon, which to a brokerage looks like the product falling over
+at exactly the moment they started using it properly. Neon, Supabase and
+Vercel Postgres each publish a pooled URL; on plain Postgres it is
+PgBouncer in transaction mode. Append
+`?pgbouncer=true&connection_limit=1`, and keep `DATABASE_URL_DIRECT`
+unpooled for migrations. `.env.example` has the detail.
 
 ---
 

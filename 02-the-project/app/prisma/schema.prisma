@@ -21,6 +21,27 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+
+  /// Migrations cannot run through a transaction-mode pooler.
+  ///
+  /// `DATABASE_URL` in production points at PgBouncer or the platform's
+  /// pooled endpoint, because every serverless instance opening its own
+  /// pool against 23 concurrent crons exhausts Postgres. But a pooler in
+  /// transaction mode gives each statement a different backend, and
+  /// `prisma migrate` needs advisory locks and DDL that must all land on
+  /// one — including the RLS policies in rls.sql, where getting half of
+  /// them applied is the worst possible outcome.
+  ///
+  /// So: the pooled URL for the application, the direct one for
+  /// migrations.
+  ///
+  /// Prisma has no fallback for this — declaring it makes it required,
+  /// including in development where there is no pooler and both are the
+  /// same string. That is the right way round. The alternative is a
+  /// production deployment quietly running its migrations through the
+  /// pooler and failing halfway through the RLS policies, and a variable
+  /// somebody has to copy once is cheaper than finding that out.
+  directUrl = env("DATABASE_URL_DIRECT")
 }
 
 // ---------------------------------------------------------------- tenancy
