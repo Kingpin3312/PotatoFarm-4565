@@ -183,12 +183,24 @@ lib_dirs = {
 }
 router_src = "\n".join(s2 for p2, s2 in src.items() if "/routers/" in p2 or p2.endswith("root.ts"))
 jobs_src = "\n".join(s2 for p2, s2 in src.items() if "/jobs/" in p2)
-webhook_src = "\n".join(s2 for p2, s2 in src.items() if "/webhooks/" in p2)
-reachable = router_src + jobs_src + webhook_src
+
+# Every route handler, not only the webhooks.
+#
+# This listed `/webhooks/` and nothing else, which is one kind of route
+# handler out of several. When the marketing site's two form endpoints
+# moved into the app — `api/demo` and `api/subscribe`, the only public
+# conversion path the product has — the module behind them was reported
+# as reachable from nowhere. A file Next mounts at a URL is reachable by
+# definition; that is the whole job of the App Router.
+route_src = "\n".join(
+    s2 for p2, s2 in src.items()
+    if p2.replace(os.sep, "/").endswith("/route.ts") and "/app/api/" in p2.replace(os.sep, "/")
+)
+reachable = router_src + jobs_src + route_src
 
 for mod in sorted(lib_dirs):
     if f"lib/{mod}/" not in reachable:
-        fail(f"module 'lib/{mod}' is not reachable — no router, no job, no webhook imports it")
+        fail(f"module 'lib/{mod}' is not reachable — no router, no job, no route handler imports it")
 
 
 # 9. Imports must resolve.

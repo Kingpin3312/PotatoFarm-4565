@@ -58,10 +58,19 @@
        if you would rather. It reaches the same person.</p>
   </div>
 
-  <!-- Posts to the same origin as the site. The endpoint validates every
-       field again server-side — see website-api/src/lib/validation.ts.
-       Anything here is a convenience, never a control. -->
-  <form class="dform" method="post" action="https://potatofarm.io/api/demo" data-demo novalidate>
+  <!-- Posts to the application, not to this site. This is a static CDN
+       with no server behind it; the endpoint lives in the Next app at
+       app/src/app/api/demo/route.ts, which is the project that actually
+       deploys. It validates every field again server-side — anything
+       here is a convenience, never a control.
+
+       The submit is a fetch, so this needs `connect-src` in _headers to
+       allow app.potatofarm.io, and the route sends CORS headers back for
+       this origin. With JavaScript off the native post is blocked by
+       `form-action 'self'`, deliberately: the endpoint answers JSON and
+       a page of raw JSON is worse than the mailto link directly above,
+       which reaches the same person. -->
+  <form class="dform" method="post" action="https://app.potatofarm.io/api/demo" data-demo novalidate>
     <div class="dform-row">
       <div class="dform-field" data-for="name">
         <label for="d-name">Your name</label>

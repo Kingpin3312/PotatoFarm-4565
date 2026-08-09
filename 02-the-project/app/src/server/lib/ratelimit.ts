@@ -4,9 +4,9 @@ import { log } from "@/lib/log";
 /**
  * Rate limiting.
  *
- * There is exactly one endpoint in this product that an unauthenticated
- * stranger can use to write to the database: `billing.signup`. It
- * creates an organisation, a user, a membership and a subscription.
+ * The endpoint an unauthenticated stranger can use to write to the
+ * database is `billing.signup`. It creates an organisation, a user, a
+ * membership and a subscription.
  *
  * Left open, one script fills the database with brokerages overnight,
  * every trial sweep runs against them daily, and the invoicing job
@@ -33,6 +33,18 @@ const RULES: Record<string, { short: [number, number]; long: [number, number] }>
   "billing.signup":  { short: [3, 600],  long: [10, 86_400] },
   "org.acceptInvite": { short: [5, 300],  long: [30, 86_400] },
   "auth.magicLink":  { short: [5, 900],  long: [20, 86_400] },
+
+  /**
+   * The two public marketing forms. Looser than the rest, because the
+   * cost of a false positive here is a brokerage owner who wanted a call
+   * and was told to come back later.
+   *
+   * They each send email, which is the thing worth protecting: an
+   * unthrottled form is a way to have Resend send abuse from a verified
+   * domain, and that ends with the domain's reputation, not ours.
+   */
+  "website.demo":      { short: [3, 300], long: [15, 86_400] },
+  "website.subscribe": { short: [3, 300], long: [15, 86_400] },
 };
 
 export async function limit(action: string, key: string): Promise<Verdict> {

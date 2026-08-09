@@ -28,6 +28,31 @@ set the security headers and the extensionless URLs (`/product` →
 `product.html`). On Vercel they are ignored and the equivalent belongs in
 `vercel.json` instead.
 
+## The two forms need the application
+
+The demo form and the four guide subscribe forms are the only things here
+that talk to a server. They post to `https://app.potatofarm.io/api/demo`
+and `/api/subscribe`, which are routes in `02-the-project/app`.
+
+They used to post to `potatofarm.io/api/…`, served by a folder called
+`website-api/` that had no `package.json`, no `next.config` and two
+conflicting app directories — it could not be deployed, so the site's only
+conversion path posted to a URL nothing answered. That folder is gone and
+the two routes moved into the application, which is already a deployable
+Next project.
+
+Two consequences:
+
+- **The application has to be up before the forms work.** A brokerage
+  owner filling in the demo form on a site whose API is not deployed gets
+  "That didn't send. Email hello@potatofarm.io" — which is at least true,
+  and the address is right above the form.
+- **The requests are cross-origin.** The routes return
+  `Access-Control-Allow-Origin` for `potatofarm.io` and `www.` only, and
+  `_headers` here lists `app.potatofarm.io` in `connect-src`. If the site
+  ends up on a different domain, both lists have to change:
+  `app/src/server/lib/website/cors.ts` and `_headers`.
+
 There was a second, identical copy of this folder at `07-ready-to-deploy/`
 until the two started to drift — one had the deploy config, the other had
 the working files, and neither was complete. There is one copy now, and
@@ -41,8 +66,9 @@ times and would be indexed as duplicates of the real pages.
 ## Before you press deploy
 
 - [ ] Point `hello@potatofarm.io` somewhere that a person reads
-- [ ] Stand up `POST /api/subscribe` and `POST /api/demo`, or the forms on
-      the guides and the demo page have nothing behind them
+- [ ] **Deploy the application first.** Both forms post to
+      `https://app.potatofarm.io/api/…`, so the site is live with two dead
+      forms until that host answers. See below.
 - [ ] Confirm `app.potatofarm.io` exists, or remove the Log in link
 - [ ] Submit the sitemap in Google Search Console
 - [ ] Check the homepage on a phone in daylight — the whole design
