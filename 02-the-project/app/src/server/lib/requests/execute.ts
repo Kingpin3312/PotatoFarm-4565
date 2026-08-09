@@ -2,6 +2,8 @@ import { forOrg } from "@/server/db/client";
 import { comparables } from "./comparables";
 import { messagingWindow } from "@/server/lib/whatsapp";
 import type { Classified } from "./classify";
+import { extractIntake } from "./intake";
+import { applyIntake } from "./apply-intake";
 
 /**
  * Doing what was asked.
@@ -31,43 +33,100 @@ export async function execute(args: {
   switch (c.recipe) {
     /* ---------------------------------------------------------------- */
     case "LOG_CONTACT": {
-      // The exact use case the competing product advertises: met
-      // somebody, drop a voice note, the CRM update and the follow-up
-      // happen. Theirs takes an advisor and some hours.
-      const name = c.entities.personName;
-      if (!name) return { kind: "NEEDS", question: "What's their name?", recipe: c.recipe };
+      /**
+       * The flagship flow, and the thing the audit found missing.
+       *
+       * This used to create a blackbook entry whose note was the raw
+       * transcript, plus a reminder in three days — and that was all. An
+       * agent saying "met Sarah, four-bed villa in Dubai Hills, around
+       * twelve million, needs to move in three months" still typed the
+       * budget, the bedrooms, the community and the timeframe into a
+       * form afterwards, if they remembered.
+       *
+       * Now a second extraction pass fills in everything the CRM has
+       * columns for, plus the things it does not — motivation, a lease
+       * ending, an objection mentioned in passing — which have somewhere
+       * to live in ClientFact.
+       *
+       * **It falls back rather than failing.** If the extraction cannot
+       * be read, the person still lands in the blackbook with their
+       * follow-up, which is what happened before and is never worse than
+       * before. A richer feature that can lose a contact is a worse
+       * feature.
+       */
+      const extracted = await extractIntake({ orgId: args.orgId, transcript: args.transcript });
 
-      const entry = await db.blackbookEntry.create({
-        data: {
-          orgId: args.orgId, agentId: args.agentId,
-          standaloneName: name,
-          // The transcript is the note. An agent's own words about
-          // somebody they just met are better than anything generated
-          // from them, and this is their private note either way.
-          privateNote: args.transcript,
-          tags: [], lastTouched: new Date(),
-        },
-        select: { id: true },
+      if (!extracted.ok) {
+        const name = c.entities.personName;
+        if (!name) return { kind: "NEEDS", question: "What's their name?", recipe: c.recipe };
+
+        const entry = await db.blackbookEntry.create({
+          data: {
+            orgId: args.orgId, agentId: args.agentId,
+            standaloneName: name,
+            privateNote: args.transcript,
+            tags: [], lastTouched: new Date(),
+          },
+          select: { id: true },
+        });
+        const due = new Date(Date.now() + 3 * 86_400_000);
+        await db.followUp.create({
+          data: {
+            orgId: args.orgId, agentId: args.agentId,
+            title: `Follow up with ${name}`,
+            body: args.transcript.slice(0, 300),
+            blackbookEntryId: entry.id,
+            dueAt: due,
+          },
+        });
+        return {
+          kind: "DONE",
+          summary: `${name} is in your blackbook, with a reminder to follow up on ${
+            due.toLocaleDateString("en-GB", { weekday: "long" })}.`,
+          href: "/blackbook",
+          caveats: [extracted.reason],
+        };
+      }
+
+      // A note with nobody in it is not a contact. Ask, rather than
+      // creating an anonymous row somebody has to clean up later.
+      if (!extracted.intake.person.name && !extracted.intake.person.phone) {
+        return { kind: "NEEDS", question: "Who was it?", recipe: c.recipe };
+      }
+
+      const result = await applyIntake({
+        orgId: args.orgId,
+        agentId: args.agentId,
+        transcript: args.transcript,
+        intake: extracted.intake,
       });
 
-      // The follow-up is the half people forget, so it is not optional.
-      const due = new Date(Date.now() + 3 * 86_400_000);
-      await db.followUp.create({
-        data: {
-          orgId: args.orgId, agentId: args.agentId,
-          title: `Follow up with ${name}`,
-          body: args.transcript.slice(0, 300),
-          blackbookEntryId: entry.id,
-          dueAt: due,
-        },
-      });
+      /**
+       * Read back as one sentence, because it is spoken.
+       *
+       * "Added Sarah to your leads, saved what she's looking for, found
+       * one on your book that fits, reminder set for Monday." An agent
+       * walking to a car hears that and knows what happened. A list of
+       * six confirmations is a screen they have to stop and read.
+       */
+      const summary = sentence(result.did);
 
-      return {
-        kind: "DONE",
-        summary: `${name} is in your blackbook, with a reminder to follow up on ${
-          due.toLocaleDateString("en-GB", { weekday: "long" })}.`,
-        href: `/blackbook`,
-      };
+      const caveats: string[] = [];
+      if (result.match) {
+        caveats.push(
+          `${result.match.title} — ${result.match.reference}` +
+          (result.match.reasons.length ? ` (${result.match.reasons.join(", ")})` : "")
+        );
+      }
+      // Said out loud rather than silently omitted. A budget the model
+      // was unsure of and dropped is a budget the agent thinks is
+      // recorded.
+      if (extracted.dropped.length) {
+        caveats.push(`I didn't catch the ${extracted.dropped.join(" or the ")} — add it when you can.`);
+      }
+      if (result.ask) caveats.push(result.ask);
+
+      return { kind: "DONE", summary, href: result.href, caveats };
     }
 
     /* ---------------------------------------------------------------- */
@@ -236,4 +295,22 @@ export async function execute(args: {
     default:
       return { kind: "NEEDS", question: c.question ?? "What do you need?", recipe: "UNCLEAR" };
   }
+}
+
+/**
+ * A list of things done, as a person would say them.
+ *
+ * "Added Sarah to your leads, saved what she's looking for and set a
+ * reminder for Monday." Oxford-comma-free and with an "and" before the
+ * last, because this is read aloud as often as it is read.
+ */
+function sentence(parts: string[]): string {
+  const p = parts.filter(Boolean);
+  if (p.length === 0) return "Nothing to do there.";
+  const first = p[0]!;
+  const head = first.charAt(0).toUpperCase() + first.slice(1);
+  const rest = p.slice(1);
+  if (rest.length === 0) return `${head}.`;
+  if (rest.length === 1) return `${head} and ${rest[0]}.`;
+  return `${head}, ${rest.slice(0, -1).join(", ")} and ${rest[rest.length - 1]}.`;
 }

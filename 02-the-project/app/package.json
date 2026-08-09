@@ -13,6 +13,7 @@
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
     "audit": "bash ../../04-audit-scripts/run-all.sh",
+    "check:intake": "esbuild scripts/intake.check.ts --bundle --platform=node --format=esm --outfile=.tmp/intake.mjs --external:@prisma/client --log-level=warning && node --env-file-if-exists=.env .tmp/intake.mjs",
     "check:sigv4": "esbuild scripts/sigv4.check.ts --bundle --platform=node --format=esm --outfile=.tmp/sigv4.mjs --log-level=warning && node .tmp/sigv4.mjs",
     "check:storage": "esbuild scripts/storage.check.ts --bundle --platform=node --format=esm --outfile=.tmp/storage.mjs --external:@prisma/client --log-level=warning && node .tmp/storage.mjs",
     "check:tenancy": "esbuild scripts/tenant-isolation.check.ts --bundle --platform=node --format=esm --outfile=.tmp/tenancy.mjs --external:@prisma/client --log-level=warning && node --env-file-if-exists=.env .tmp/tenancy.mjs",
