@@ -19,6 +19,35 @@
   --color-on-surface: var(--on-accent);
   --color-active: var(--accent-type);
 
+  /**
+   * The two that were missing, and they are the two the palette is most
+   * insistent about.
+   *
+   * Tailwind names a utility after the token, so `--color-active` gives
+   * `text-active` and nothing else. `text-accent-type` and
+   * `border-accent-edge` were never exposed — and between them they are
+   * used 42 times across the app, generating no CSS whatsoever:
+   *
+   *   `text-accent-type` (13)  every orange word in the interface,
+   *     including the `.io` in the wordmark in the header of every
+   *     screen. It fell back to inherited ink, so the one deliberate use
+   *     of colour in the product simply was not there.
+   *
+   *   `border-accent-edge` (29) the hairline on every orange fill. That
+   *     is not decoration: tokens.css sets out that Hermes orange is
+   *     3.12:1 on the ground and 2.9:1 on the panel, so the same button
+   *     passes on one surface and fails on the other, and the darker
+   *     edge is what defines the boundary regardless of what is behind
+   *     it. Without it every orange button failed contrast on a panel.
+   *
+   * PROJECT_CONTEXT is explicit that the two oranges must not be merged
+   * and that a check enforces it. The check compares the hex values in
+   * the token file; it cannot see that Tailwind was never told about
+   * them.
+   */
+  --color-accent-type: var(--accent-type);
+  --color-accent-edge: var(--accent-edge);
+
   --color-navy: var(--leather-deep);
   --color-ocean: var(--leather);
   --color-royal: var(--accent);
@@ -50,6 +79,32 @@ body {
    values jitter as digits change is the sort of thing nobody reports and
    everybody notices. */
 .tabular { font-variant-numeric: tabular-nums; }
+
+/* The skip link.
+ *
+ * `layout.tsx` renders one on every page and the class was never
+ * defined, so it sat visible above the header everywhere — the first
+ * thing on the screen, on every screen, reading "Skip to content".
+ *
+ * Off-screen rather than `display: none`, because a hidden element is
+ * not focusable and a skip link that cannot be focused is the one thing
+ * it must not be. It comes back at the top-left the moment it is
+ * tabbed to. */
+.skip {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+  padding: 12px 18px;
+  background: var(--raised);
+  color: var(--ink);
+  border: 1px solid var(--rule);
+  border-radius: 0 0 var(--r) 0;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  text-decoration: none;
+}
+.skip:focus-visible { left: 0; box-shadow: var(--ring); }
 
 /* Focus is the cyan ring from the site, not a browser outline. */
 :where(a, button, input, textarea, select, [tabindex]):focus-visible {
