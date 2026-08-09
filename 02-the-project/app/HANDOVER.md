@@ -40,7 +40,8 @@ across the whole codebase finds that.
 `CRON_SECRET` among them. Every one a silent runtime failure on deploy,
 and two of them security controls that fail open-ish rather than loudly.
 
-`potato-tests/scripts/crm-audit.py` is that check. Put it in CI.
+`04-audit-scripts/crm-audit.py` is that check. Put it in CI — or the
+whole suite, with `04-audit-scripts/run-all.sh`.
 
 ## Reviewed three ways
 

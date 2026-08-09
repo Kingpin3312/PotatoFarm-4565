@@ -98,11 +98,25 @@ decided" is not an answer anyone accepts.
 
 ## Tests
 
-`potato-tests/unit/assistant-guardrails.test.mjs` — 17 cases covering
-injection, negotiation, regulated questions, protected attributes,
-ungrounded figures and claims to be human. All passing. These are the
-checks that must not regress quietly, because nothing about the output
-looks wrong when they do.
+**There are none, and this section used to say there were.**
+
+It claimed `potato-tests/unit/assistant-guardrails.test.mjs` — 17 cases
+covering injection, negotiation, regulated questions, protected
+attributes, ungrounded figures and claims to be human, "all passing".
+No such file has ever existed in this repository, and there is no test
+file of any kind: `package.json` declares `"test": "vitest run"` and
+there is no vitest config either.
+
+The guardrails themselves are real and are in `screening.ts` and
+`controls.ts`. What is not real is anything checking that they still
+work.
+
+**These are the seventeen cases worth writing first**, and they are
+worth more here than anywhere else in the codebase, because nothing
+about the output looks wrong when one of them regresses — a prompt
+injection that succeeds produces a perfectly well-formed reply.
+`deep-audit.py` asserts the structural invariants below, which is not
+the same thing as testing the behaviour.
 
 ## Controls — `controls.ts`
 
@@ -155,7 +169,7 @@ the wrong service charge.
 
 ## Enforced invariants
 
-`potato-tests/scripts/audit.py` checks two things structurally on every
+`04-audit-scripts/deep-audit.py` checks two things structurally on every
 run:
 
     PASS  replay has no send capability

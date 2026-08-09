@@ -1,9 +1,12 @@
 # PROJECT_CONTEXT.md
 
-Everything Claude Code needs to continue PotatoFarm.io. Written to be
-read first, before any file is opened.
+Everything needed to continue PotatoFarm.io. Written to be read first,
+before any file is opened.
 
 Anything genuinely not known is marked **UNKNOWN** rather than guessed.
+Every number here was counted from the code on the day it was written,
+not carried forward from the last version of this document — which is
+how the previous one came to describe folders that did not exist.
 
 ---
 
@@ -19,62 +22,76 @@ real estate brokerages.
   because portal leads go to four agencies at once and the first to
   reply usually gets the viewing
 
-**Nothing has ever been compiled, deployed, or sent a message. There is
-no customer.**
+**State:** it compiles, it builds, it runs, and tenant isolation has been
+tested against a real Postgres. **No customer has ever used it and no
+message has ever been sent to a real phone number.** Nothing is deployed.
 
 ---
 
 ## 2. The folders
 
-| Folder | What it is | Files |
-|---|---|---|
-| `potato-launch/` | The public marketing website | 36 |
-| `potato-backend/` | API routes for the website's forms | 9 |
-| `potato-crm/` | **The main application** | 264 |
-| `potato-design-v4/` | Design-system reference pages | 4 |
-| `potato-logo/` | Logo files and brand spec | 25 |
-| `potato-tests/` | 18 audit scripts | 22 |
-| `potato-prod/` | Deployment notes and `.env.example` | 6 |
+Numbered, because roughly seventy documents refer to each other by path
+and renaming them all at once buys nothing.
 
-Files named `preview-*.html` in `potato-launch/` are **generated** —
-they inline the CSS and JS so a page can be opened directly. Do not edit
-them; edit the real page and regenerate.
+| Folder | What it is |
+|---|---|
+| `01-START-HERE/` | This file and the GitHub setup notes |
+| `02-the-project/app/` | **The application.** Next.js, 190 source files |
+| `02-the-project/website/` | The marketing site. 10 static pages |
+| `03-brand/` | Logo files, brand spec, design-system reference pages |
+| `04-audit-scripts/` | **13** Python checks |
+| `05-documents/` | Reviews, investor memos, competitive analysis |
+| `06-skills/` | Packaged skills and project knowledge |
+
+Two folders that used to be here and are not:
+
+- **`99-superseded/`** — 1.4MB of abandoned designs carrying the wrong
+  palette and the wrong pricing copy. Committed once so git keeps it,
+  then deleted. `git log` will find it.
+- **`02-the-project/website-api/`** — see section 6.
+
+`preview-*.html` files in the website folder are **generated** and
+git-ignored — they inline the CSS and JS so a page can be opened without
+a server. Do not edit them and do not deploy them.
 
 ---
 
 ## 3. Technology
 
-### The website (`potato-launch/`)
+### The website
 Plain **HTML, CSS and JavaScript**. No framework, no build step, no
 `npm install`. Ten pages. Open a file in a browser and it works.
 
-### The application (`potato-crm/`)
+### The application
 
 | | Version |
 |---|---|
 | Next.js | ^15.1.0 (App Router) |
 | React | ^19.0.0 |
-| TypeScript | ^5.7.0 |
+| TypeScript | ^5.7.0, `strict` **and** `noUncheckedIndexedAccess` |
 | Prisma | ^6.1.0 |
 | tRPC | ^11.0.0 |
 | NextAuth | ^5.0.0-beta.25 |
 | Zod | ^3.24.1 |
+| Tailwind | v4, `@theme inline` in `src/styles/globals.css` |
 
-**Database: PostgreSQL.** Styling is Tailwind utility classes plus a
-small set of custom rules in `src/styles/globals.css`.
+**Database: PostgreSQL.**
 
-There is also `potato-crm/mobile/` — a React Native shell. **UNKNOWN
-whether it is complete**; a drift check keeps it in step with the web
-theme.
+There is also `mobile/` — an Expo shell carrying push, offline policy and
+auth. **It cannot build.** No `app.json`, no `tsconfig.json`, no
+`babel.config.js`, no assets, and it targets Expo SDK 51 / React Native
+0.74. Its sign-in flow expects the web app to hand back a `?session=`
+token, which the web app cannot do. Treat it as a design sketch.
 
 ---
 
 ## 4. What is built
 
-**68 database models · 22 API routers · 103 procedures · 29 screens ·
-23 scheduled jobs · 18 audit scripts.**
+**68 database models · 53 enums · 22 API routers · 103 procedures ·
+33 screens · 23 scheduled jobs · 13 audit scripts.**
 
-**97 of 103 procedures (94%) have a screen.**
+**97 of 103 procedures have a screen.** The six that do not are in
+section 5.
 
 Working areas: the WhatsApp assistant and its stop controls; the inbox;
 pipeline and leads; listings with Trakheesi permit tracking; viewings
@@ -84,25 +101,47 @@ commission; AML and compliance; the agent blackbook; email sync; billing
 with a conversation allowance; Meta lead ads; reports with a baseline
 chart; spoken requests ("Ask").
 
+### What has been proved, not assumed
+
+- `npx tsc --noEmit` exits 0. It began at **352 errors**.
+- `npm run build` succeeds. Every route compiles.
+- Three migrations exist and apply cleanly to an empty database.
+- **Row-level security was tested with two brokerages in one database.**
+  The second cannot see the first's leads. This is the whole security
+  promise of the product and it is the one thing worth re-testing after
+  any change to `src/server/db/`.
+- Sign-in works end to end from a cold browser.
+- The website's demo form and its four guide forms were submitted in
+  Chromium, at 1280px and on an iPhone 13, against a real database.
+- All 13 audit scripts exit 0.
+
 ---
 
 ## 5. What is NOT finished
 
-### It has never run
-- **No `npm install` has ever been run** — `node_modules/` is absent
-- **No database exists** — `prisma/migrations/` is absent, no migration
-  has ever been applied
-- **No build has ever run** — `.next/` is absent
+### Blocked on you, not on code
 
-**Expect real TypeScript errors on the first build.** This is a large
-codebase written without a compiler ever checking it. That is normal and
-does not mean the work is wrong.
+Nothing can be deployed until these exist. They cost money and need
+your name on them:
+
+1. **A Postgres database** with two roles — one that owns the tables and
+   one that does not. `DATABASE_URL` must be the second, or row-level
+   security enforces nothing. See `src/server/db/rls.sql`.
+2. **A Resend account with a verified sending domain.** Sign-in is a
+   one-time link to a work email, so **email delivery is the only way
+   into the product**. An unverified sender puts every sign-in link in a
+   junk folder and the failure looks like the application being broken.
+3. **Vercel Pro, about $20/month.** 23 cron jobs and `maxDuration = 300`
+   both require it; Hobby allows 2 crons once a day at 60 seconds.
+4. Anthropic, WhatsApp Business, Meta and Stripe credentials, as and when
+   each feature is wanted. The application boots without them and says in
+   the log exactly what stops working — see `src/instrumentation.ts`.
 
 ### Six procedures have no screen
 
 | | Why |
 |---|---|
-| `billing.trials` | Internal — gated on `audit:read`, not a customer screen |
+| `aml.checkRear` | Internal check; no cash panel to call it from — see section 6 |
 | `aml.visibilityPolicy` | Read by other code, not by people |
 | `onboarding.previewImport` | Superseded by `migration.inspect` |
 | `org.switch` | Multi-brokerage accounts do not exist yet |
@@ -110,62 +149,134 @@ does not mean the work is wrong.
 | `requests.mine` | Request history — genuinely missing, small |
 
 ### Not built at all
-- Voice recipes `BOOK_VIEWING` and `COMPARABLES` return a follow-up
-  question rather than completing in one step. Deliberate, but the
-  second step is not wired to the booking screen.
-- **UNKNOWN:** whether the React Native mobile app is complete.
+
+- **Object storage.** `src/server/lib/files/storage.ts` is a real
+  interface where every method throws `NOT_WIRED`. Attachments cannot be
+  uploaded until a provider sits behind it. It throws rather than
+  returning a fake URL on purpose: a silent no-op here loses a customer's
+  passport scan.
+- **A secrets provider.** `readSecret(ref)` resolves `SECRET_<ref>` from
+  the environment and that is the whole implementation. Fine for a pilot
+  with one brokerage; not fine for ten.
+- **Vendor-side conversations.** `Conversation.vendorId` exists in the
+  schema and 17 call sites still read `conversation.lead`. Owner
+  conversations are therefore half-wired.
+- **Voice recipes** `BOOK_VIEWING` and `COMPARABLES` return a follow-up
+  question rather than completing in one step. Deliberate, but the second
+  step is not wired to the booking screen.
+- **Zero automated tests.** `package.json` declares `"test": "vitest run"`
+  and there are no test files and no vitest config. The 13 audit scripts
+  are doing the work tests would do, and they are not the same thing.
+- **The Expo app.** See section 3.
 
 ---
 
-## 6. Known bugs
+## 6. Things that were removed rather than faked
 
-**All three known bugs are now FIXED.** Kept here because the pattern
-matters more than the fix.
+Each of these was a control on a screen that could not do what it
+appeared to do. A button that looks like it works and does not is worse
+than no button, because somebody relies on it.
 
-**1. `LEADS_WEBHOOK_URL` vs `LEAD_WEBHOOK_URL` — FIXED.**
+**The REAR cash panel.** The compliance screen offered to record a cash
+payment against a deal. There is no payments model — nowhere for the
+amount to go. `aml.checkRear` still exists for whoever builds one.
 
-`website-api/app/api/subscribe/route.ts` read the plural; every
-`.env.example` defines the singular. It fell back to `""`, and the
-`.catch()` below swallowed the rejection — **every newsletter signup
-POSTed to an empty URL and nobody would ever have known.**
+**"Import contacts".** The button existed; no import runner did.
 
-**2. The import screen rendered fields the router never returns —
-FIXED.**
+**The "dispute raised" confirmation.** `routing.dispute` is a read-only
+query. The screen told an agent their dispute had been logged and nothing
+had been.
 
-`app/src/app/(app)/settings/import/page.tsx` reads
-`inspect.data.detectedSource`, `.columns`, `.rows` and `.willSkip`.
-`migration.inspect` returns only `counted: { contacts, deals }`.
+**`website-api/`.** A second Next project with no `package.json`, no
+`next.config` and two conflicting app directories. It could not be
+deployed, so the marketing site's only conversion path posted to a URL
+nothing served. Its two endpoints — `/api/demo` and `/api/subscribe` —
+now live in the application at `app/src/app/api/`, and the website posts
+cross-origin to `app.potatofarm.io`. **Deploy the application before the
+website**, or the forms are live and dead.
 
-The screen would render blanks and the column-mapping table would be
-empty. The screen also tells the user it can read a **Goyzer** or
-**PropSpace** export; **no vendor-specific parsing exists** — the only
-mention of a competitor in the migration code is a comment about Reapit's
-onboarding being people rather than tooling.
-
-Cut back to what `inspect` genuinely produces — which turned out to be
-better than the invention: **grouped issues with severities, suggestions
-and example rows**, so a brokerage can go and look at the records that
-will not import. The Goyzer and PropSpace claims are gone.
-
-**3. The routing screen read `.agents` from a procedure returning
-`pool` — FIXED.**
-
-Found by the new return-shape check, not by looking. The real shape
-carries eligibility and capacity per agent, so "why did that lead not
-come to me" is answerable without a manager guessing. The screen now
-uses it.
-
-**4. Nothing else is known.** All 18 audit scripts pass, including two
-checks added specifically for the class of bug above: one for arguments
-sent to a procedure, one for fields read from its return. That means the
-checks find nothing, not that the code is correct — **it has never been
-compiled.**
+**Cloudflare Turnstile.** Configured, imported, called — and no Turnstile
+widget was ever put on the page, so no token was ever sent, so the check
+read a key that was not set and returned true every time.
 
 ---
 
-## 7. Design — colours
+## 7. Bugs found and fixed
+
+The three the previous version of this document listed as fixed were
+fixed. These are the ones found since, kept because the *pattern* is what
+generalises.
+
+**Three separate 100× money errors.** `Lead.budgetMax` and
+`Listing.price` were `Decimal` AED while everything else was `BigInt`
+fils. The first thing to join them would have shown a buyer a property at
+a hundred times their budget.
+
+**The assistant's price guardrail rejected every correct reply.** It
+compared a figure in fils against a budget in AED, so any accurate price
+looked ungrounded and the conversation went to a human. The safety
+feature would have disabled the product.
+
+**`forOrg()` scoped the wrong connection.** It ran
+`set_config('app.current_org', …)` and the query as two separate
+statements on a pooled client, so they could land on different
+connections. Every screen came back empty under RLS. Now one array-form
+`$transaction`, which is the only way to guarantee both run on the same
+connection.
+
+**RLS covered 12 of 59 tenant tables** — and simultaneously made sign-in
+impossible, because sign-in must read `Membership` before any tenant is
+known. `rls.sql` now discovers tenant tables from
+`information_schema.columns` rather than a hand-written list, and
+`crossTenant(reason)` uses a separate privileged connection.
+
+**Middleware had never run.** It sat at the repository root; Next only
+reads it from `src/` when a `src/` directory exists. It also protected
+`/app`, a route *group* that never appears in a URL.
+
+**Two Tailwind tokens used 42 times generated no CSS.**
+`--color-accent-type` and `--color-accent-edge` were missing from
+`@theme inline`, so `text-accent-type` was a class with no rule.
+
+**The anti-spam honeypot named itself.** `website: z.string().max(0)`
+failed validation before the honeypot check could run, returning a 422
+that named the trap field.
+
+**Sign-up could never insert a row.** The NextAuth Prisma adapter
+requires a fixed `User` shape; the schema had `name` non-null and an
+`avatarUrl` column with no `image` mapping.
+
+**Meta lead ads could never be connected.** `META_LEAD_ADS` was missing
+from both `ChannelType` and `LeadSource`.
+
+**A rate limiter that was no limit at all.** The website forms used a
+module-level `Map`, which on serverless is per-instance.
+
+**The recurring shape, and the question that catches it:** four times, a
+complete, tested, documented module turned out to have nothing that
+started it. Billing could invoice a customer no code path could create.
+`sendFile` could send an attachment nothing could upload. `deals/` could
+plan a transfer no accepted offer ever began. The vendor report had no
+vendor to send to. **Ask of anything new: what writes the first row?**
+
+---
+
+## 8. Design — colours
 
 Ground `#F4F3F0`. Panel `#EBEAE6`.
+
+**`app/src/styles/tokens.css` is the only source of truth**, imported by
+`globals.css`. The palette is declared in four places — that file, the
+website's `assets/site.css`, and inline in each of the two reference
+pages in `03-brand/design-system/` — and **`consistency.py` now compares
+all four hex by hex** and fails on any drift. That check did not exist
+until a fourth, stale copy turned up in `03-brand/design-system/` with a
+visibly different orange (`#FF6E00`) in the folder a designer opens
+first. Nothing imported it, so nothing caught it. It is deleted.
+
+`PALETTE-V4.md` carries the *reasoning* — why the ground is warm, why
+there are two oranges — and its hexes are historical. It says so at the
+top.
 
 | Use | Hex | Contrast on ground |
 |---|---|---|
@@ -173,41 +284,46 @@ Ground `#F4F3F0`. Panel `#EBEAE6`.
 | Body | `#4A4A4A` | 7.99:1 |
 | Captions | `#6B6B6B` | 4.80:1 |
 | **Potato orange — logo only** | `#E87A2E` | 2.66:1 |
-| Highlight (upper-left of mark) | `#EE9149` | — |
-| Shade (lower-right) | `#DB6E22` | — |
 | Rim / border on orange fills | `#C4621D` | 3.70:1 |
 | **Orange TEXT in the app** | `#A84900` | 5.23:1 |
 | Eyes | `#8A4310` | — |
 
 ### The two oranges — do not merge them
 
-`#E87A2E` at text size measures **2.66:1**, which fails accessibility.
-It is fine inside the logo, which is artwork and exempt. It is **not**
-fine for interface text somebody reads in a bright Dubai office.
+`#E87A2E` at text size measures **2.66:1**, which fails accessibility. It
+is fine inside the logo, which is artwork and exempt. It is **not** fine
+for interface text somebody reads in a bright Dubai office.
 
 **The lockup uses `#E87A2E`. UI text uses `#A84900`.** A script enforces
-this and will fail the build if it is broken.
+this.
 
 ### Hierarchy is one hex
 
 **Every heading, title, price and button label is `#1A1A1A`.** The rule:
-**colour carries state, not hierarchy.** Four exceptions carry genuine
-state — a green delta, an amber allowance figure, an orange "tight"
-warning, a selected tab.
+**colour carries state, not hierarchy.**
 
 ---
 
-## 8. Design — type, layout, the mark
+## 9. Design — type, layout, the mark
 
 - **Font:** Inter, falling back to system sans. Monospace for small
   labels and figures.
 - Labels: 10px, uppercase, letter-spacing 0.12em
 - Figures use **tabular numerals** everywhere
 - Page width **1120px**, gutter `clamp(20px, 4vw, 32px)`
-- Buttons **48px**, inline actions **44px minimum** (tap targets)
+- Buttons **48px**, inline actions **44px minimum**
 - Body text max ~46–52 characters per line
 - **Top navigation: seven items maximum.** Enforced by a check. It has
   drifted past this three times.
+
+### On a phone
+
+The top nav is `hidden md:flex`. Below that, a **bottom tab bar** of four
+plus More: Inbox, Today, Pipeline, Ask. Those four are what an agent does
+standing in a lobby; everything else is a considered visit and lives
+behind More. The bar is within thumb reach and always visible, which the
+horizontal scroller it replaced was not — at 375px, 356px of the nav was
+off-screen with no affordance saying so.
 
 ### The logo
 
@@ -218,27 +334,39 @@ wordmark 30px / weight 500 / tracking −0.4, baseline 146.
 1. **Four unique SVG ids per instance** — gradient, blur, shadow, clip.
    Two marks on one page sharing any id means the second inherits the
    first, and a mismatched clip renders it invisible.
-2. The wordmark must be **one inline element**. `PotatoFarm` and `.io`
-   as flex siblings render a visible gap.
-3. `text-anchor="middle"` with a coloured tspan is mis-measured by
-   several renderers. Left-anchor at a measured x.
+2. The wordmark must be **one inline element**. `PotatoFarm` and `.io` as
+   flex siblings render a visible gap — and in JSX, a newline or a
+   comment between them collapses to a real space too.
+3. `text-anchor="middle"` with a coloured tspan is mis-measured by several
+   renderers. Left-anchor at a measured x.
 4. The highlight must stay **clipped to the form**.
 
-Full spec: `potato-logo/SPEC.md`.
+Full spec: `03-brand/logo/SPEC.md`.
 
 ---
 
-## 9. Database, API, auth, integrations
+## 10. Database, API, auth, integrations
 
-**Database:** PostgreSQL via Prisma. `potato-crm/prisma/schema.prisma`,
-68 models. **No migrations have been generated.**
+**Database:** PostgreSQL via Prisma. `app/prisma/schema.prisma`, 68
+models. Three migrations in `app/prisma/migrations/`. **`rls.sql` is
+appended to the init migration** — it is not a file somebody has to
+remember to run, because the tenant boundary is not something to leave to
+memory.
 
-**API:** tRPC. Routers in `potato-crm/src/server/api/routers/`, mounted
-in `root.ts`. Every procedure is permission-gated.
+**Two connections, deliberately.** `DATABASE_URL` is the application's,
+and in production it must be a role that does **not** own the tables and
+does **not** have BYPASSRLS. `DATABASE_URL_UNSCOPED` is for the queries
+that are legitimately cross-tenant — sign-in, organisation creation, the
+webhooks, every scheduled sweep — and is reached only through
+`crossTenant(reason)`.
+
+**API:** tRPC, routers in `app/src/server/api/routers/`, mounted in
+`root.ts`. Every procedure is permission-gated with `requirePermission`
+or `can()`.
 
 **Authentication:** NextAuth v5 with the **Resend** provider — email
-magic links, no passwords. Links last 10 minutes. Sign-in pages at
-`/sign-in`.
+magic links, no passwords. Links last 10 minutes. Pages at `/sign-in`,
+`/sign-in/check-your-email`, `/sign-in/error`.
 
 **External services the code calls:**
 
@@ -247,147 +375,184 @@ magic links, no passwords. Links last 10 minutes. Sign-in pages at
 | `api.anthropic.com` | The assistant and request classification |
 | `graph.facebook.com` | WhatsApp Business and Meta lead ads |
 | `api.stripe.com` | Subscriptions and usage billing |
-| `api.resend.com` | Transactional email and sign-in links |
+| `api.resend.com` | Transactional email, sign-in links, website forms |
 | `graph.microsoft.com` | Outlook mailbox sync |
 | `gmail.googleapis.com` | Gmail mailbox sync |
 | `maps.google.com` | Travel time between viewings |
-| Upstash Redis | Rate limiting |
+
+**Rate limiting is Postgres-backed**, in `src/server/lib/ratelimit.ts`.
+Earlier documents said Upstash Redis; nothing has ever called Upstash and
+the variables are gone.
 
 ---
 
-## 10. Environment variables
+## 11. Environment variables
 
 **Names only. No values appear anywhere in this project and none should
-ever be committed.** `potato-prod/.env.example` (119 lines) is the
-template — copy it to `.env.local` and fill it in.
+ever be committed.** `app/.env.example` is the template.
 
-Read by the code:
+**Every variable in that file is read by the code, and every variable the
+code reads is in that file.** `crm-audit.py` fails the build otherwise.
+It used to carry twenty that were not — Sanity, Turnstile, Upstash, a CRM
+endpoint, Google Analytics — inherited from a marketing site this
+application has never been. Dead configuration invites somebody to
+provision services the product does not use.
 
 ```
-DATABASE_URL
-ANTHROPIC_API_KEY
-ASSISTANT_MODEL
-NEXT_PUBLIC_APP_URL
-NODE_ENV
-CRON_SECRET
-WEBHOOK_SIGNING_SECRET
-
-WHATSAPP_APP_SECRET
-WHATSAPP_VERIFY_TOKEN
-META_APP_SECRET
-META_VERIFY_TOKEN
-
-STRIPE_SECRET_KEY
-STRIPE_WEBHOOK_SECRET
-SEAT_PRICE_FILS
-
-RESEND_API_KEY
-MAIL_FROM
-SALES_INBOX
-LEAD_WEBHOOK_URL          # see Known Bugs — one file reads LEADS_
-TURNSTILE_SECRET_KEY
-
-UPSTASH_REDIS_REST_URL
-UPSTASH_REDIS_REST_TOKEN
-
-CRM_ENDPOINT
-CRM_API_KEY
+DATABASE_URL              DATABASE_URL_UNSCOPED
+AUTH_SECRET               NEXT_PUBLIC_APP_URL
+ANTHROPIC_API_KEY         ASSISTANT_MODEL
+RESEND_API_KEY            MAIL_FROM            SALES_INBOX
+WHATSAPP_VERIFY_TOKEN     WHATSAPP_APP_SECRET
+META_APP_SECRET           META_VERIFY_TOKEN
+STRIPE_SECRET_KEY         STRIPE_WEBHOOK_SECRET
+CRON_SECRET               SEAT_PRICE_FILS
+SECRET_<ref>              # per-channel credentials, see secrets.ts
 ```
+
+The application **boots without any of them** and prints one report
+naming what is absent and what stops working because of it. It does not
+throw: a brokerage running a pilot without Stripe is a legitimate state,
+and refusing to boot over it would be worse than saying so.
 
 ---
 
-## 11. Deployment
+## 12. Deployment
 
-**Intended target: Vercel.** `potato-crm/vercel.json` defines **23 cron
-jobs** matching the 23 scheduled jobs in `src/server/jobs/index.ts`.
-**These two lists must stay in step** — a check enforces it.
+**The application → Vercel.** `app/vercel.json` defines **23 cron jobs**
+matching the 23 in `src/server/jobs/index.ts`; a check enforces that they
+stay in step. `prisma generate` is in the build script — without it,
+Vercel's cached `node_modules` gives you a stale client and a guaranteed
+first-deploy failure.
 
-**The website deploys separately** as static files. `potato-launch/`
-plus `_headers` and `_redirects` — suits Cloudflare Pages or Netlify.
-A ready-made zip is `potatofarm-DEPLOY-THIS.zip`.
+**The website → Cloudflare Pages or Netlify**, static, no build step.
+`_headers` and `_redirects` are read by both. On Vercel they are ignored
+and the equivalent goes in `vercel.json`.
 
-**UNKNOWN:** which hosting account, domain registrar or region will
-actually be used. Nothing has been provisioned.
+**Order matters.** The website's forms post to `app.potatofarm.io`.
+Deploy the application first or the site goes live with two dead forms.
+`02-the-project/website/GO-LIVE.md` is the checklist.
+
+**Not done and worth doing before real traffic:** connection pooling.
+Prisma plus serverless plus 23 crons with no PgBouncer or Accelerate will
+exhaust Postgres connections on the first busy day.
 
 ---
 
-## 12. What must NOT be changed
+## 13. What must NOT be changed
 
-Each of these came from a bug, a review, or a decision that took an
-argument.
+Each came from a bug, a review, or a decision that took an argument.
+`app/CLAUDE.md` carries the same list with more of the reasoning.
 
 ### Safety
-- **Replay has no send capability.** You can see what happened without
-  it happening again.
-- **The kill switch is checked before every model call**, uncached.
+- **Replay has no send capability.** `replay.ts` must never import the
+  WhatsApp client or the credential store; the audit asserts it.
+- **The kill switch is checked before every model call**, uncached. A
+  five-minute cache is five more minutes of messaging customers after
+  somebody pressed stop.
 - **Per-conversation mute is checked before every model call.**
 - **The audit log has UPDATE and DELETE revoked at the database.** A
   grant, not a policy.
 
 ### Legal
-- **An agent must never see why a sanctions screening was held.**
-  Tipping off is an offence in itself. A check scans every agent-facing
-  screen for this.
+- **An agent must never see why a sanctions screening was held.** Tipping
+  off is an offence in itself. A check scans every agent-facing screen.
 - **AML erasure defers against a live KYC file** — five-year retention
   outranks the request.
 - **A decision NOT to file a report is still a decision** and needs a
   recorded reason.
 - **Never claim the software files AML reports.** It prepares them; the
   firm files on goAML.
+- **`AUTO_CLEAR_THRESHOLD` is `null` on purpose.** Nothing is
+  auto-cleared. Name matching is fuzzy and a threshold will one day
+  dismiss the one that mattered.
 
 ### The WhatsApp window
 - Outside 24 hours from the customer's last message, a normal message is
-  **accepted by the API and never delivered**. Always check the window
-  before offering to send.
+  **accepted by the API and never delivered**. `messagingWindow()` is the
+  single source of truth and both the UI and the send path read it.
 
 ### Data
-- **Money is BigInt fils.** One formatter, `src/lib/money.ts`. Never
-  floats.
-- **`crossTenant(reason)`** — no unscoped query without a stated reason.
+- **Money is BigInt fils.** One formatter, `src/lib/money.ts`.
+- **`set_config('app.current_org', …, true)`** — the third argument makes
+  it transaction-local. Session-level on a pooled connection means the
+  next request inherits the previous tenant's scope. **That one argument
+  is the tenant boundary.**
+- **Never use `rootDb` directly. Use `crossTenant(reason)`.**
+- **Card ordering is a Postgres NUMERIC, not a string key.** The clever
+  base-62 version was written first, tested, and was wrong.
+- **Logging is `src/lib/log.ts`, never `console`** — it scrubs personal
+  data and carries the tenant.
 - **A dead lead is never messaged.**
 
 ### Product
-- **Offers rank by strength, not price.**
-- **A counter creates a new row.** Amounts are never overwritten.
+- **Offers rank by strength, not price.** Cash with no conditions beats a
+  higher mortgage offer nobody has pre-approved. If you "fix" the sort,
+  you have broken the feature.
+- **A counter creates a new row.** Amounts are never overwritten — the
+  negotiation is the record both sides argue about later.
+- **A vendor's contact preference is an instruction.** `OFFERS_ONLY`
+  means do not ring them for a chat.
 - **The leaderboard ranks viewings, not reply speed.**
-- **The blackbook is scoped to the calling agent, and the private note
-  is deliberately NOT audited** — an audit row is a record a manager can
+- **The blackbook is scoped to the calling agent, and the private note is
+  deliberately NOT audited** — an audit row is a record a manager can
   read.
+- **Compliance reports are invisible to admins.** Separating the roles is
+  why the appointment is a legal requirement.
 
 ### Naming
-- **PotatoFarm.io everywhere.** Never "Potato.ai".
+- **PotatoFarm.io everywhere.** Never "Potato.ai". A check enforces it.
+- **UK English throughout**, including user-facing copy.
 
 ---
 
-## 13. How to work on this
-
-Three mistakes were made repeatedly. All three are avoidable by reading
-before writing.
+## 14. How to work on this
 
 **1. Read the API before calling it.** Screens were written against
 *assumed* procedure shapes eight times in one session. `getSecret` is
-actually `readSecret`; `notify` is actually `dispatch` with nine fields;
-`Reminder` did not exist. **Grep the file first, every time.**
+actually `readSecret`; `notify` is actually `dispatch` with nine fields.
+Grep the file first, every time.
 
-**2. A module nobody imports is not built.** Six library modules were
-written that no router, job or webhook called. `crm-audit.py` checks for
-this.
+**2. A module nobody imports is not built.** `crm-audit.py` catches a
+module nothing imports; `reachability.py` catches the subtler one — a
+module that is imported, called correctly, and whose entry condition
+never occurs. A light switch wired to nothing.
 
-**3. Test the test.** `open(p,"w").write(open(p).read()...)` truncates
-the file before reading it — the tampered copy comes out empty and every
+**3. Test the test.** `open(p,"w").write(open(p).read()…)` truncates the
+file before reading it — the tampered copy comes out empty and every
 check reports a false pass. Read fully, **assert the target string is
 present**, then write.
 
+**4. Verify before you fix.** The tooling has produced false positives in
+a consistent pattern: checks phrased *"confirm this"* have been right
+every time; checks phrased *"this is broken"* have been wrong repeatedly.
+The most recent batch were all the tooling's fault, not the code's — a
+`handlers` export that was destructured, sixteen environment variables
+read from the wrong path, seven procedures gated with `can()` rather than
+`requirePermission`, six contrast failures inside `node_modules`, and a
+`showModal` match against a comment explaining why that component avoids
+`showModal`.
+
 ### The audit scripts
 
-Eighteen scripts in `potato-tests/scripts/`. Run them after changes:
+Thirteen, in `04-audit-scripts/`. All exit 0 today.
 
 ```bash
-python3 potato-tests/scripts/crm-audit.py potato-crm
-python3 potato-tests/scripts/security.py potato-crm
-python3 potato-tests/scripts/reachability.py potato-crm
-python3 potato-tests/scripts/consistency.py
+pip install -r 04-audit-scripts/requirements.txt
+./04-audit-scripts/run-all.sh          # or: npm run audit, from the app
 ```
+
+**Use the runner.** The thirteen do not take the same argument — six
+want the application, four want the website, `claims.py` wants both in
+order, and `consistency.py` wants the repository root because its job is
+comparing surfaces to each other. Passing one path to all thirteen is
+the obvious thing to do and it is wrong: the ones pointed at the wrong
+tree read nothing and exit 0. `audit.py` was checking a single generated
+preview file instead of ten pages, and `consistency.py` was reporting
+perfect consistency across four surfaces it could not open. **A check
+that reads nothing must not be able to look like a pass** — that is the
+same silent-absence failure the product itself is built to catch, and
+the suite had it.
 
 **Each script collects failures differently and there is no way to
 guess:**
@@ -399,15 +564,23 @@ guess:**
 | `ux-audit.py`, `responsive.py` | `issue(file, msg)` |
 | `deep-audit.py`, `site-deep.py` | `bug(msg)` |
 
+Twelve advisory warnings remain and are all deliberate: six permissions
+defined for roles that exist but have no screen yet, five routers holding
+the six procedures with no screen (section 5), and two hardcoded colours
+in the logo SVG.
+
 ---
 
-## 14. The first five things to do in Claude Code
+## 15. The next five things
 
-1. **Compile it.** `cd potato-crm && npm install && npx prisma generate
-   && npx tsc --noEmit`. Expect errors. Fix them.
-2. **Create a database** and run `npx prisma migrate dev --name init`.
-3. **Fix the `LEADS_WEBHOOK_URL` typo** in section 6.
-4. **Provision the services** in section 9 and fill in `.env.local`.
-5. **Then ring brokerage owners.** The website is ready. Every review of
-   this project has ended in the same place: there is no customer, and
-   no amount of building changes that.
+1. **Provision the four items in section 5.** Nothing else can happen
+   first.
+2. **Deploy the application**, then the website. Verify `/api/health` and
+   that every cron fires.
+3. **Send one real WhatsApp message** to your own number, end to end.
+   That is the moment this product exists.
+4. **Ring brokerage owners.** The website is finished and the demo form
+   works. Every review of this project has ended in the same place:
+   there is no customer, and no amount of building changes that.
+5. Then, and only then: `requests.mine`, vendor conversations, object
+   storage, and a connection pooler.

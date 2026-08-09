@@ -12,7 +12,7 @@
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
-    "audit": "python3 ../../04-audit-scripts/crm-audit.py .",
+    "audit": "bash ../../04-audit-scripts/run-all.sh",
     "test": "vitest run"
   },
   "dependencies": {

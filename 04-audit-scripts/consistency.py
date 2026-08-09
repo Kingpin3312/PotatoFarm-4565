@@ -13,17 +13,61 @@ radii, the type steps — across the website, the CRM and the mobile app.
 import glob, os, re, sys
 from collections import defaultdict
 
+# ---------------------------------------------------------------------
+# Paths, and why a missing one is now a failure.
+#
+# Every path in this file used to name a folder that does not exist —
+# `potato-launch/`, `potato-crm/`, `potato-design-v4/`, `potato-logo/`.
+# The repository has been `01-…` through `06-…` for a long time.
+#
+# Every read was guarded with `if not os.path.exists(path): continue`,
+# so the script found nothing, compared nothing, and printed
+# "0 INCONSISTENCY(S)" with an exit code of 0. It was the only green in
+# the suite that meant *nothing had been looked at*.
+#
+# That is precisely the failure this product exists to catch: not an
+# error, an absence. So the paths are corrected below, and a surface
+# that cannot be found is a failure rather than a skip. A check that
+# cannot find its inputs must say so.
+# ---------------------------------------------------------------------
+ROOT = sys.argv[1] if len(sys.argv) > 1 else "."
+
+APP      = "02-the-project/app"
+SITE     = "02-the-project/website"
+DESIGN   = "03-brand/design-system"
+LOGO     = "03-brand/logo"
+
+def at(rel):
+    return os.path.join(ROOT, rel)
+
 SURFACES = {
-    "website":   ["potato-launch/assets/site.css"],
-    "dashboard": ["potato-design-v4/dashboard-v4.html"],
-    "marketing": ["potato-design-v4/homepage-v4.html"],
-    "mobile":    ["potato-crm/preview-mobile.html"],
+    "website":   [at(f"{SITE}/assets/site.css")],
+    "dashboard": [at(f"{DESIGN}/dashboard-v4.html")],
+    "marketing": [at(f"{DESIGN}/homepage-v4.html")],
+    "mobile":    [at(f"{APP}/preview-mobile.html")],
 }
+
+FAILS, NOTES = [], []
+
+def require(path):
+    """
+    True if the file is there. Records a failure if it is not.
+
+    `preview-mobile.html` is generated and git-ignored, so it is the one
+    surface allowed to be absent — it is a note, not a failure.
+    """
+    if os.path.exists(path):
+        return True
+    if path.endswith("preview-mobile.html"):
+        NOTES.append(f"{os.path.basename(path)} not generated — that surface was not checked")
+    else:
+        FAILS.append(f"surface missing: {os.path.relpath(path, ROOT)} — this check read nothing")
+    return False
 
 def read(paths):
     out = ""
     for p in paths:
-        if not os.path.exists(p): continue
+        if not require(p): continue
         s = open(p).read()
         if p.endswith(".html"):
             for m in re.finditer(r'<style>(.*?)</style>', s, re.S):
@@ -33,7 +77,6 @@ def read(paths):
     return out
 
 css = {k: read(v) for k, v in SURFACES.items()}
-FAILS, NOTES = [], []
 
 def grab(body, pattern, label):
     """First match, or None. Guards against a pattern with no capture
@@ -66,6 +109,60 @@ for name in rows:
         FAILS.append(f"{name} differs across surfaces: " +
                      ", ".join(f"{s}={v}" for s, v in vals.items()))
 
+# ---------------------------------------------------------------------
+# The token VALUES, not the token names.
+#
+# Everything above compares surfaces by the name of the variable — every
+# surface says `background:var(--ground)`, so every surface agrees. That
+# is not the question. The question is what `--ground` resolves to, and
+# the palette is declared four separate times: the app's tokens.css, the
+# website's site.css, and inline in each of the two design-system
+# reference pages. Four hand-maintained copies of the same twenty
+# numbers.
+#
+# One had already drifted and nothing could see it. A stale
+# `03-brand/design-system/tokens.css` carried ground `#F8F7F4` and
+# accent `#FF6E00` against the product's `#F4F3F0` and `#E87A2E` — a
+# different orange, in the folder a designer opens first.
+#
+# So: compare the hexes. This is the check that makes "tokens.css is the
+# only source of truth" enforceable rather than an instruction in a
+# document.
+# ---------------------------------------------------------------------
+TOKEN_SOURCES = {
+    "app":       at(f"{APP}/src/styles/tokens.css"),
+    "website":   at(f"{SITE}/assets/site.css"),
+    "marketing": at(f"{DESIGN}/homepage-v4.html"),
+    "dashboard": at(f"{DESIGN}/dashboard-v4.html"),
+}
+
+# The ones a person perceives. Not every token — the leather/dark set is
+# redefined per surface on purpose and comparing it would be noise.
+SHARED_TOKENS = ("ground", "panel", "raised", "ink", "ink-2", "ink-3",
+                 "rule", "accent", "accent-type", "accent-hover", "accent-edge")
+
+print("\nPalette values (the same hex on every surface):")
+declared = {}
+for surf, path in TOKEN_SOURCES.items():
+    if not require(path): continue
+    body = open(path).read()
+    # First declaration wins: the dark-mode block later in the file
+    # redefines several of these deliberately.
+    for tok in SHARED_TOKENS:
+        m = re.search(rf'--{re.escape(tok)}:\s*(#[0-9A-Fa-f]{{6}})', body)
+        if m: declared.setdefault(tok, {})[surf] = m.group(1).upper()
+
+for tok in SHARED_TOKENS:
+    vals = declared.get(tok, {})
+    if len(vals) < 2: continue
+    uniq = set(vals.values())
+    if len(uniq) == 1:
+        print(f"  --{tok:14} {next(iter(uniq))}")
+    else:
+        print(f"  --{tok:14} " + "  ".join(f"{s}:{v}" for s, v in vals.items()) + "  <-- DRIFT")
+        FAILS.append(f"--{tok} differs between surfaces: " +
+                     ", ".join(f"{s}={v}" for s, v in vals.items()))
+
 # Grounds. The client's specific complaint.
 print("\nGround per surface:")
 for surf, body in css.items():
@@ -88,13 +185,13 @@ for surf, body in css.items():
 # screen, and it shipped on one surface out of seven.
 import glob as _g
 WORDMARK = [
-    ("potato-launch/index.html",                      r'PotatoFarm(\s*)<span class="tld"'),
-    ("potato-crm/src/components/layout/shell.tsx",    r'PotatoFarm(\s*)<span'),
-    ("potato-crm/mobile/components/wordmark.tsx",     r'PotatoFarm(\s*)<Text'),
-    ("potato-crm/preview-mobile.html",                r'PotatoFarm(\s*)<i>'),
-    ("potato-logo/lockup.svg",                        r'PotatoFarm(\s*)<tspan'),
-    ("potato-design-v4/dashboard-v4.html",            r'PotatoFarm(\s*)<span'),
-    ("potato-design-v4/homepage-v4.html",             r'PotatoFarm(\s*)<span'),
+    (at(f"{SITE}/index.html"),                      r'PotatoFarm(\s*)<span class="tld"'),
+    (at(f"{APP}/src/components/layout/shell.tsx"),    r'PotatoFarm(\s*)<span'),
+    (at(f"{APP}/mobile/components/wordmark.tsx"),     r'PotatoFarm(\s*)<Text'),
+    (at(f"{APP}/preview-mobile.html"),                r'PotatoFarm(\s*)<i>'),
+    (at(f"{LOGO}/lockup.svg"),                        r'PotatoFarm(\s*)<tspan'),
+    (at(f"{DESIGN}/dashboard-v4.html"),            r'PotatoFarm(\s*)<span'),
+    (at(f"{DESIGN}/homepage-v4.html"),             r'PotatoFarm(\s*)<span'),
 ]
 # The wordmark must be ONE inline element, not two flex children.
 # Source whitespace was clean and the browser still drew a gap, because
@@ -116,13 +213,27 @@ WORDMARK = [
 # exceptions are named, so an exception is a decision rather than
 # something that slipped through.
 print("\nHierarchy colour (one ink for hierarchy):")
-STATE_OK = {".delta", ".stat .d", ".allow-pct", ".tight", ".tabs a.on", ".b.hot", ".need.urgent"}
+STATE_OK = {".delta", ".stat .d", ".allow-pct", ".tight", ".tabs a.on", ".b.hot", ".need.urgent",
+            # The demo form's per-field error. State, not hierarchy, and
+            # the clearest case in the set: it is red *and* it says
+            # "Include the country code" — the colour is the second
+            # signal, never the only one.
+            #
+            # It is listed here rather than fixed in HEAD because HEAD's
+            # `[\d.]+rem` branch treats every rem font-size as
+            # heading-shaped, and .dform-err is .8125rem — 13px, the
+            # smallest caption in the scale. Tightening that regex would
+            # quietly weaken a check that has caught real drift, so the
+            # allowlist takes it, which is what the allowlist is for: an
+            # exception that is a decision rather than something that
+            # slipped through.
+            ".dform-err"}
 HEAD = re.compile(r'font-size:\s*(?:clamp\([^)]*\)|[\d.]+rem|var\(--(?:display|h1|h2|h3|stat|h2-sm)\)|\d\d+px)')
-for label, path in (("website","potato-launch/assets/site.css"),
-                    ("marketing","potato-design-v4/homepage-v4.html"),
-                    ("dashboard","potato-design-v4/dashboard-v4.html"),
-                    ("mobile","potato-crm/preview-mobile.html")):
-    if not os.path.exists(path): continue
+for label, path in (("website",at(f"{SITE}/assets/site.css")),
+                    ("marketing",at(f"{DESIGN}/homepage-v4.html")),
+                    ("dashboard",at(f"{DESIGN}/dashboard-v4.html")),
+                    ("mobile",at(f"{APP}/preview-mobile.html"))):
+    if not require(path): continue
     raw = open(path).read()
     sheet = ("\n".join(m.group(1) for m in re.finditer(r"<style>(.*?)</style>", raw, re.S))
              if path.endswith(".html") else raw)
@@ -146,17 +257,17 @@ for label, path in (("website","potato-launch/assets/site.css"),
 
 print("\nMark per surface:")
 MARK_SURFACES = [
-    "potato-launch/index.html",
-    "potato-design-v4/homepage-v4.html",
-    "potato-design-v4/dashboard-v4.html",
-    "potato-crm/preview-mobile.html",
-    "potato-crm/src/components/layout/shell.tsx",
-    "potato-crm/mobile/components/wordmark.tsx",
-    "potato-logo/lockup.svg",
+    at(f"{SITE}/index.html"),
+    at(f"{DESIGN}/homepage-v4.html"),
+    at(f"{DESIGN}/dashboard-v4.html"),
+    at(f"{APP}/preview-mobile.html"),
+    at(f"{APP}/src/components/layout/shell.tsx"),
+    at(f"{APP}/mobile/components/wordmark.tsx"),
+    at(f"{LOGO}/lockup.svg"),
 ]
 POTATO = "M33,4 C42,4.5"   # the upright teardrop
 for path in MARK_SURFACES:
-    if not os.path.exists(path): continue
+    if not require(path): continue
     body = open(path).read()
     has_potato = POTATO in body
     has_chip = bool(re.search(r'>PF</(?:i|span|Text)>', body))
@@ -166,10 +277,10 @@ for path in MARK_SURFACES:
         FAILS.append(f"{os.path.basename(path)}: mark is '{state}', not the potato")
 
 print("\nWordmark structure:")
-for path in ("potato-launch/assets/site.css",
-             "potato-design-v4/homepage-v4.html",
-             "potato-design-v4/dashboard-v4.html"):
-    if not os.path.exists(path): continue
+for path in (at(f"{SITE}/assets/site.css"),
+             at(f"{DESIGN}/homepage-v4.html"),
+             at(f"{DESIGN}/dashboard-v4.html")):
+    if not require(path): continue
     body = open(path).read()
     m = re.search(r'\.brand\{([^}]*)\}', body)
     if not m: continue
@@ -184,7 +295,7 @@ for path in ("potato-launch/assets/site.css",
 
 print("\nWordmark spacing:")
 for path, pat in WORDMARK:
-    if not os.path.exists(path): continue
+    if not require(path): continue
     m = re.search(pat, open(path).read(), re.S)
     if not m: continue
     ws = m.group(1)

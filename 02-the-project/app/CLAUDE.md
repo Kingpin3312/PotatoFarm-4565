@@ -154,12 +154,21 @@ send path read it.
 
 ## Run the audits
 
-There are seven. All of them are green and all of them belong in CI.
+There are **thirteen**, in `04-audit-scripts/` at the repository root.
+All thirteen are green and all of them belong in CI.
 
-    python3 ../potato-tests/scripts/crm-audit.py .      # structure
-    python3 ../potato-tests/scripts/deep-audit.py .     # logic
-    python3 ../potato-tests/scripts/architecture.py .   # cycles, layering
-    python3 ../potato-tests/scripts/security.py .       # tenant boundary
+    pip install -r ../../04-audit-scripts/requirements.txt
+    ../../04-audit-scripts/run-all.sh
+
+**Use the runner, not the individual scripts.** They do not all take the
+same argument — six want the application, four want the website,
+`claims.py` wants both in that order, and `consistency.py` wants the
+repository root because its job is comparing surfaces to each other.
+Passing one path to all thirteen is what somebody does, and the ones
+pointed at the wrong tree then read nothing and exit 0. That is how
+`audit.py` came to check a single generated preview file instead of ten
+pages, and how `consistency.py` reported perfect consistency across four
+surfaces it could not open.
 
 Between them they have caught, every one invisible in code review:
 

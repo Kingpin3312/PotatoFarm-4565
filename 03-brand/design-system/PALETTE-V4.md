@@ -1,5 +1,32 @@
 # v4 — warm white, Hermès orange
 
+> **The numbers in this file are historical. Do not build against them.**
+>
+> The only source of truth for the palette is
+> `02-the-project/app/src/styles/tokens.css`. The website's
+> `assets/site.css` and the two reference pages in this folder carry the
+> same values, and `consistency.py` compares all four hex-by-hex and
+> fails on any drift.
+>
+> This document was written during the v4 design pass and its three
+> headline hexes were later adjusted:
+>
+> | | This document | **Shipped** |
+> |---|---|---|
+> | ground | `#FDFBF7` | **`#F4F3F0`** |
+> | accent | `#E86A17` | **`#E87A2E`** |
+> | accent-type | `#A84A16` | **`#A84900`** |
+> | accent-edge | `#B8500F` | **`#C4621D`** |
+>
+> A stale fourth copy of the palette used to sit beside this file as
+> `tokens.css`, carrying ground `#F8F7F4` and accent `#FF6E00` — a
+> visibly different orange, in the folder a designer opens first. Nothing
+> imported it, so nothing caught it. It has been deleted and the
+> hex-by-hex check added.
+>
+> **The reasoning below is still correct and is why the palette is shaped
+> the way it is.** It is kept for that, not for the numbers.
+
 ## The one change to the brief
 
 **The white is not pure white.**
@@ -8,18 +35,19 @@ Hermès does not put orange on `#FFFFFF`. It puts it on a warm cream,
 anchored by deep brown leather. Pure white plus orange reads as a budget
 airline; cream plus orange plus brown reads as the reference.
 
-The ground is `#FDFBF7` — about 2% warmth, and that 2% is the whole
-effect. The near-black has brown in it for the same reason: a neutral
-grey next to orange looks like a spreadsheet.
+The ground is warm by about 2%, and that 2% is the whole effect. The
+near-black has brown in it for the same reason: a neutral grey next to
+orange looks like a spreadsheet.
 
 ## One accent, two steps
 
-Hermès orange is `#E86A17` and it measures **3.12:1** on the ground.
-Enough for a fill, nowhere near enough for type.
+The Hermès-family orange measures **3.12:1** on the ground. Enough for a
+fill, nowhere near enough for type. So there are two, and merging them is
+the single easiest way to ship something unreadable:
 
-    --accent       #E86A17   fills only
-    --accent-type  #A84A16   every word. 5.56:1 on ground, 5.15:1 on panel
-    --accent-edge  #B8500F   the hairline on a fill
+    --accent       fills only
+    --accent-type  every word. 5.56:1 on ground, 5.15:1 on panel
+    --accent-edge  the hairline on a fill
 
 **Three rules fell out of measurement rather than taste:**
 
@@ -47,8 +75,10 @@ var(--accent)`) and half pointing at tokens v4 does not define.
 
 Nothing used them. Dead CSS referencing dead tokens is worse than
 untidy: the next person reads it as the theme system and edits the wrong
-thing.
+thing. Which is exactly what the stale `tokens.css` beside this file went
+on to be.
 
-The undefined-token check found it. It has now caught three real
-breakages in two days, which is a better hit rate than anything else in
-the suite.
+The undefined-token check found the dead blocks. It did not find the
+stale file, because it had no reason to open something nothing imported —
+comparing the declared values across surfaces is what does that, and that
+check exists now.
