@@ -1,4 +1,5 @@
 import { log } from "@/lib/log";
+import { VOCABULARY_TERMS } from "@/server/lib/places";
 
 /**
  * Speech to text.
@@ -81,13 +82,15 @@ export function transcriptionConfigured(): boolean {
  * Kept short on purpose. A long prompt starts to steer the *content* of
  * the transcript rather than its spelling, and a model that has been
  * told to expect property words will hear property words in noise.
+ *
+ * Now built from `lib/places.ts` rather than hard-coded here. Search
+ * needs the same place names and had started a second list; two lists
+ * means one of them learns about a new community and the other does
+ * not, and the failure is silent in both directions. `HINT_PLACES` is
+ * what keeps this one short — the length above is a decision, not an
+ * accident of how much anybody typed.
  */
-const VOCABULARY = [
-  "Dubai Hills", "Emirates Hills", "Palm Jumeirah", "Jumeirah", "Arabian Ranches",
-  "Damac Hills", "Business Bay", "Downtown", "Marina", "JBR", "JVC", "Al Barari",
-  "Trakheesi", "Ejari", "DLD", "NOC", "off-plan", "AED", "villa", "townhouse",
-  "penthouse", "freehold", "handover", "service charge", "viewing", "vendor",
-].join(", ");
+const VOCABULARY = VOCABULARY_TERMS.join(", ");
 
 /**
  * What the API gives back, and how much of it to trust.

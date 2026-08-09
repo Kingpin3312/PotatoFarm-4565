@@ -24,6 +24,7 @@ import { vendorsRouter } from "./routers/vendors";
 import { todayRouter } from "./routers/today";
 import { dealsRouter } from "./routers/deals";
 import { activityRouter } from "./routers/activity";
+import { searchRouter } from "./routers/search";
 
 /**
  * The API surface.
@@ -45,6 +46,9 @@ export const appRouter = router({
   deals: dealsRouter,
   // What the product did on its own, and the button that reverses it.
   activity: activityRouter,
+  // One box, the whole brokerage. The only search before this was
+  // `contains` on a name, on two screens, each looking at one table.
+  search: searchRouter,
   org: orgRouter,
   onboarding: onboardingRouter,
 

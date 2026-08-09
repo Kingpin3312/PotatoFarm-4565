@@ -106,6 +106,26 @@ export function Shell({ children }: { children: React.ReactNode }) {
           </nav>
 
           <div className="ml-auto flex items-center gap-3">
+            {/* Search sits here rather than in the bar, because the bar
+                has a ceiling of seven and this is not a destination in
+                the same sense — it is the thing you reach for when you
+                cannot remember which destination holds the answer.
+                Mobile reaches it through More. */}
+            <Link
+              href="/search"
+              aria-current={pathname.startsWith("/search") ? "page" : undefined}
+              className={cn(
+                "hidden md:flex min-h-11 items-center gap-1.5 text-[15px] no-underline",
+                pathname.startsWith("/search") ? "text-ink" : "text-ink-3 hover:text-ink"
+              )}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true" className="w-4 h-4"
+                   fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" />
+              </svg>
+              Find
+            </Link>
+
             {/* Only shown when it is off. A green "everything is fine"
                 badge is noise; its absence is the normal state. */}
             {assistant && !assistant.enabled && (
@@ -167,6 +187,7 @@ const TABS = [
 
 /** Behind More, ordered by how often an agent opens them. */
 const MORE = [
+  { href: "/search", label: "Find anyone" },
   { href: "/ask", label: "Ask" },
   { href: "/deals", label: "Deals" },
   { href: "/activity", label: "What it did" },

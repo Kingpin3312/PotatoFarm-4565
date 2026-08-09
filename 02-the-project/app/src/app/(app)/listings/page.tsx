@@ -1,5 +1,8 @@
 "use client";
 
+import { Suspense } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { cn } from "@/lib/cn";
 import { api } from "@/lib/trpc";
 import { QueryError } from "@/components/ui/query-state";
@@ -14,9 +17,37 @@ import { WhoWantsIt } from "./who-wants-it";
  * failures anywhere else: a Trakheesi permit about to lapse, and a
  * portal that has quietly refused a listing.
  */
+/**
+ * The Suspense boundary is required, not decorative.
+ *
+ * `useSearchParams` in a client component makes the route
+ * unprerenderable, and Next 15 fails the production build rather than
+ * shipping it — `npm run build` says so in as many words. Wrapping is
+ * the fix; the fallback is what a reader sees for the instant before
+ * hydration.
+ */
 export default function ListingsPage() {
+  return (
+    <Suspense fallback={<div className="max-w-[1080px] mx-auto px-6 pt-8"><RowsSkeleton /></div>}>
+      <Listings />
+    </Suspense>
+  );
+}
+
+function Listings() {
+  /**
+   * The search this router always supported and nothing ever called.
+   *
+   * `listings.list` has taken a `search` input since it was written, and
+   * no screen passed one — the light switch wired to nothing, again.
+   * Global search now links here with `?q=DH-101`, so a property found
+   * by asking a question in English lands on the list filtered to it.
+   */
+  const params = useSearchParams();
+  const q = params.get("q")?.trim() ?? "";
+
   const { data, isLoading } = api.listings.list.useInfiniteQuery(
-    { limit: 25 },
+    { limit: 25, ...(q ? { search: q } : {}) },
     { getNextPageParam: (l) => l.nextCursor }
   );
   const { data: expiring , isError, refetch } = api.listings.expiringPermits.useQuery({ withinDays: 14 });
@@ -35,6 +66,15 @@ export default function ListingsPage() {
             {isLoading ? "—" : `${rows.length} live`}
           </h1>
         </div>
+
+        {/* A filter with no way out of it is a screen that looks broken.
+            Arriving from search has to be visibly a filtered view. */}
+        {q && (
+          <p className="text-sm text-ink-2">
+            Filtered to &ldquo;{q}&rdquo;{" "}
+            <Link href="/listings" className="btn-inline">Show all</Link>
+          </p>
+        )}
       </header>
 
       {/* The two failures that are otherwise invisible. Shown before the
