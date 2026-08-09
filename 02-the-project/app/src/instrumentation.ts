@@ -41,6 +41,7 @@ export async function register() {
   check("STRIPE_SECRET_KEY", "no card can be taken and no invoice settled");
   check("CRON_SECRET", "every scheduled job refuses to run");
   check("SEAT_PRICE_FILS", "sign-up refuses to create a subscription");
+  check("S3_BUCKET", "no file can be uploaded — no brochure, no floor plan, no KYC document");
 
   /**
    * Not in the list above, because it is a warning rather than an

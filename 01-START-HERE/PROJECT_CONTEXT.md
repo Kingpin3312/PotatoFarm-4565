@@ -90,8 +90,8 @@ token, which the web app cannot do. Treat it as a design sketch.
 **68 database models · 53 enums · 22 API routers · 103 procedures ·
 33 screens · 23 scheduled jobs · 13 audit scripts.**
 
-**97 of 103 procedures have a screen.** The six that do not are in
-section 5.
+**98 of 103 procedures have a screen.** The five that do not are in
+section 5, and each is deliberate.
 
 Working areas: the WhatsApp assistant and its stop controls; the inbox;
 pipeline and leads; listings with Trakheesi permit tracking; viewings
@@ -114,6 +114,24 @@ chart; spoken requests ("Ask").
 - The website's demo form and its four guide forms were submitted in
   Chromium, at 1280px and on an iPhone 13, against a real database.
 - All 13 audit scripts exit 0.
+- **Object storage works against any S3-compatible provider** — AWS, R2,
+  B2, Spaces, MinIO — with request signing done in-repo rather than by an
+  SDK. Verified against the signature AWS publishes in its own
+  documentation, and round-tripped through a local S3-shaped server that
+  checks the signature independently.
+
+### The three things you can re-run
+
+```bash
+npm run check:tenancy   # two brokerages, one database, no leakage
+npm run check:sigv4     # request signing vs AWS's published vector
+npm run check:storage   # upload, read back byte-for-byte, delete
+```
+
+These are not a test suite — there still isn't one — but they cover the
+three places where being wrong is expensive and invisible. Each was
+verified by deliberately breaking the thing it checks and confirming it
+fails.
 
 ---
 
@@ -137,7 +155,7 @@ your name on them:
    each feature is wanted. The application boots without them and says in
    the log exactly what stops working — see `src/instrumentation.ts`.
 
-### Six procedures have no screen
+### Five procedures have no screen, all deliberately
 
 | | Why |
 |---|---|
@@ -146,15 +164,13 @@ your name on them:
 | `onboarding.previewImport` | Superseded by `migration.inspect` |
 | `org.switch` | Multi-brokerage accounts do not exist yet |
 | `leads.assign` | Single-lead assign; the screen uses `pipeline.bulkAssign` |
-| `requests.mine` | Request history — genuinely missing, small |
+
+`requests.mine` used to be a sixth and was the only one the audit called
+genuinely missing rather than deliberate. It has a screen now, under
+Ask — an agent can see what they asked for earlier and what came back.
 
 ### Not built at all
 
-- **Object storage.** `src/server/lib/files/storage.ts` is a real
-  interface where every method throws `NOT_WIRED`. Attachments cannot be
-  uploaded until a provider sits behind it. It throws rather than
-  returning a fake URL on purpose: a silent no-op here loses a customer's
-  passport scan.
 - **A secrets provider.** `readSecret(ref)` resolves `SECRET_<ref>` from
   the environment and that is the whole implementation. Fine for a pilot
   with one brokerage; not fine for ten.
@@ -413,6 +429,8 @@ WHATSAPP_VERIFY_TOKEN     WHATSAPP_APP_SECRET
 META_APP_SECRET           META_VERIFY_TOKEN
 STRIPE_SECRET_KEY         STRIPE_WEBHOOK_SECRET
 CRON_SECRET               SEAT_PRICE_FILS
+S3_ENDPOINT               S3_REGION   S3_BUCKET
+S3_ACCESS_KEY_ID          S3_SECRET_ACCESS_KEY    S3_FORCE_PATH_STYLE
 SECRET_<ref>              # per-channel credentials, see secrets.ts
 ```
 

@@ -96,7 +96,16 @@ env_used = set(re.findall(r'process\.env\.([A-Z0-9_]+)', allsrc))
 # undocumented. Sixteen false positives, which is how a check stops being
 # read.
 env_file = os.path.join(ROOT, ".env.example")
-documented = set(re.findall(r'^([A-Z0-9_]+)=', read(env_file), re.M)) if os.path.exists(env_file) else set()
+# A commented-out variable is documented.
+#
+# `.env.example` uses `# NAME=value` deliberately for the optional ones —
+# AUTH_URL, S3_FORCE_PATH_STYLE — so the name and the explanation are in
+# front of an operator without an empty value implying they must fill it
+# in. Counting only uncommented lines pushed towards uncommenting them,
+# which makes the file worse: a wall of blanks with no signal about which
+# actually matter.
+documented = (set(re.findall(r'^#?\s*([A-Z0-9_]+)=', read(env_file), re.M))
+              if os.path.exists(env_file) else set())
 
 # The Prisma schema reads env too — `directUrl = env("DATABASE_URL_DIRECT")`
 # is a genuine, required variable that never appears as `process.env`.
