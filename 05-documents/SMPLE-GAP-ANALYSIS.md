@@ -167,7 +167,7 @@ and the advisor layer scales by hiring.
 | Agent productivity | **Split** — they have 17 recipes to our 7; we return in seconds where they take hours. |
 | Predictive recommendations | **Missing entirely** — `Lead.score` is a column nothing writes. |
 | Autonomous workflows | **PotatoFarm superior** — ours sends to customers unattended. Theirs requires a human before anything ships. |
-| Human-in-the-loop | **Partial** — confidence gate and kill switch, but no graded autonomy. |
+| Human-in-the-loop | **Closed** — Copilot / Assisted / Autopilot, with a per-action floor nothing overrides. |
 | Mobile experience | **Partial** — layout good, voice broken on the target device. |
 | Ease of use / clicks | **Missing** — the natural-language surface is not the front door. |
 | Data entry burden | **Biggest gap** — extraction captures three fields, so the agent still types everything. |
@@ -257,6 +257,8 @@ checks is broken.
 | 6. Client memory model | **Done.** `ClientFact`, written by the intake flow |
 | P1 · Voice on an iPhone | **Done.** `npm run check:voice` |
 | P1 · Deal intelligence | **Done.** `npm run check:deals` |
+| P1 · AI action log and undo | **Done.** `/activity` |
+| P1 · Graded autonomy | **Done.** `npm run check:autonomy` |
 
 Three bugs the work turned up, all found by running it:
 
@@ -297,8 +299,8 @@ where that one does not: the transcription request carries a Dubai
 vocabulary hint, so it spells Jumeirah and Trakheesi. Web Speech has no
 equivalent.
 
-**Remaining P1:** the AI action log surfaced in the interface, graded
-autonomy, property-side intelligence and semantic search.
+**Remaining P1:** property-side intelligence — which buyers for this
+listing — and semantic search.
 
 ---
 

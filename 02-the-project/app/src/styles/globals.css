@@ -11,6 +11,11 @@
   --color-ink-2: var(--ink-2);
   --color-ink-3: var(--ink-3);
   --color-rule: var(--rule);
+  /* Used by the autonomy picker's hover border. Declared in tokens.css
+     since the beginning and never mapped here, so `border-rule-strong`
+     generated nothing — the same silent failure as accent-type and
+     accent-edge, which were used 42 times before anybody noticed. */
+  --color-rule-strong: var(--rule-strong);
 
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);

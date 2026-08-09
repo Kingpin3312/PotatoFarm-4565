@@ -5,6 +5,7 @@ import { best, type Candidate } from "@/server/lib/matching/score";
 import { movement, scoreLead, type ScoreInput } from "./score";
 import { nextAction, type Subject } from "./next-action";
 import { assessRisk } from "@/server/lib/deals/risk";
+import { isAutomatic, levelFor } from "./autonomy";
 
 /**
  * Score every lead, and decide what to do about each one.
@@ -35,6 +36,7 @@ export async function sweepIntelligence() {
   let scored = 0;
   let recommended = 0;
   let stale = 0;
+  let executed = 0;
 
   for (const org of orgs) {
     /**
@@ -123,6 +125,29 @@ export async function sweepIntelligence() {
       offerCountByLead.set(o.leadId, (offerCountByLead.get(o.leadId) ?? 0) + 1);
     }
     void anyOffers;
+
+    /**
+     * The brokerage's setting, read once.
+     *
+     * Absent settings means COPILOT — a brokerage that has never opened
+     * the page has not agreed to anything, and defaulting an unattended
+     * system to "do things" because a row is missing is exactly the
+     * wrong way round.
+     */
+    const settings = await db.assistantSettings.findUnique({
+      where: { orgId: org.id },
+      select: { autonomy: true, enabled: true },
+    });
+    const mode = settings?.autonomy ?? "COPILOT";
+    /**
+     * The kill switch outranks the gearbox.
+     *
+     * With the assistant stopped, nothing is executed on anybody's
+     * behalf — recommendations are still computed, because an agent who
+     * has paused the assistant still wants to be told what to do. They
+     * just do it themselves.
+     */
+    const mayExecute = settings?.enabled === true;
 
     const leads = await db.lead.findMany({
       where: {
@@ -351,7 +376,9 @@ export async function sweepIntelligence() {
       });
       if (dismissed) continue;
 
-      await db.recommendation.upsert({
+      const level = levelFor(mode, suggestion.action);
+
+      const rec = await db.recommendation.upsert({
         where: {
           orgId_agentId_leadId_action: {
             orgId: org.id, agentId: lead.assignedToId,
@@ -362,18 +389,63 @@ export async function sweepIntelligence() {
           orgId: org.id, agentId: lead.assignedToId, leadId: lead.id,
           action: suggestion.action, headline: suggestion.headline,
           reason: suggestion.reason, priority: suggestion.priority,
-          valueFils: suggestion.valueFils,
+          valueFils: suggestion.valueFils, autonomy: level,
           state: "OPEN", computedAt: now,
           expiresAt: new Date(now.getTime() + 3 * 86_400_000),
         },
         update: {
           headline: suggestion.headline, reason: suggestion.reason,
           priority: suggestion.priority, valueFils: suggestion.valueFils,
+          autonomy: level,
           state: "OPEN", resolvedAt: null, computedAt: now,
           expiresAt: new Date(now.getTime() + 3 * 86_400_000),
         },
       });
       recommended += 1;
+
+      /**
+       * The one thing that runs unattended, and only on AUTOPILOT.
+       *
+       * A follow-up task is internal, reversible and costs an agent one
+       * tap to clear if it was wrong — while the failure of *not*
+       * creating one is a lead nobody rang. Everything that reaches a
+       * customer stops at a confirmation regardless of the setting; see
+       * autonomy.ts.
+       */
+      if (mayExecute && isAutomatic(level)) {
+        const already = await db.followUp.findFirst({
+          where: { orgId: org.id, leadId: lead.id, completedAt: null },
+          select: { id: true },
+        });
+        // Not a second reminder for a lead that already has one open.
+        // An assistant that stacks tasks is one an agent switches off.
+        if (!already) {
+          const created = await db.followUp.create({
+            data: {
+              orgId: org.id, agentId: lead.assignedToId, leadId: lead.id,
+              title: suggestion.headline,
+              body: suggestion.reason,
+              dueAt: new Date(now.getTime() + 86_400_000),
+            },
+            select: { id: true, title: true, dueAt: true },
+          });
+          await db.aiAction.create({
+            data: {
+              orgId: org.id, agentId: lead.assignedToId,
+              origin: "intelligence.sweep",
+              interpretation: suggestion.reason,
+              action: suggestion.action,
+              entity: "FollowUp", entityId: created.id,
+              // Enough to undo it, which is the point of recording it.
+              after: { title: created.title, dueAt: created.dueAt.toISOString(),
+                       leadId: lead.id, recommendationId: rec.id },
+              autonomy: level,
+              outcome: "DONE",
+            },
+          });
+          executed += 1;
+        }
+      }
 
       // Any *other* open recommendation for this lead is superseded.
       // One person, one thing to do.
@@ -402,6 +474,12 @@ export async function sweepIntelligence() {
    * assessed on completely different signals.
    */
   for (const org of orgs) {
+    const settings = await db.assistantSettings.findUnique({
+      where: { orgId: org.id },
+      select: { autonomy: true },
+    });
+    const mode = settings?.autonomy ?? "COPILOT";
+
     const live = await db.deal.findMany({
       where: { orgId: org.id, stage: { notIn: ["COMPLETED", "COLLAPSED"] } },
       select: {
@@ -492,6 +570,7 @@ export async function sweepIntelligence() {
       }
 
       const data = {
+        autonomy: levelFor(mode, risk.action.kind),
         headline: risk.action.headline,
         reason: risk.reason,
         // Deals outrank leads: money is committed and a date is fixed.
@@ -521,6 +600,6 @@ export async function sweepIntelligence() {
     }
   }
 
-  log.info("intelligence sweep", {}, { orgs: orgs.length, scored, recommended, stale });
-  return { orgs: orgs.length, scored, recommended, stale };
+  log.info("intelligence sweep", {}, { orgs: orgs.length, scored, recommended, stale, executed });
+  return { orgs: orgs.length, scored, recommended, stale, executed };
 }

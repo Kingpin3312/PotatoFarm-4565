@@ -23,6 +23,7 @@ import { api } from "@/lib/trpc";
  */
 export const SETTINGS_NAV = [
   { href: "/deals", label: "Deals" },
+  { href: "/activity", label: "What it did" },
   { href: "/reports", label: "Reports" },
   { href: "/me", label: "Mine" },
   { href: "/leads", label: "Leads" },
@@ -168,6 +169,7 @@ const TABS = [
 const MORE = [
   { href: "/ask", label: "Ask" },
   { href: "/deals", label: "Deals" },
+  { href: "/activity", label: "What it did" },
   { href: "/blackbook", label: "Blackbook" },
   { href: "/offers", label: "Offers" },
   { href: "/leads", label: "Leads" },

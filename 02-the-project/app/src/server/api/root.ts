@@ -23,6 +23,7 @@ import { requestsRouter } from "./routers/requests";
 import { vendorsRouter } from "./routers/vendors";
 import { todayRouter } from "./routers/today";
 import { dealsRouter } from "./routers/deals";
+import { activityRouter } from "./routers/activity";
 
 /**
  * The API surface.
@@ -42,6 +43,8 @@ export const appRouter = router({
   today: todayRouter,
   // The module that had a nightly health job and no way to look at it.
   deals: dealsRouter,
+  // What the product did on its own, and the button that reverses it.
+  activity: activityRouter,
   org: orgRouter,
   onboarding: onboardingRouter,
 

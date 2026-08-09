@@ -147,6 +147,50 @@ for t in TARGETS:
     scan(t, css, html)
     if html: scan_html(t, html)
 
+# ---------------------------------------------------------------------
+# A Tailwind utility naming a token that @theme inline never exposes.
+#
+# Tailwind v4 derives utility names from the token names in
+# `@theme inline`. A colour declared in tokens.css and not mapped there
+# produces **no CSS at all** for `text-x` or `border-x` — no error, no
+# warning, the element simply renders with no colour and looks almost
+# right, which is the worst way for a design system to fail.
+#
+# Three occurrences is why this is a check: `accent-type` and
+# `accent-edge` were used 42 times before anybody noticed, and
+# `rule-strong` was caught while writing the autonomy picker.
+# ---------------------------------------------------------------------
+for _root in TARGETS:
+    _globals = os.path.join(_root, "src/styles/globals.css")
+    _tokens = os.path.join(_root, "src/styles/tokens.css")
+    if not (os.path.exists(_globals) and os.path.exists(_tokens)):
+        continue
+
+    _mapped = set(re.findall(r"--color-([a-z0-9-]+):", open(_globals).read()))
+    _declared = set(re.findall(r"^\s*--([a-z0-9-]+):\s*#", open(_tokens).read(), re.M))
+
+    # Every double-quoted string in the file, not only `className="…"`.
+    # Most class lists in this codebase are arguments to `cn()`, and the
+    # first version of this check read none of them — it found nothing
+    # and passed, which is the failure it exists to catch, in itself.
+    _used = set()
+    for _f in ours(glob.glob(os.path.join(_root, "src/**/*.tsx"), recursive=True)):
+        for _m in re.finditer(r'"([^"\n]+)"', open(_f).read()):
+            for _c in _m.group(1).split():
+                # Strip variant prefixes — `hover:border-rule-strong`
+                # needs the same token mapped as the bare utility.
+                _bare = _c.split(":")[-1]
+                _hit = re.fullmatch(
+                    r"(?:text|bg|border|ring|fill|stroke|decoration|outline|shadow)-([a-z0-9-]+)",
+                    _bare)
+                if _hit:
+                    _used.add(_hit.group(1))
+
+    for _t in sorted((_used & _declared) - _mapped):
+        FAIL.append(f"{_root}: `{_t}` is a token in tokens.css and is used as a "
+                    f"Tailwind utility, but @theme inline never maps it — that "
+                    f"utility generates no CSS at all")
+
 print(f"\n{'='*62}\n{len(FAIL)} FAILURE(S) · {len(WARN)} WARNING(S)\n{'='*62}")
 for f in FAIL: print(f"  x {f}")
 for w in WARN: print(f"  ! {w}")

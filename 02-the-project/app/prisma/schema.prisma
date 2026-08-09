@@ -901,6 +901,21 @@ model AssistantSettings {
   /// Escalate anything above this to a human before the assistant replies.
   handoverAboveBudget Decimal? @db.Decimal(14, 2)
 
+  /**
+   * How much the product may do without being asked.
+   *
+   * Separate from `enabled`, which is the brake and stays a brake. This
+   * is the gearbox. A brokerage starts in COPILOT and moves up when it
+   * has watched the thing work for a fortnight — which is the only
+   * order that ever earns the trust, and why the default is the
+   * cautious one rather than the impressive one.
+   *
+   * It never overrides the per-action floor in `autonomy.ts`: sending a
+   * message to a customer needs a person at every mode, including
+   * AUTOPILOT.
+   */
+  autonomy AutonomyMode @default(COPILOT)
+
   updatedAt DateTime @updatedAt
 
   org Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
@@ -2868,6 +2883,23 @@ enum RecommendationState {
   DISMISSED
   /// The state it was drawn from changed, so it no longer applies.
   STALE
+}
+
+/// The brokerage's setting, as opposed to what a single action is
+/// allowed to do.
+///
+/// Three, because two is not enough and four is a menu nobody reads.
+/// The middle one — prepare it and wait — is where most brokerages will
+/// live, and it is the one that makes the product feel like an
+/// assistant rather than a report.
+enum AutonomyMode {
+  /// It tells you. You do it.
+  COPILOT
+  /// It prepares what it can and waits for a yes.
+  ASSISTED
+  /// It does the reversible, internal things on its own and still asks
+  /// before anything reaches a customer.
+  AUTOPILOT
 }
 
 /// How much the assistant may do without being asked.
