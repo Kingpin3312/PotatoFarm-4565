@@ -1,0 +1,27 @@
+<!-- In <head>, so the browser starts fetching before it parses the body. -->
+<link rel="preload" as="image" fetchpriority="high"
+      href="images/marina-gate-2400.avif" type="image/avif">
+
+<picture>
+  <source type="image/avif" srcset="images/marina-gate-480.avif 480w,
+              images/marina-gate-768.avif 768w,
+              images/marina-gate-1200.avif 1200w,
+              images/marina-gate-1800.avif 1800w,
+              images/marina-gate-2400.avif 2400w"
+          sizes="(min-width: 960px) 50vw, 100vw">
+  <source type="image/webp" srcset="images/marina-gate-480.webp 480w,
+              images/marina-gate-768.webp 768w,
+              images/marina-gate-1200.webp 1200w,
+              images/marina-gate-1800.webp 1800w,
+              images/marina-gate-2400.webp 2400w"
+          sizes="(min-width: 960px) 50vw, 100vw">
+  <img src="images/marina-gate-1200.jpg"
+       width="2400" height="1500"
+       alt="DESCRIBE THIS — or alt=&quot;&quot; if it is decoration"
+       fetchpriority="high"
+       decoding="async"
+       style="width:100%;height:auto;border-radius:var(--r-lg)">
+</picture>
+
+<!-- Below the fold, change fetchpriority="high" to loading="lazy"
+     and drop the preload. Opposite rule, opposite reason. -->

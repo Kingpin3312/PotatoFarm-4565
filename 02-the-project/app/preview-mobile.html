@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en-GB"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>PotatoFarm.io — Today</title>
+<meta name="description" content="The mobile home screen: what needs you now, and today's viewings with an address and a route.">
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://rsms.me">
+<link rel="stylesheet" href="https://rsms.me/inter/inter.css">
+<style>
+/* ============================================================
+   PotatoFarm.io — design tokens, v4
+   Warm white, Claude orange, Hermes discipline.
+   ============================================================ */
+
+:root{
+  /* ---- The ground -----------------------------------------------
+     Warm white, not pure white. This is the whole effect and it is
+     worth defending: **Hermes does not put orange on #FFFFFF.** It puts
+     it on a warm cream, anchored by deep brown leather.
+
+     Pure white plus orange reads as a budget airline. Cream plus orange
+     plus brown reads as the reference. The difference is about 2%
+     warmth, and it is the difference. */
+  --ground: #F4F3F0;
+  --panel:  #EBEAE6;
+  --raised: #FFFFFF;   /* cards lift by being *whiter* than the ground */
+
+  /* ---- Ink, with brown in it --------------------------------------
+     A neutral grey against orange looks like a spreadsheet. Warming the
+     near-black by a few points is what makes the orange belong. */
+  --ink:   #1A1A1A;   /* 16.94:1 */
+  --ink-2: #4A4A4A;   /*  8.34:1 */
+  --ink-3: #6B6B6B;   /*  5.86:1 on ground, 5.43:1 on panel */
+  --rule:  #E2E0DA;
+  --rule-strong: #CFCCC4;
+
+  /* ---- Orange ------------------------------------------------------
+     Two, and they are not interchangeable.
+
+     `--accent` is Claude orange and it is a **fill only**. It measures
+     3.12:1 on the ground — enough for a non-text component, nowhere
+     near enough for type.
+
+     `--accent-type` carries every word. Same hue, deeper, 5.27:1.
+
+     Getting this backwards is the mistake, and it is the fifth time in
+     this project a warm colour has looked right and measured wrong. */
+  --accent:      #E87A2E;   /* Hermes orange. Fill only: 3.12:1 on ground */
+  --accent-type: #A84900;   /* type: 5.56:1 on ground, 5.15:1 on panel */
+  --accent-hover:#C4621D;
+
+  /**
+   * The border on every orange fill, and it is not decoration.
+   *
+   * Hermes orange measures 3.12:1 on the ground and **2.9:1 on the
+   * cream panel** — the same button passes on one surface and fails on
+   * the other. Rather than forbid orange on panels, or lighten the
+   * panel until it works, the fill carries a darker hairline. The edge
+   * is then defined by the border regardless of what is behind it.
+   *
+   * Same fix as the saffron button two palettes ago, same reason.
+   */
+  --accent-edge: #C4621D;   /* 4.38:1 on panel — defines the boundary */
+
+  /* **Labels on the orange fill are ink, never white.**
+     White on Hermes orange is 3.23:1 and fails. Ink is 5.42:1 and
+     passes — and an orange button with near-black type is also the more
+     Hermes answer. The measurement and the reference agreed, which does
+     not always happen. */
+  --on-accent: #1A1A1A;
+
+  /* ---- Leather -----------------------------------------------------
+     The anchor. Orange without a dark warm neutral beneath it floats;
+     this is the belt and the box. */
+  --leather:      #2E2E2E;
+  --leather-deep: #1A1A1A;
+  /* The type that sits on leather, named at the root rather than only
+     inside `.on-leather`. The footer is on leather and outside that
+     class, so without these it gets literals — which is exactly what
+     happened, three times. */
+  --leather-ink:   #EBEAE6;   /* 14.49:1 on leather-deep */
+  --leather-ink-2: #B5B5B5;   /*  8.02:1 */
+  --leather-ink-3: #8A8A8A;   /*  4.74:1 */
+
+  --success:      #1F7A4C;
+  --danger:       #B3261E;
+  --warning:      #A84900;   /* the accent type step, deliberately */
+
+  /* ---- Type --------------------------------------------------------
+     Same stack. Warm palettes tempt people toward a serif and it is
+     usually a mistake at interface sizes — Hermes' own wordmark is a
+     serif and its signage is not. */
+  --sans: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI",
+          Roboto, Helvetica, Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+
+  --display: clamp(2.5rem, 1.6rem + 4.2vw, 4.25rem);
+  --h1:      clamp(2rem, 1.5rem + 2.4vw, 3rem);
+  --h2:      clamp(1.5rem, 1.2rem + 1.6vw, 2.125rem);
+  --h3:      1.25rem;
+  --body-lg: 1.1875rem;
+  --body:    1rem;
+  --small:   0.9375rem;
+  --caption: 0.8125rem;
+  --micro:   0.6875rem;
+  --stat:    1.875rem;
+  /* The interface needs a heading step between h2 and h3 that the
+     marketing scale did not — a dashboard section title is smaller than
+     a landing-page one. Named rather than typed inline. */
+  --h2-sm:   1.625rem;
+
+  --track-display: -0.03em;
+  --track-h1:      -0.026em;
+  --track-h2:      -0.022em;
+
+  --section: clamp(72px, 9vw, 128px);
+  --measure: 34rem;
+
+  --r-xs: 4px;
+  --r-sm: 6px;
+  --r:    8px;
+  --r-lg: 14px;
+  --r-xl: 999px;
+
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Warmer and shallower than a neutral shadow. A grey shadow on a
+     cream ground looks like dirt. */
+  --lift: 0 1px 2px rgb(43 30 23 / .05), 0 6px 20px rgb(43 30 23 / .06);
+  --ring: 0 0 0 3px rgb(217 119 87 / .40);
+}
+
+/* The inverted section. Leather, not black — a pure black band under a
+   cream page is a hole in it. */
+/* The app is cream by default and leather is the inverted case — the
+   sidebar, and any band that needs to break a long page.
+
+   The website is the same way round now. That was not true a palette
+   ago: navy was the site's ground and light was the app's, and keeping
+   two opposite polarities in one product was a seam nobody wanted. */
+.on-leather{
+  --ground: var(--leather-deep); --panel: var(--leather); --raised: var(--leather);
+  --ink: var(--leather-ink); --ink-2: var(--leather-ink-2); --ink-3: var(--leather-ink-3);
+  --rule: #2E2E2E;
+  /* On leather the bright orange finally works as type — 6.4:1 — so the
+     accent and the accent-type collapse into one here. */
+  --accent-type: #F09A55;   /* 7.1:1 on leather */
+  --on-accent: var(--leather-deep);
+}
+
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important;
+    scroll-behavior:auto!important}
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#8B8B8B;font-family:var(--sans);-webkit-font-smoothing:antialiased;
+  display:flex;justify-content:center;padding:24px 12px;font-feature-settings:"cv11","ss01"}
+.tab{font-variant-numeric:tabular-nums}
+
+/* A phone, so the screen is judged at the width it is used at. */
+.phone{width:390px;max-width:100%;background:var(--ground);border-radius:44px;
+  overflow:hidden;box-shadow:0 30px 80px rgb(0 0 0 / .38);position:relative}
+.status{height:52px;display:flex;align-items:flex-end;justify-content:space-between;
+  padding:0 clamp(20px,4vw,32px) 6px;font-size:14px;font-weight:600;color:var(--ink)}
+
+.top{display:flex;align-items:center;gap:9px;height:64px;padding:0 clamp(20px,4vw,32px)}
+.top svg{width:28px;height:28px;flex:none}
+.top b{font-size:17px;font-weight:600;color:var(--ink);letter-spacing:-.014em}
+.top b i{font-style:normal;color:var(--accent-type);font-weight:500}
+.stop{margin-left:auto;min-height:32px;padding:0 13px;border-radius:var(--r-xl);
+  border:1px solid var(--rule);background:transparent;color:var(--ink-2);
+  font-size:12px;font-family:var(--sans)}
+
+main{padding:0 clamp(20px,4vw,32px) 96px}
+.head{padding:6px 0 4px}
+.eyebrow{font-family:var(--mono);font-size:var(--micro);letter-spacing:.14em;
+  text-transform:uppercase;color:var(--ink-3);display:block;margin-bottom:9px}
+h1{font-size:27px;line-height:1.08;letter-spacing:-.026em;color:var(--ink);font-weight:600}
+.lead{font-size:15px;color:var(--ink-2);margin-top:8px;line-height:1.45}
+
+/* Above everything. An agent who typed a reply on a lock screen
+   believes it went, and will not check. */
+.alert{background:var(--panel);border-left:3px solid var(--accent-edge);
+  border-radius:var(--r-lg);padding:15px 16px;margin-top:18px}
+.alert b{display:block;font-size:15px;color:var(--ink);font-weight:600}
+.alert p{font-size:14px;color:var(--ink-2);margin-top:3px;line-height:1.4}
+.alert button{min-height:48px;padding:0 20px;border-radius:var(--r);border:1px solid var(--accent-edge);
+  background:var(--accent);color:var(--on-accent);font-weight:600;font-size:15px;
+  font-family:var(--sans);margin-top:11px}
+
+h2{font-size:15px;color:var(--ink);font-weight:600;letter-spacing:-.008em;
+  margin-top:26px;padding-bottom:9px;border-bottom:1px solid var(--ink)}
+
+.v{padding:15px 0;border-bottom:1px solid var(--rule)}
+.vh{display:flex;align-items:baseline;gap:9px}
+.vt{font-size:15px;font-weight:700;color:var(--ink)}
+.vd{margin-left:auto;font-size:11px;color:var(--ink-3);font-family:var(--mono)}
+/* Building name largest — it is what an agent looks for from a car. */
+.vb{font-size:19px;font-weight:600;color:var(--ink);letter-spacing:-.02em;margin-top:3px}
+.va{font-size:14px;color:var(--ink-2)}
+.vw{font-size:14px;color:var(--ink-2);margin-top:4px}
+.vn{font-size:13px;color:var(--ink-2);margin-top:7px;padding-left:10px;
+  border-left:2px solid var(--rule);line-height:1.4}
+.tight{font-size:13px;color:var(--accent-type);font-weight:500;margin-top:7px}
+.acts{display:flex;gap:8px;margin-top:11px}
+.acts a{min-height:48px;flex:1;border-radius:var(--r);display:grid;place-items:center;
+  text-decoration:none;font-size:15px;font-weight:600}
+.go{background:var(--accent);color:var(--on-accent);border:1px solid var(--accent-edge)}
+.qt{border:1px solid var(--rule);color:var(--ink);font-weight:500}
+
+/* Tabs. Thumb-reachable, 44pt minimum, labels always visible — an icon
+   nobody can name is a button nobody presses. */
+.tabs{position:absolute;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(3,1fr);
+  background:color-mix(in srgb,var(--ground) 92%,transparent);
+  border-top:1px solid var(--rule);padding:8px 0 26px}
+@supports (backdrop-filter:blur(1px)){.tabs{backdrop-filter:saturate(160%) blur(16px)}}
+.tabs a{min-height:48px;display:grid;place-items:center;gap:3px;text-decoration:none;
+  font-size:11px;color:var(--ink-3);font-family:var(--mono);letter-spacing:.06em;
+  text-transform:uppercase}
+.tabs a.on{color:var(--accent-type);font-weight:700}
+.tabs a s{width:6px;height:6px;border-radius:50%;background:currentColor;text-decoration:none}
+.skip{position:absolute;left:-9999px}
+.skip:focus{left:16px;top:14px;z-index:200;background:var(--accent);color:var(--on-accent);
+  padding:11px 18px;border-radius:var(--r);text-decoration:none;
+  border:1px solid var(--accent-edge)}
+</style></head>
+
+<body>
+<a href="#main" class="skip">Skip to content</a>
+<div class="phone">
+  <div class="status"><span>9:41</span><span>&#9679;&#9679;&#9679;</span></div>
+
+  <div class="top">
+    <svg viewBox="0 0 64 64" aria-hidden="true"><g transform="translate(0.0,0.0) scale(1.0)"><defs><linearGradient id="shm1" x1="24%" y1="14%" x2="70%" y2="86%"><stop offset="0" stop-color="#EE9149"/><stop offset="0.5" stop-color="#E87A2E"/><stop offset="1" stop-color="#DB6E22"/></linearGradient><filter id="blm1"><feGaussianBlur stdDeviation="7"/></filter><filter id="dpm1" x="-35%" y="-35%" width="180%" height="180%"><feDropShadow dx="0" dy="2" stdDeviation="2.2" flood-color="#8A4310" flood-opacity="0.18"/></filter><clipPath id="cpm1"><path d="M33,4 C42,4.5 48,11 50,20 C52,29 50,37 48,44 C45,53 38,60 30,60 C21,60 15,54 13,45 C11,35 12,24 16,15 C20,7 26,3.5 33,4 Z"/></clipPath></defs><path d="M33,4 C42,4.5 48,11 50,20 C52,29 50,37 48,44 C45,53 38,60 30,60 C21,60 15,54 13,45 C11,35 12,24 16,15 C20,7 26,3.5 33,4 Z" fill="url(#shm1)" filter="url(#dpm1)"/><g clip-path="url(#cpm1)"><ellipse cx="25" cy="20" rx="17" ry="19" fill="#FFFFFF" opacity="0.15" filter="url(#blm1)"/></g><ellipse cx="25.5" cy="25" rx="3.2" ry="4.9" fill="#8A4310"/><ellipse cx="38.5" cy="24.2" rx="3.1" ry="4.8" fill="#8A4310"/></g></svg>
+    <b>PotatoFarm<i>.io</i></b>
+    <button class="stop">Stop everything</button>
+  </div>
+
+  <main id="main">
+    <div class="head">
+      <span class="eyebrow">Wednesday 5 August</span>
+      <h1>Three viewings, one reply stuck.</h1>
+      <p class="lead">Nothing else needs you. New enquiries arrive as a notification you can
+         answer without opening this.</p>
+    </div>
+
+    <div class="alert">
+      <b>A reply hasn&rsquo;t sent</b>
+      <p>Typed 14 minutes ago and still waiting. Usually signal &mdash; it&rsquo;ll go on its
+         own when you have a bar.</p>
+      <button>Try now</button>
+    </div>
+
+    <h2>Today</h2>
+
+    <article class="v">
+      <div class="vh"><span class="vt tab">10:00</span><span class="vd">30m</span></div>
+      <p class="vb">Marina Gate 2</p>
+      <p class="va">Dubai Marina</p>
+      <p class="vw">Rajesh Menon &middot; <span class="tab">2.5</span> budget, cash</p>
+      <p class="vn">Tower 2, not Tower 1. Security desk has the key &mdash; ask for Ahmed.</p>
+      <div class="acts"><a class="go" href="#">Directions</a><a class="qt" href="#">Call</a></div>
+    </article>
+
+    <article class="v">
+      <div class="vh"><span class="vt tab">12:30</span><span class="vd">45m</span></div>
+      <p class="vb">Bluewaters Residences 6</p>
+      <p class="va">Bluewaters Island</p>
+      <p class="vw">Sofia Haddad &middot; second viewing</p>
+      <div class="acts"><a class="go" href="#">Directions</a><a class="qt" href="#">Call</a></div>
+    </article>
+
+    <article class="v">
+      <div class="vh"><span class="vt tab">15:00</span><span class="vd">30m</span></div>
+      <p class="vb">Damac Hills 2, Cluster J</p>
+      <p class="va">Dubailand</p>
+      <p class="vw">Ahmed Al Balushi &middot; mortgage, pre-approved</p>
+      <!-- Said before setting off, not discovered on the road. -->
+      <p class="tight">34km from your last one, 150 minutes apart. That&rsquo;s tight.</p>
+      <div class="acts"><a class="go" href="#">Directions</a><a class="qt" href="#">Call</a></div>
+    </article>
+  </main>
+
+  <nav class="tabs">
+    <a href="#" class="on"><s></s>Today</a>
+    <a href="#"><s></s>Inbox</a>
+    <a href="#"><s></s>Look up</a>
+  </nav>
+</div>
+</body></html>

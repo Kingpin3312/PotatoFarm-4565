@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en-GB"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Pricing — Potato</title>
+<meta name="description" content="Per agent, per month. No setup fee, no minimum term, and pro rata when your team changes.">
+<link rel="canonical" href="https://potato.ai/pricing">
+<meta name="theme-color" content="#001B44">
+<meta property="og:title" content="Pricing — Potato">
+<meta property="og:description" content="Per agent, per month. No setup fee, no minimum term, and pro rata when your team changes.">
+<meta property="og:type" content="website">
+<link rel="preconnect" href="https://rsms.me">
+<link rel="stylesheet" href="https://rsms.me/inter/inter.css">
+<style>
+/* Potato — the approved design.
+   Extracted from APPROVED-home.html so every page shares one
+   stylesheet rather than eleven copies drifting apart. */
+
+/* ============================================================
+   Potato — design tokens
+   Panel palette. Locked 2 August 2026.
+
+   One file. The marketing site and the CRM both take it from here —
+   two token files is how a product and its website drift apart.
+   ============================================================ */
+
+:root{
+  /* ---- The palette as specified --------------------------------
+     Every hex below is exactly as approved. What changed is not the
+     colours but where each one is allowed to live: four pairings in
+     the original spec fail WCAG AA, and all four are fixed by role
+     rather than by altering a colour. */
+  --navy:   #001B44;   /* main background */
+  --ocean:  #003B73;   /* hero, raised surfaces */
+  --royal:  #0A4F9C;   /* primary accent — as a SURFACE, see below */
+  --teal:   #0099B8;   /* highlights, buttons, AI elements */
+  --cyan:   #00C4D9;   /* active states */
+  --white:  #FFFFFF;
+  --grey:   #E8EEF5;   /* light panels */
+
+  /* ---- Derived, because four pairings needed it -----------------
+
+     1. Royal Blue on Navy measures 2.11:1 — invisible. It is a
+        surface colour, not a text colour: white on royal is 8.04:1.
+        Filled buttons and panels, never type on the background.
+
+     2. White on AI Teal is 3.36:1 and on Bright Cyan is 2.12:1.
+        Labels on teal and cyan are NAVY, not white. Navy on teal is
+        5.04:1, navy on cyan 7.98:1. This is not a preference — white
+        text on a cyan button is unreadable in sunlight.
+
+     3. AI Teal on Soft Grey is 2.88:1. Light panels need a darkened
+        step. Same hue, one stop down. */
+  --teal-deep:  #00647A;   /* 5.79:1 on grey, white label 6.77:1 */
+  --royal-deep: #083E7A;   /* hover state for royal surfaces */
+  --teal-lift:  #00AECF;   /* hover on dark */
+
+  /* Labels. Which one to use is determined, not chosen. */
+  --on-navy:   #FFFFFF;   /* 16.93:1 */
+  --on-royal:  #FFFFFF;   /*  8.04:1 */
+  --on-teal:   #001B44;   /*  5.04:1 — navy, never white */
+  --on-cyan:   #001B44;   /*  7.98:1 — navy, never white */
+
+  /* ---- Text on the dark ground ---------------------------------
+     Cool greys, because a warm grey against navy looks dirty. */
+  --ink-dark:   #FFFFFF;   /* 16.93:1 */
+  --ink-dark-2: #A8B8CE;   /*  7.86:1 */
+  --ink-dark-3: #7B8CA6;   /*  4.53:1 — captions */
+  --hairline-dark: #0A2B57;
+
+  /* ---- Text on light panels ------------------------------------ */
+  --ink-light:   #001B44;   /* 14.50:1 on grey */
+  --ink-light-2: #3D536F;
+  --ink-light-3: #6B7D96;
+  --hairline-light: #D4DFEC;
+
+  /* ---- State ---------------------------------------------------
+     Red is free to mean what red should mean. That was the argument
+     for dropping it as the brand colour and it is what matters most
+     inside the app. */
+  --danger:      #FF5A5F;   /* on navy: 5.44:1 */
+  --danger-deep: #C1272D;   /* on grey */
+  --success:     #34C77B;
+  --warning:     #FFB020;
+
+  /* ---- Type ----------------------------------------------------
+     System stack first: on Apple hardware this renders SF via the OS,
+     which is legitimate. SF Pro as a webfont is not licensed for this. */
+  --sans: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI",
+          Roboto, Helvetica, Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+
+  --display: clamp(2.75rem, 1.9rem + 4.4vw, 5rem);
+  --h1:      clamp(2.25rem, 1.6rem + 3vw, 3.5rem);
+  --h2:      clamp(1.75rem, 1.3rem + 2vw, 2.5rem);
+  --h3:      1.3125rem;
+  --body-lg: 1.3125rem;
+  --body:    1.0625rem;
+  --caption: 0.8125rem;
+
+  --track-display: -0.032em;
+  --track-h1:      -0.026em;
+  --track-h2:      -0.024em;
+
+  --section: clamp(88px, 12vw, 168px);
+  --block:   48px;
+  --element: 24px;
+  --measure: 34rem;
+
+  --radius: 12px;
+  --radius-lg: 20px;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* ---- Gradients and glow --------------------------------------
+     Specified by the panel, and both were removed earlier in this
+     project for reading as AI-generated. Kept here, but restrained:
+     a gradient between two adjacent blues rather than across the
+     spectrum, and a glow that is a soft ring rather than a halo.
+
+     The difference between premium and generic here is entirely
+     amplitude. Two stops, close together, low opacity. */
+  --grad-hero: linear-gradient(160deg, var(--navy) 0%, var(--ocean) 100%);
+  --grad-accent: linear-gradient(135deg, var(--royal) 0%, var(--teal) 100%);
+  --glow-active: 0 0 0 3px rgb(0 196 217 / 0.24);
+  --glow-focus:  0 0 0 3px rgb(0 196 217 / 0.45);
+}
+
+/* ---- Dark: the marketing site, and the app's dark mode ---------- */
+.theme-navy{
+  --ground: var(--navy); --sunk: #04234F; --raised: var(--ocean);
+  --ink: var(--ink-dark); --secondary: var(--ink-dark-2); --tertiary: var(--ink-dark-3);
+  --hairline: var(--hairline-dark);
+  --accent: var(--teal); --accent-hover: var(--teal-lift); --on-accent: var(--on-teal);
+  --accent-surface: var(--royal); --on-accent-surface: var(--on-royal);
+  --active: var(--cyan);
+}
+
+/* ---- Light: panels, and the app by default ---------------------- */
+.theme-light{
+  --ground: #FFFFFF; --sunk: var(--grey); --raised: #FFFFFF;
+  --ink: var(--ink-light); --secondary: var(--ink-light-2); --tertiary: var(--ink-light-3);
+  --hairline: var(--hairline-light);
+  --accent: var(--teal-deep); --accent-hover: #00505F; --on-accent: #FFFFFF;
+  --accent-surface: var(--royal); --on-accent-surface: var(--on-royal);
+  --active: var(--royal);
+}
+
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{background:var(--ground);color:var(--secondary);font-family:var(--sans);
+  font-size:var(--body);line-height:1.6;-webkit-font-smoothing:antialiased;
+  font-feature-settings:"cv11","ss01"}
+section{background:var(--ground);color:var(--secondary);padding:var(--section) 0}
+.wrap{max-width:1040px;margin:0 auto;padding:0 clamp(20px,5vw,40px)}
+h1,h2,h3{color:var(--ink);font-weight:600}
+.display{font-size:var(--display);line-height:1.04;letter-spacing:var(--track-display);
+  color:var(--ink);font-weight:600;max-width:15ch}
+h2{font-size:var(--h2);line-height:1.1;letter-spacing:var(--track-h2)}
+h3{font-size:var(--h3);line-height:1.25;letter-spacing:-.01em;font-weight:500}
+.lead{font-size:var(--body-lg);line-height:1.5;max-width:var(--measure);margin-top:var(--element)}
+.eyebrow{font-size:var(--caption);color:var(--active);display:block;margin-bottom:12px;font-weight:500}
+.cap{font-size:var(--caption);color:var(--tertiary)}
+
+/* Hero gradient: two adjacent blues, 160deg. Restrained on purpose —
+   the difference between premium and generic here is amplitude. */
+.hero-bg{background:var(--grad-hero)}
+
+nav{position:sticky;top:0;z-index:100;height:48px;display:flex;align-items:center;
+  background:color-mix(in srgb,var(--navy) 76%,transparent);
+  border-bottom:1px solid transparent;transition:border-color .24s}
+@supports not (backdrop-filter:blur(1px)){nav{background:var(--navy)}}
+@supports (backdrop-filter:blur(1px)){nav{backdrop-filter:saturate(180%) blur(20px);
+  -webkit-backdrop-filter:saturate(180%) blur(20px)}}
+nav.is-stuck{border-bottom-color:var(--hairline-dark)}
+nav .wrap{display:flex;align-items:center;gap:30px;width:100%}
+.brand{color:#fff;font-weight:600;font-size:1.0625rem;letter-spacing:-.01em;
+  text-decoration:none;display:flex;align-items:center;gap:8px}
+.brand i{width:19px;height:19px;border-radius:5px;background:var(--grad-accent);display:grid;
+  place-items:center;color:#fff;font-size:10px;font-style:normal;font-weight:700}
+nav a.link{color:var(--ink-dark-2);text-decoration:none;font-size:.875rem}
+nav a.link:hover{color:#fff}
+nav .right{margin-left:auto;display:flex;gap:22px;align-items:center}
+@media(max-width:760px){nav a.link:not(.keep){display:none}}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;
+  padding:0 22px;border-radius:980px;font-size:.9375rem;font-weight:600;text-decoration:none;
+  border:1px solid transparent;transition:background .24s var(--ease),box-shadow .24s}
+/* Teal button, navy label. White on teal is 3.36:1 and unreadable in
+   sunlight — this is measured, not preference. */
+.btn-primary{background:var(--accent);color:var(--on-accent)}
+.btn-primary:hover{background:var(--accent-hover)}
+/* Royal blue is a surface, never type on navy — it measures 2.11:1 there. */
+.btn-surface{background:var(--accent-surface);color:var(--on-accent-surface)}
+.btn-surface:hover{background:var(--royal-deep)}
+.btn-quiet{color:var(--ink);border-color:var(--hairline)}
+.btn-quiet:hover{border-color:var(--secondary)}
+.btn:focus-visible{outline:none;box-shadow:var(--glow-focus)}
+.btn-sm{min-height:32px;padding:0 15px;font-size:.8125rem}
+
+.hero{padding-top:clamp(64px,9vw,128px)}
+.actions{display:flex;gap:12px;margin-top:36px;flex-wrap:wrap}
+
+.thread{margin-top:clamp(52px,8vw,88px);background:rgb(255 255 255 / .06);
+  border:1px solid var(--hairline-dark);border-radius:var(--radius-lg);
+  padding:clamp(20px,4vw,34px);max-width:580px}
+.m{display:flex;align-items:flex-end;margin-bottom:12px}
+.m.out{justify-content:flex-end}
+.m .b{max-width:80%;padding:11px 15px;border-radius:18px;font-size:1rem;line-height:1.45;
+  background:#062B5C;color:#fff}
+.m.out .b{background:var(--teal);color:var(--on-teal)}
+.m .t{font-size:.6875rem;color:var(--tertiary);margin:0 8px 3px}
+.thread .foot{margin-top:18px;padding-top:16px;border-top:1px solid var(--hairline-dark);
+  font-size:var(--caption);color:var(--tertiary)}
+
+.mid{text-align:center}
+.mid h2{max-width:20ch;margin:0 auto}
+.mid p{max-width:var(--measure);margin:var(--element) auto 0}
+.figure{font-size:clamp(3.25rem,2.6rem + 4vw,5.5rem);line-height:1;letter-spacing:-.04em;
+  color:var(--active);font-weight:600}
+
+.steps{display:grid;gap:44px;margin-top:clamp(52px,8vw,80px)}
+@media(min-width:760px){.steps{grid-template-columns:repeat(3,1fr);gap:36px}}
+.step{border-top:1px solid var(--hairline);padding-top:22px}
+.step .n{font-size:var(--caption);color:var(--active);font-variant-numeric:tabular-nums;font-weight:600}
+.step h3{margin:10px 0 8px}
+.step p{font-size:1rem}
+
+.split{display:grid;gap:44px;align-items:center}
+@media(min-width:880px){.split{grid-template-columns:1fr 1fr;gap:76px}}
+.panel{background:var(--sunk);border-radius:var(--radius-lg);padding:clamp(24px,4vw,36px)}
+.row{display:flex;justify-content:space-between;align-items:baseline;gap:16px;padding:14px 0;
+  border-bottom:1px solid var(--hairline)}
+.row:last-of-type{border-bottom:0}
+.row .k{font-size:.9375rem}
+.row .v{color:var(--ink);font-weight:500;font-variant-numeric:tabular-nums}
+.row .v.up{color:var(--accent);font-weight:600}
+
+footer{padding:var(--section) 0 56px;border-top:1px solid var(--hairline)}
+.fgrid{display:grid;gap:32px}
+@media(min-width:700px){.fgrid{grid-template-columns:2fr 1fr 1fr}}
+footer a{color:var(--secondary);text-decoration:none;font-size:.9375rem;display:block;padding:5px 0}
+footer a:hover{color:var(--ink)}
+.fh{font-size:var(--caption);color:var(--tertiary);font-weight:500;margin-bottom:8px}
+
+.reveal-ready [data-reveal]{opacity:0;transform:translateY(24px)}
+.reveal-ready [data-reveal].is-in{opacity:1;transform:none;
+  transition:opacity .6s var(--ease),transform .6s var(--ease)}
+.thread .pending{opacity:0;transform:translateY(10px)}
+.thread .pending.is-in{opacity:1;transform:none;
+  transition:opacity .42s var(--ease),transform .42s var(--ease)}
+[id]{scroll-margin-top:72px}
+.skip{position:absolute;left:-9999px}
+.skip:focus{left:16px;top:12px;z-index:200;background:var(--teal);color:var(--on-teal);
+  padding:10px 16px;border-radius:8px}
+
+
+/* Shared section rules. These were inline in the approved homepage; they
+   belong here now that eleven pages use them. */
+.hero .display{max-width:15ch}
+section h1.display{margin-bottom:0}
+
+</style>
+</head>
+<body class="theme-navy">
+<a href="#main" class="skip">Skip to content</a>
+<nav data-nav><div class="wrap">
+  <a href="preview-index.html" class="brand"><i>P</i>Potato</a>
+  <a href="preview-product.html" class="link">Product</a>
+  <a href="preview-pricing.html" class="link">Pricing</a>
+  <a href="preview-security.html" class="link">Security</a>
+  <a href="preview-customers.html" class="link">Customers</a>
+  <div class="right">
+    <a href="https://app.potato.ai" class="link keep">Log in</a>
+    <a href="preview-demo.html" class="btn btn-primary btn-sm">Book a call</a>
+  </div>
+</div></nav>
+<main id="main">
+<section class="hero hero-bg"><div class="wrap">
+  <span class="eyebrow">Pricing</span>
+  <h1 class="display" style="font-size:var(--h1);max-width:18ch">Per agent, per month.</h1>
+  <p class="lead">No setup fee and no minimum term. Add an agent mid-month and you pay for the days they use.</p>
+</div></section>
+
+<section class="theme-light"><div class="wrap split">
+  <div>
+    <h2 data-reveal>What's included</h2>
+    <p class="lead" data-reveal="60">Everything. There is no tier where the assistant works
+       better, and no feature held back to make a bigger number look reasonable.</p>
+  </div>
+  <div class="panel" data-reveal="120">
+    <div class="row"><span class="k">WhatsApp assistant</span><span class="v up">Included</span></div>
+    <div class="row"><span class="k">Portal lead capture</span><span class="v up">Included</span></div>
+    <div class="row"><span class="k">Pipeline and viewings</span><span class="v up">Included</span></div>
+    <div class="row"><span class="k">Compliance and AML file</span><span class="v up">Included</span></div>
+    <div class="row"><span class="k">Mobile app</span><span class="v up">Included</span></div>
+  </div>
+</div></section>
+
+<section><div class="wrap mid">
+  <span class="eyebrow" data-reveal>Common questions</span>
+  <h2 data-reveal="60">What if an agent leaves mid-month?</h2>
+  <p data-reveal="120">You pay for the days they were here. Adding one works the same way —
+     it appears on the next invoice, pro rata, with the arithmetic shown.</p>
+  <p style="margin-top:36px" data-reveal="180"><a href="preview-demo.html" class="btn btn-primary">Book a call</a></p>
+</div></section>
+</main>
+<footer><div class="wrap fgrid">
+  <div>
+    <a href="preview-index.html" class="brand" style="margin-bottom:12px"><i>P</i>Potato</a>
+    <p class="cap" style="max-width:32ch">The WhatsApp assistant for UAE property brokerages.</p>
+  </div>
+  <div><h3 class="fh">Product</h3>
+    <a href="preview-product.html">How it works</a><a href="preview-pricing.html">Pricing</a>
+    <a href="preview-integrations.html">Integrations</a><a href="preview-security.html">Security</a></div>
+  <div><h3 class="fh">Company</h3>
+    <a href="preview-about.html">About</a><a href="preview-customers.html">Customers</a>
+    <a href="preview-blog.html">Blog</a><a href="preview-legal.html">Legal</a></div>
+</div>
+<div class="wrap" style="margin-top:52px"><p class="cap">&copy; 2026 Potato. Dubai, UAE.</p></div>
+</footer>
+<script>
+/**
+ * Scroll reveals.
+ *
+ * Rules, and they are the whole file:
+ *
+ *   1. Never on the hero. Above the fold must be present on first paint
+ *      — an empty screen for 600ms while JavaScript boots is the worst
+ *      first impression available, and on a slow connection it is longer.
+ *   2. Once. Elements do not re-animate when scrolled back to. Repeated
+ *      motion is the difference between a site that feels considered and
+ *      one that feels like a demo.
+ *   3. Off entirely under prefers-reduced-motion. Not faster — off.
+ */
+(function () {
+  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const items = document.querySelectorAll("[data-reveal]");
+
+  // No JavaScript, or motion is unwanted: everything is simply visible.
+  // The CSS starts hidden only once this script confirms it can run,
+  // so a failed script leaves a readable page rather than a blank one.
+  if (reduced || !("IntersectionObserver" in window)) {
+    items.forEach((el) => el.classList.add("is-in"));
+    return;
+  }
+
+  document.documentElement.classList.add("reveal-ready");
+
+  const io = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        const delay = Number(entry.target.dataset.reveal) || 0;
+        setTimeout(() => entry.target.classList.add("is-in"), delay);
+        io.unobserve(entry.target);
+      });
+    },
+    // Fires slightly before the element is fully in view, so the motion
+    // has finished by the time it is being read rather than starting then.
+    { rootMargin: "0px 0px -12% 0px", threshold: 0.01 }
+  );
+
+  items.forEach((el) => io.observe(el));
+})();
+
+/**
+ * The conversation demo.
+ *
+ * Plays once when it comes into view, then rests. Not a loop — a loop
+ * turns the product into wallpaper, and a visitor who looks away and
+ * back should not find it mid-cycle.
+ */
+(function () {
+  const thread = document.querySelector("[data-thread]");
+  if (!thread) return;
+
+  const rows = [...thread.querySelectorAll("[data-msg]")];
+  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  if (reduced || !("IntersectionObserver" in window)) {
+    rows.forEach((r) => r.classList.add("is-in"));
+    return;
+  }
+
+  rows.forEach((r) => r.classList.add("pending"));
+
+  new IntersectionObserver((entries, obs) => {
+    if (!entries[0].isIntersecting) return;
+    obs.disconnect();
+    rows.forEach((row, i) => {
+      // Outbound messages land faster than inbound, because that is the
+      // claim: the reply is quick. The timing is the argument.
+      setTimeout(() => row.classList.add("is-in"), 400 + i * 620);
+    });
+  }, { threshold: 0.4 }).observe(thread);
+})();
+
+/**
+ * Sticky nav.
+ *
+ * The hairline only appears once the page has scrolled. At rest the bar
+ * is invisible against the ground, which is what makes the top of the
+ * page feel open.
+ */
+(function () {
+  const nav = document.querySelector("[data-nav]");
+  if (!nav) return;
+  const onScroll = () => nav.classList.toggle("is-stuck", window.scrollY > 8);
+  onScroll();
+  addEventListener("scroll", onScroll, { passive: true });
+})();
+
+</script>
+</body></html>

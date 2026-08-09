@@ -1,0 +1,90 @@
+/* PotatoFarm v2 — design tokens.
+   One source of truth for the website and the CRM. */
+
+:root{
+  /* ---- Ground ----------------------------------------------------
+     Warmer than pure white so it does not glare, cool enough to read
+     as modern. The previous #F4F1EA was too warm — it read as paper
+     stock rather than as a screen. */
+  --ground:      #FBFAF8;
+  --ground-sunk: #F2F0EC;   /* cards, sunken panels */
+  --deep:        #0B0B0C;   /* inverted sections */
+  --deep-raised: #17171A;   /* cards on deep */
+
+  /* ---- Ink -------------------------------------------------------
+     --tertiary is Apple's own #86868B. It fails AA on our ground at
+     4.1:1, so it is captions and meta only, never body copy. That is
+     the same restriction Apple works under. */
+  --ink:       #1A1A1C;   /* 15.4:1 */
+  --secondary: #5C5C63;   /*  6.9:1 */
+  --tertiary:  #86868B;   /*  4.1:1 — large or non-essential text only */
+  --on-deep:   #F5F5F7;
+  --on-deep-2: #A1A1A6;
+
+  --accent:    #A83226;
+  --accent-dk: #8C2A20;
+  --on-accent: #FBFAF8;
+
+  --hairline:  #E8E4DC;
+  --hairline-deep: #2A2A2E;
+
+  /* ---- Type ------------------------------------------------------
+     The system stack first. On Apple hardware this renders SF via the
+     OS, which is legitimate; SF Pro as a webfont is not licensed for
+     this use. Inter is the loaded fallback. */
+  --sans: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI",
+          Roboto, Helvetica, Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+
+  --display:  clamp(3rem, 2rem + 5vw, 5.5rem);
+  --h1:       clamp(2.25rem, 1.6rem + 3vw, 3.5rem);
+  --h2:       clamp(1.75rem, 1.3rem + 2vw, 2.5rem);
+  --h3:       1.375rem;
+  --body-lg:  1.3125rem;
+  --body:     1.0625rem;
+  --caption:  0.8125rem;
+
+  /* Negative tracking is the most recognisable thing about this
+     typography and it costs one line. */
+  --track-display: -0.03em;
+  --track-h1:      -0.025em;
+  --track-h2:      -0.02em;
+  --track-h3:      -0.01em;
+
+  /* ---- Space -----------------------------------------------------
+     Section spacing is deliberately large. If it looks too airy in the
+     browser it is probably right. */
+  --section: clamp(88px, 12vw, 180px);
+  --block:   48px;
+  --element: 24px;
+  --tight:   12px;
+  --measure: 34rem;   /* max line length — roughly 66 characters */
+
+  --radius:    12px;
+  --radius-lg: 20px;
+
+  --ease:  cubic-bezier(0.16, 1, 0.3, 1);   /* long tail, Apple-ish */
+  --fast:  240ms;
+  --base:  600ms;
+}
+
+/* Inverted sections. Apple breaks a long page by flipping it, which
+   resets the eye and makes a long scroll feel structured. This is the
+   single biggest change to how the page reads. */
+.on-deep{
+  --ground:      var(--deep);
+  --ground-sunk: var(--deep-raised);
+  --ink:         var(--on-deep);
+  --secondary:   var(--on-deep-2);
+  --tertiary:    var(--on-deep-2);
+  --hairline:    var(--hairline-deep);
+}
+
+@media (prefers-reduced-motion: reduce){
+  /* Disabled, not shortened. A 10ms animation is still motion. */
+  *,*::before,*::after{
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}

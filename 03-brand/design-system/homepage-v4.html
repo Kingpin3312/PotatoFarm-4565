@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en-GB"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>PotatoFarm.io — the real estate CRM that grows your farm</title>
+<meta name="description" content="A WhatsApp-first CRM for UAE brokerages. Answers every enquiry in seconds, sorts your leads hot to cold, and knows what a Dubai deal actually involves.">
+<link rel="canonical" href="https://potatofarm.io/">
+<meta name="theme-color" content="#F4F3F0">
+<link rel="preconnect" href="https://rsms.me">
+<link rel="stylesheet" href="https://rsms.me/inter/inter.css">
+<style>
+/* ============================================================
+   PotatoFarm.io — design tokens, v4
+   Warm white, Claude orange, Hermes discipline.
+   ============================================================ */
+
+:root{
+  /* ---- The ground -----------------------------------------------
+     Warm white, not pure white. This is the whole effect and it is
+     worth defending: **Hermes does not put orange on #FFFFFF.** It puts
+     it on a warm cream, anchored by deep brown leather.
+
+     Pure white plus orange reads as a budget airline. Cream plus orange
+     plus brown reads as the reference. The difference is about 2%
+     warmth, and it is the difference. */
+  --ground: #F4F3F0;
+  --panel:  #EBEAE6;
+  --raised: #FFFFFF;   /* cards lift by being *whiter* than the ground */
+
+  /* ---- Ink, with brown in it --------------------------------------
+     A neutral grey against orange looks like a spreadsheet. Warming the
+     near-black by a few points is what makes the orange belong. */
+  --ink:   #1A1A1A;   /* 16.94:1 */
+  --ink-2: #4A4A4A;   /*  8.34:1 */
+  --ink-3: #6B6B6B;   /*  5.86:1 on ground, 5.43:1 on panel */
+  --rule:  #E2E0DA;
+  --rule-strong: #CFCCC4;
+
+  /* ---- Orange ------------------------------------------------------
+     Two, and they are not interchangeable.
+
+     `--accent` is Claude orange and it is a **fill only**. It measures
+     3.12:1 on the ground — enough for a non-text component, nowhere
+     near enough for type.
+
+     `--accent-type` carries every word. Same hue, deeper, 5.27:1.
+
+     Getting this backwards is the mistake, and it is the fifth time in
+     this project a warm colour has looked right and measured wrong. */
+  --accent:      #E87A2E;   /* Hermes orange. Fill only: 3.12:1 on ground */
+  --accent-type: #A84900;   /* type: 5.56:1 on ground, 5.15:1 on panel */
+  --accent-hover:#C4621D;
+
+  /**
+   * The border on every orange fill, and it is not decoration.
+   *
+   * Hermes orange measures 3.12:1 on the ground and **2.9:1 on the
+   * cream panel** — the same button passes on one surface and fails on
+   * the other. Rather than forbid orange on panels, or lighten the
+   * panel until it works, the fill carries a darker hairline. The edge
+   * is then defined by the border regardless of what is behind it.
+   *
+   * Same fix as the saffron button two palettes ago, same reason.
+   */
+  --accent-edge: #C4621D;   /* 4.38:1 on panel — defines the boundary */
+
+  /* **Labels on the orange fill are ink, never white.**
+     White on Hermes orange is 3.23:1 and fails. Ink is 5.42:1 and
+     passes — and an orange button with near-black type is also the more
+     Hermes answer. The measurement and the reference agreed, which does
+     not always happen. */
+  --on-accent: #1A1A1A;
+
+  /* ---- Leather -----------------------------------------------------
+     The anchor. Orange without a dark warm neutral beneath it floats;
+     this is the belt and the box. */
+  --leather:      #2E2E2E;
+  --leather-deep: #1A1A1A;
+  /* The type that sits on leather, named at the root rather than only
+     inside `.on-leather`. The footer is on leather and outside that
+     class, so without these it gets literals — which is exactly what
+     happened, three times. */
+  --leather-ink:   #EBEAE6;   /* 14.49:1 on leather-deep */
+  --leather-ink-2: #B5B5B5;   /*  8.02:1 */
+  --leather-ink-3: #8A8A8A;   /*  4.74:1 */
+
+  --success:      #1F7A4C;
+  --danger:       #B3261E;
+  --warning:      #A84900;   /* the accent type step, deliberately */
+
+  /* ---- Type --------------------------------------------------------
+     Same stack. Warm palettes tempt people toward a serif and it is
+     usually a mistake at interface sizes — Hermes' own wordmark is a
+     serif and its signage is not. */
+  --sans: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI",
+          Roboto, Helvetica, Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+
+  --display: clamp(2.5rem, 1.6rem + 4.2vw, 4.25rem);
+  --h1:      clamp(2rem, 1.5rem + 2.4vw, 3rem);
+  --h2:      clamp(1.5rem, 1.2rem + 1.6vw, 2.125rem);
+  --h3:      1.25rem;
+  --body-lg: 1.1875rem;
+  --body:    1rem;
+  --small:   0.9375rem;
+  --caption: 0.8125rem;
+  --micro:   0.6875rem;
+  --stat:    1.875rem;
+
+  --track-display: -0.03em;
+  --track-h1:      -0.026em;
+  --track-h2:      -0.022em;
+
+  --section: clamp(72px, 9vw, 128px);
+  --measure: 34rem;
+
+  --r-xs: 4px;
+  --r-sm: 6px;
+  --r:    8px;
+  --r-lg: 14px;
+  --r-xl: 999px;
+
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Warmer and shallower than a neutral shadow. A grey shadow on a
+     cream ground looks like dirt. */
+  --lift: 0 1px 2px rgb(43 30 23 / .05), 0 6px 20px rgb(43 30 23 / .06);
+  --ring: 0 0 0 3px rgb(217 119 87 / .40);
+}
+
+/* The inverted section. Leather, not black — a pure black band under a
+   cream page is a hole in it. */
+.on-leather{
+  --ground: var(--leather-deep); --panel: var(--leather); --raised: var(--leather);
+  --ink: var(--leather-ink); --ink-2: var(--leather-ink-2); --ink-3: var(--leather-ink-3);
+  --rule: #2E2E2E;
+  /* On leather the bright orange finally works as type — 6.4:1 — so the
+     accent and the accent-type collapse into one here. */
+  --accent-type: #F09A55;   /* 7.1:1 on leather */
+  --on-accent: var(--leather-deep);
+}
+
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important;
+    scroll-behavior:auto!important}
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{background:var(--ground);color:var(--ink-2);font-family:var(--sans);
+  font-size:var(--body);line-height:1.6;-webkit-font-smoothing:antialiased;
+  font-feature-settings:"cv11","ss01"}
+section{background:var(--ground);color:var(--ink-2);padding:var(--section) 0}
+.wrap{max-width:1120px;margin:0 auto;padding:0 clamp(20px,4vw,32px)}
+h1,h2,h3{color:var(--ink);font-weight:600}
+.display{font-size:var(--display);line-height:1.04;letter-spacing:var(--track-display);
+  color:var(--ink);font-weight:600}
+.display em{font-style:normal;color:var(--accent-type)}
+h2{font-size:var(--h2);line-height:1.12;letter-spacing:var(--track-h2)}
+h3{font-size:var(--h3);line-height:1.3;letter-spacing:-.012em;font-weight:600}
+.lead{font-size:var(--body-lg);line-height:1.5;max-width:var(--measure)}
+.eyebrow{font-family:var(--mono);font-size:var(--micro);letter-spacing:.16em;
+  text-transform:uppercase;color:var(--ink-3);display:block;margin-bottom:18px}
+.cap{font-size:var(--caption);color:var(--ink-3)}
+.narrow{max-width:var(--measure)}
+
+nav{position:sticky;top:0;z-index:100;height:64px;display:flex;align-items:center;
+  background:color-mix(in srgb,var(--ground) 86%,transparent);
+  border-bottom:1px solid transparent;transition:border-color .24s}
+@supports not (backdrop-filter:blur(1px)){nav{background:var(--ground)}}
+@supports (backdrop-filter:blur(1px)){nav{backdrop-filter:saturate(160%) blur(16px);
+  -webkit-backdrop-filter:saturate(160%) blur(16px)}}
+nav.stuck{border-bottom-color:var(--rule)}
+nav .wrap{display:flex;align-items:center;gap:32px;width:100%}
+.brand{display:flex;align-items:center;color:var(--ink);font-weight:600;font-size:1.0625rem;
+  letter-spacing:-.014em;text-decoration:none}
+
+/* The extension in orange.
+   It is TYPE, not a fill — so it takes --accent-type at 5.56:1, never
+   the fill orange, which is 3.12:1 and unreadable at this size. The
+   token resolves per ground, so the footer and the sidebar get the
+   lighter leather step automatically. */
+/* One mark, the same file the site and the app icon use. This was an
+   'PF' chip — a placeholder from before the potato existed that
+   survived into two surfaces. */
+.brand .mark{width:28px;height:28px;margin-right:11px;flex:none;display:block}
+.brand .word{font-weight:600;white-space:nowrap}
+.brand .tld{color:var(--accent-type);font-weight:500;letter-spacing:inherit}
+.links{display:flex;gap:28px;margin-left:12px}
+.links a{color:var(--ink-2);text-decoration:none;font-size:var(--small)}
+.links a:hover{color:var(--ink)}
+.navcta{margin-left:auto;display:flex;gap:16px;align-items:center}
+@media(max-width:900px){.links{display:none}}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:48px;
+  padding:0 26px;border-radius:var(--r);font-size:var(--small);font-weight:600;
+  text-decoration:none;border:1px solid transparent;transition:all .2s var(--ease)}
+.btn-sm{min-height:40px;padding:0 18px}
+/* Ink on orange, never white. White measures 3.12:1 and fails; ink is
+   5.61:1 — and an orange button with near-black type is the more Hermes
+   answer anyway. */
+/* The edge is load-bearing. The fill is 3.12:1 on the ground and 2.9:1
+   on the cream panel — the same button passing on one surface and
+   failing on the other. The hairline defines it regardless. */
+.btn-primary{background:var(--accent);color:var(--on-accent);border-color:var(--accent-edge)}
+.btn-primary:hover{background:var(--accent-hover)}
+.btn-ghost{color:var(--ink);border-color:var(--rule-strong);background:transparent}
+.btn-ghost:hover{border-color:var(--ink-2)}
+.btn:focus-visible{outline:none;box-shadow:var(--ring)}
+
+.hero{padding:clamp(52px,6vw,88px) 0 0}
+.hero-grid{display:grid;gap:44px;align-items:center}
+@media(min-width:980px){.hero-grid{grid-template-columns:1.05fr .95fr;gap:64px}}
+.hero .display{max-width:13ch}
+.hero .lead{margin-top:22px}
+.acts{display:flex;gap:12px;margin-top:34px;flex-wrap:wrap}
+
+/* Cards lift by being whiter than the ground, not by shadow alone.
+   A cream page with white cards is the Hermes trick — depth from
+   temperature rather than from a drop shadow. */
+.shot{background:var(--raised);border:1px solid var(--rule);border-radius:var(--r-lg);
+  padding:22px;box-shadow:var(--lift)}
+.shot-head{display:flex;align-items:center;gap:9px;padding-bottom:14px;
+  border-bottom:1px solid var(--rule);margin-bottom:16px}
+.shot-head span{font-family:var(--mono);font-size:var(--micro);letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ink-3)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--success);flex:none}
+.m{display:flex;align-items:flex-end;margin-bottom:10px}
+.m.out{justify-content:flex-end}
+.m b{max-width:80%;padding:10px 14px;border-radius:var(--r-lg);font-size:var(--small);
+  font-weight:400;line-height:1.45;background:var(--panel);color:var(--ink)}
+.m.out b{background:var(--accent);color:var(--on-accent);border:1px solid var(--accent-edge)}
+.m i{font-style:normal;font-size:var(--micro);color:var(--ink-3);margin:0 8px 3px;
+  font-family:var(--mono)}
+.shot-foot{margin-top:16px;padding-top:14px;border-top:1px solid var(--rule);
+  font-size:var(--caption);color:var(--ink-3)}
+
+.strip{margin-top:clamp(44px,6vw,68px);border-top:1px solid var(--rule);
+  border-bottom:1px solid var(--rule);padding:26px 0;display:grid;gap:18px}
+@media(min-width:860px){.strip{grid-template-columns:1fr auto;align-items:center;gap:40px}}
+.strip .striph{font-size:1.0625rem;font-weight:600;color:var(--ink);letter-spacing:-.012em}
+.strip p{font-size:var(--small);margin-top:5px;max-width:54ch}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{font-family:var(--mono);font-size:var(--micro);letter-spacing:.08em;
+  text-transform:uppercase;color:var(--ink-2);border:1px solid var(--rule-strong);
+  border-radius:var(--r-xs);padding:6px 11px}
+
+.temps{display:grid;gap:14px;margin-top:44px}
+@media(min-width:760px){.temps{grid-template-columns:repeat(4,1fr)}}
+.temp{background:var(--raised);border:1px solid var(--rule);border-radius:var(--r-lg);
+  padding:22px;box-shadow:var(--lift)}
+.temp .t{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.temp .t b{font-family:var(--mono);font-size:var(--micro);letter-spacing:.14em;
+  text-transform:uppercase;font-weight:700;color:var(--ink-3)}
+.temp .t s{width:8px;height:8px;border-radius:50%;text-decoration:none;background:var(--ink-3)}
+.temp .n{font-size:var(--stat);font-weight:600;letter-spacing:-.03em;color:var(--ink);
+  line-height:1;font-variant-numeric:tabular-nums}
+.temp p{font-size:var(--small);margin-top:10px}
+/* With one accent, hot is the only thing wearing it. That is a
+   stronger signal than two oranges competing — every other column is
+   deliberately neutral, so the eye lands on hot without being told. */
+.temp.hot{border-color:var(--accent-edge)}
+.temp.hot .t b{color:var(--accent-type)} .temp.hot .t s{background:var(--accent);border:1px solid var(--accent-edge)}
+.temp.hot .n{color:var(--accent-type)}
+
+.cards{display:grid;gap:18px;margin-top:44px}
+@media(min-width:820px){.cards{grid-template-columns:repeat(3,1fr)}}
+.card{background:var(--raised);border:1px solid var(--rule);border-radius:var(--r-lg);
+  padding:26px;box-shadow:var(--lift)}
+.card .num{font-family:var(--mono);font-size:var(--micro);letter-spacing:.14em;
+  color:var(--ink);font-weight:700}
+.card h3{margin:12px 0 8px}
+.card p{font-size:var(--small)}
+
+.split{display:grid;gap:40px;align-items:center}
+@media(min-width:900px){.split{grid-template-columns:1fr 1fr;gap:64px}}
+.panel{background:var(--panel);border-radius:var(--r-lg);padding:28px}
+.row{display:flex;justify-content:space-between;align-items:baseline;gap:16px;
+  padding:13px 0;border-bottom:1px solid var(--rule);font-variant-numeric:tabular-nums}
+.row:last-of-type{border-bottom:0}
+.row .k{font-size:var(--small)}
+.row .v{color:var(--ink);font-weight:600}
+
+.mid{text-align:center}
+.mid h2{max-width:20ch;margin:0 auto}
+.mid p{max-width:var(--measure);margin:18px auto 0}
+.bignum{font-size:clamp(3rem,2.2rem+3.4vw,4.5rem);line-height:1;letter-spacing:-.04em;
+  color:var(--ink);font-weight:600}
+
+.ptable{max-width:660px;margin:40px auto 0;border-top:2px solid var(--ink)}
+.prow{display:grid;grid-template-columns:1.1fr 1fr 1.3fr 1fr;gap:10px;align-items:baseline;
+  padding:14px 4px;border-bottom:1px solid var(--rule);font-variant-numeric:tabular-nums}
+.phead{font-family:var(--mono);font-size:var(--micro);letter-spacing:.12em;
+  text-transform:uppercase;color:var(--ink-3)}
+.pk{color:var(--ink);font-weight:500;font-size:var(--small)}
+.pv{color:var(--ink);font-weight:700;font-size:1.0625rem}
+.pa{font-size:var(--small)}
+.py{font-size:var(--caption);color:var(--ink-3)}
+@media(max-width:560px){.prow{grid-template-columns:1fr 1fr 1.3fr}
+  .py,.phead span:last-child{display:none}}
+
+footer{background:var(--leather-deep);color:var(--leather-ink-2);padding:var(--section) 0 48px}
+footer .brand{color:var(--leather-ink)}
+
+.fgrid{display:grid;gap:32px}
+@media(min-width:760px){.fgrid{grid-template-columns:2fr 1fr 1fr 1fr}}
+footer a{color:var(--leather-ink-2);text-decoration:none;font-size:var(--small);display:block;padding:5px 0}
+footer a:hover{color:var(--leather-ink)}
+footer .fh{font-family:var(--mono);font-size:var(--micro);letter-spacing:.14em;
+  text-transform:uppercase;color:var(--leather-ink-3);margin-bottom:10px}
+
+.reveal-ready [data-r]{opacity:0;transform:translateY(20px)}
+.reveal-ready [data-r].in{opacity:1;transform:none;
+  transition:opacity .6s var(--ease),transform .6s var(--ease)}
+[id]{scroll-margin-top:80px}
+.skip{position:absolute;left:-9999px}
+.skip:focus{left:16px;top:12px;z-index:200;background:var(--accent);color:var(--on-accent);
+  padding:11px 18px;border-radius:var(--r);text-decoration:none;border:1px solid var(--accent-edge)}
+</style></head>
+
+<body>
+<a href="#main" class="skip">Skip to content</a>
+
+<nav data-nav><div class="wrap">
+  <a href="#" class="brand"><svg viewBox="0 0 64 64" aria-hidden="true" class="mark"><g transform="translate(0.0,0.0) scale(1.0)"><defs><linearGradient id="shm1" x1="24%" y1="14%" x2="70%" y2="86%"><stop offset="0" stop-color="#EE9149"/><stop offset="0.5" stop-color="#E87A2E"/><stop offset="1" stop-color="#DB6E22"/></linearGradient><filter id="blm1"><feGaussianBlur stdDeviation="7"/></filter><filter id="dpm1" x="-35%" y="-35%" width="180%" height="180%"><feDropShadow dx="0" dy="2" stdDeviation="2.2" flood-color="#8A4310" flood-opacity="0.18"/></filter><clipPath id="cpm1"><path d="M33,4 C42,4.5 48,11 50,20 C52,29 50,37 48,44 C45,53 38,60 30,60 C21,60 15,54 13,45 C11,35 12,24 16,15 C20,7 26,3.5 33,4 Z"/></clipPath></defs><path d="M33,4 C42,4.5 48,11 50,20 C52,29 50,37 48,44 C45,53 38,60 30,60 C21,60 15,54 13,45 C11,35 12,24 16,15 C20,7 26,3.5 33,4 Z" fill="url(#shm1)" filter="url(#dpm1)"/><g clip-path="url(#cpm1)"><ellipse cx="25" cy="20" rx="17" ry="19" fill="#FFFFFF" opacity="0.15" filter="url(#blm1)"/></g><ellipse cx="25.5" cy="25" rx="3.2" ry="4.9" fill="#8A4310"/><ellipse cx="38.5" cy="24.2" rx="3.1" ry="4.8" fill="#8A4310"/></g></svg><span class="word">PotatoFarm<span class="tld">.io</span></span></a>
+  <div class="links">
+    <a href="#temps">Leads</a><a href="#how">Product</a>
+    <a href="#local">Built for Dubai</a><a href="#pricing">Pricing</a>
+  </div>
+  <div class="navcta">
+    <a href="https://app.potatofarm.io" style="color:var(--ink-2);text-decoration:none;font-size:var(--small)">Log in</a>
+    <a href="#demo" class="btn btn-primary btn-sm">Book a demo</a>
+  </div>
+</div></nav>
+
+<main id="main">
+
+<section class="hero"><div class="wrap">
+  <div class="hero-grid">
+    <div>
+      <span class="eyebrow">Real estate CRM for UAE brokerages</span>
+      <h1 class="display">The real estate CRM that grows <em>your farm.</em></h1>
+      <p class="lead">Every enquiry answered in seconds, day or night. Your leads sorted hot
+         to cold. And a system that knows what a Dubai deal actually involves.</p>
+      <div class="acts">
+        <a href="#demo" class="btn btn-primary">Book a demo</a>
+        <a href="#how" class="btn btn-ghost">Explore the product</a>
+      </div>
+    </div>
+    <figure class="shot" style="margin:0">
+      <div class="shot-head"><span class="dot"></span><span>Live &middot; 23:14</span></div>
+      <div class="m"><b>Hi, is the 3 bed in Marina Gate still available?</b><i>23:14</i></div>
+      <div class="m out"><i>23:14</i><b>It is. Are you looking to buy or rent?</b></div>
+      <div class="m"><b>Buy. Around 2.5 if it&rsquo;s the right one</b><i>23:16</i></div>
+      <div class="m out"><i>23:16</i><b>That works. Free Saturday morning to see it?</b></div>
+      <div class="m"><b>Saturday 10 is good</b><i>23:17</i></div>
+      <div class="shot-foot">Booked in three minutes. Omar read it over breakfast.</div>
+    </figure>
+  </div>
+
+  <div class="strip">
+    <div>
+      <h2 class="striph">Built for how property actually works here.</h2>
+      <p>Trakheesi permits, DLD transfer timelines, and the anti-money-laundering
+         obligations every UAE brokerage already has. The things a CRM designed in London
+         does not know about.</p>
+    </div>
+    <div class="chips">
+      <span class="chip">Trakheesi</span><span class="chip">Form F to transfer</span>
+      <span class="chip">goAML</span><span class="chip">RERA</span>
+    </div>
+  </div>
+</div></section>
+
+<section id="temps"><div class="wrap">
+  <div class="narrow">
+    <span class="eyebrow" data-r>Your farm</span>
+    <h2 data-r="60">Every lead, sorted by how ready they are.</h2>
+  </div>
+  <div class="temps">
+    <div class="temp hot" data-r><div class="t"><s></s><b>Hot potatoes</b></div>
+      <div class="n">63</div>
+      <p>Viewing booked, offer discussed, or asking about payment plans. Ready now.</p></div>
+    <div class="temp" data-r="70"><div class="t"><s></s><b>Warm</b></div>
+      <div class="n">231</div>
+      <p>Budget and timeframe known, and they&rsquo;ve replied in the last fortnight.</p></div>
+    <div class="temp" data-r="140"><div class="t"><s></s><b>Cold</b></div>
+      <div class="n">642</div>
+      <p>Qualified and gone quiet. <strong>Not dead</strong> &mdash; this is where the money
+         is usually left.</p></div>
+    <div class="temp" data-r="210"><div class="t"><s></s><b>Dead</b></div>
+      <div class="n">1,248</div>
+      <p>Bought elsewhere, out of market, or asked us to stop. Never messaged again.</p></div>
+  </div>
+</div></section>
+
+<section id="how" class="on-leather"><div class="wrap">
+  <div class="narrow">
+    <span class="eyebrow" data-r>How it works</span>
+    <h2 data-r="60">Three things, then it hands over.</h2>
+  </div>
+  <div class="cards">
+    <div class="card" data-r><span class="num">01</span><h3>It replies</h3>
+      <p>Within seconds, from your number, in the language the buyer wrote in. Arabic or
+         English, without being told which.</p></div>
+    <div class="card" data-r="80"><span class="num">02</span><h3>It qualifies</h3>
+      <p>Budget, buying or renting, timeframe, mortgage or cash. Your questions, asked the
+         way you&rsquo;d ask them.</p></div>
+    <div class="card" data-r="160"><span class="num">03</span><h3>It steps back</h3>
+      <p>The moment it matters, your agent takes over with the whole conversation already
+         there. It hands over on purpose, not on failure.</p></div>
+  </div>
+</div></section>
+
+<section><div class="wrap split">
+  <div>
+    <span class="eyebrow" data-r>What changes</span>
+    <h2 data-r="60">We measure yours before we claim anything.</h2>
+    <p class="lead" data-r="120" style="margin-top:16px">The first week the assistant stays
+       off and we record how quickly enquiries are answered today, broken down by hour.</p>
+  </div>
+  <div class="panel" data-r="180">
+    <div class="row"><span class="k">Median first reply, before</span><span class="v">Your number</span></div>
+    <div class="row"><span class="k">Median first reply, after</span><span class="v">Your number</span></div>
+    <div class="row"><span class="k">Out-of-hours answered</span><span class="v">Your number</span></div>
+    <div class="row"><span class="k">Viewings booked per 100</span><span class="v">Your number</span></div>
+    <p class="cap" style="margin-top:18px">We&rsquo;re new. Rather than show you somebody
+       else&rsquo;s figures &mdash; or invent our own &mdash; we&rsquo;ll fill this in with
+       yours in week one.</p>
+  </div>
+</div></section>
+
+<section id="local"><div class="wrap">
+  <div class="narrow">
+    <span class="eyebrow" data-r>Built for here</span>
+    <h2 data-r="60">It knows what a Dubai deal involves.</h2>
+  </div>
+  <div class="cards">
+    <div class="card" data-r><span class="num">Permits</span><h3>Trakheesi</h3>
+      <p>We block publishing without a valid permit and warn you fourteen days before one
+         lapses.</p></div>
+    <div class="card" data-r="80"><span class="num">Transfer</span><h3>Form F to title deed</h3>
+      <p>The pipeline doesn&rsquo;t stop at won. It plans backwards from the completion date
+         on the Form F.</p></div>
+    <div class="card" data-r="160"><span class="num">Compliance</span><h3>AML and KYC</h3>
+      <p>Every brokerage concluding a sale is a DNFBP. Screening and the cash reporting
+         threshold are built in.</p></div>
+  </div>
+</div></section>
+
+<section id="pricing" class="on-leather"><div class="wrap mid">
+  <span class="eyebrow" data-r>Pricing</span>
+  <p class="bignum" data-r="60">$70</p>
+  <h2 data-r="100" style="margin-top:10px">Per agent, per month.</h2>
+  <p data-r="140">No setup fee, no minimum term, and a fourteen-day trial with no card.</p>
+  <p data-r="150"><strong style="color:var(--ink)">Includes 60 answered conversations per
+     agent, per month.</strong> Past that it&rsquo;s 1.30 dirhams each, and we tell you at
+     80% rather than on the invoice.</p>
+
+  <div class="ptable" data-r="200">
+    <div class="prow phead"><span>Your team</span><span>Per month</span><span>Conversations included</span><span>Invoiced</span></div>
+    <div class="prow"><span class="pk">8 agents</span><span class="pv">$560</span><span class="pa">480</span><span class="py">AED 2,057</span></div>
+    <div class="prow"><span class="pk">15 agents</span><span class="pv">$1,050</span><span class="pa">900</span><span class="py">AED 3,856</span></div>
+    <div class="prow"><span class="pk">25 agents</span><span class="pv">$1,750</span><span class="pa">1,500</span><span class="py">AED 6,427</span></div>
+    <div class="prow"><span class="pk">40 agents</span><span class="pv">$2,800</span><span class="pa">2,400</span><span class="py">AED 10,283</span></div>
+  </div>
+
+  <p class="cap" data-r="240" style="margin-top:20px;max-width:52ch;margin-left:auto;margin-right:auto">
+    The allowance is pooled across your team, not per agent. Below eight agents we&rsquo;ll
+    tell you it isn&rsquo;t worth it.</p>
+  <p style="margin-top:32px" data-r="280"><a href="#demo" class="btn btn-primary">Start the trial</a></p>
+</div></section>
+
+</main>
+
+<footer><div class="wrap fgrid">
+  <div>
+    <a href="#" class="brand" style="margin-bottom:14px"><svg viewBox="0 0 64 64" aria-hidden="true" class="mark"><g transform="translate(0.0,0.0) scale(1.0)"><defs><linearGradient id="shm2" x1="24%" y1="14%" x2="70%" y2="86%"><stop offset="0" stop-color="#EE9149"/><stop offset="0.5" stop-color="#E87A2E"/><stop offset="1" stop-color="#DB6E22"/></linearGradient><filter id="blm2"><feGaussianBlur stdDeviation="7"/></filter><filter id="dpm2" x="-35%" y="-35%" width="180%" height="180%"><feDropShadow dx="0" dy="2" stdDeviation="2.2" flood-color="#8A4310" flood-opacity="0.18"/></filter><clipPath id="cpm2"><path d="M33,4 C42,4.5 48,11 50,20 C52,29 50,37 48,44 C45,53 38,60 30,60 C21,60 15,54 13,45 C11,35 12,24 16,15 C20,7 26,3.5 33,4 Z"/></clipPath></defs><path d="M33,4 C42,4.5 48,11 50,20 C52,29 50,37 48,44 C45,53 38,60 30,60 C21,60 15,54 13,45 C11,35 12,24 16,15 C20,7 26,3.5 33,4 Z" fill="url(#shm2)" filter="url(#dpm2)"/><g clip-path="url(#cpm2)"><ellipse cx="25" cy="20" rx="17" ry="19" fill="#FFFFFF" opacity="0.15" filter="url(#blm2)"/></g><ellipse cx="25.5" cy="25" rx="3.2" ry="4.9" fill="#8A4310"/><ellipse cx="38.5" cy="24.2" rx="3.1" ry="4.8" fill="#8A4310"/></g></svg><span class="word">PotatoFarm<span class="tld">.io</span></span></a>
+    <p class="cap" style="max-width:30ch;color:var(--leather-ink-3)">Grow your farm. Close more deals.</p>
+  </div>
+  <div><p class="fh">Product</p><a href="#how">How it works</a><a href="#temps">Leads</a><a href="#pricing">Pricing</a></div>
+  <div><p class="fh">Guides</p><a href="#">The 24-hour window</a><a href="#">Trakheesi permits</a><a href="#">AML for brokerages</a></div>
+  <div><p class="fh">Company</p><a href="#">Security</a><a href="#">Terms</a><a href="mailto:hello@potatofarm.io">hello@potatofarm.io</a></div>
+</div>
+<div class="wrap" style="margin-top:48px"><p class="cap" style="color:var(--leather-ink-3)">&copy; 2026 PotatoFarm.io. Dubai, UAE.</p></div>
+</footer>
+
+<script>
+(function(){
+  var reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var items = document.querySelectorAll("[data-r]");
+  if (reduced || !("IntersectionObserver" in window)) {
+    items.forEach(function(el){ el.classList.add("in"); }); return;
+  }
+  document.documentElement.classList.add("reveal-ready");
+  var io = new IntersectionObserver(function(es){
+    es.forEach(function(e){
+      if(!e.isIntersecting) return;
+      setTimeout(function(){ e.target.classList.add("in"); }, Number(e.target.dataset.r)||0);
+      io.unobserve(e.target);
+    });
+  }, { rootMargin:"0px 0px -10% 0px", threshold:.01 });
+  items.forEach(function(el){ io.observe(el); });
+})();
+(function(){
+  var nav=document.querySelector("[data-nav]"); if(!nav) return;
+  var f=function(){ nav.classList.toggle("stuck", scrollY>8); };
+  f(); addEventListener("scroll", f, {passive:true});
+})();
+</script>
+</body></html>

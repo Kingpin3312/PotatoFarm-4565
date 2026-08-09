@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en-GB"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PotatoFarm.io — Dashboard</title>
+<meta name="description" content="The CRM dashboard: your farm today, the lead funnel, deals over time and who is performing.">
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://rsms.me">
+<link rel="stylesheet" href="https://rsms.me/inter/inter.css">
+<style>
+/* ============================================================
+   PotatoFarm.io — design tokens, v3
+   From the approved mockup. Locked 5 August 2026.
+   ============================================================ */
+
+:root{
+  /* ---- The palette as given ------------------------------------ */
+  --midnight: #0B132B;
+  --deep:     #121A2F;
+  --slate:    #1E293B;
+  --steel:    #2563EB;
+  --grey:     #F5F7FA;
+  --white:    var(--white);
+  --charcoal: #0F172A;
+
+  /* ---- One addition, and it is not a preference -----------------
+     Steel Blue on midnight measures 3.56:1. That passes for a button
+     FILL (WCAG 1.4.11 asks 3:1 for a non-text component) and fails for
+     TEXT, which needs 4.5:1.
+
+     The mockup uses it for "your farm." in the headline — which is
+     text, at the largest size on the page, and the one phrase the whole
+     brand rests on.
+
+     So: Steel stays exactly as given for every fill. A lighter step
+     carries it when it is type on a dark ground. 5.0:1, and close
+     enough that nobody will see two blues. */
+  --steel-type: #3B82F6;   /* 5.00:1 on midnight */
+  --steel-hover: #1D4ED8;
+
+  /* ---- Text ---------------------------------------------------- */
+  --on-dark:    var(--white);   /* 18.38:1 on midnight */
+  --on-dark-2:  var(--on-dark-2);   /*  8.05:1 */
+  --on-dark-3:  var(--dead);   /*  4.53:1 — captions */
+
+  --on-light:   #0F172A;   /* 16.63:1 on grey */
+  --on-light-2: #475569;   /*  7.44:1 */
+  /* Not var(--dead). That is 4.43:1 on the grey panels — a whisker under,
+     and the third time in this project I have reached for a caption
+     grey that misses by a fraction. Measured, not eyeballed. */
+  --on-light-3: var(--on-light-3);   /*  5.55:1 on grey, 6.66:1 on white */
+
+  --rule-dark:  #1E293B;
+  --rule-light: #E2E8F0;
+
+  /* ---- The temperature scale ----------------------------------
+     Hot, warm, cold, dead. The single best idea in the mockup: it
+     turns the name from something to apologise for into a taxonomy an
+     agent already thinks in.
+
+     Every one of these is checked as TEXT on both grounds, because a
+     lead's temperature is read, not just seen — and an agent who is
+     colourblind still needs to know which of their leads is hot. */
+  --hot:       var(--hot);   /* on midnight 6.51:1 */
+  --hot-light: #C2410C;   /* on grey     5.13:1 */
+  --warm:      #FBBF24;
+  --warm-light:#A16207;
+  --cold:      #38BDF8;
+  --cold-light:#0369A1;
+  --dead:      var(--dead);
+  --dead-light:#475569;
+
+  --success:      #22C55E;
+  --success-light:#15803D;
+  --danger:       #F87171;
+  --danger-light: #B91C1C;
+
+  /* ---- Type ---------------------------------------------------- */
+  --sans: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI",
+          Roboto, Helvetica, Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+
+  --display: clamp(2.5rem, 1.6rem + 4.2vw, 4.25rem);
+  --h1:      clamp(2rem, 1.5rem + 2.4vw, 3rem);
+  --h2:      clamp(1.5rem, 1.2rem + 1.6vw, 2.125rem);
+  --h3:      1.25rem;
+  --body-lg: 1.1875rem;
+  --body:    1rem;
+  --caption: 0.8125rem;
+
+  --track-display: -0.03em;
+  --track-h1:      -0.026em;
+  --track-h2:      -0.022em;
+
+  --section: clamp(72px, 9vw, 128px);
+  --measure: 34rem;
+
+  --r:    10px;
+  --r-lg: 16px;
+  --r-xl: 22px;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Softer and shorter than the default. A card that floats too far off
+     the page reads as a template. */
+  --lift: 0 1px 2px rgb(15 23 42 / .06), 0 8px 24px rgb(15 23 42 / .06);
+  --ring: 0 0 0 3px rgb(37 99 235 / .35);
+}
+
+.on-dark{
+  --ground: var(--midnight); --sunk: var(--deep); --raised: var(--slate);
+  --ink: var(--on-dark); --ink-2: var(--on-dark-2); --ink-3: var(--on-dark-3);
+  --rule: var(--rule-dark);
+  --accent: var(--steel); --accent-type: var(--steel-type); --on-accent: var(--white);
+  --hot: var(--hot); --warm: #FBBF24; --cold: #38BDF8; --dead: var(--dead);
+}
+
+.on-light{
+  --ground: var(--white); --sunk: var(--grey); --raised: var(--white);
+  --ink: var(--on-light); --ink-2: var(--on-light-2); --ink-3: var(--on-light-3);
+  --rule: var(--rule-light);
+  --accent: var(--steel); --accent-type: var(--steel); --on-accent: var(--white);
+  --hot: var(--hot-light); --warm: var(--warm-light);
+  --cold: var(--cold-light); --dead: var(--dead-light);
+  --warning: var(--warning-light);
+}
+
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important;
+    scroll-behavior:auto!important}
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--grey);color:var(--on-light-2);font-family:var(--sans);
+  font-size:var(--small);line-height:1.55;-webkit-font-smoothing:antialiased;
+  font-feature-settings:"cv11","ss01"}
+.tab{font-variant-numeric:tabular-nums}
+.mono{font-family:var(--mono)}
+h1,h2,h3{color:var(--on-light);font-weight:600}
+
+.app{display:grid;grid-template-columns:236px 1fr;min-height:100vh}
+@media(max-width:900px){.app{grid-template-columns:1fr}aside.side{display:none}}
+
+/* Sidebar */
+aside.side{background:var(--midnight);padding:20px 14px;display:flex;flex-direction:column}
+.brand{display:flex;align-items:center;color:var(--white);font-weight:600;font-size:var(--body);
+  letter-spacing:-.012em;text-decoration:none;padding:0 8px 22px}
+/* The only 700 in the product. At 10px a 600 mark reads thin;
+   everywhere else hierarchy is size and space, not weight. */
+.brand i{min-width:26px;height:20px;padding:0 5px;margin-right:5px;border-radius:var(--r-xs);
+  background:var(--steel);color:var(--white);display:grid;place-items:center;font-size:var(--micro);
+  font-style:normal;font-weight:700}
+.brand .tld{color:var(--on-dark-2);font-weight:500}
+.side a{display:flex;align-items:center;gap:10px;color:var(--on-dark-2);text-decoration:none;
+  font-size:var(--small);padding:8px 10px;border-radius:var(--r-sm);min-height:38px}
+.side a:hover{background:rgb(255 255 255 / .05);color:var(--white)}
+.side a.on{background:var(--steel);color:var(--white);font-weight:600}
+.side a .ct{margin-left:auto;font-family:var(--mono);font-size:var(--caption);
+  font-variant-numeric:tabular-nums}
+.side a.hot .dot{background:var(--hot)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--dead);flex:none}
+.grp{font-family:var(--mono);font-size:var(--micro);letter-spacing:.14em;text-transform:uppercase;
+  color:var(--on-light-3);padding:18px 10px 7px}
+.me{margin-top:auto;display:flex;align-items:center;gap:8px;padding:12px 10px 0;
+  border-top:1px solid var(--rule-dark)}
+.av{width:28px;height:28px;border-radius:50%;background:var(--slate);color:var(--white);
+  display:grid;place-items:center;font-size:var(--caption);font-weight:600;flex:none}
+.me b{color:var(--white);font-size:13px;font-weight:600;display:block;line-height:1.2}
+.me span{color:var(--on-light-3);font-size:var(--caption)}
+
+/* Top bar */
+.top{background:var(--white);border-bottom:1px solid var(--rule-light);padding:12px 26px;
+  display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:20}
+.search{flex:1;max-width:460px;min-height:40px;padding:0 14px;border:1px solid var(--rule-light);
+  border-radius:var(--r);font-size:var(--body);color:var(--on-light);background:var(--grey);
+  font-family:var(--sans)}
+.search::placeholder{color:var(--on-light-3)}
+.search:focus{outline:none;border-color:var(--steel);box-shadow:var(--ring)}
+.icon{min-width:40px;min-height:40px;border-radius:var(--r);border:1px solid var(--rule-light);
+  background:var(--white);display:grid;place-items:center;cursor:pointer;color:var(--on-light-2);
+  font-size:var(--body)}
+.icon:hover{border-color:var(--on-light-3)}
+.stopall{margin-left:auto;min-height:40px;padding:0 15px;border-radius:var(--r);
+  border:1px solid var(--rule-light);background:var(--white);color:var(--on-light-2);font-size:13px;
+  font-family:var(--sans);cursor:pointer}
+.stopall:hover{border-color:var(--danger-light);color:var(--danger-light)}
+
+main{padding:26px}
+.hi{display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:22px}
+.hi h1{font-size:var(--h2-sm);letter-spacing:-.024em;line-height:1.15}
+.hi p{font-size:var(--body);margin-top:3px}
+.range{margin-left:auto;min-height:38px;padding:0 13px;border:1px solid var(--rule-light);
+  border-radius:var(--r);background:var(--white);font-size:13px;color:var(--on-light);font-family:var(--sans)}
+
+.stats{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+.stat{background:var(--white);border:1px solid var(--rule-light);border-radius:var(--r-lg);
+  padding:18px;box-shadow:var(--lift)}
+.stat .l{font-family:var(--mono);font-size:var(--micro);letter-spacing:.1em;text-transform:uppercase;
+  color:var(--on-light-3)}
+.stat .n{font-size:var(--stat);font-weight:600;letter-spacing:-.03em;color:var(--on-light);
+  line-height:1;margin-top:8px}
+.stat .d{font-size:var(--caption);margin-top:7px;color:var(--success-light);font-weight:600}
+.stat.hot .n{color:var(--hot-light)}
+
+.grid2{display:grid;gap:14px;margin-top:14px}
+
+/* The allowance strip. Amber at 80, not red — nothing is broken and
+   nothing stops, so a red bar would be lying about the severity. */
+.allow{margin-top:14px}
+.allow-head{display:flex;align-items:flex-start;gap:16px;margin-bottom:12px}
+.allow-pct{margin-left:auto;font-size:var(--stat);font-weight:600;letter-spacing:-.03em;
+  color:var(--warning);line-height:1;font-variant-numeric:tabular-nums}
+.bar{height:6px;border-radius:3px;background:var(--grey);overflow:hidden}
+.bar span{display:block;height:100%;background:var(--warning);border-radius:3px}
+.allow-note{font-size:var(--small);color:var(--on-light-2);margin-top:10px;max-width:60ch}
+@media(min-width:1000px){.grid2{grid-template-columns:1fr 1fr}}
+.card{background:var(--white);border:1px solid var(--rule-light);border-radius:var(--r-lg);
+  padding:20px;box-shadow:var(--lift)}
+.card h2{font-size:var(--body);letter-spacing:-.008em;margin-bottom:14px}
+.card .sub{font-size:var(--caption);color:var(--on-light-3);margin-top:-10px;margin-bottom:14px}
+
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{text-align:left;font-family:var(--mono);font-size:var(--micro);letter-spacing:.12em;
+  text-transform:uppercase;color:var(--on-light-3);font-weight:600;padding-bottom:8px;
+  border-bottom:1px solid var(--rule-light)}
+.tbl td{padding:10px 0;border-bottom:1px solid var(--rule-light);font-size:var(--small);
+  color:var(--on-light);vertical-align:middle}
+.tbl tr:last-child td{border-bottom:0}
+.tbl .r{text-align:right;font-variant-numeric:tabular-nums}
+.tbl .who{display:flex;align-items:center;gap:8px}
+.tbl .who .av{background:var(--grey);color:var(--on-light)}
+.rank{font-family:var(--mono);font-size:var(--caption);color:var(--on-light-3);width:18px}
+.mine td{background:var(--grey)}
+
+.act{display:flex;gap:12px;padding:12px 0;border-bottom:1px solid var(--rule-light);
+  align-items:flex-start}
+.act:last-child{border-bottom:0}
+.act .k{width:26px;height:26px;border-radius:var(--r-sm);background:var(--grey);display:grid;
+  place-items:center;font-size:var(--caption);flex:none}
+.act b{display:block;font-size:var(--small);color:var(--on-light);font-weight:600}
+.act span{font-size:var(--small);color:var(--on-light-2)}
+.act time{margin-left:auto;font-family:var(--mono);font-size:var(--micro);color:var(--on-light-3);
+  white-space:nowrap;flex:none}
+.skip{position:absolute;left:-9999px}
+.skip:focus{left:16px;top:12px;z-index:200;background:var(--steel);color:var(--white);
+  padding:12px 18px;border-radius:var(--r-sm);text-decoration:none}
+</style></head>
+
+<body class="on-light">
+<a href="#main" class="skip">Skip to content</a>
+<div class="app">
+
+<aside class="side">
+  <a href="#" class="brand"><i>PF</i>PotatoFarm<span class="tld">.io</span></a>
+
+  <a href="#" class="on"><span class="dot" style="background:currentColor"></span>Dashboard</a>
+  <a href="#" class="hot"><span class="dot"></span>Hot potatoes<span class="ct">63</span></a>
+  <a href="#"><span class="dot" style="background:var(--cold)"></span>Inbox<span class="ct">12</span></a>
+
+  <p class="grp">The farm</p>
+  <a href="#">All leads<span class="ct">2,184</span></a>
+  <a href="#">Properties<span class="ct">148</span></a>
+  <a href="#">Offers<span class="ct">7</span></a>
+  <a href="#">Deals<span class="ct">21</span></a>
+  <a href="#">Viewings</a>
+
+  <p class="grp">Mine</p>
+  <a href="#">Commission</a>
+  <a href="#">Reports</a>
+
+  <p class="grp">Setup</p>
+  <a href="#">AI farmhand</a>
+  <a href="#">Settings</a>
+
+  <div class="me">
+    <span class="av">CS</span>
+    <div><b>Christopher S.</b><span>Admin</span></div>
+  </div>
+</aside>
+
+<div>
+<header class="top">
+  <label class="skip" for="q">Search</label>
+  <input id="q" class="search" type="search" placeholder="Search leads, properties, offers…">
+  <button class="icon" aria-label="Add">+</button>
+  <button class="icon" aria-label="Notifications">&#9679;</button>
+  <!-- Named for what it does. It stops every conversation in the
+       brokerage, not the one on screen. -->
+  <button class="stopall">Stop everything</button>
+</header>
+
+<main id="main">
+  <div class="hi">
+    <div>
+      <h1>Welcome back, Christopher.</h1>
+      <p>Here&rsquo;s what&rsquo;s happening on your farm today.</p>
+    </div>
+    <select class="range" aria-label="Date range">
+      <option>This month</option><option>Last 30 days</option><option>This quarter</option>
+    </select>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="l">New this month</div><div class="n tab">128</div>
+      <div class="d">&uarr; 24% on last month</div></div>
+    <div class="stat hot"><div class="l">Hot potatoes</div><div class="n tab">63</div>
+      <div class="d">&uarr; 18% on last month</div></div>
+    <div class="stat"><div class="l">Deals closed</div><div class="n tab">34</div>
+      <div class="d">&uarr; 31% on last month</div></div>
+    <!-- Labelled precisely. "Revenue" on a brokerage dashboard is
+         ambiguous between property value and what the firm earns, and
+         the two differ by a factor of about fifty. -->
+    <div class="stat"><div class="l">Commission earned</div><div class="n tab">AED 1.84M</div>
+      <div class="d">&uarr; 27% on last month</div></div>
+  </div>
+
+  <div class="grid2">
+    <!-- The two charts carry literal colours. An inline SVG fill does not
+     reliably inherit a custom property across browsers, so these are the
+     one deliberate exception to tokens-only — and they are generated
+     from the same values by optimise-time code rather than typed. -->
+    <div class="card">
+      <h2>Your farm</h2>
+      <p class="sub">Where every lead sits, new through to closed</p>
+      <svg viewBox="0 0 300 208" width="100%" role="img" aria-label="Lead funnel: 1,248 new, 642 warm, 231 hot, 34 closed"><path d="M0.0,8 L300.0,8 L254.06807051479672,52 L45.9319294852033,52 Z" fill="#2563EB" opacity=".92"/><text x="150.0" y="26" text-anchor="middle" fill="var(--white)" font-size="11" font-family="ui-monospace,monospace" letter-spacing="1">NEW</text><text x="150.0" y="44" text-anchor="middle" fill="var(--white)" font-size="16" font-weight="700">1,248</text><path d="M45.9319294852033,58 L254.06807051479672,58 L209.3143569018941,102 L90.68564309810591,102 Z" fill="#3B82F6" opacity=".92"/><text x="150.0" y="76" text-anchor="middle" fill="var(--white)" font-size="11" font-family="ui-monospace,monospace" letter-spacing="1">WARM</text><text x="150.0" y="94" text-anchor="middle" fill="var(--white)" font-size="16" font-weight="700">642</text><path d="M90.68564309810591,108 L209.3143569018941,108 L182.0,152 L118.0,152 Z" fill="var(--hot)" opacity=".92"/><text x="150.0" y="126" text-anchor="middle" fill="var(--white)" font-size="11" font-family="ui-monospace,monospace" letter-spacing="1">HOT</text><text x="150.0" y="144" text-anchor="middle" fill="var(--white)" font-size="16" font-weight="700">231</text><path d="M118.0,158 L182.0,158 L182.0,202 L118.0,202 Z" fill="#22C55E" opacity=".92"/><text x="150.0" y="176" text-anchor="middle" fill="var(--white)" font-size="11" font-family="ui-monospace,monospace" letter-spacing="1">CLOSED</text><text x="150.0" y="194" text-anchor="middle" fill="var(--white)" font-size="16" font-weight="700">34</text></svg>
+    </div>
+    <div class="card">
+      <h2>Deals closed</h2>
+      <p class="sub">Twelve months to August</p>
+      <svg viewBox="0 0 340 150" width="100%" role="img" aria-label="Deals closed per month, rising from 12 to 74 over twelve months"><line x1="22" y1="128.0" x2="318" y2="128.0" stroke="#E2E8F0" stroke-width="1"/><line x1="22" y1="101.5" x2="318" y2="101.5" stroke="#E2E8F0" stroke-width="1"/><line x1="22" y1="75.0" x2="318" y2="75.0" stroke="#E2E8F0" stroke-width="1"/><line x1="22" y1="48.5" x2="318" y2="48.5" stroke="#E2E8F0" stroke-width="1"/><line x1="22" y1="22.0" x2="318" y2="22.0" stroke="#E2E8F0" stroke-width="1"/><path d="M22.0,112.1 L48.9,102.8 L75.8,105.5 L102.7,90.9 L129.6,83.0 L156.5,86.9 L183.5,68.4 L210.4,59.1 L237.3,63.1 L264.2,47.2 L291.1,37.9 L318.0,29.9 L318.0,128 L22.0,128 Z" fill="#2563EB" opacity=".08"/><path d="M22.0,112.1 L48.9,102.8 L75.8,105.5 L102.7,90.9 L129.6,83.0 L156.5,86.9 L183.5,68.4 L210.4,59.1 L237.3,63.1 L264.2,47.2 L291.1,37.9 L318.0,29.9" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="22.0" cy="112.1" r="2.5" fill="#2563EB"/><circle cx="48.9" cy="102.8" r="2.5" fill="#2563EB"/><circle cx="75.8" cy="105.5" r="2.5" fill="#2563EB"/><circle cx="102.7" cy="90.9" r="2.5" fill="#2563EB"/><circle cx="129.6" cy="83.0" r="2.5" fill="#2563EB"/><circle cx="156.5" cy="86.9" r="2.5" fill="#2563EB"/><circle cx="183.5" cy="68.4" r="2.5" fill="#2563EB"/><circle cx="210.4" cy="59.1" r="2.5" fill="#2563EB"/><circle cx="237.3" cy="63.1" r="2.5" fill="#2563EB"/><circle cx="264.2" cy="47.2" r="2.5" fill="#2563EB"/><circle cx="291.1" cy="37.9" r="2.5" fill="#2563EB"/><circle cx="318.0" cy="29.9" r="2.5" fill="#2563EB"/></svg>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h2>Top of the board</h2>
+      <p class="sub">Ranked on viewings booked, not on reply speed</p>
+      <table class="tbl">
+        <thead><tr><th></th><th>Agent</th><th class="r">Viewings</th><th class="r">Closed</th></tr></thead>
+        <tbody>
+          <tr><td class="rank">1</td><td><div class="who"><span class="av">SJ</span>Sarah Johnson</div></td><td class="r">24</td><td class="r">12</td></tr>
+          <tr class="mine"><td class="rank">2</td><td><div class="who"><span class="av">CS</span>You</div></td><td class="r">21</td><td class="r">9</td></tr>
+          <tr><td class="rank">3</td><td><div class="who"><span class="av">EM</span>Emily Davis</div></td><td class="r">18</td><td class="r">7</td></tr>
+          <tr><td class="rank">4</td><td><div class="who"><span class="av">DB</span>David Brown</div></td><td class="r">15</td><td class="r">8</td></tr>
+        </tbody>
+      </table>
+      <p class="sub" style="margin:14px 0 0">Rank on reply speed and within a fortnight
+         everyone is answering &ldquo;ok&rdquo; at eleven at night to move a number.</p>
+    </div>
+
+    <div class="card">
+      <h2>Just now</h2>
+      <p class="sub">Across the brokerage</p>
+      <div class="act"><span class="k">&#9679;</span><div><b>New hot potato</b>
+        <span>John Smith &mdash; Downtown Penthouse</span></div><time>2m</time></div>
+      <div class="act"><span class="k">&#9679;</span><div><b>Viewing booked</b>
+        <span>Palm Jumeirah Villa &mdash; Saturday 10:00</span></div><time>15m</time></div>
+      <div class="act"><span class="k">&#9679;</span><div><b>Offer countered</b>
+        <span>Marina Gate 2 &mdash; vendor came back at 2.42</span></div><time>1h</time></div>
+      <div class="act"><span class="k">&#9679;</span><div><b>Permit expiring</b>
+        <span>Three listings lapse in fourteen days</span></div><time>2h</time></div>
+      <div class="act"><span class="k">&#9679;</span><div><b>Reply window closing</b>
+        <span>Sofia Haddad &mdash; four hours left</span></div><time>3h</time></div>
+    </div>
+  </div>
+</main>
+</div>
+</div>
+</body></html>

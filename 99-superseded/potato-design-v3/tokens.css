@@ -1,0 +1,140 @@
+/* ============================================================
+   PotatoFarm.io — design tokens, v3
+   From the approved mockup. Locked 5 August 2026.
+   ============================================================ */
+
+:root{
+  /* ---- The palette as given ------------------------------------ */
+  --midnight: #0B132B;
+  --deep:     #121A2F;
+  --slate:    #1E293B;
+  --steel:    #2563EB;
+  --grey:     #F5F7FA;
+  --white:    #FFFFFF;
+  --charcoal: #0F172A;
+
+  /* ---- One addition, and it is not a preference -----------------
+     Steel Blue on midnight measures 3.56:1. That passes for a button
+     FILL (WCAG 1.4.11 asks 3:1 for a non-text component) and fails for
+     TEXT, which needs 4.5:1.
+
+     The mockup uses it for "your farm." in the headline — which is
+     text, at the largest size on the page, and the one phrase the whole
+     brand rests on.
+
+     So: Steel stays exactly as given for every fill. A lighter step
+     carries it when it is type on a dark ground. 5.0:1, and close
+     enough that nobody will see two blues. */
+  --steel-type: #3B82F6;   /* 5.00:1 on midnight */
+  --steel-hover: #1D4ED8;
+
+  /* ---- Text ---------------------------------------------------- */
+  --on-dark:    #FFFFFF;   /* 18.38:1 on midnight */
+  --on-dark-2:  #94A3B8;   /*  8.05:1 */
+  --on-dark-3:  #64748B;   /*  4.53:1 — captions */
+
+  --on-light:   #0F172A;   /* 16.63:1 on grey */
+  --on-light-2: #475569;   /*  7.44:1 */
+  /* Not #64748B. That is 4.43:1 on the grey panels — a whisker under,
+     and the third time in this project I have reached for a caption
+     grey that misses by a fraction. Measured, not eyeballed. */
+  --on-light-3: #576578;   /*  5.55:1 on grey, 6.66:1 on white */
+
+  --rule-dark:  #1E293B;
+  --rule-light: #E2E8F0;
+
+  /* ---- The temperature scale ----------------------------------
+     Hot, warm, cold, dead. The single best idea in the mockup: it
+     turns the name from something to apologise for into a taxonomy an
+     agent already thinks in.
+
+     Every one of these is checked as TEXT on both grounds, because a
+     lead's temperature is read, not just seen — and an agent who is
+     colourblind still needs to know which of their leads is hot. */
+  --hot:       #F97316;   /* on midnight 6.51:1 */
+  --hot-light: #C2410C;   /* on grey     5.13:1 */
+  --warm:      #FBBF24;
+  --warm-light:#A16207;
+  --cold:      #38BDF8;
+  --cold-light:#0369A1;
+  --dead:      #64748B;
+  --dead-light:#475569;
+
+  --success:      #22C55E;
+  --success-light:#15803D;
+  --danger:       #F87171;
+  --danger-light: #B91C1C;
+
+  /* Two warnings, because one does not work on both grounds.
+     #FFB020 measures 1.83:1 on white — invisible as a figure, and it
+     looked perfectly fine to the eye. Fourth time in this project a
+     colour has passed inspection and failed measurement. */
+  --warning:       #FFB020;   /* dark ground: 8.6:1 on midnight */
+  --warning-light: #B45309;   /* light ground: 5.02:1 on white */
+
+  /* ---- Type ---------------------------------------------------- */
+  --sans: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI",
+          Roboto, Helvetica, Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+
+  --display: clamp(2.5rem, 1.6rem + 4.2vw, 4.25rem);
+  --h1:      clamp(2rem, 1.5rem + 2.4vw, 3rem);
+  --h2:      clamp(1.5rem, 1.2rem + 1.6vw, 2.125rem);
+  --h3:      1.25rem;
+  --body-lg: 1.1875rem;
+  --body:    1rem;
+  --caption: 0.8125rem;
+  /* Two steps the interface needs and the marketing scale did not.
+     A dashboard has denser type than a homepage, and pretending one
+     scale serves both is how twenty ad-hoc sizes appear. */
+  --small:   0.9375rem;   /* table rows, card body */
+  --micro:   0.6875rem;   /* mono labels, uppercase meta */
+  --stat:    1.875rem;    /* the big figure on a stat tile */
+  --h2-sm:   1.625rem;    /* section heading inside the app */
+
+  --track-display: -0.03em;
+  --track-h1:      -0.026em;
+  --track-h2:      -0.022em;
+
+  --section: clamp(72px, 9vw, 128px);
+  --measure: 34rem;
+
+  /* Five steps, and every one has a job:
+       xs  tags and chips        sm  inputs and small buttons
+       r   cards and buttons     lg  panels and images
+       xl  pills                                              */
+  --r-xs: 6px;
+  --r-sm: 8px;
+  --r:    10px;
+  --r-lg: 16px;
+  --r-xl: 22px;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Softer and shorter than the default. A card that floats too far off
+     the page reads as a template. */
+  --lift: 0 1px 2px rgb(15 23 42 / .06), 0 8px 24px rgb(15 23 42 / .06);
+  --ring: 0 0 0 3px rgb(37 99 235 / .35);
+}
+
+.on-dark{
+  --ground: var(--midnight); --sunk: var(--deep); --raised: var(--slate);
+  --ink: var(--on-dark); --ink-2: var(--on-dark-2); --ink-3: var(--on-dark-3);
+  --rule: var(--rule-dark);
+  --accent: var(--steel); --accent-type: var(--steel-type); --on-accent: #FFFFFF;
+  --hot: #F97316; --warm: #FBBF24; --cold: #38BDF8; --dead: #64748B;
+}
+
+.on-light{
+  --ground: #FFFFFF; --sunk: var(--grey); --raised: #FFFFFF;
+  --ink: var(--on-light); --ink-2: var(--on-light-2); --ink-3: var(--on-light-3);
+  --rule: var(--rule-light);
+  --accent: var(--steel); --accent-type: var(--steel); --on-accent: #FFFFFF;
+  --hot: var(--hot-light); --warm: var(--warm-light);
+  --cold: var(--cold-light); --dead: var(--dead-light);
+  --warning: var(--warning-light);
+}
+
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important;
+    scroll-behavior:auto!important}
+}

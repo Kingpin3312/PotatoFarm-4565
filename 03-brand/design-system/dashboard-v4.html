@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en-GB"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PotatoFarm.io — Dashboard</title>
+<meta name="description" content="The CRM dashboard: your farm today, the lead funnel, deals over time and this month's conversation allowance.">
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://rsms.me">
+<link rel="stylesheet" href="https://rsms.me/inter/inter.css">
+<style>
+/* ============================================================
+   PotatoFarm.io — design tokens, v4
+   Warm white, Claude orange, Hermes discipline.
+   ============================================================ */
+
+:root{
+  /* ---- The ground -----------------------------------------------
+     Warm white, not pure white. This is the whole effect and it is
+     worth defending: **Hermes does not put orange on #FFFFFF.** It puts
+     it on a warm cream, anchored by deep brown leather.
+
+     Pure white plus orange reads as a budget airline. Cream plus orange
+     plus brown reads as the reference. The difference is about 2%
+     warmth, and it is the difference. */
+  --ground: #F4F3F0;
+  --panel:  #EBEAE6;
+  --raised: #FFFFFF;   /* cards lift by being *whiter* than the ground */
+
+  /* ---- Ink, with brown in it --------------------------------------
+     A neutral grey against orange looks like a spreadsheet. Warming the
+     near-black by a few points is what makes the orange belong. */
+  --ink:   #1A1A1A;   /* 16.94:1 */
+  --ink-2: #4A4A4A;   /*  8.34:1 */
+  --ink-3: #6B6B6B;   /*  5.86:1 on ground, 5.43:1 on panel */
+  --rule:  #E2E0DA;
+  --rule-strong: #CFCCC4;
+
+  /* ---- Orange ------------------------------------------------------
+     Two, and they are not interchangeable.
+
+     `--accent` is Claude orange and it is a **fill only**. It measures
+     3.12:1 on the ground — enough for a non-text component, nowhere
+     near enough for type.
+
+     `--accent-type` carries every word. Same hue, deeper, 5.27:1.
+
+     Getting this backwards is the mistake, and it is the fifth time in
+     this project a warm colour has looked right and measured wrong. */
+  --accent:      #E87A2E;   /* Hermes orange. Fill only: 3.12:1 on ground */
+  --accent-type: #A84900;   /* type: 5.56:1 on ground, 5.15:1 on panel */
+  --accent-hover:#C4621D;
+
+  /**
+   * The border on every orange fill, and it is not decoration.
+   *
+   * Hermes orange measures 3.12:1 on the ground and **2.9:1 on the
+   * cream panel** — the same button passes on one surface and fails on
+   * the other. Rather than forbid orange on panels, or lighten the
+   * panel until it works, the fill carries a darker hairline. The edge
+   * is then defined by the border regardless of what is behind it.
+   *
+   * Same fix as the saffron button two palettes ago, same reason.
+   */
+  --accent-edge: #C4621D;   /* 4.38:1 on panel — defines the boundary */
+
+  /* **Labels on the orange fill are ink, never white.**
+     White on Hermes orange is 3.23:1 and fails. Ink is 5.42:1 and
+     passes — and an orange button with near-black type is also the more
+     Hermes answer. The measurement and the reference agreed, which does
+     not always happen. */
+  --on-accent: #1A1A1A;
+
+  /* ---- Leather -----------------------------------------------------
+     The anchor. Orange without a dark warm neutral beneath it floats;
+     this is the belt and the box. */
+  --leather:      #2E2E2E;
+  --leather-deep: #1A1A1A;
+  /* The type that sits on leather, named at the root rather than only
+     inside `.on-leather`. The footer is on leather and outside that
+     class, so without these it gets literals — which is exactly what
+     happened, three times. */
+  --leather-ink:   #EBEAE6;   /* 14.49:1 on leather-deep */
+  --leather-ink-2: #B5B5B5;   /*  8.02:1 */
+  --leather-ink-3: #8A8A8A;   /*  4.74:1 */
+
+  --success:      #1F7A4C;
+  --danger:       #B3261E;
+  --warning:      #A84900;   /* the accent type step, deliberately */
+
+  /* ---- Type --------------------------------------------------------
+     Same stack. Warm palettes tempt people toward a serif and it is
+     usually a mistake at interface sizes — Hermes' own wordmark is a
+     serif and its signage is not. */
+  --sans: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI",
+          Roboto, Helvetica, Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+
+  --display: clamp(2.5rem, 1.6rem + 4.2vw, 4.25rem);
+  --h1:      clamp(2rem, 1.5rem + 2.4vw, 3rem);
+  --h2:      clamp(1.5rem, 1.2rem + 1.6vw, 2.125rem);
+  --h3:      1.25rem;
+  --body-lg: 1.1875rem;
+  --body:    1rem;
+  --small:   0.9375rem;
+  --caption: 0.8125rem;
+  --micro:   0.6875rem;
+  --stat:    1.875rem;
+
+  --track-display: -0.03em;
+  --track-h1:      -0.026em;
+  --track-h2:      -0.022em;
+
+  --section: clamp(72px, 9vw, 128px);
+  --measure: 34rem;
+
+  --r-xs: 4px;
+  --r-sm: 6px;
+  --r:    8px;
+  --r-lg: 14px;
+  --r-xl: 999px;
+
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Warmer and shallower than a neutral shadow. A grey shadow on a
+     cream ground looks like dirt. */
+  --lift: 0 1px 2px rgb(43 30 23 / .05), 0 6px 20px rgb(43 30 23 / .06);
+  --ring: 0 0 0 3px rgb(217 119 87 / .40);
+}
+
+/* The inverted section. Leather, not black — a pure black band under a
+   cream page is a hole in it. */
+.on-leather{
+  --ground: var(--leather-deep); --panel: var(--leather); --raised: var(--leather);
+  --ink: var(--leather-ink); --ink-2: var(--leather-ink-2); --ink-3: var(--leather-ink-3);
+  --rule: var(--leather);
+  /* On leather the bright orange finally works as type — 6.4:1 — so the
+     accent and the accent-type collapse into one here. */
+  --accent-type: var(--accent-type);   /* 7.1:1 on leather */
+  --on-accent: var(--leather-deep);
+}
+
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important;
+    scroll-behavior:auto!important}
+}
+
+
+/* ============================================================
+   PotatoFarm.io — design tokens, v3
+   From the approved mockup. Locked 5 August 2026.
+   ============================================================ */
+
+
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important;
+    scroll-behavior:auto!important}
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--ground);color:var(--ink-2);font-family:var(--sans);
+  font-size:var(--small);line-height:1.55;-webkit-font-smoothing:antialiased;
+  font-feature-settings:"cv11","ss01"}
+.tab{font-variant-numeric:tabular-nums}
+.mono{font-family:var(--mono)}
+h1,h2,h3{color:var(--ink);font-weight:600}
+
+.app{display:grid;grid-template-columns:236px 1fr;min-height:100vh}
+@media(max-width:900px){.app{grid-template-columns:1fr}aside.side{display:none}}
+
+/* Sidebar */
+aside.side{background:var(--ground);border-right:1px solid var(--rule);
+  padding:20px 14px;display:flex;flex-direction:column}
+.side .brand{display:flex;align-items:center;color:var(--ink);font-weight:600;font-size:var(--body);
+  letter-spacing:-.012em;text-decoration:none;padding:0 8px 22px}
+/* The only 700 in the product. At 10px a 600 mark reads thin;
+   everywhere else hierarchy is size and space, not weight. */
+
+/* The extension in orange.
+   It is TYPE, not a fill — so it takes --accent-type at 5.56:1, never
+   the fill orange, which is 3.12:1 and unreadable at this size. The
+   token resolves per ground, so the footer and the sidebar get the
+   lighter leather step automatically. */
+.side /* One mark, the same file the site and the app icon use. This was an
+   'PF' chip — a placeholder from before the potato existed that
+   survived into two surfaces. */
+.brand .mark{width:28px;height:28px;margin-right:11px;flex:none;display:block}
+.brand .word{font-weight:600;white-space:nowrap}
+.brand .tld{color:var(--accent-type);font-weight:500;letter-spacing:inherit}
+.side a{display:flex;align-items:center;gap:10px;color:var(--ink-2);text-decoration:none;
+  font-size:var(--small);padding:8px 10px;border-radius:var(--r-sm);min-height:38px}
+/* Was a 5% white wash, which is invisible on cream. The panel tint is
+   the right hover on a light ground — used here as a transient state
+   rather than a permanent second ground, which is the distinction the
+   audit was making. */
+.side a:hover{background:var(--panel);color:var(--ink)}
+.side a.on{background:var(--accent);color:var(--on-accent);font-weight:600;border:1px solid var(--accent-edge)}
+.side a .ct{margin-left:auto;font-family:var(--mono);font-size:var(--caption);
+  font-variant-numeric:tabular-nums}
+.side a.hot .dot{background:var(--accent);border:1px solid var(--accent-edge)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--ink-3);flex:none}
+.grp{font-family:var(--mono);font-size:var(--micro);letter-spacing:.14em;text-transform:uppercase;
+  color:var(--ink-3);padding:18px 10px 7px}
+.side .side .me{margin-top:auto;display:flex;align-items:center;gap:8px;padding:12px 10px 0;
+  border-top:1px solid var(--rule)}
+.av{width:28px;height:28px;border-radius:50%;background:var(--panel);color:var(--ink);
+  display:grid;place-items:center;font-size:var(--caption);font-weight:600;flex:none}
+.side .me b{color:var(--ink);font-size:13px;font-weight:600;display:block;line-height:1.2}
+.side .me span{color:var(--ink-3);font-size:var(--caption)}
+
+/* Top bar */
+/* --leather-ink is the TEXT colour for a leather ground, used here as a
+   background by the palette remap. It happens to look right because it
+   is a near-cream, which is why it survived — but it means the header
+   would break the day that token moves.
+
+   Height fixed to 64px, matching the website and the marketing site.
+   It had none, so it was whatever its padding happened to produce. */
+.top{background:var(--ground);border-bottom:1px solid var(--rule);
+  height:64px;padding:0 clamp(20px,4vw,32px);
+  display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:20}
+.search{flex:1;max-width:460px;min-height:40px;padding:0 14px;border:1px solid var(--rule);
+  border-radius:var(--r);font-size:var(--body);color:var(--ink);background:var(--panel);
+  font-family:var(--sans)}
+.search::placeholder{color:var(--ink-3)}
+.search:focus{outline:none;border-color:var(--accent);box-shadow:var(--ring)}
+.icon{min-width:40px;min-height:40px;border-radius:var(--r);border:1px solid var(--rule);
+  background:var(--raised);display:grid;place-items:center;cursor:pointer;color:var(--ink-2);
+  font-size:var(--body)}
+.icon:hover{border-color:var(--ink-3)}
+.stopall{margin-left:auto;min-height:40px;padding:0 15px;border-radius:var(--r);
+  border:1px solid var(--rule);background:var(--raised);color:var(--ink-2);font-size:13px;
+  font-family:var(--sans);cursor:pointer}
+.stopall:hover{border-color:var(--danger);color:var(--danger)}
+
+main{padding:clamp(20px,4vw,32px)}
+.hi{display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:22px}
+.hi h1{font-size:1.625rem;letter-spacing:-.024em;line-height:1.15}
+.hi p{font-size:var(--body);margin-top:3px}
+.range{margin-left:auto;min-height:38px;padding:0 13px;border:1px solid var(--rule);
+  border-radius:var(--r);background:var(--raised);font-size:13px;color:var(--ink);font-family:var(--sans)}
+
+.stats{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+.stat{background:var(--raised);border:1px solid var(--rule);border-radius:var(--r-lg);
+  padding:18px;box-shadow:var(--lift)}
+.stat .l{font-family:var(--mono);font-size:var(--micro);letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink-3)}
+.stat .n{font-size:var(--stat);font-weight:600;letter-spacing:-.03em;color:var(--ink);
+  line-height:1;margin-top:8px}
+.stat .d{font-size:var(--caption);margin-top:7px;color:var(--success);font-weight:600}
+.stat.hot .n{color:var(--accent-type)}
+
+
+/* ---- The opening ------------------------------------------------
+   A dashboard should start with a person, not a total. Four equal
+   tiles made everything the same weight and gave the eye nowhere to
+   land — this gives it one figure, one shape, and the things that need
+   a human today.                                                     */
+.hero-row{display:grid;gap:16px;margin-bottom:16px}
+@media(min-width:900px){.hero-row{grid-template-columns:0.9fr 1.1fr}}
+.hero-fig,.temp-strip{background:var(--raised);border:1px solid var(--rule);
+  border-radius:var(--r-lg);padding:22px;box-shadow:var(--lift)}
+.l{font-family:var(--mono);font-size:var(--micro);letter-spacing:.12em;
+  text-transform:uppercase;color:var(--ink-3);display:block}
+.big{font-size:clamp(2.5rem,1.8rem + 3vw,3.5rem);line-height:1;letter-spacing:-.04em;
+  color:var(--ink);font-weight:600;margin-top:12px}
+.delta{font-size:var(--small);color:var(--success);font-weight:600;margin-top:9px}
+
+/* Width is share of pipeline. The proportions are the point — the
+   numbers are confirmation, not the message. */
+.bars{display:flex;gap:3px;margin-top:14px;height:76px}
+.b{border-radius:var(--r-sm);padding:9px 10px;display:flex;flex-direction:column;
+  justify-content:space-between;min-width:52px;overflow:hidden}
+.b i{font-style:normal;font-family:var(--mono);font-size:var(--micro);
+  letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
+.b b{font-size:17px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.b.new{background:var(--panel);color:var(--ink-2)}
+.b.warm{background:var(--panel);color:var(--ink-2)}
+/* Hot is the only one wearing the accent, so the eye lands on it
+   without being told. Two oranges competing means neither reads. */
+.b.hot{background:var(--accent);color:var(--on-accent);
+  box-shadow:inset 0 0 0 1px var(--accent-edge)}
+.b.won{background:var(--ink);color:var(--ground)}
+.temp-strip .cap{font-size:var(--caption);color:var(--ink-3);margin-top:11px;max-width:52ch}
+
+/* ---- Needs you today ------------------------------------------- */
+.needs{margin-bottom:16px}
+.need-grid{display:grid;gap:12px;margin-top:12px}
+@media(min-width:820px){.need-grid{grid-template-columns:repeat(3,1fr)}}
+.need{background:var(--raised);border:1px solid var(--rule);border-left:3px solid var(--rule);
+  border-radius:var(--r-lg);padding:16px 18px;text-decoration:none;display:block;
+  box-shadow:var(--lift);transition:border-left-color .2s var(--ease)}
+.need:hover{border-left-color:var(--accent)}
+/* One urgent item at a time. If two ever carry this, neither is urgent. */
+.need.urgent{border-left-color:var(--accent-edge)}
+.need .k{font-family:var(--mono);font-size:var(--micro);letter-spacing:.12em;
+  text-transform:uppercase;color:var(--ink-3)}
+.need b{display:block;font-size:16px;color:var(--ink);font-weight:600;margin-top:7px;
+  letter-spacing:-.012em;line-height:1.25}
+.need .s{display:block;font-size:var(--small);color:var(--ink-2);margin-top:5px;line-height:1.4}
+
+.grid2{display:grid;gap:14px;margin-top:14px}
+
+/* The allowance strip. Amber at 80, not red — nothing is broken and
+   nothing stops, so a red bar would be lying about the severity. */
+.allow{margin-top:14px}
+.allow-head{display:flex;align-items:flex-start;gap:16px;margin-bottom:12px}
+.allow-pct{margin-left:auto;font-size:var(--stat);font-weight:600;letter-spacing:-.03em;
+  color:var(--warning);line-height:1;font-variant-numeric:tabular-nums}
+.bar{height:6px;border-radius:3px;background:var(--panel);overflow:hidden}
+.bar span{display:block;height:100%;background:var(--warning);border-radius:3px}
+.allow-note{font-size:var(--small);color:var(--ink-2);margin-top:10px;max-width:60ch}
+@media(min-width:1000px){.grid2{grid-template-columns:1fr 1fr}}
+.card{background:var(--raised);border:1px solid var(--rule);border-radius:var(--r-lg);
+  padding:20px;box-shadow:var(--lift)}
+.card h2{font-size:var(--body);letter-spacing:-.008em;margin-bottom:14px}
+.card .sub{font-size:var(--caption);color:var(--ink-3);margin-top:-10px;margin-bottom:14px}
+
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{text-align:left;font-family:var(--mono);font-size:var(--micro);letter-spacing:.12em;
+  text-transform:uppercase;color:var(--ink-3);font-weight:600;padding-bottom:8px;
+  border-bottom:1px solid var(--rule)}
+.tbl td{padding:10px 0;border-bottom:1px solid var(--rule);font-size:var(--small);
+  color:var(--ink);vertical-align:middle}
+.tbl tr:last-child td{border-bottom:0}
+.tbl .r{text-align:right;font-variant-numeric:tabular-nums}
+.tbl .who{display:flex;align-items:center;gap:8px}
+.tbl .who .av{background:var(--panel);color:var(--ink)}
+.rank{font-family:var(--mono);font-size:var(--caption);color:var(--ink-3);width:18px}
+.mine td{background:var(--panel)}
+
+.act{display:flex;gap:12px;padding:12px 0;border-bottom:1px solid var(--rule);
+  align-items:flex-start}
+.act:last-child{border-bottom:0}
+.act .k{width:26px;height:26px;border-radius:var(--r-sm);background:var(--panel);display:grid;
+  place-items:center;font-size:var(--caption);flex:none}
+.act b{display:block;font-size:var(--small);color:var(--ink);font-weight:600}
+.act span{font-size:var(--small);color:var(--ink-2)}
+.act time{margin-left:auto;font-family:var(--mono);font-size:var(--micro);color:var(--ink-3);
+  white-space:nowrap;flex:none}
+.skip{position:absolute;left:-9999px}
+.skip:focus{left:16px;top:12px;z-index:200;background:var(--accent);color:var(--on-accent);
+  padding:12px 18px;border-radius:var(--r-sm);text-decoration:none;border:1px solid var(--accent-edge)}
+
+</style></head>
+<body>
+<a href="#main" class="skip">Skip to content</a>
+<div class="app">
+
+<aside class="side">
+  <a href="#" class="brand"><svg viewBox="0 0 64 64" aria-hidden="true" class="mark"><g transform="translate(0.0,0.0) scale(1.0)"><defs><linearGradient id="shm1" x1="24%" y1="14%" x2="70%" y2="86%"><stop offset="0" stop-color="#EE9149"/><stop offset="0.5" stop-color="#E87A2E"/><stop offset="1" stop-color="#DB6E22"/></linearGradient><filter id="blm1"><feGaussianBlur stdDeviation="7"/></filter><filter id="dpm1" x="-35%" y="-35%" width="180%" height="180%"><feDropShadow dx="0" dy="2" stdDeviation="2.2" flood-color="#8A4310" flood-opacity="0.18"/></filter><clipPath id="cpm1"><path d="M33,4 C42,4.5 48,11 50,20 C52,29 50,37 48,44 C45,53 38,60 30,60 C21,60 15,54 13,45 C11,35 12,24 16,15 C20,7 26,3.5 33,4 Z"/></clipPath></defs><path d="M33,4 C42,4.5 48,11 50,20 C52,29 50,37 48,44 C45,53 38,60 30,60 C21,60 15,54 13,45 C11,35 12,24 16,15 C20,7 26,3.5 33,4 Z" fill="url(#shm1)" filter="url(#dpm1)"/><g clip-path="url(#cpm1)"><ellipse cx="25" cy="20" rx="17" ry="19" fill="#FFFFFF" opacity="0.15" filter="url(#blm1)"/></g><ellipse cx="25.5" cy="25" rx="3.2" ry="4.9" fill="#8A4310"/><ellipse cx="38.5" cy="24.2" rx="3.1" ry="4.8" fill="#8A4310"/></g></svg><span class="word">PotatoFarm<span class="tld">.io</span></span></a>
+
+  <a href="#" class="on"><span class="dot" style="background:currentColor"></span>Dashboard</a>
+  <a href="#" class="hot"><span class="dot"></span>Hot potatoes<span class="ct">63</span></a>
+  <a href="#"><span class="dot" style="background:var(--ink-3)"></span>Inbox<span class="ct">12</span></a>
+
+  <p class="grp">The farm</p>
+  <a href="#">All leads<span class="ct">2,184</span></a>
+  <a href="#">Properties<span class="ct">148</span></a>
+  <a href="#">Offers<span class="ct">7</span></a>
+  <a href="#">Deals<span class="ct">21</span></a>
+  <a href="#">Viewings</a>
+
+  <p class="grp">Mine</p>
+  <a href="#">Commission</a>
+  <a href="#">Reports</a>
+
+  <p class="grp">Setup</p>
+  <a href="#">AI farmhand</a>
+  <a href="#">Settings</a>
+
+  <div class="me">
+    <span class="av">CS</span>
+    <div><b>Christopher S.</b><span>Admin</span></div>
+  </div>
+</aside>
+
+<div>
+<header class="top">
+  <label class="skip" for="q">Search</label>
+  <input id="q" class="search" type="search" placeholder="Search leads, properties, offers…">
+  <button class="icon" aria-label="Add">+</button>
+  <button class="icon" aria-label="Notifications">&#9679;</button>
+  <!-- Named for what it does. It stops every conversation in the
+       brokerage, not the one on screen. -->
+  <button class="stopall">Stop everything</button>
+</header>
+
+<main id="main">
+  <div class="hi">
+    <div>
+      <h1>Welcome back, Christopher.</h1>
+      <p>Here&rsquo;s what&rsquo;s happening on your farm today.</p>
+    </div>
+    <select class="range" aria-label="Date range">
+      <option>This month</option><option>Last 30 days</option><option>This quarter</option>
+    </select>
+  </div>
+
+  <!-- One number, at display size, with the thing it depends on
+       underneath it. An owner reads one figure and then looks for the
+       reason — four equal tiles make them hunt for both. -->
+  <section class="hero-row">
+    <div class="hero-fig">
+      <span class="l">Commission earned this month</span>
+      <p class="big tab">AED 1.84M</p>
+      <p class="delta">&uarr; 27% on last month &middot; 34 deals closed</p>
+    </div>
+
+    <!-- The farm as a shape, not a list. Width is share of pipeline, so
+         the eye reads the proportions before it reads any number. -->
+    <div class="temp-strip">
+      <span class="l">Your farm &middot; 2,184 leads</span>
+      <div class="bars" role="img" aria-label="Pipeline: 1,248 new, 642 warm, 231 hot, 63 ready now">
+        <span class="b new"  style="flex:1248"><i>New</i><b>1,248</b></span>
+        <span class="b warm" style="flex:642"><i>Warm</i><b>642</b></span>
+        <span class="b hot"  style="flex:231"><i>Hot</i><b>231</b></span>
+        <span class="b won"  style="flex:63"><i>Ready</i><b>63</b></span>
+      </div>
+      <p class="cap">Hot is the only one wearing the accent. Everything else is
+         deliberately quiet, so the eye lands where the money is.</p>
+    </div>
+  </section>
+
+  <!-- Needs a person today. Above the charts, because a chart is
+       yesterday and these are now. -->
+  <section class="needs">
+    <h2>Needs you today</h2>
+    <div class="need-grid">
+      <a class="need urgent" href="#">
+        <span class="k">Offer expiring</span>
+        <b>Marina Gate 2 &mdash; 6 hours left</b>
+        <span class="s">AED 2.35m cash, no conditions. The vendor hasn&rsquo;t been rung.</span>
+      </a>
+      <a class="need" href="#">
+        <span class="k">Permits</span>
+        <b>Three listings lapse in 14 days</b>
+        <span class="s">Renew before they stop publishing.</span>
+      </a>
+      <a class="need" href="#">
+        <span class="k">Reply window</span>
+        <b>Sofia Haddad &mdash; 4 hours left</b>
+        <span class="s">After that a template is the only way back in.</span>
+      </a>
+    </div>
+  </section>
+
+  <div class="grid2">
+    <!-- The two charts carry literal colours. An inline SVG fill does not
+     reliably inherit a custom property across browsers, so these are the
+     one deliberate exception to tokens-only — and they are generated
+     from the same values by optimise-time code rather than typed. -->
+    <div class="card">
+      <h2>Your farm</h2>
+      <p class="sub">Where every lead sits, new through to closed</p>
+      <svg viewBox="0 0 300 208" width="100%" role="img" aria-label="Lead funnel: 1,248 new, 642 warm, 231 hot, 34 closed"><path d="M0.0,8 L300.0,8 L254.06807051479672,52 L45.9319294852033,52 Z" fill="var(--accent)" opacity=".92"/><text x="150.0" y="26" text-anchor="middle" fill="var(--on-accent)" font-size="11" font-family="ui-monospace,monospace" letter-spacing="1">NEW</text><text x="150.0" y="44" text-anchor="middle" fill="var(--on-accent)" font-size="16" font-weight="700">1,248</text><path d="M45.9319294852033,58 L254.06807051479672,58 L209.3143569018941,102 L90.68564309810591,102 Z" fill="var(--accent-hover)" opacity=".92"/><text x="150.0" y="76" text-anchor="middle" fill="var(--on-accent)" font-size="11" font-family="ui-monospace,monospace" letter-spacing="1">WARM</text><text x="150.0" y="94" text-anchor="middle" fill="var(--on-accent)" font-size="16" font-weight="700">642</text><path d="M90.68564309810591,108 L209.3143569018941,108 L182.0,152 L118.0,152 Z" fill="var(--accent)" opacity=".92"/><text x="150.0" y="126" text-anchor="middle" fill="var(--on-accent)" font-size="11" font-family="ui-monospace,monospace" letter-spacing="1">HOT</text><text x="150.0" y="144" text-anchor="middle" fill="var(--on-accent)" font-size="16" font-weight="700">231</text><path d="M118.0,158 L182.0,158 L182.0,202 L118.0,202 Z" fill="var(--success)" opacity=".92"/><text x="150.0" y="176" text-anchor="middle" fill="var(--on-accent)" font-size="11" font-family="ui-monospace,monospace" letter-spacing="1">CLOSED</text><text x="150.0" y="194" text-anchor="middle" fill="var(--on-accent)" font-size="16" font-weight="700">34</text></svg>
+    </div>
+    <div class="card">
+      <h2>Deals closed</h2>
+      <p class="sub">Twelve months to August</p>
+      <svg viewBox="0 0 340 150" width="100%" role="img" aria-label="Deals closed per month, rising from 12 to 74 over twelve months"><line x1="22" y1="128.0" x2="318" y2="128.0" stroke="var(--rule)" stroke-width="1"/><line x1="22" y1="101.5" x2="318" y2="101.5" stroke="var(--rule)" stroke-width="1"/><line x1="22" y1="75.0" x2="318" y2="75.0" stroke="var(--rule)" stroke-width="1"/><line x1="22" y1="48.5" x2="318" y2="48.5" stroke="var(--rule)" stroke-width="1"/><line x1="22" y1="22.0" x2="318" y2="22.0" stroke="var(--rule)" stroke-width="1"/><path d="M22.0,112.1 L48.9,102.8 L75.8,105.5 L102.7,90.9 L129.6,83.0 L156.5,86.9 L183.5,68.4 L210.4,59.1 L237.3,63.1 L264.2,47.2 L291.1,37.9 L318.0,29.9 L318.0,128 L22.0,128 Z" fill="var(--accent)" opacity=".08"/><path d="M22.0,112.1 L48.9,102.8 L75.8,105.5 L102.7,90.9 L129.6,83.0 L156.5,86.9 L183.5,68.4 L210.4,59.1 L237.3,63.1 L264.2,47.2 L291.1,37.9 L318.0,29.9" fill="none" stroke="var(--accent-type)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="22.0" cy="112.1" r="2.5" fill="var(--accent)"/><circle cx="48.9" cy="102.8" r="2.5" fill="var(--accent)"/><circle cx="75.8" cy="105.5" r="2.5" fill="var(--accent)"/><circle cx="102.7" cy="90.9" r="2.5" fill="var(--accent)"/><circle cx="129.6" cy="83.0" r="2.5" fill="var(--accent)"/><circle cx="156.5" cy="86.9" r="2.5" fill="var(--accent)"/><circle cx="183.5" cy="68.4" r="2.5" fill="var(--accent)"/><circle cx="210.4" cy="59.1" r="2.5" fill="var(--accent)"/><circle cx="237.3" cy="63.1" r="2.5" fill="var(--accent)"/><circle cx="264.2" cy="47.2" r="2.5" fill="var(--accent)"/><circle cx="291.1" cy="37.9" r="2.5" fill="var(--accent)"/><circle cx="318.0" cy="29.9" r="2.5" fill="var(--accent)"/></svg>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h2>Top of the board</h2>
+      <p class="sub">Ranked on viewings booked, not on reply speed</p>
+      <table class="tbl">
+        <thead><tr><th></th><th>Agent</th><th class="r">Viewings</th><th class="r">Closed</th></tr></thead>
+        <tbody>
+          <tr><td class="rank">1</td><td><div class="who"><span class="av">SJ</span>Sarah Johnson</div></td><td class="r">24</td><td class="r">12</td></tr>
+          <tr class="mine"><td class="rank">2</td><td><div class="who"><span class="av">CS</span>You</div></td><td class="r">21</td><td class="r">9</td></tr>
+          <tr><td class="rank">3</td><td><div class="who"><span class="av">EM</span>Emily Davis</div></td><td class="r">18</td><td class="r">7</td></tr>
+          <tr><td class="rank">4</td><td><div class="who"><span class="av">DB</span>David Brown</div></td><td class="r">15</td><td class="r">8</td></tr>
+        </tbody>
+      </table>
+      <p class="sub" style="margin:14px 0 0">Rank on reply speed and within a fortnight
+         everyone is answering &ldquo;ok&rdquo; at eleven at night to move a number.</p>
+    </div>
+
+    <div class="card">
+      <h2>Just now</h2>
+      <p class="sub">Across the brokerage</p>
+      <div class="act"><span class="k">&#9679;</span><div><b>New hot potato</b>
+        <span>John Smith &mdash; Downtown Penthouse</span></div><time>2m</time></div>
+      <div class="act"><span class="k">&#9679;</span><div><b>Viewing booked</b>
+        <span>Palm Jumeirah Villa &mdash; Saturday 10:00</span></div><time>15m</time></div>
+      <div class="act"><span class="k">&#9679;</span><div><b>Offer countered</b>
+        <span>Marina Gate 2 &mdash; vendor came back at 2.42</span></div><time>1h</time></div>
+      <div class="act"><span class="k">&#9679;</span><div><b>Permit expiring</b>
+        <span>Three listings lapse in fourteen days</span></div><time>2h</time></div>
+      <div class="act"><span class="k">&#9679;</span><div><b>Reply window closing</b>
+        <span>Sofia Haddad &mdash; four hours left</span></div><time>3h</time></div>
+    </div>
+  </div>
+</main>
+</div>
+</div>
+</body></html>

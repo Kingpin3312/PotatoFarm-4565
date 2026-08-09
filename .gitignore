@@ -1,0 +1,52 @@
+# ---------------------------------------------------------------------
+# The important bit: never let a secret reach GitHub.
+#
+# Once a key is pushed to a repository it is considered leaked, even if
+# you delete it afterwards — the history keeps it. Rotating the key is
+# then the only real fix.
+#
+# .env.example is SAFE and should be committed: it lists the names of
+# the settings with no values in them.
+#
+# This lives at the repository root so it covers every folder. It used to
+# sit inside 02-the-project/, which meant nothing above that directory was
+# protected at all.
+# ---------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Downloaded code. Huge, and rebuilt by "npm install".
+node_modules/
+
+# Build output. Regenerated every time.
+.next/
+out/
+dist/
+build/
+.turbo/
+*.tsbuildinfo
+next-env.d.ts
+
+# Compiled Python. The audit scripts and the site generator both produce
+# these and neither is source.
+__pycache__/
+*.py[cod]
+
+# Mac and Windows clutter
+.DS_Store
+Thumbs.db
+
+# Editor settings
+.vscode/
+.idea/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Generated preview pages — the real pages are the ones without the
+# preview- prefix. Path is anchored from the repository root.
+02-the-project/website/preview-*.html

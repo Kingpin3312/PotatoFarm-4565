@@ -1,0 +1,139 @@
+/* ============================================================
+   PotatoFarm.io — design tokens, v4
+   Warm white, Claude orange, Hermes discipline.
+   ============================================================ */
+
+:root{
+  /* ---- The ground -----------------------------------------------
+     Warm white, not pure white. This is the whole effect and it is
+     worth defending: **Hermes does not put orange on #FFFFFF.** It puts
+     it on a warm cream, anchored by deep brown leather.
+
+     Pure white plus orange reads as a budget airline. Cream plus orange
+     plus brown reads as the reference. The difference is about 2%
+     warmth, and it is the difference. */
+  --ground: #F8F7F4;
+  --panel:  #EFEDE8;
+  --raised: #FFFFFF;   /* cards lift by being *whiter* than the ground */
+
+  /* ---- Ink, with brown in it --------------------------------------
+     A neutral grey against orange looks like a spreadsheet. Warming the
+     near-black by a few points is what makes the orange belong. */
+  --ink:   #1A1A1A;   /* 16.94:1 */
+  --ink-2: #4A4A4A;   /*  8.34:1 */
+  --ink-3: #6B6B6B;   /*  5.86:1 on ground, 5.43:1 on panel */
+  --rule:  #E2E0DA;
+  --rule-strong: #CFCCC4;
+
+  /* ---- Orange ------------------------------------------------------
+     Two, and they are not interchangeable.
+
+     `--accent` is Claude orange and it is a **fill only**. It measures
+     3.12:1 on the ground — enough for a non-text component, nowhere
+     near enough for type.
+
+     `--accent-type` carries every word. Same hue, deeper, 5.27:1.
+
+     Getting this backwards is the mistake, and it is the fifth time in
+     this project a warm colour has looked right and measured wrong. */
+  --accent:      #FF6E00;   /* Hermes orange. Fill only: 3.12:1 on ground */
+  --accent-type: #A84900;   /* type: 5.56:1 on ground, 5.15:1 on panel */
+  --accent-hover:#CC5800;
+
+  /**
+   * The border on every orange fill, and it is not decoration.
+   *
+   * Hermes orange measures 3.12:1 on the ground and **2.9:1 on the
+   * cream panel** — the same button passes on one surface and fails on
+   * the other. Rather than forbid orange on panels, or lighten the
+   * panel until it works, the fill carries a darker hairline. The edge
+   * is then defined by the border regardless of what is behind it.
+   *
+   * Same fix as the saffron button two palettes ago, same reason.
+   */
+  --accent-edge: #CC5800;   /* 4.38:1 on panel — defines the boundary */
+
+  /* **Labels on the orange fill are ink, never white.**
+     White on Hermes orange is 3.23:1 and fails. Ink is 5.42:1 and
+     passes — and an orange button with near-black type is also the more
+     Hermes answer. The measurement and the reference agreed, which does
+     not always happen. */
+  --on-accent: #1A1A1A;
+
+  /* ---- Leather -----------------------------------------------------
+     The anchor. Orange without a dark warm neutral beneath it floats;
+     this is the belt and the box. */
+  --leather:      #2E2E2E;
+  --leather-deep: #1A1A1A;
+  /* The type that sits on leather, named at the root rather than only
+     inside `.on-leather`. The footer is on leather and outside that
+     class, so without these it gets literals — which is exactly what
+     happened, three times. */
+  --leather-ink:   #EFEDE8;   /* 14.49:1 on leather-deep */
+  --leather-ink-2: #B5B5B5;   /*  8.02:1 */
+  --leather-ink-3: #8A8A8A;   /*  4.74:1 */
+
+  --success:      #1F7A4C;
+  --danger:       #B3261E;
+  --warning:      #A84900;   /* the accent type step, deliberately */
+
+  /* ---- Type --------------------------------------------------------
+     Same stack. Warm palettes tempt people toward a serif and it is
+     usually a mistake at interface sizes — Hermes' own wordmark is a
+     serif and its signage is not. */
+  --sans: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI",
+          Roboto, Helvetica, Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+
+  --display: clamp(2.5rem, 1.6rem + 4.2vw, 4.25rem);
+  --h1:      clamp(2rem, 1.5rem + 2.4vw, 3rem);
+  --h2:      clamp(1.5rem, 1.2rem + 1.6vw, 2.125rem);
+  --h3:      1.25rem;
+  --body-lg: 1.1875rem;
+  --body:    1rem;
+  --small:   0.9375rem;
+  --caption: 0.8125rem;
+  --micro:   0.6875rem;
+  --stat:    1.875rem;
+  /* The interface needs a heading step between h2 and h3 that the
+     marketing scale did not — a dashboard section title is smaller than
+     a landing-page one. Named rather than typed inline. */
+  --h2-sm:   1.625rem;
+
+  --track-display: -0.03em;
+  --track-h1:      -0.026em;
+  --track-h2:      -0.022em;
+
+  --section: clamp(72px, 9vw, 128px);
+  --measure: 34rem;
+
+  --r-xs: 4px;
+  --r-sm: 6px;
+  --r:    8px;
+  --r-lg: 14px;
+  --r-xl: 999px;
+
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Warmer and shallower than a neutral shadow. A grey shadow on a
+     cream ground looks like dirt. */
+  --lift: 0 1px 2px rgb(43 30 23 / .05), 0 6px 20px rgb(43 30 23 / .06);
+  --ring: 0 0 0 3px rgb(217 119 87 / .40);
+}
+
+/* The inverted section. Leather, not black — a pure black band under a
+   cream page is a hole in it. */
+.on-leather{
+  --ground: var(--leather-deep); --panel: var(--leather); --raised: var(--leather);
+  --ink: var(--leather-ink); --ink-2: var(--leather-ink-2); --ink-3: var(--leather-ink-3);
+  --rule: #2E2E2E;
+  /* On leather the bright orange finally works as type — 6.4:1 — so the
+     accent and the accent-type collapse into one here. */
+  --accent-type: #FF9C52;   /* 7.1:1 on leather */
+  --on-accent: var(--leather-deep);
+}
+
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important;
+    scroll-behavior:auto!important}
+}

@@ -1,0 +1,425 @@
+<!DOCTYPE html><html lang="en-GB"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>PotatoFarm — five palettes</title>
+<meta name="description" content="Five palette options for PotatoFarm, with brand, market and psychological rationale, and measured contrast for each.">
+<link rel="canonical" href="https://potatofarm.io/internal/palettes">
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://rsms.me"><link rel="stylesheet" href="https://rsms.me/inter/inter.css">
+<style>
+.skip{position:absolute;left:-9999px}
+.skip:focus{left:16px;top:12px;z-index:200;background:#101014;color:#fff;padding:10px 16px;border-radius:8px}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,Inter,"Segoe UI",Roboto,sans-serif;
+  font-size:16px;line-height:1.6;background:#fff;color:#3A3A40;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:0 clamp(20px,5vw,40px)}
+.intro{padding:64px 0 40px;border-bottom:1px solid #E6E6E8}
+.intro h1{font-size:clamp(2rem,1.5rem + 2.4vw,3rem);line-height:1.06;letter-spacing:-.03em;
+  color:#101014;font-weight:600}
+.intro p{margin-top:16px;max-width:60ch}
+.why{background:#FAF9F8;border-left:3px solid #A83226;padding:20px 24px;margin-top:28px;border-radius:0 8px 8px 0}
+.why .whyh{font-size:.9375rem;color:#101014;font-weight:600;margin-bottom:8px}
+.why ol{margin:0 0 0 18px;font-size:.9375rem}
+.why li{margin-bottom:8px}
+.why b{color:#101014}
+
+.opt{background:var(--ground);color:var(--sec);padding:72px 0;border-bottom:1px solid rgba(0,0,0,.06)}
+.oh{display:flex;align-items:flex-end;gap:24px;flex-wrap:wrap;margin-bottom:36px}
+.eyebrow{font-size:.8125rem;color:var(--ter);display:block;margin-bottom:6px}
+.opt h2{font-size:clamp(1.75rem,1.4rem+1.6vw,2.5rem);line-height:1.1;letter-spacing:-.025em;
+  color:var(--ink);font-weight:600}
+.chips{display:flex;gap:6px;margin-left:auto}
+.chip{width:34px;height:34px;border-radius:8px;border:1px solid rgba(0,0,0,.08);display:block}
+
+.grid{display:grid;gap:40px}
+@media(min-width:900px){.grid{grid-template-columns:1fr 1fr;gap:56px}}
+.col .ch{font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ter);
+  font-weight:600;margin:22px 0 6px}
+.col .ch:first-child{margin-top:0}
+.col p{font-size:.9375rem;max-width:46ch}
+.risk{color:var(--ink);font-weight:500}
+
+.demo{background:var(--sunk);border-radius:16px;padding:28px}
+.lead{font-size:1.5rem;line-height:1.15;letter-spacing:-.02em;color:var(--ink);font-weight:600}
+.sub{font-size:.9375rem;margin-top:10px}
+.btns{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;min-height:40px;padding:0 18px;border-radius:980px;
+  font-size:.875rem;font-weight:500;border:1px solid transparent;cursor:default}
+.primary{background:var(--accent);color:var(--on-accent)}
+.quiet{color:var(--ink);border-color:rgba(0,0,0,.14)}
+
+.thread{margin-top:24px}
+.m{display:flex;margin-bottom:8px}
+.m.out{justify-content:flex-end}
+.m span{max-width:78%;padding:9px 13px;border-radius:16px;font-size:.875rem;background:#fff;color:var(--ink)}
+.m.out span{background:var(--accent);color:var(--on-accent)}
+
+.stat{display:flex;gap:28px;margin-top:24px;padding-top:18px;border-top:1px solid rgba(0,0,0,.09)}
+.stat b{display:block;font-size:1.5rem;letter-spacing:-.02em;color:var(--ink);font-weight:600;line-height:1}
+.stat small{font-size:.75rem;color:var(--ter)}
+
+.dark{background:var(--deep);border-radius:16px;padding:28px;margin-top:16px}
+.dark p{color:rgba(255,255,255,.72);font-size:.9375rem;margin-bottom:16px;max-width:38ch}
+.meas{font-size:.75rem;color:var(--ter);margin-top:14px}
+
+.verdict{padding:72px 0 96px}
+.verdict h2{font-size:2rem;letter-spacing:-.025em;color:#101014;font-weight:600;margin-bottom:16px}
+.verdict p{max-width:62ch;margin-bottom:14px}
+.verdict b{color:#101014}
+</style></head><body>
+<a href="#opts" class="skip">Skip to the palettes</a>
+
+<div class="wrap intro">
+  <h1>Five palettes</h1>
+  <p>Same components in every one, so the comparison is like for like. Each has been
+     measured for contrast rather than eyeballed.</p>
+
+  <div class="why">
+    <h2 class="whyh">Why the red has to go — and it is not taste</h2>
+    <ol>
+      <li><b>Red means destructive in every interface convention there is.</b> In the CRM,
+        &ldquo;Send&rdquo; and &ldquo;Delete&rdquo; would be the same colour. That is not a brand
+        problem, it is a usability defect, and it gets worse the more of the product exists.</li>
+      <li><b>It fights the channel.</b> We live inside WhatsApp, which is green. A red bubble
+        where a green one should be reads as an error every single time.</li>
+      <li><b>Wrong arousal for the sale.</b> Red raises heart rate and urgency — right for a
+        clearance sale, wrong for a considered purchase where the buyer needs to feel calm
+        about handing over their client list.</li>
+      <li><b>In property and finance, red is loss.</b> Falling prices, negative numbers, risk.
+        It is the one category where the association is unambiguous and unhelpful.</li>
+    </ol>
+  </div>
+</div>
+
+
+<div id="opts"></div>
+<section class="opt" style="
+  --ground:#FBFBFC;--sunk:#F1F2F5;--deep:#0A0B10;
+  --accent:#1D4ED8;--accent-dk:#1739A8;--on-accent:#FFFFFF;
+  --ink:#16181D;--sec:#565A66;--ter:#8A8F9C">
+  <div class="wrap">
+
+    <header class="oh">
+      <div>
+        <span class="eyebrow">The infrastructure play</span>
+        <h2>Cobalt</h2>
+      </div>
+      <div class="chips">
+        <span class="chip" style="background:#1D4ED8"></span>
+        <span class="chip" style="background:#16181D"></span>
+        <span class="chip" style="background:#565A66"></span>
+        <span class="chip" style="background:#F1F2F5;border-color:#8A8F9C"></span>
+        <span class="chip" style="background:#0A0B10"></span>
+      </div>
+    </header>
+
+    <div class="grid">
+      <div class="col">
+        <h3 class="ch">Brand</h3><p>Says: we are the layer underneath, not the shiny thing on top. Stripe, Linear and Plaid all live here for the same reason — blue is what software looks like when it wants to be trusted with something important.</p>
+        <h3 class="ch">Market</h3><p>The safest choice against Goyzer and Reapit, and the most crowded. You will not be remembered for it, but you will never be doubted because of it. In a room with a compliance-minded owner, that is worth more than distinctiveness.</p>
+        <h3 class="ch">Psychology</h3><p>Blue lowers arousal and reads as competence rather than excitement. In studies of colour and trust it consistently rates highest for reliability. The trade-off is that it is emotionally cool — nobody loves a blue brand.</p>
+        <h3 class="ch">The risk</h3><p class="risk">Invisible. Every second B2B tool is this colour.</p>
+      </div>
+
+      <div class="col">
+        <!-- Same components every time, so the comparison is like for like. -->
+        <div class="demo">
+          <p class="lead">Every enquiry answered in seconds.</p>
+          <p class="sub">PotatoFarm replies the moment a lead arrives, qualifies them,
+             and books the viewing.</p>
+          <div class="btns">
+            <a class="btn primary">Book a call</a>
+            <a class="btn quiet">See how it works</a>
+          </div>
+
+          <div class="thread">
+            <div class="m in"><span>Is the 3 bed in Marina Gate still available?</span></div>
+            <div class="m out"><span>It is. Buying or renting?</span></div>
+            <div class="m in"><span>Buying. Around 2.5</span></div>
+          </div>
+
+          <div class="stat">
+            <div><b>38s</b><small>median reply</small></div>
+            <div><b>100%</b><small>out of hours</small></div>
+            <div><b>+31%</b><small>viewings</small></div>
+          </div>
+        </div>
+
+        <div class="dark">
+          <p>The inverted section, which is where a palette usually falls apart.</p>
+          <a class="btn primary">Book a call</a>
+        </div>
+
+        <p class="meas">Accent on ground 6.48:1 &middot; passes AA</p>
+      </div>
+    </div>
+  </div>
+</section>
+<section class="opt" style="
+  --ground:#FBFAF7;--sunk:#F0F1EC;--deep:#0A0F0C;
+  --accent:#186A4B;--accent-dk:#125239;--on-accent:#FFFFFF;
+  --ink:#171A18;--sec:#565C58;--ter:#878D89">
+  <div class="wrap">
+
+    <header class="oh">
+      <div>
+        <span class="eyebrow">Native to the channel</span>
+        <h2>Pine</h2>
+      </div>
+      <div class="chips">
+        <span class="chip" style="background:#186A4B"></span>
+        <span class="chip" style="background:#171A18"></span>
+        <span class="chip" style="background:#565C58"></span>
+        <span class="chip" style="background:#F0F1EC;border-color:#878D89"></span>
+        <span class="chip" style="background:#0A0F0C"></span>
+      </div>
+    </header>
+
+    <div class="grid">
+      <div class="col">
+        <h3 class="ch">Brand</h3><p>Green is WhatsApp, and we live inside WhatsApp. This is the only palette that makes the product feel like a natural extension of the thing the agent already has open, rather than a separate system bolted alongside it.</p>
+        <h3 class="ch">Market</h3><p>Bayut is green. That cuts both ways: it is the visual language of UAE property already, so it reads as belonging — but it also risks reading as a portal rather than the system of record. Deeper and less saturated than Bayut solves most of that.</p>
+        <h3 class="ch">Psychology</h3><p>Green signals growth, permission and safety. In an interface it means &#x27;go&#x27; — which is exactly right for a product whose entire promise is that things keep moving while you sleep.</p>
+        <h3 class="ch">The risk</h3><p class="risk">Reads as portal-adjacent. Must sit well away from Bayut&#x27;s brighter green.</p>
+      </div>
+
+      <div class="col">
+        <!-- Same components every time, so the comparison is like for like. -->
+        <div class="demo">
+          <p class="lead">Every enquiry answered in seconds.</p>
+          <p class="sub">PotatoFarm replies the moment a lead arrives, qualifies them,
+             and books the viewing.</p>
+          <div class="btns">
+            <a class="btn primary">Book a call</a>
+            <a class="btn quiet">See how it works</a>
+          </div>
+
+          <div class="thread">
+            <div class="m in"><span>Is the 3 bed in Marina Gate still available?</span></div>
+            <div class="m out"><span>It is. Buying or renting?</span></div>
+            <div class="m in"><span>Buying. Around 2.5</span></div>
+          </div>
+
+          <div class="stat">
+            <div><b>38s</b><small>median reply</small></div>
+            <div><b>100%</b><small>out of hours</small></div>
+            <div><b>+31%</b><small>viewings</small></div>
+          </div>
+        </div>
+
+        <div class="dark">
+          <p>The inverted section, which is where a palette usually falls apart.</p>
+          <a class="btn primary">Book a call</a>
+        </div>
+
+        <p class="meas">Accent on ground 6.28:1 &middot; passes AA</p>
+      </div>
+    </div>
+  </div>
+</section>
+<section class="opt" style="
+  --ground:#FAFBFB;--sunk:#EFF2F2;--deep:#08100F;
+  --accent:#0F6C72;--accent-dk:#0B5359;--on-accent:#FFFFFF;
+  --ink:#151A1B;--sec:#535B5D;--ter:#858E90">
+  <div class="wrap">
+
+    <header class="oh">
+      <div>
+        <span class="eyebrow">Calm competence</span>
+        <h2>Deep teal</h2>
+      </div>
+      <div class="chips">
+        <span class="chip" style="background:#0F6C72"></span>
+        <span class="chip" style="background:#151A1B"></span>
+        <span class="chip" style="background:#535B5D"></span>
+        <span class="chip" style="background:#EFF2F2;border-color:#858E90"></span>
+        <span class="chip" style="background:#08100F"></span>
+      </div>
+    </header>
+
+    <div class="grid">
+      <div class="col">
+        <h3 class="ch">Brand</h3><p>Blue&#x27;s seriousness with green&#x27;s reassurance, and neither one&#x27;s baggage. It is the colour of things that handle money carefully — Wise, Xero and most of European fintech sit in this family.</p>
+        <h3 class="ch">Market</h3><p>Distinctive in UAE property without being loud. Nobody in this specific market owns it, which is rare for a colour this safe. It photographs well on a phone screen, which matters more than it sounds.</p>
+        <h3 class="ch">Psychology</h3><p>Sits at the calmest point on the arousal scale while still reading as active. It is the colour people describe as &#x27;clean&#x27; — which is the exact quality you want attached to a system holding a client list.</p>
+        <h3 class="ch">The risk</h3><p class="risk">Slightly clinical. Needs warm neutrals around it or it goes cold.</p>
+      </div>
+
+      <div class="col">
+        <!-- Same components every time, so the comparison is like for like. -->
+        <div class="demo">
+          <p class="lead">Every enquiry answered in seconds.</p>
+          <p class="sub">PotatoFarm replies the moment a lead arrives, qualifies them,
+             and books the viewing.</p>
+          <div class="btns">
+            <a class="btn primary">Book a call</a>
+            <a class="btn quiet">See how it works</a>
+          </div>
+
+          <div class="thread">
+            <div class="m in"><span>Is the 3 bed in Marina Gate still available?</span></div>
+            <div class="m out"><span>It is. Buying or renting?</span></div>
+            <div class="m in"><span>Buying. Around 2.5</span></div>
+          </div>
+
+          <div class="stat">
+            <div><b>38s</b><small>median reply</small></div>
+            <div><b>100%</b><small>out of hours</small></div>
+            <div><b>+31%</b><small>viewings</small></div>
+          </div>
+        </div>
+
+        <div class="dark">
+          <p>The inverted section, which is where a palette usually falls apart.</p>
+          <a class="btn primary">Book a call</a>
+        </div>
+
+        <p class="meas">Accent on ground 5.94:1 &middot; passes AA</p>
+      </div>
+    </div>
+  </div>
+</section>
+<section class="opt" style="
+  --ground:#FCFAF6;--sunk:#F4F0E8;--deep:#100D08;
+  --accent:#B45309;--accent-dk:#92400E;--on-accent:#FFFFFF;
+  --ink:#1C1917;--sec:#5C554E;--ter:#8D857C">
+  <div class="wrap">
+
+    <header class="oh">
+      <div>
+        <span class="eyebrow">The one that is awake</span>
+        <h2>Amber</h2>
+      </div>
+      <div class="chips">
+        <span class="chip" style="background:#B45309"></span>
+        <span class="chip" style="background:#1C1917"></span>
+        <span class="chip" style="background:#5C554E"></span>
+        <span class="chip" style="background:#F4F0E8;border-color:#8D857C"></span>
+        <span class="chip" style="background:#100D08"></span>
+      </div>
+    </header>
+
+    <div class="grid">
+      <div class="col">
+        <h3 class="ch">Brand</h3><p>Warmth, and a deliberate rejection of the blue-grey sea. This is the only palette that feels like a person rather than a system, which matters when the product&#x27;s whole job is to sound human at eleven at night.</p>
+        <h3 class="ch">Market</h3><p>Genuinely differentiated. In a category where everything is blue, warm is memorable — and memorable is what you need when a brokerage owner is describing you to a partner three days after the meeting.</p>
+        <h3 class="ch">Psychology</h3><p>Amber raises attention without the threat response red triggers. It is associated with light and lamps — the connotation is being switched on when everything else is dark, which is almost embarrassingly on-brief.</p>
+        <h3 class="ch">The risk</h3><p class="risk">Warm accents fight photographs of property. Needs discipline in how imagery is treated.</p>
+      </div>
+
+      <div class="col">
+        <!-- Same components every time, so the comparison is like for like. -->
+        <div class="demo">
+          <p class="lead">Every enquiry answered in seconds.</p>
+          <p class="sub">PotatoFarm replies the moment a lead arrives, qualifies them,
+             and books the viewing.</p>
+          <div class="btns">
+            <a class="btn primary">Book a call</a>
+            <a class="btn quiet">See how it works</a>
+          </div>
+
+          <div class="thread">
+            <div class="m in"><span>Is the 3 bed in Marina Gate still available?</span></div>
+            <div class="m out"><span>It is. Buying or renting?</span></div>
+            <div class="m in"><span>Buying. Around 2.5</span></div>
+          </div>
+
+          <div class="stat">
+            <div><b>38s</b><small>median reply</small></div>
+            <div><b>100%</b><small>out of hours</small></div>
+            <div><b>+31%</b><small>viewings</small></div>
+          </div>
+        </div>
+
+        <div class="dark">
+          <p>The inverted section, which is where a palette usually falls apart.</p>
+          <a class="btn primary">Book a call</a>
+        </div>
+
+        <p class="meas">Accent on ground 4.82:1 &middot; passes AA</p>
+      </div>
+    </div>
+  </div>
+</section>
+<section class="opt" style="
+  --ground:#FCFCFB;--sunk:#F2F2F0;--deep:#09090B;
+  --accent:#1F2937;--accent-dk:#0F172A;--on-accent:#FFFFFF;
+  --ink:#121316;--sec:#54565C;--ter:#87898F">
+  <div class="wrap">
+
+    <header class="oh">
+      <div>
+        <span class="eyebrow">No accent at all</span>
+        <h2>Graphite</h2>
+      </div>
+      <div class="chips">
+        <span class="chip" style="background:#1F2937"></span>
+        <span class="chip" style="background:#121316"></span>
+        <span class="chip" style="background:#54565C"></span>
+        <span class="chip" style="background:#F2F2F0;border-color:#87898F"></span>
+        <span class="chip" style="background:#09090B"></span>
+      </div>
+    </header>
+
+    <div class="grid">
+      <div class="col">
+        <h3 class="ch">Brand</h3><p>The most confident option and the hardest to execute. Contrast is the accent — a near-black button on near-white. It says the product does not need a colour to be interesting, which is either true or very obviously not.</p>
+        <h3 class="ch">Market</h3><p>Reads premium and slightly severe. It is what a category leader does after it has stopped trying to be noticed. For a pre-launch product it is a claim you have not yet earned, which is the argument against it.</p>
+        <h3 class="ch">Psychology</h3><p>Absence of hue removes emotional cueing entirely and leaves only hierarchy. People read it as serious and expensive. It also removes your ability to use colour to guide attention, so every affordance has to be carried by typography and space.</p>
+        <h3 class="ch">The risk</h3><p class="risk">No colour to signal state. Error, success and pending all have to be shape and words.</p>
+      </div>
+
+      <div class="col">
+        <!-- Same components every time, so the comparison is like for like. -->
+        <div class="demo">
+          <p class="lead">Every enquiry answered in seconds.</p>
+          <p class="sub">PotatoFarm replies the moment a lead arrives, qualifies them,
+             and books the viewing.</p>
+          <div class="btns">
+            <a class="btn primary">Book a call</a>
+            <a class="btn quiet">See how it works</a>
+          </div>
+
+          <div class="thread">
+            <div class="m in"><span>Is the 3 bed in Marina Gate still available?</span></div>
+            <div class="m out"><span>It is. Buying or renting?</span></div>
+            <div class="m in"><span>Buying. Around 2.5</span></div>
+          </div>
+
+          <div class="stat">
+            <div><b>38s</b><small>median reply</small></div>
+            <div><b>100%</b><small>out of hours</small></div>
+            <div><b>+31%</b><small>viewings</small></div>
+          </div>
+        </div>
+
+        <div class="dark">
+          <p>The inverted section, which is where a palette usually falls apart.</p>
+          <a class="btn primary">Book a call</a>
+        </div>
+
+        <p class="meas">Accent on ground 14.3:1 &middot; passes AA</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="wrap verdict">
+  <h2>What I would choose</h2>
+  <p><b>Deep teal.</b> It is the only one of the five with no argument against it that
+     survives contact with the product.</p>
+  <p>Cobalt is safer and forgettable. Pine is the most natural fit for the channel and the
+     most likely to be mistaken for a portal. Amber is the most memorable and the hardest to
+     live with once you start putting photographs of property on the page. Graphite is the
+     most confident and it is a claim you have not earned yet — it is what you move to in
+     three years, not what you launch with.</p>
+  <p>Teal reads as careful with money, which is the exact quality a brokerage owner is
+     looking for when they hand you their pipeline. It sits far enough from Bayut's green to
+     never be confused with a portal, and far enough from the blue sea to be remembered.
+     And critically, <b>it leaves red free to mean what red should mean</b> — errors,
+     deletion, a listing pulled.</p>
+  <p style="margin-top:24px"><b>My second choice is amber</b>, and it is not close behind.
+     If the strategy is to be the memorable one rather than the safe one, amber is the only
+     palette here that a brokerage owner would describe to a colleague three days later
+     without prompting.</p>
+</div>
+</body></html>

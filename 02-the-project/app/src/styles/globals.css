@@ -1,0 +1,85 @@
+@import "tailwindcss";
+@import "./tokens.css";
+
+/* Tokens exposed to Tailwind so `text-ink-2` resolves to the same value
+   the website uses. One source of truth, not two that drift. */
+@theme inline {
+  --color-ground: var(--ground);
+  --color-sunk: var(--panel);
+  --color-raised: var(--raised);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-rule: var(--rule);
+
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-on-accent: var(--on-accent);
+  --color-surface: var(--accent);
+  --color-on-surface: var(--on-accent);
+  --color-active: var(--accent-type);
+
+  --color-navy: var(--leather-deep);
+  --color-ocean: var(--leather);
+  --color-royal: var(--accent);
+  --color-teal: var(--accent);
+  --color-cyan: var(--accent-type);
+
+  --color-danger: var(--danger);
+  --color-danger-deep: var(--danger);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+
+  --font-sans: var(--sans);
+  --font-mono: var(--mono);
+  --ease-out: var(--ease);
+}
+
+html { color-scheme: light; }
+html.dark { color-scheme: dark; }
+
+body {
+  background: var(--ground);
+  color: var(--ink-2);
+  font-family: var(--sans);
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "cv11", "ss01";
+}
+
+/* Tabular numerals everywhere a figure appears. A pipeline column whose
+   values jitter as digits change is the sort of thing nobody reports and
+   everybody notices. */
+.tabular { font-variant-numeric: tabular-nums; }
+
+/* Focus is the cyan ring from the site, not a browser outline. */
+:where(a, button, input, textarea, select, [tabindex]):focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+  border-radius: 4px;
+}
+
+/* A text-weight action inside a row or a card.
+ *
+ * Used nine times across the screens and defined nowhere until now — it
+ * would have rendered as plain text and looked like a bug nobody could
+ * name. The same class of miss as an undefined CSS variable: the markup
+ * is correct, the rule is absent, and it renders *almost* right.
+ *
+ * 44px minimum because it is a tap target on a phone, even inside a
+ * dense list where it visually reads as a link.
+ */
+.btn-inline {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: var(--r-sm, 6px);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--accent-type);
+  text-decoration: none;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+.btn-inline:hover { background: var(--panel); }
