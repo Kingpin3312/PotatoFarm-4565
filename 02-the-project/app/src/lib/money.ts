@@ -19,6 +19,26 @@ export function aed(fils: bigint | null | undefined): string {
   })}`;
 }
 
+/**
+ * Whole dirhams. AED 2,500,000
+ *
+ * A property price, quoted to a person. Nobody says the fils on a flat,
+ * and `.00` on the end of a seven-figure number reads as a system that
+ * has not been thought about.
+ *
+ * It is here rather than inline at the one call site that wanted it,
+ * because "inline at the one call site that wanted it" is how there came
+ * to be five of these — and two of the five assumed the value was
+ * already in AED, which is how a board shows a buyer a flat at a hundred
+ * times its price.
+ */
+export function aedWhole(fils: bigint | null | undefined): string {
+  if (fils === null || fils === undefined) return "—";
+  return `AED ${(Number(fils) / 100).toLocaleString("en-GB", {
+    maximumFractionDigits: 0,
+  })}`;
+}
+
 /** Compact, for cards and lists. AED 2.5M */
 export function aedShort(fils: bigint | null | undefined): string {
   if (fils === null || fils === undefined) return "—";

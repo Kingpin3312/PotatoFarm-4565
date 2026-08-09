@@ -4,6 +4,8 @@ import { useState, useRef } from "react";
 import { api } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
+import { aedWhole } from "@/lib/money";
+import { History } from "./history";
 
 /**
  * Say it.
@@ -17,7 +19,14 @@ import { cn } from "@/lib/cn";
  * advisor catching it hours later.
  */
 export default function Ask() {
-  const interpret = api.requests.interpret.useMutation();
+  const utils = api.useUtils();
+  // Every request is written to AgentRequest before it is executed, so
+  // the history below is stale the moment one is made. Refresh it —
+  // an agent who has just asked something and cannot see it in the list
+  // reasonably concludes the list is broken.
+  const interpret = api.requests.interpret.useMutation({
+    onSettled: () => void utils.requests.mine.invalidate(),
+  });
   const comps = api.requests.comparables.useMutation();
   const [text, setText] = useState("");
   const [listening, setListening] = useState(false);
@@ -138,6 +147,8 @@ export default function Ask() {
           )}
         </div>
       )}
+
+      <History />
     </div>
   );
 }
@@ -154,7 +165,7 @@ function Report({ r }: { r: NonNullable<ReturnType<typeof api.requests.comparabl
       {r.range ? (
         <>
           <p className="font-sans font-semibold text-[30px] text-ink -tracking-[0.026em] tabular mt-2">
-            {fmt(r.range.lowFils)} – {fmt(r.range.highFils)}
+            {aedWhole(r.range.lowFils)} – {aedWhole(r.range.highFils)}
           </p>
           {r.range.perSqft && (
             <p className="text-sm text-ink-2 mt-1 tabular">{r.range.perSqft} per sq ft</p>
@@ -184,7 +195,7 @@ function Report({ r }: { r: NonNullable<ReturnType<typeof api.requests.comparabl
             <span className="text-[15px] text-ink flex-1">
               {c.beds} bed{c.sqft ? ` · ${c.sqft.toLocaleString()} sqft` : ""}
             </span>
-            <span className="text-[15px] text-ink font-semibold tabular">{fmt(c.priceFils)}</span>
+            <span className="text-[15px] text-ink font-semibold tabular">{aedWhole(c.priceFils)}</span>
           </div>
         ))}
       </div>
@@ -197,5 +208,3 @@ function Report({ r }: { r: NonNullable<ReturnType<typeof api.requests.comparabl
   );
 }
 
-const fmt = (f: bigint | string) =>
-  `AED ${(Number(f) / 100).toLocaleString("en-AE", { maximumFractionDigits: 0 })}`;

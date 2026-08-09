@@ -11,6 +11,25 @@ import type { NextConfig } from "next";
  * reasoning differs per line and the next person will need to change one
  * of them.
  */
+/**
+ * `next dev` cannot run under a CSP without `'unsafe-eval'`.
+ *
+ * Webpack's development source maps and hot reload evaluate strings as
+ * JavaScript. With this policy applied to dev as well, every page threw
+ * `Refused to evaluate a string as JavaScript` and the application would
+ * not render at all locally.
+ *
+ * That is worth naming rather than quietly patching, because the natural
+ * response to a security header that stops the app working on your own
+ * machine is to delete the security header. So: the relaxation is scoped
+ * to development, where the threat model is a browser talking to
+ * localhost, and production keeps the strict policy — which is the one
+ * that is actually served to anybody.
+ *
+ * `next build` does not use eval, so this never reaches a deployment.
+ */
+const dev = process.env.NODE_ENV !== "production";
+
 const csp = [
   // Nothing loads from anywhere unless a directive below says otherwise.
   "default-src 'self'",
@@ -24,7 +43,7 @@ const csp = [
    * belongs in its own change rather than smuggled in here. Recorded so
    * it is a decision rather than an oversight.
    */
-  "script-src 'self' 'unsafe-inline'",
+  `script-src 'self' 'unsafe-inline'${dev ? " 'unsafe-eval'" : ""}`,
 
   // Tailwind emits a style element; the design tokens are all in it.
   "style-src 'self' 'unsafe-inline'",
@@ -42,7 +61,9 @@ const csp = [
    * Anthropic, Stripe's API, Meta's Graph API, Resend — is called from
    * the server and must not be in this list.
    */
-  "connect-src 'self' https://api.stripe.com",
+  // `ws:` in development only — hot reload is a websocket back to the
+  // dev server, and without it the page loads once and never updates.
+  `connect-src 'self' https://api.stripe.com${dev ? " ws: http://localhost:*" : ""}`,
 
   // Stripe's card form is an iframe and there is nothing else embedded.
   "frame-src 'self' https://js.stripe.com https://hooks.stripe.com",
