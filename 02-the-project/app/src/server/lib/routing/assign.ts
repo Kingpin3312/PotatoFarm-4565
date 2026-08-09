@@ -57,6 +57,24 @@ export function available(c: Candidate[], ctx: RoutingContext = {}): Candidate[]
   });
 }
 
+/**
+ * The best candidate by a given ordering.
+ *
+ * Every branch below does `[...pool].sort(…)[0]` on a pool the guard has
+ * already proved non-empty — which the compiler cannot see, so all ten
+ * reads were errors under `noUncheckedIndexedAccess`.
+ *
+ * A non-null assertion at each site would silence it and would also be
+ * ten places for the guard to drift out from under. One function, one
+ * check: if the pool is ever empty here, that is a routing bug worth
+ * hearing about rather than an agent picked at random.
+ */
+function bestOf<T>(pool: readonly T[], order?: (a: T, b: T) => number): T {
+  const [head] = order ? [...pool].sort(order) : pool;
+  if (!head) throw new Error("route(): pool was empty past the guard");
+  return head;
+}
+
 export function route(strategy: AssignStrategy, candidates: Candidate[], ctx: RoutingContext = {}): Routed {
   if (strategy === "UNASSIGNED") {
     return { assign: false, why: "rule sends this to the shared pool" };
@@ -78,20 +96,22 @@ export function route(strategy: AssignStrategy, candidates: Candidate[], ctx: Ro
   }
 
   switch (strategy) {
-    case "SPECIFIC":
-      return { assign: true, userId: pool[0].userId, why: `rule names ${pool[0].name}` };
+    case "SPECIFIC": {
+      const pick = bestOf(pool);
+      return { assign: true, userId: pick.userId, why: `rule names ${pick.name}` };
+    }
 
     case "LEAST_LOADED": {
-      const pick = [...pool].sort((a, b) => a.openLeads - b.openLeads)[0];
+      const pick = bestOf(pool, (a, b) => a.openLeads - b.openLeads);
       return { assign: true, userId: pick.userId, why: `fewest open leads (${pick.openLeads})` };
     }
 
     case "FASTEST": {
       // Unknown response time sorts last rather than first. A new agent
       // with no history should not win a "fastest" contest by default.
-      const pick = [...pool].sort((a, b) =>
+      const pick = bestOf(pool, (a, b) =>
         (a.medianFirstResponseSeconds ?? Infinity) - (b.medianFirstResponseSeconds ?? Infinity)
-      )[0];
+      );
       return {
         assign: true,
         userId: pick.userId,
@@ -111,12 +131,12 @@ export function route(strategy: AssignStrategy, candidates: Candidate[], ctx: Ro
        * Never assigned at all sorts first, which is how a new joiner gets
        * their first lead on day one rather than at the end of a cycle.
        */
-      const pick = [...pool].sort((a, b) => {
+      const pick = bestOf(pool, (a, b) => {
         if (!a.lastAssignedAt && !b.lastAssignedAt) return a.userId.localeCompare(b.userId);
         if (!a.lastAssignedAt) return -1;
         if (!b.lastAssignedAt) return 1;
         return a.lastAssignedAt.getTime() - b.lastAssignedAt.getTime();
-      })[0];
+      });
 
       return {
         assign: true,

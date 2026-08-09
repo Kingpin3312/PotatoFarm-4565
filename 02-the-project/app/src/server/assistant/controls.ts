@@ -1,4 +1,4 @@
-import { log } from "@/lib/log";
+import { log, report } from "@/lib/log";
 import { aed } from "@/lib/money";
 import { crossTenant } from "@/server/db/client";
 
@@ -54,7 +54,7 @@ export async function gate(orgId: string): Promise<Gate> {
   try {
     row = await crossTenant("sweep").assistantSettings.findUnique({ where: { orgId } });
   } catch (err) {
-    log.error("[assistant] could not read controls — failing closed", err);
+    report(err, { orgId }, { note: "could not read controls — failing closed" });
     return { allowed: false, reason: "unreadable" };
   }
 

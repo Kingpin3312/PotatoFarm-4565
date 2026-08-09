@@ -1,4 +1,4 @@
-import { log } from "@/lib/log";
+import { log, report } from "@/lib/log";
 import { crossTenant, forOrg } from "@/server/db/client";
 import { messagingWindow, sendTemplate } from "@/server/lib/whatsapp";
 import { getChannelCredentials } from "@/server/lib/secrets";
@@ -81,7 +81,7 @@ export async function sendDueReminders() {
       });
       sent += 1;
     } catch (err) {
-      log.error(`[reminders] viewing ${v.id} failed`, err);
+      report(err, { orgId: v.orgId }, { viewingId: v.id });
     }
   }
 

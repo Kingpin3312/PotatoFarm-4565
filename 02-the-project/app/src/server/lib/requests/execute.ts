@@ -77,21 +77,27 @@ export async function execute(args: {
 
       const [viewings, unanswered] = await Promise.all([
         db.viewing.findMany({
+          // "HELD" is not a ViewingStatus and never was. A hold is a
+          // SCHEDULED viewing with `heldUntil` set — scheduling.ts is the
+          // source of truth for that and filters the same two statuses.
           where: { agentId: args.agentId, scheduledAt: { gte: start, lt: end },
-                   status: { in: ["HELD", "CONFIRMED"] } },
+                   status: { in: ["SCHEDULED", "CONFIRMED"] } },
           orderBy: { scheduledAt: "asc" },
           select: { scheduledAt: true, listing: { select: { building: true } } },
         }),
         db.conversation.count({
-          where: { unreadCount: { gt: 0 }, lead: { agentId: args.agentId } },
+          // Lead names the column `assignedToId`; there is no `agentId`
+          // on Lead. (Viewing has one, which is where the mix-up came
+          // from.)
+          where: { unreadCount: { gt: 0 }, lead: { assignedToId: args.agentId } },
         }),
       ]);
 
       // Spoken back, so it has to sound like a person saying it.
       const bits: string[] = [];
-      if (viewings.length === 0) bits.push("No viewings today.");
+      const [first] = viewings;
+      if (!first) bits.push("No viewings today.");
       else {
-        const first = viewings[0];
         bits.push(`${viewings.length} viewing${viewings.length === 1 ? "" : "s"}, ` +
           `first at ${first.scheduledAt.toLocaleTimeString("en-GB",
             { hour: "2-digit", minute: "2-digit" })} at ` +
@@ -157,12 +163,14 @@ export async function execute(args: {
 
       const lead = await db.lead.findFirst({
         where: { name: { contains: who, mode: "insensitive" } },
+        // `conversation`, singular. Lead has at most one — the model
+        // declares `conversation Conversation?`, not a list.
         select: { id: true, name: true,
-                  conversations: { select: { id: true, lastInboundAt: true }, take: 1 } },
+                  conversation: { select: { id: true, lastInboundAt: true } } },
       });
       if (!lead) return { kind: "REFUSED", reason: `No lead called "${who}".` };
 
-      const conv = lead.conversations[0];
+      const conv = lead.conversation;
       const w = messagingWindow(conv?.lastInboundAt ?? null);
       // Checked before offering to draft anything. Drafting a message
       // that cannot be delivered wastes the agent's time twice.
@@ -201,6 +209,13 @@ export async function execute(args: {
                   _count: { select: { viewings: true, enquiries: true } } },
       });
       if (!listing) return { kind: "REFUSED", reason: `No listing matching "${b}".` };
+
+      // Both columns are nullable and `comparables` needs both. Without
+      // a building and a bed count there is nothing to compare against,
+      // so this refuses rather than running a search that would silently
+      // match on whatever happened to be non-null.
+      if (!listing.building || listing.bedrooms === null)
+        return { kind: "REFUSED", reason: `"${b}" has no building or bedroom count recorded, so there is nothing to compare it against.` };
 
       const report = await comparables({
         orgId: args.orgId, building: listing.building, beds: listing.bedrooms,

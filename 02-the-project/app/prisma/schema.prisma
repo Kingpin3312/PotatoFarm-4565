@@ -470,6 +470,10 @@ model Listing {
   org       Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
   enquiries Enquiry[]
   viewings  Viewing[]
+  /// SetNull, not Cascade: losing an owner record must not delete the
+  /// property. The listing simply has no vendor attached until one is.
+  vendor    Vendor?      @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  deals     Deal[]
 
   @@unique([orgId, reference])
   @@index([orgId, status])
@@ -1264,6 +1268,10 @@ model Deal {
 
   commissions Commission[]
   milestones  DealMilestone[]
+  /// Walked by the comparables report, which reads the building, bed
+  /// count and area off the completed deal's property. SetNull so a
+  /// removed listing does not erase the deal that closed on it.
+  listing     Listing?       @relation(fields: [listingId], references: [id], onDelete: SetNull)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -2168,6 +2176,16 @@ model Vendor {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  /// Declared because the code traverses it: the "what's happening with
+  /// my property" request finds a vendor by the building they own, which
+  /// is `listings: { some: … }` and needs the relation to exist.
+  ///
+  /// Most `xId` columns in this schema deliberately have no relation —
+  /// `orgId` in particular is a plain column on nearly every table
+  /// because row-level security, not a foreign key, is what enforces
+  /// tenancy. Relations are added where something actually walks them.
+  listings Listing[]
 
   @@index([orgId])
   @@index([orgId, phone])

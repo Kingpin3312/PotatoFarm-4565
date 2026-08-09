@@ -1,4 +1,5 @@
-import { log } from "@/lib/log";
+import { log, report } from "@/lib/log";
+import { aedToFils } from "@/lib/money";
 import { forOrg } from "@/server/db/client";
 import { audit } from "@/server/lib/audit";
 import { messagingWindow, sendText } from "@/server/lib/whatsapp";
@@ -41,7 +42,7 @@ export async function respond(orgId: string, conversationId: string) {
       id: true, channelId: true, humanHandover: true, lastInboundAt: true,
       lead: {
         select: {
-          id: true, phone: true, name: true, language: true, budgetMax: true,
+          id: true, phone: true, name: true, language: true, budgetMaxFils: true,
           assignedTo: { select: { name: true } },
           enquiries: {
             take: 1, orderBy: { createdAt: "desc" },
@@ -86,11 +87,32 @@ export async function respond(orgId: string, conversationId: string) {
 
   const listing = convo.lead.enquiries[0]?.listing ?? null;
 
+  /**
+   * The price, in dirhams, as a plain digit string.
+   *
+   * The column is `priceFils`. The prompt block is labelled `price_aed`
+   * and the model is expected to quote dirhams. Both the prompt and the
+   * fact set have to be in the same unit as each other or the guardrail
+   * turns on the assistant:
+   *
+   * `screenOutbound` strips every non-digit from each figure in the draft
+   * and rejects the message if the result is not in `facts`. Told
+   * "price_aed: 2500000" the model writes "AED 2,500,000", which reduces
+   * to "2500000". A fact set built from fils holds "250000000", the two
+   * never match, and every correctly-priced reply is discarded as an
+   * invented figure — an assistant that goes silent on the one question
+   * every buyer asks first.
+   *
+   * The previous line read `listing.price`, a Decimal column removed when
+   * money became fils, so this could not run at all.
+   */
+  const priceAed = listing?.priceFils != null ? (listing.priceFils / 100n).toString() : null;
+
   // 4. The fact set. Anything the model writes that is not in here is
   //    treated as invented — see screenOutbound.
   const facts = new Set(
     [
-      listing?.price?.toString().replace(/[^\d]/g, ""),
+      priceAed,
       listing?.areaSqft?.toString(),
       listing?.bedrooms?.toString(),
       listing?.bathrooms?.toString(),
@@ -101,7 +123,20 @@ export async function respond(orgId: string, conversationId: string) {
     brokerage: convo.org.name,
     agentName: convo.lead.assignedTo?.name ?? null,
     questions: profile.questions.map((q) => ({ key: q.key, prompt: q.prompt, required: q.required })),
-    listing: listing as any,
+    // Built explicitly rather than passed through as `any`. The cast was
+    // hiding the fact that the row and the prompt's Listing type disagree
+    // about both the name and the unit of the price.
+    listing: listing && {
+      reference: listing.reference,
+      title: listing.title,
+      community: listing.community,
+      bedrooms: listing.bedrooms,
+      bathrooms: listing.bathrooms,
+      areaSqft: listing.areaSqft,
+      price: priceAed,
+      purpose: listing.purpose as "SALE" | "RENT",
+      status: listing.status,
+    },
     language: convo.lead.language ?? "en",
     tone: profile.tone,
   });
@@ -126,7 +161,7 @@ export async function respond(orgId: string, conversationId: string) {
     };
   } catch (err) {
     // A model outage must not leave a lead unanswered and unowned.
-    log.error("[assistant] generation failed", err);
+    report(err, { orgId }, { conversationId: convo.id, stage: "generation" });
     /**
      * The billable event.
      *
@@ -260,8 +295,20 @@ async function extractAndStore(
     await db.lead.update({
       where: { id: leadId },
       data: {
-        budgetMin: parsed.budgetMin ?? undefined,
-        budgetMax: parsed.budgetMax ?? undefined,
+        /**
+         * The extractor works in dirhams — `sane()` bounds it to
+         * 50,000–500,000,000, which is only a plausible range for AED.
+         * The columns are fils. `aedToFils` is the one conversion and
+         * money.ts marks this exact case as where it belongs: "only at a
+         * boundary — an import, or a person typing a number".
+         *
+         * These were written straight into `budgetMin` / `budgetMax`,
+         * columns that no longer exist. Renaming them without converting
+         * would have stored every budget at a hundredth of its value and
+         * quietly excluded leads from every match they should have won.
+         */
+        budgetMinFils: parsed.budgetMin === null ? undefined : aedToFils(parsed.budgetMin),
+        budgetMaxFils: parsed.budgetMax === null ? undefined : aedToFils(parsed.budgetMax),
         intent: parsed.intent ?? undefined,
         timeframe: parsed.timeframe ?? undefined,
         financing: parsed.financing ?? undefined,
@@ -274,7 +321,7 @@ async function extractAndStore(
   } catch (err) {
     // Extraction failing is a degraded lead record, not a failed
     // conversation. Never let it surface to the person messaging.
-    log.error("[assistant] extraction failed", err);
+    report(err, { orgId }, { leadId, stage: "extraction" });
   }
 }
 

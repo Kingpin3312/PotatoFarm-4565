@@ -33,7 +33,37 @@ function scrub(value: unknown): unknown {
   );
 }
 
-export async function audit(tx: Prisma.TransactionClient, orgId: string, e: Entry) {
+/**
+ * Anything that can write an audit row.
+ *
+ * Typed structurally rather than as `Prisma.TransactionClient`, because
+ * both callers are legitimate and only one of them is a transaction
+ * client:
+ *
+ *   - a real `tx` inside `$transaction`, from the webhook and job paths
+ *   - `ctx.db`, the org-scoped client `forOrg()` returns, from every
+ *     router
+ *
+ * `forOrg()` returns a `$extends`-ed client, which is not structurally a
+ * `TransactionClient`, so all twenty-two router call sites failed to
+ * compile against the narrower type.
+ *
+ * **A caveat that outlives this fix.** The promise at the top of this
+ * file — the log commits if and only if the change does — holds for the
+ * `tx` callers and does not hold for the `ctx.db` ones, because
+ * `forOrg()` wraps every single operation in its own transaction. The
+ * change and its audit row are therefore two transactions, and a failure
+ * between them leaves a change with no record. Closing that properly
+ * means reworking `forOrg()` so a request shares one transaction, which
+ * is a separate piece of work.
+ */
+export type AuditWriter = {
+  auditLog: {
+    create(args: { data: Prisma.AuditLogUncheckedCreateInput }): unknown;
+  };
+};
+
+export async function audit(tx: AuditWriter, orgId: string, e: Entry) {
   await tx.auditLog.create({
     data: {
       orgId,

@@ -145,8 +145,15 @@ export async function comparables(args: {
   // Trimmed. One penthouse in a stack of two-beds moves a mean and
   // tells you nothing.
   const trimmed = prices.length >= 6 ? prices.slice(1, -1) : prices;
+  // Non-empty: the insufficient-evidence guard above has already returned
+  // for anything under the minimum, and trimming only removes the two
+  // ends of a list of six or more. Stated rather than asserted, so that
+  // if the guard above ever changes this fails loudly instead of
+  // quoting a seller a range built from nothing.
   const low = trimmed[0];
   const high = trimmed[trimmed.length - 1];
+  if (low === undefined || high === undefined)
+    throw new Error("comparables: no prices left after trimming");
 
   const withSqft = comps.filter((c) => c.sqft && c.sqft > 0);
   const perSqft = withSqft.length >= 3
