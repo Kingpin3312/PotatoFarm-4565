@@ -21,6 +21,7 @@ import { blackbookRouter } from "./routers/blackbook";
 import { channelsRouter } from "./routers/channels";
 import { requestsRouter } from "./routers/requests";
 import { vendorsRouter } from "./routers/vendors";
+import { todayRouter } from "./routers/today";
 
 /**
  * The API surface.
@@ -36,6 +37,8 @@ import { vendorsRouter } from "./routers/vendors";
  * codebase finds it.
  */
 export const appRouter = router({
+  // The front door. Everything it reads was computed overnight.
+  today: todayRouter,
   org: orgRouter,
   onboarding: onboardingRouter,
 

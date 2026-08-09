@@ -20,6 +20,7 @@ import { crossTenant, forOrg } from "../src/server/db/client";
 import { movement, scoreLead, type ScoreInput } from "../src/server/lib/intelligence/score";
 import { nextAction, type Subject } from "../src/server/lib/intelligence/next-action";
 import { sweepIntelligence } from "../src/server/lib/intelligence/sweep";
+import { dayWindow } from "../src/server/api/routers/today";
 
 const root = crossTenant("sweep");
 const SLUG = "intel-check-";
@@ -47,7 +48,7 @@ function input(over: Partial<ScoreInput> = {}): ScoreInput {
     viewingCount: 1,
     attendedCount: 1,
     offerCount: 0,
-    medianListingFils: 2_500_000n * 100n,
+    book: { minFils: 2_000_000n * 100n, maxFils: 4_000_000n * 100n },
     ...over,
   };
 }
@@ -92,11 +93,24 @@ async function main() {
      `${urgent.total} vs ${warm.total}`);
 
   console.log("\nBudget fit is against the brokerage's own book, not an absolute:");
-  const fits = scoreLead(input({ budgetMaxFils: 3_000_000n * 100n, medianListingFils: 2_500_000n * 100n }));
-  const tooRich = scoreLead(input({ budgetMaxFils: 60_000_000n * 100n, medianListingFils: 2_500_000n * 100n }));
+  const band = { minFils: 2_000_000n * 100n, maxFils: 4_000_000n * 100n };
+  const fits = scoreLead(input({ budgetMaxFils: 3_000_000n * 100n, book: band }));
+  const tooRich = scoreLead(input({ budgetMaxFils: 60_000_000n * 100n, book: band }));
   ok("a buyer matched to the stock outscores one nothing fits",
      fits.budgetFit > tooRich.budgetFit, `${fits.budgetFit} vs ${tooRich.budgetFit}`);
-  ok("and the reason is stated", tooRich.drivers.some((d) => d.includes("above your usual stock")));
+  ok("and the reason is stated", tooRich.drivers.some((d) => d.includes("above anything you hold")));
+  //
+  // The bug this replaced. Against a book of 2.4m, 3.1m and 11.5m the
+  // median is 3.1m, so a buyer with a live 17.6m offer *on a property we
+  // hold* was scored "budget well above your usual stock". A band asks
+  // the right question: is there anything here they could buy?
+  const wideBook = { minFils: 2_400_000n * 100n, maxFils: 11_500_000n * 100n };
+  const topOfBook = scoreLead(input({ budgetMaxFils: 11_000_000n * 100n, book: wideBook }));
+  ok("a buyer at the top of a wide book fits it perfectly",
+     topOfBook.budgetFit === 25, String(topOfBook.budgetFit));
+  ok("and is not described as above your usual stock",
+     !topOfBook.drivers.some((d) => d.includes("above")), topOfBook.drivers.join("; "));
+
   const noBudget = scoreLead(input({ budgetMaxFils: null }));
   ok("an unknown budget is not treated as a bad one",
      noBudget.budgetFit > tooRich.budgetFit, `${noBudget.budgetFit} vs ${tooRich.budgetFit}`);
@@ -180,6 +194,28 @@ async function main() {
   ok("every headline names the person or the thing",
      sample.every((x) => x.headline.length > 8));
   ok("priorities are all in range", sample.every((x) => x.priority >= 0 && x.priority <= 1));
+
+  /* ---------------- the agent's day, not the server's ---------------- */
+
+  console.log("\nToday starts when the agent's day starts, not the server's:");
+  {
+    const win = (nowIso: string, tz: string) => dayWindow(new Date(nowIso), tz).start.toISOString();
+    // Dubai is UTC+4 all year, so local midnight is 20:00 UTC the day before.
+    ok("Dubai evening still belongs to the Dubai day",
+       win("2026-08-09T16:00:00Z", "Asia/Dubai") === "2026-08-08T20:00:00.000Z");
+    ok("a 1am Dubai viewing is filed under the right day",
+       win("2026-08-09T21:00:00Z", "Asia/Dubai") === "2026-08-09T20:00:00.000Z");
+    // The reason this is Intl and not a hard-coded +4: London moves.
+    ok("London in summer is BST", win("2026-08-09T12:00:00Z", "Europe/London") === "2026-08-08T23:00:00.000Z");
+    ok("London in winter is GMT", win("2026-01-09T12:00:00Z", "Europe/London") === "2026-01-09T00:00:00.000Z");
+    ok("the window is exactly 24 hours", (() => {
+      const w = dayWindow(new Date("2026-08-09T12:00:00Z"), "Asia/Dubai");
+      return w.end.getTime() - w.start.getTime() === 86_400_000;
+    })());
+    ok("a nonsense timezone falls back rather than 500-ing the front door", (() => {
+      try { dayWindow(new Date(), "Not/AZone"); return true; } catch { return false; }
+    })());
+  }
 
   /* ---------------- the sweep, against a real database ---------------- */
 

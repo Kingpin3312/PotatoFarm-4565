@@ -10,8 +10,11 @@ import { getActiveMembership } from "@/server/auth/session";
  *
  * It is not a screen — it is a decision about where you belong:
  *
- *   - signed in and a member of a brokerage → the inbox, which is where
- *     an agent actually works
+ *   - signed in and a member of a brokerage → the command centre, which
+ *     is where the product answers the question an agent actually has.
+ *     This used to be the inbox — a message list, which is the
+ *     conventional-CRM answer to "what should I do now": here are four
+ *     hundred things, you decide.
  *   - signed in but a member of nothing → sign-up, because the only
  *     thing they can usefully do is create a brokerage or accept an
  *     invitation
@@ -26,5 +29,5 @@ export const dynamic = "force-dynamic";
 
 export default async function Root() {
   const membership = await getActiveMembership();
-  redirect(membership ? "/inbox" : "/sign-in");
+  redirect(membership ? "/today" : "/sign-in");
 }

@@ -38,9 +38,13 @@ export const SETTINGS_NAV = [
 ];
 
 const NAV = [
+  // Today is first because it is the front door — `/` redirects here.
+  // It carries the same natural-language input the Ask screen has, so
+  // Ask is no longer a separate destination in a bar with a ceiling of
+  // seven; it moved under More.
+  { href: "/today", label: "Today" },
   { href: "/inbox", label: "Inbox" },
-  { href: "/ask", label: "Ask" },
-  { href: "/viewings", label: "Today" },
+  { href: "/viewings", label: "Diary" },
   { href: "/pipeline", label: "Pipeline" },
   { href: "/blackbook", label: "Blackbook" },
   { href: "/offers", label: "Offers" },
@@ -65,7 +69,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
     <div className="min-h-dvh flex flex-col">
       <header className="sticky top-0 z-50 bg-ground border-b border-ink">
         <div className="flex items-center gap-5 px-5 h-14">
-          <Link href="/inbox" className="flex min-h-11 items-center no-underline">
+          <Link href="/today" className="flex min-h-11 items-center no-underline">
             {/* The potato. Same file the site and the app icon use — one mark,
                   not three that drift. */}
               <svg viewBox="0 0 64 64" aria-hidden="true" className="w-[26px] h-[26px] mr-2.5 shrink-0"><g transform="translate(0.0,0.0) scale(1.0)"><defs><linearGradient id="shm1" x1="24%" y1="14%" x2="70%" y2="86%"><stop offset="0" stopColor="#EE9149"/><stop offset="0.5" stopColor="#E87A2E"/><stop offset="1" stopColor="#DB6E22"/></linearGradient><filter id="blm1"><feGaussianBlur stdDeviation="7"/></filter><filter id="dpm1" x="-35%" y="-35%" width="180%" height="180%"><feDropShadow dx="0" dy="2" stdDeviation="2.2" floodColor="#8A4310" floodOpacity="0.18"/></filter><clipPath id="cpm1"><path d="M33,4 C42,4.5 48,11 50,20 C52,29 50,37 48,44 C45,53 38,60 30,60 C21,60 15,54 13,45 C11,35 12,24 16,15 C20,7 26,3.5 33,4 Z"/></clipPath></defs><path d="M33,4 C42,4.5 48,11 50,20 C52,29 50,37 48,44 C45,53 38,60 30,60 C21,60 15,54 13,45 C11,35 12,24 16,15 C20,7 26,3.5 33,4 Z" fill="url(#shm1)" filter="url(#dpm1)"/><g clipPath="url(#cpm1)"><ellipse cx="25" cy="20" rx="17" ry="19" fill="#FFFFFF" opacity="0.15" filter="url(#blm1)"/></g><ellipse cx="25.5" cy="25" rx="3.2" ry="4.9" fill="#8A4310"/><ellipse cx="38.5" cy="24.2" rx="3.1" ry="4.8" fill="#8A4310"/></g></svg>
@@ -153,14 +157,15 @@ export function Shell({ children }: { children: React.ReactNode }) {
  * question. Everything else is a considered visit and lives behind More.
  */
 const TABS = [
+  { href: "/today", label: "Today", icon: "M12 3a4 4 0 0 1 4 4v4a4 4 0 0 1-8 0V7a4 4 0 0 1 4-4ZM5 11a7 7 0 0 0 14 0M12 18v3" },
   { href: "/inbox", label: "Inbox", icon: "M3 5h18v12H7l-4 4V5Z" },
-  { href: "/viewings", label: "Today", icon: "M4 5h16v16H4zM4 9h16M9 3v4M15 3v4" },
+  { href: "/viewings", label: "Diary", icon: "M4 5h16v16H4zM4 9h16M9 3v4M15 3v4" },
   { href: "/pipeline", label: "Pipeline", icon: "M4 5h5v14H4zM10 5h5v9h-5zM16 5h4v6h-4z" },
-  { href: "/ask", label: "Ask", icon: "M12 3a4 4 0 0 1 4 4v4a4 4 0 0 1-8 0V7a4 4 0 0 1 4-4ZM5 11a7 7 0 0 0 14 0M12 18v3" },
 ] as const;
 
 /** Behind More, ordered by how often an agent opens them. */
 const MORE = [
+  { href: "/ask", label: "Ask" },
   { href: "/blackbook", label: "Blackbook" },
   { href: "/offers", label: "Offers" },
   { href: "/leads", label: "Leads" },

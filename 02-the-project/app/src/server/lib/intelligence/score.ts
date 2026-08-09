@@ -45,8 +45,18 @@ export type ScoreInput = {
   /** Viewings that happened, as opposed to booked. */
   attendedCount: number;
   offerCount: number;
-  /** What the brokerage's stock actually costs, for budget fit. */
-  medianListingFils: bigint | null;
+  /**
+   * The price band of the brokerage's live book, for budget fit.
+   *
+   * A band rather than a median, and that was a real bug rather than a
+   * refinement. Against a three-listing book of 2.4m, 3.1m and 11.5m the
+   * median is 3.1m — so a buyer with a live 17.6m offer *on a property
+   * we hold* scored 6 out of 25 for "budget well above your usual
+   * stock". The median describes the middle of the book; the question
+   * being asked is whether the book contains anything this person could
+   * buy, and that is a range.
+   */
+  book: { minFils: bigint; maxFils: bigint } | null;
 };
 
 export type Score = {
@@ -147,17 +157,30 @@ export function scoreLead(i: ScoreInput, now = new Date()): Score {
     // the thing the agent should go and ask.
     budgetFit = 12;
     drivers.push("no budget on file");
-  } else if (i.medianListingFils === null || i.medianListingFils === 0n) {
+  } else if (i.book === null || i.book.maxFils === 0n) {
+    // No book to compare against — a brokerage on day one. Neutral
+    // rather than punishing every lead they have.
     budgetFit = 15;
   } else {
-    const ratio = Number(i.budgetMaxFils) / Number(i.medianListingFils);
-    budgetFit =
-      ratio >= 0.6 && ratio <= 2.5 ? 25
-      : ratio >= 0.35 && ratio < 0.6 ? 15
-      : ratio > 2.5 && ratio <= 5 ? 18
-      : 6;
-    if (budgetFit <= 6) {
-      drivers.push(ratio < 0.35 ? "budget below what you list" : "budget well above your usual stock");
+    const budget = Number(i.budgetMaxFils);
+    const floor = Number(i.book.minFils);
+    const ceiling = Number(i.book.maxFils);
+
+    if (budget >= floor && budget <= ceiling) {
+      // Somewhere on the book is a property they could buy today.
+      budgetFit = 25;
+    } else if (budget > ceiling) {
+      // Above everything held. Still worth serving — a brokerage wins
+      // an instruction at this level by having the buyer — but it
+      // shades down the further past the top of the book they are.
+      const over = budget / ceiling;
+      budgetFit = over <= 1.5 ? 22 : over <= 3 ? 16 : 8;
+      if (budgetFit <= 8) drivers.push("budget above anything you hold");
+    } else {
+      // Below the cheapest thing on the book.
+      const under = budget / floor;
+      budgetFit = under >= 0.8 ? 18 : under >= 0.5 ? 12 : 6;
+      if (budgetFit <= 6) drivers.push("budget below what you list");
     }
   }
 

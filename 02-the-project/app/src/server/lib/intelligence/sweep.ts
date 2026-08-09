@@ -1,6 +1,7 @@
 import { crossTenant } from "@/server/db/client";
 import { log } from "@/lib/log";
 import { messagingWindow } from "@/server/lib/whatsapp";
+import { best, type Candidate } from "@/server/lib/matching/score";
 import { movement, scoreLead, type ScoreInput } from "./score";
 import { nextAction, type Subject } from "./next-action";
 
@@ -49,9 +50,78 @@ export async function sweepIntelligence() {
       select: { priceFils: true },
       orderBy: { priceFils: "asc" },
     });
-    const medianListingFils = prices.length
-      ? prices[Math.floor(prices.length / 2)]!.priceFils
+    /**
+     * The band, not the middle. See the note on `ScoreInput.book`.
+     *
+     * Ordered ascending above, so the ends of the array are the ends of
+     * the band.
+     */
+    const withPrice = prices.filter((p): p is { priceFils: bigint } => p.priceFils !== null);
+    const book = withPrice.length
+      ? { minFils: withPrice[0]!.priceFils, maxFils: withPrice[withPrice.length - 1]!.priceFils }
       : null;
+
+    /**
+     * The brokerage's live book, fetched once.
+     *
+     * Matching every lead against inventory is the expensive part of
+     * this sweep, and the inventory does not change between leads.
+     */
+    const listingRows = await db.listing.findMany({
+      where: { orgId: org.id, status: { in: ["AVAILABLE", "UNDER_OFFER"] }, deletedAt: null },
+      orderBy: { createdAt: "desc" },
+      take: 500,
+      select: {
+        id: true, reference: true, title: true, priceFils: true,
+        bedrooms: true, community: true, purpose: true, createdAt: true,
+      },
+    });
+    const candidates: Candidate[] = listingRows.map((l) => ({
+      id: l.id, reference: l.reference, title: l.title, priceFils: l.priceFils,
+      bedrooms: l.bedrooms, community: l.community,
+      purpose: l.purpose as "SALE" | "RENT", listedAt: l.createdAt,
+    }));
+
+    /**
+     * Offers still in play, in one query rather than a relation.
+     *
+     * `Offer.leadId` is a bare column — no relation is declared on
+     * either side, the same omission the schema already documents for
+     * Requirement — so a nested select is not available. Fetching them
+     * per brokerage and grouping in memory costs one round trip; a
+     * per-lead query would cost five thousand.
+     *
+     * This exists because `openOffers` and `offerExpiringInDays` were
+     * hardcoded to zero when the sweep was first written, which meant
+     * two of the engine's highest-priority rules — the expiring offer
+     * and the stalled negotiation — could never fire. A rule that cannot
+     * fire is worse than an absent one, because it reads as covered.
+     */
+    const liveOffers = await db.offer.findMany({
+      where: {
+        orgId: org.id,
+        leadId: { not: null },
+        status: { in: ["SUBMITTED", "PRESENTED", "COUNTERED"] },
+      },
+      select: { leadId: true, expiresAt: true },
+    });
+    const offersByLead = new Map<string, Date[]>();
+    let anyOffers = 0;
+    for (const o of liveOffers) {
+      if (!o.leadId) continue;
+      anyOffers += 1;
+      const list = offersByLead.get(o.leadId) ?? [];
+      if (o.expiresAt) list.push(o.expiresAt);
+      offersByLead.set(o.leadId, list);
+    }
+    // Count per lead, kept separately because a lead can have an offer
+    // with no expiry and the map above only stores dates.
+    const offerCountByLead = new Map<string, number>();
+    for (const o of liveOffers) {
+      if (!o.leadId) continue;
+      offerCountByLead.set(o.leadId, (offerCountByLead.get(o.leadId) ?? 0) + 1);
+    }
+    void anyOffers;
 
     const leads = await db.lead.findMany({
       where: {
@@ -70,11 +140,16 @@ export async function sweepIntelligence() {
             _count: { select: { messages: true } },
           },
         },
-        requirements: { where: { active: true }, select: { id: true } },
+        requirements: {
+          where: { active: true },
+          select: {
+            id: true, budgetMinFils: true, budgetMaxFils: true,
+            bedroomsMin: true, communities: true, intent: true, purpose: true,
+          },
+        },
         viewings: {
           select: { id: true, scheduledAt: true, status: true, outcome: true },
         },
-        _count: { select: { requirements: true } },
       },
       take: 5_000,
     });
@@ -126,8 +201,8 @@ export async function sweepIntelligence() {
         requirementCount: lead.requirements.length,
         viewingCount: lead.viewings.length,
         attendedCount: attended,
-        offerCount: 0,
-        medianListingFils,
+        offerCount: offerCountByLead.get(lead.id) ?? 0,
+        book,
       };
 
       const score = scoreLead(input, now);
@@ -173,6 +248,49 @@ export async function sweepIntelligence() {
 
       const win = messagingWindow(conv?.lastInboundAt ?? null);
 
+      /**
+       * The soonest expiry across their live offers.
+       *
+       * Null when nothing expires — an offer with no date on it is open
+       * until somebody answers it, which is a different problem and the
+       * stalled-negotiation rule covers it.
+       */
+      const openOffers = offerCountByLead.get(lead.id) ?? 0;
+      const soonest = (offersByLead.get(lead.id) ?? [])
+        .slice()
+        .sort((a, b) => a.getTime() - b.getTime())[0];
+      const offerExpiringInDays = soonest
+        ? Math.ceil((soonest.getTime() - now.getTime()) / 86_400_000)
+        : null;
+
+      /**
+       * How many properties on the book fit a live requirement.
+       *
+       * Counted against the same `best()` threshold the outbound path
+       * uses, so "send them the one that fits" means the system would
+       * actually send it. Candidates are fetched once per brokerage
+       * above, not once per lead — five thousand leads against a
+       * per-lead query is five thousand round trips.
+       */
+      let matchesWaiting = 0;
+      if (!lead.optedOutOfOutreach) {
+        for (const r of lead.requirements) {
+          const found = best(
+            {
+              budgetMinFils: r.budgetMinFils,
+              budgetMaxFils: r.budgetMaxFils,
+              bedrooms: r.bedroomsMin,
+              communities: r.communities,
+              intent: r.intent === "RENT" ? "RENT"
+                    : r.intent === "BUY_TO_INVEST" ? "BUY_TO_INVEST"
+                    : r.intent === "BUY_TO_LIVE" ? "BUY_TO_LIVE" : null,
+            },
+            candidates.filter((c) => c.purpose === r.purpose)
+          );
+          if (found) matchesWaiting += 1;
+        }
+      }
+
       const subject: Subject = {
         leadId: lead.id,
         name: lead.name,
@@ -186,10 +304,10 @@ export async function sweepIntelligence() {
         requirementCount: lead.requirements.length,
         upcomingViewings: upcoming,
         viewingsAwaitingOutcome: awaitingOutcome,
-        openOffers: 0,
-        offerExpiringInDays: null,
+        openOffers,
+        offerExpiringInDays,
         budgetMaxFils: lead.budgetMaxFils,
-        matchesWaiting: 0,
+        matchesWaiting,
         optedOut: lead.optedOutOfOutreach,
         windowHoursLeft: win.open ? win.hoursLeft : null,
       };
