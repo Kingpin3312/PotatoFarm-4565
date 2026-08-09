@@ -24,6 +24,7 @@ import { askAt } from "@/server/lib/feedback/collect";
 import { compose } from "@/server/lib/feedback/report";
 import { crossTenant } from "@/server/db/client";
 import { dispatch } from "@/server/lib/notify/dispatch";
+import { sweepIntelligence } from "@/server/lib/intelligence/sweep";
 // Used in two jobs and never imported.
 import { log } from "@/lib/log";
 
@@ -597,6 +598,16 @@ export const JOBS = {
   /** Personal follow-ups that have come due. Every ten minutes — an
    *  agent who asked to be reminded at ten wants it at ten. */
   "followups.due": () => run("followups.due", async () => sendDueFollowUps()),
+
+  /**
+   * Score every lead and decide what each agent should do about it.
+   *
+   * Nightly, and early — an agent opening the app at seven wants an
+   * answer already computed, not four hundred leads being evaluated
+   * while they wait. Scoring in the request path is how an intelligence
+   * layer becomes the reason a product feels slow.
+   */
+  "intelligence.sweep": () => run("intelligence.sweep", async () => sweepIntelligence()),
 
   /** Rate-limit hits older than two days. Daily. */
   "ratelimit.sweep": () => run("ratelimit.sweep", async () => sweepRateLimits()),

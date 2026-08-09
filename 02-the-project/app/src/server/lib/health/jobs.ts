@@ -36,6 +36,7 @@ const EXPECTED_EVERY_MINUTES: Record<string, number> = {
   "email.sync": 30,
   "followups.due": 20,
   "matching.visa-nudge": 24 * 60,
+  "intelligence.sweep": 24 * 60,
   "privacy.retention": 24 * 60,
   "listings.permit-expiry": 24 * 60,
   "documents.expiry": 24 * 60,
