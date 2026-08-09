@@ -32,13 +32,17 @@ export async function dueForVisaNudge(orgId: string, now = new Date()) {
   const candidates = await forOrg(orgId).lead.findMany({
     where: {
       visaExpiresAt: { gte: now, lte: windowEnd },
-      optedOut: false,
+      // The column is `optedOutOfOutreach`. `optedOut` is what
+      // decide() calls it in its own argument shape, which is where the
+      // confusion came from.
+      optedOutOfOutreach: false,
       OR: [{ visaNudgedAt: null }, { visaNudgedAt: { lt: notSince } }],
     },
     select: {
-      id: true, status: true, optedOut: true,
-      lastInboundAt: true, lastOutreachAt: true, createdAt: true,
-      visaExpiresAt: true,
+      id: true, status: true, optedOutOfOutreach: true,
+      lastOutreachAt: true, createdAt: true, visaExpiresAt: true,
+      // `lastInboundAt` lives on the conversation, not the lead.
+      conversation: { select: { lastInboundAt: true } },
     },
   });
 
@@ -47,7 +51,16 @@ export async function dueForVisaNudge(orgId: string, now = new Date()) {
     // No listing match — this trigger is the visa date itself. `match`
     // is optional in decide() for exactly this case, so nothing here
     // needs to fake a shape it is not.
-    const verdict = decide({ lead, now });
+    const verdict = decide({
+      lead: {
+        status: lead.status,
+        optedOut: lead.optedOutOfOutreach,
+        lastInboundAt: lead.conversation?.lastInboundAt ?? null,
+        lastOutreachAt: lead.lastOutreachAt,
+        createdAt: lead.createdAt,
+      },
+      now,
+    });
     if (verdict.send) {
       due.push({ leadId: lead.id, visaExpiresAt: lead.visaExpiresAt!, useTemplate: verdict.useTemplate });
     }

@@ -71,7 +71,7 @@ export function check(text: string): CopyProblem[] {
  */
 export function facts(l: Pick<Listing,
   "reference" | "title" | "community" | "building" | "bedrooms" | "bathrooms" |
-  "areaSqft" | "price" | "purpose" | "status">) {
+  "areaSqft" | "priceFils" | "purpose" | "status">) {
   return [
     `reference: ${l.reference}`,
     l.community && `community: ${l.community}`,
@@ -79,7 +79,11 @@ export function facts(l: Pick<Listing,
     l.bedrooms != null && `bedrooms: ${l.bedrooms}`,
     l.bathrooms != null && `bathrooms: ${l.bathrooms}`,
     l.areaSqft != null && `area_sqft: ${l.areaSqft}`,
-    l.price && `price_aed: ${l.price}`,
+    // The column is fils; the block is labelled `price_aed` and the
+    // model is asked for dirhams. Same unit trap as the assistant's
+    // fact set — a listing description quoting a price a hundred
+    // times too high is one a portal publishes.
+    l.priceFils != null && `price_aed: ${l.priceFils / 100n}`,
     `purpose: ${l.purpose}`,
   ].filter(Boolean).join("\n");
 }

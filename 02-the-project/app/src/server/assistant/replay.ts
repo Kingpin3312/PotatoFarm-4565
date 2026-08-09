@@ -94,12 +94,20 @@ export async function replay(args: {
     if (lastAssistantAt < 1) continue;
 
     const context = c.messages.slice(0, lastAssistantAt);
-    const original = c.messages[lastAssistantAt].body;
+    // `lastAssistantAt` came from lastIndexOf and is >= 1 here, but the
+    // compiler cannot see that through the guard above.
+    const original = c.messages[lastAssistantAt]?.body;
+    if (original === undefined) continue;
     const listing = c.lead.enquiries[0]?.listing ?? null;
 
     const facts = new Set(
       [
-        listing?.price?.toString().replace(/[^\d]/g, ""),
+        // Dirhams, matching what the prompt tells the model. Built from
+        // fils it would never match a figure the model wrote, and every
+        // replayed reply quoting a price would be scored as an invented
+        // number — a prompt harness that fails the prompt for being
+        // right. Same bug as run.ts, same fix.
+        listing?.priceFils != null ? (listing.priceFils / 100n).toString() : undefined,
         listing?.areaSqft?.toString(),
         listing?.bedrooms?.toString(),
         listing?.bathrooms?.toString(),

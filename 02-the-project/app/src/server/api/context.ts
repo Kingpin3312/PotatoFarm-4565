@@ -12,7 +12,10 @@ export async function createContext({ req }: { req: NextRequest }) {
     session,
     membership,
     ip:
-      req.headers.get("x-forwarded-for")?.split(",")[0].trim() ??
+      // `[0]` on a split is `string | undefined` under
+      // noUncheckedIndexedAccess, even though a split never returns an
+      // empty array. Optional-chained rather than asserted.
+      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
       req.headers.get("x-real-ip") ??
       "unknown",
     userAgent: req.headers.get("user-agent") ?? "unknown",

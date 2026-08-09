@@ -75,7 +75,6 @@ export const RULES: Record<NotificationKind, {
   },
 
   PERMIT_EXPIRING: { urgency: "digest", afterMinutes: 0, escalateAfterMinutes: [], why: "Renew before the listing is pulled." },
-  PORTAL_SILENT:   { urgency: "normal", afterMinutes: 0, escalateAfterMinutes: [120], why: "A feed has gone quiet — see portals/health.ts." },
   ASSISTANT_STOPPED: { urgency: "normal", afterMinutes: 0, escalateAfterMinutes: [], why: "So nobody assumes the silence is a fault." },
 
   /**

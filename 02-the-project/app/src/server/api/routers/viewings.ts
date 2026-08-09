@@ -222,7 +222,7 @@ export const viewingsRouter = router({
         },
         orderBy: { scheduledAt: "asc" },
         include: {
-          lead: { select: { id: true, name: true, phone: true, budgetMax: true } },
+          lead: { select: { id: true, name: true, phone: true, budgetMaxFils: true } },
           listing: { select: { reference: true, title: true, community: true } },
         },
       })

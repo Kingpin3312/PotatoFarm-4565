@@ -67,7 +67,9 @@ export function restrictionsFor(daysOverdue: number): Restriction[] {
 }
 
 export function messageFor(daysOverdue: number) {
-  let msg = LADDER[0].tell;
+  // LADDER is a non-empty literal, but `[0]` is still optional to the
+  // compiler. Empty string is never reached and is the harmless default.
+  let msg = LADDER[0]?.tell ?? "";
   for (const rung of LADDER) if (daysOverdue >= rung.afterDays) msg = rung.tell;
   return msg;
 }

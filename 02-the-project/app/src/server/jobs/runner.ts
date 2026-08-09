@@ -41,9 +41,14 @@ export async function run(job: string, fn: () => Promise<JobResult>) {
   // pg_try_advisory_lock returns immediately rather than queueing. A
   // second run should skip, not wait — waiting means two runs happen back
   // to back, which for a sweep is the same as running twice.
-  const [{ locked }] = await crossTenant("sweep").$queryRaw<{ locked: boolean }[]>`
+  const [row] = await crossTenant("sweep").$queryRaw<{ locked: boolean }[]>`
     SELECT pg_try_advisory_lock(${key}::bigint) AS locked
   `;
+  // A raw query is typed by assertion, so the compiler cannot know the
+  // row is there. Treating an absent row as "did not get the lock" is
+  // the safe reading: skipping a sweep costs one cycle, running two at
+  // once is what the lock exists to prevent.
+  const locked = row?.locked ?? false;
 
   if (!locked) {
     log.info("job skipped, already running", {}, { job });

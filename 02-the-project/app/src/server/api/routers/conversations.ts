@@ -147,7 +147,7 @@ export const conversationsRouter = router({
           lead: {
             select: {
               id: true, name: true, phone: true, status: true, language: true,
-              budgetMin: true, budgetMax: true, intent: true,
+              budgetMinFils: true, budgetMaxFils: true, intent: true,
               assignedTo: { select: { id: true, name: true } },
             },
           },

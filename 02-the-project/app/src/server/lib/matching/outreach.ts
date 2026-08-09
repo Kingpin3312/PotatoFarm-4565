@@ -31,7 +31,20 @@ export function decide(args: {
     lastOutreachAt: Date | null;
     createdAt: Date;
   };
-  match: Match;
+  /**
+   * Optional, and unused by this function.
+   *
+   * Every rule here is about the lead — opted out, dead, contacted too
+   * recently, inside the reply window — and none of them look at what
+   * the match is. The visa nudge has no listing to match against at
+   * all: its trigger is the expiry date. It called `decide({ lead, now })`
+   * and said in a comment that match was optional here; the signature
+   * said otherwise, so it did not compile.
+   *
+   * Kept in the signature rather than deleted because callers pass it
+   * and a rule that does need it is plausible.
+   */
+  match?: Match;
   now?: Date;
   timezone?: string;
 }): OutreachDecision {

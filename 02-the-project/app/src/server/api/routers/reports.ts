@@ -133,7 +133,7 @@ export const reportsRouter = router({
           createdAt: { gte: input.from, lte: input.to },
           // Qualified means we know what they can spend and what they want.
           // Not a stage anybody dragged them into.
-          budgetMax: { not: null },
+          budgetMaxFils: { not: null },
           intent: { not: null },
         },
       }),
@@ -164,7 +164,7 @@ export const reportsRouter = router({
         ch.label AS channel,
         COUNT(DISTINCT e.id) AS enquiries,
         COUNT(DISTINCT e.id) FILTER (WHERE l.phone NOT LIKE 'pending:%') AS reachable,
-        COUNT(DISTINCT l.id) FILTER (WHERE l."budgetMax" IS NOT NULL AND l.intent IS NOT NULL) AS qualified,
+        COUNT(DISTINCT l.id) FILTER (WHERE l."budgetMaxFils" IS NOT NULL AND l.intent IS NOT NULL) AS qualified,
         COUNT(DISTINCT v.id) AS viewings
       FROM "Enquiry" e
       JOIN "Channel" ch ON ch.id = e."channelId"

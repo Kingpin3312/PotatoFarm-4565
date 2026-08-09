@@ -43,7 +43,7 @@ export const pipelineRouter = router({
         ctx.db.lead.groupBy({ by: ["stageId"], where: scope, _count: { _all: true } }),
         // Weighted pipeline value per column. The number an owner actually
         // opens the board to see.
-        ctx.db.lead.groupBy({ by: ["stageId"], where: scope, _sum: { budgetMax: true } }),
+        ctx.db.lead.groupBy({ by: ["stageId"], where: scope, _sum: { budgetMaxFils: true } }),
       ]);
 
       const columns = await Promise.all(
@@ -53,7 +53,7 @@ export const pipelineRouter = router({
             take: input.perColumn,
             orderBy: [{ position: "asc" }, { id: "asc" }],
             select: {
-              id: true, name: true, phone: true, budgetMin: true, budgetMax: true,
+              id: true, name: true, phone: true, budgetMinFils: true, budgetMaxFils: true,
               intent: true, source: true, position: true, stageEnteredAt: true,
               assignedTo: { select: { id: true, name: true } },
               conversation: { select: { unreadCount: true, lastInboundAt: true } },
@@ -67,7 +67,7 @@ export const pipelineRouter = router({
           return {
             stage,
             total: counts.find((c) => c.stageId === stage.id)?._count._all ?? 0,
-            value: values.find((v) => v.stageId === stage.id)?._sum.budgetMax ?? null,
+            value: values.find((v) => v.stageId === stage.id)?._sum.budgetMaxFils ?? null,
             leads: leads.map((l) => ({
               ...l,
               // Computed here so every client agrees on what "going cold"

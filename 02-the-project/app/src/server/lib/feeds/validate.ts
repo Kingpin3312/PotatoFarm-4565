@@ -28,7 +28,8 @@ export function validateForPublish(
   const warn = (field: string, message: string) => p.push({ field, message, severity: "warn" });
 
   if (!listing.title?.trim()) block("title", "Needs a title.");
-  if (!listing.price) block("price", "Needs a price. Portals reject listings without one.");
+  if (listing.priceFils == null)
+    block("price", "Needs a price. Portals reject listings without one.");
   if (!listing.community) warn("community", "No community set — this badly affects where it appears in search.");
 
   /**

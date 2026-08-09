@@ -137,13 +137,28 @@ export async function record(u: {
  * than computed at billing time — pricing changes, and a historical
  * invoice must not move underneath a customer.
  */
-const RATES: Record<string, { in: number; out: number }> = {
+type Rate = { in: number; out: number };
+
+/**
+ * What an unrecognised model costs.
+ *
+ * A real constant rather than a `default` key inside the table, because
+ * a key is an index read and `RATES[model] ?? RATES.default` is still
+ * possibly undefined — the fallback needed a fallback.
+ *
+ * Erring high is deliberate: the spend ceiling should stop early against
+ * an unknown model rather than let it run because we guessed cheap.
+ */
+const DEFAULT_RATE: Rate = { in: 1_100, out: 5_500 };
+
+const RATES: Record<string, Rate> = {
   "claude-sonnet-4-6": { in: 1_100, out: 5_500 },
-  default: { in: 1_100, out: 5_500 },
 };
 
 function priceFils(model: string, inTok: number, outTok: number): bigint {
-  const r = RATES[model] ?? RATES.default;
+  // `RATES.default` is itself an index read and so also possibly
+  // undefined. Named as a constant so the fallback genuinely cannot be.
+  const r = RATES[model] ?? DEFAULT_RATE;
   const cost = (inTok / 1_000_000) * r.in + (outTok / 1_000_000) * r.out;
   return BigInt(Math.ceil(cost));
 }

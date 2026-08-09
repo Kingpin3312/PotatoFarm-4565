@@ -1,4 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+// The bytes to forward to Meta. See storage.ts — the three functions the
+// file feature depends on had no implementation at all.
+import { readObject } from "./files/storage";
 
 /**
  * WhatsApp Business Platform.
@@ -130,26 +133,42 @@ export function verifySignature(rawBody: string, header: string | null, appSecre
  * on an unauthenticated endpoint for anyone who guesses the path.
  */
 export async function sendDocument(args: {
-  orgId: string;
-  channelId: string;
-  conversationId: string;
+  /**
+   * Credentials and recipient come from the caller, exactly as they do
+   * for `sendText` above.
+   *
+   * This used to take `orgId` and `conversationId` and resolve both
+   * itself, via a `getChannelCredentials` it never imported and a
+   * `recipientFor` that was never written anywhere. Beyond not
+   * compiling, it meant the one module that talks to Meta would have had
+   * to reach into the database and the credential store — and `send.ts`,
+   * the only caller, has already loaded the conversation by the time it
+   * gets here.
+   */
+  phoneNumberId: string;
+  accessToken: string;
+  to: string;
   storageRef: string;
   fileName: string;
   mimeType: string;
   caption?: string;
-}): Promise<{ providerRef: string }> {
-  const creds = await getChannelCredentials(args.orgId, args.channelId);
+}): Promise<{ externalId: string }> {
   const bytes = await readObject(args.storageRef);
 
   // Step one: upload to Meta, get a media id.
   const form = new FormData();
   form.append("messaging_product", "whatsapp");
   form.append("type", args.mimeType);
-  form.append("file", new Blob([bytes], { type: args.mimeType }), args.fileName);
+  // `bytes` is a Uint8Array<ArrayBufferLike>, which TypeScript 5.7 no
+  // longer accepts as a BlobPart — a SharedArrayBuffer-backed view
+  // cannot go into a Blob. The buffer copy makes the backing store
+  // definite.
+  const blob = new Blob([new Uint8Array(bytes).buffer as ArrayBuffer], { type: args.mimeType });
+  form.append("file", blob, args.fileName);
 
-  const up = await fetch(`https://graph.facebook.com/v21.0/${creds.phoneNumberId}/media`, {
+  const up = await fetch(`https://graph.facebook.com/v21.0/${args.phoneNumberId}/media`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${creds.token}` },
+    headers: { Authorization: `Bearer ${args.accessToken}` },
     body: form,
     // Longer than a text send. A 40MB brochure on a slow connection is
     // not a failure, it is a brochure.
@@ -160,15 +179,15 @@ export async function sendDocument(args: {
 
   // Step two: send it.
   const isImage = args.mimeType.startsWith("image/");
-  const res = await fetch(`https://graph.facebook.com/v21.0/${creds.phoneNumberId}/messages`, {
+  const res = await fetch(`https://graph.facebook.com/v21.0/${args.phoneNumberId}/messages`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${creds.token}`,
+      Authorization: `Bearer ${args.accessToken}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
       messaging_product: "whatsapp",
-      to: await recipientFor(args.conversationId),
+      to: args.to,
       type: isImage ? "image" : "document",
       [isImage ? "image" : "document"]: {
         id: mediaId,
@@ -181,5 +200,11 @@ export async function sendDocument(args: {
   if (!res.ok) throw new Error(`send ${res.status}`);
 
   const body = (await res.json()) as { messages: { id: string }[] };
-  return { providerRef: body.messages[0]!.id };
+  // `externalId`, the same name `post()` returns and the same name the
+  // Message column carries. This returned `providerRef` — a third name
+  // for Meta's message id — and send.ts wrote it to a Message field
+  // that does not exist.
+  const id = body.messages[0]?.id;
+  if (!id) throw new Error("WhatsApp accepted the media but returned no message id");
+  return { externalId: id };
 }

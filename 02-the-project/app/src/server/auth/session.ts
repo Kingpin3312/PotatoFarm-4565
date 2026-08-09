@@ -39,6 +39,12 @@ export const getActiveMembership = cache(async (): Promise<ActiveMembership | nu
   const active =
     memberships.find((m) => m.orgId === stored?.activeOrgId) ?? memberships[0];
 
+  // `memberships` is non-empty — the length check above returns null
+  // otherwise — but the fallback index is still `T | undefined` to the
+  // compiler. Returning null here matches "not a member of anything",
+  // which every caller already handles.
+  if (!active) return null;
+
   return { orgId: active.orgId, orgName: active.org.name, role: active.role };
 });
 

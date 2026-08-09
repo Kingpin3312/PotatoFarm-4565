@@ -43,7 +43,7 @@ export const leadsRouter = router({
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         select: {
           id: true, name: true, phone: true, status: true, stage: true,
-          budgetMin: true, budgetMax: true, intent: true, source: true,
+          budgetMinFils: true, budgetMaxFils: true, intent: true, source: true,
           createdAt: true,
           assignedTo: { select: { id: true, name: true } },
           conversation: { select: { unreadCount: true, lastInboundAt: true, humanHandover: true } },

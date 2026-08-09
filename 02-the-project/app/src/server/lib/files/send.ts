@@ -2,6 +2,7 @@ import { forOrg } from "@/server/db/client";
 import { sendDocument } from "@/server/lib/whatsapp";
 import { messagingWindow } from "@/server/lib/whatsapp";
 import { audit } from "@/server/lib/audit";
+import { getChannelCredentials } from "@/server/lib/secrets";
 import { log } from "@/lib/log";
 
 /**
@@ -46,7 +47,11 @@ export async function sendFile(args: {
     db.attachment.findUnique({ where: { id: args.attachmentId } }),
     db.conversation.findUnique({
       where: { id: args.conversationId },
-      select: { id: true, lastInboundAt: true, channelId: true, leadId: true },
+      // The lead's phone is the WhatsApp recipient. Selected here rather
+      // than looked up inside the send client, which has no business
+      // touching the database.
+      select: { id: true, lastInboundAt: true, channelId: true, leadId: true,
+                lead: { select: { phone: true } } },
     }),
   ]);
 
@@ -89,10 +94,12 @@ export async function sendFile(args: {
   }
 
   try {
+    const creds = await getChannelCredentials(args.orgId, convo.channelId);
+
     const sent = await sendDocument({
-      orgId: args.orgId,
-      channelId: convo.channelId,
-      conversationId: convo.id,
+      phoneNumberId: creds.phoneNumberId,
+      accessToken: creds.accessToken,
+      to: convo.lead.phone,
       storageRef: file.storageRef,
       fileName: file.fileName,
       mimeType: file.mimeType,
@@ -110,7 +117,7 @@ export async function sendFile(args: {
         // the buyer was actually shown.
         body: args.caption ? `${file.fileName} — ${args.caption}` : file.fileName,
         status: "SENT",
-        providerRef: sent.providerRef,
+        externalId: sent.externalId,
         sentAt: new Date(),
       },
     });

@@ -1,4 +1,7 @@
 import { log } from "@/lib/log";
+// The one money formatter. The budget column is fils; rendering it with
+// Number().toLocaleString() showed a AED 2.5m lead as "AED 250,000,000".
+import { aedShort } from "@/lib/money";
 import { crossTenant } from "@/server/db/client";
 import { dispatch } from "./dispatch";
 
@@ -62,12 +65,12 @@ async function qualifiedUnclaimed() {
     where: {
       deletedAt: null,
       assignedToId: null,
-      budgetMax: { not: null },
+      budgetMaxFils: { not: null },
       intent: { not: null },
       updatedAt: { lte: new Date(Date.now() - 15 * 60_000) },
     },
     take: 200,
-    select: { id: true, orgId: true, name: true, phone: true, budgetMax: true, updatedAt: true },
+    select: { id: true, orgId: true, name: true, phone: true, budgetMaxFils: true, updatedAt: true },
   });
 
   for (const l of rows) {
@@ -78,7 +81,7 @@ async function qualifiedUnclaimed() {
       title: `Qualified lead, nobody assigned`,
       // The budget is in the title bar of the notification because it is
       // what decides whether somebody pulls over to look at it.
-      body: `${l.name ?? l.phone} · up to AED ${Number(l.budgetMax).toLocaleString("en-GB")}`,
+      body: `${l.name ?? l.phone} · up to ${aedShort(l.budgetMaxFils)}`,
       deeplink: `/pipeline?lead=${l.id}`,
       assignedToId: null,
       since: l.updatedAt,
