@@ -3,6 +3,8 @@ import { TRPCError } from "@trpc/server";
 import { router, orgProcedure, requirePermission } from "../trpc";
 import { audit } from "@/server/lib/audit";
 import { validateForPublish, blocking } from "@/server/lib/feeds/validate";
+import { buyersFor, pitch } from "@/server/lib/matching/buyers";
+import { can } from "@/server/auth/rbac";
 
 const PORTAL_RULES = {
   PROPERTY_FINDER: { requiresPermit: true, languages: ["en", "ar"], minPhotos: 4 },
@@ -161,6 +163,40 @@ export const listingsRouter = router({
           publications: { where: { state: "PUBLISHED" }, select: { channelId: true } },
         },
       });
+    }),
+
+  /**
+   * Who wants this one.
+   *
+   * The matching engine has always run buyer → listing, because that is
+   * the direction the nightly outbound sweep needs. This is the other
+   * direction, and it is the one an agent needs standing in an owner's
+   * kitchen: *twelve people on our book are looking for exactly this,
+   * four of them can be messaged today.*
+   *
+   * `listing:read` rather than a lead permission. The question is about
+   * the property; the answer redacts the names an agent is not entitled
+   * to see, which is why the scope goes in rather than the permission
+   * being raised. A VIEWER already has `lead:read:all`, so nothing here
+   * widens what anybody can see.
+   */
+  buyers: requirePermission("listing:read")
+    .input(z.object({
+      listingId: z.string(),
+      limit: z.number().int().min(1).max(50).default(25),
+    }))
+    .query(async ({ ctx, input }) => {
+      const result = await buyersFor({
+        orgId: ctx.orgId,
+        listingId: input.listingId,
+        limit: input.limit,
+        scope: { canSeeAll: can(ctx.role, "lead:read:all"), viewerId: ctx.userId },
+      });
+      if (!result) throw new TRPCError({ code: "NOT_FOUND", message: "No such property." });
+
+      // Built on the server so the sentence and the numbers under it can
+      // never disagree — the screen renders both and does no arithmetic.
+      return { ...result, pitch: pitch(result) };
     }),
 
   /** Listings a portal has refused. The other half of the silence problem. */

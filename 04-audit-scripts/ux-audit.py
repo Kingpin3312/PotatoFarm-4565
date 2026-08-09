@@ -140,7 +140,16 @@ if _os.path.exists(_css_path):
                       r'|inline|block|absolute|relative|sticky|fixed|top|bottom|left|right|z'
                       r'|opacity|cursor|select|pointer|transition|duration|ease|shadow|ring'
                       r'|outline|col|row|self|place|object|truncate|line|list|order|divide|not'
-                      r'|no|resize|snap|scroll|backdrop|caret|appearance)-')
+                      r'|no|resize|snap|scroll|backdrop|caret|appearance'
+                      # Two more core namespaces, added after this check
+                      # reported `overscroll-contain` and `tabular-nums`
+                      # as classes with no CSS rule. Both are Tailwind v4
+                      # core utilities and both were verified present in
+                      # the compiled stylesheet before the list was
+                      # widened — the point of this check is to catch a
+                      # hand-written class that never got a rule, not to
+                      # relitigate Tailwind's vocabulary.
+                      r'|overscroll|tabular)-')
     _used = set()
     for _f in _g.glob(_os.path.join(ROOT, "src/**/*.tsx"), recursive=True):
         for _m2 in _re.finditer(r'className="([^"{]+)"', open(_f).read()):

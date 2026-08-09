@@ -259,6 +259,7 @@ checks is broken.
 | P1 · Deal intelligence | **Done.** `npm run check:deals` |
 | P1 · AI action log and undo | **Done.** `/activity` |
 | P1 · Graded autonomy | **Done.** `npm run check:autonomy` |
+| P1 · Property-side intelligence | **Done.** `npm run check:buyers` — "Who wants it" on every listing |
 
 Three bugs the work turned up, all found by running it:
 
@@ -299,8 +300,38 @@ where that one does not: the transcription request carries a Dubai
 vocabulary hint, so it spells Jumeirah and Trakheesi. Web Speech has no
 equivalent.
 
-**Remaining P1:** property-side intelligence — which buyers for this
-listing — and semantic search.
+**Property-side intelligence is done** — P1 item 11, and the one that
+changes what an agent can say out loud. The matching engine had only
+ever run buyer → listing, because that is the direction the nightly
+outbound sweep needs. "Who wants it" on every listing runs it the other
+way and answers the question an agent is actually asked in an owner's
+kitchen: *eight people on our book are looking for exactly this, five of
+them can be messaged in the morning.*
+
+It reuses `score()` rather than adding a second engine, and reuses both
+outbound gates — `canDriveOutreach` for whether the requirement is
+trustworthy, `decide` for whether the person may be contacted — so the
+count cannot promise a message the send path would refuse.
+
+Three things it turned up:
+
+- **At 23:38 it said nobody could be messaged.** Literally true —
+  `decide()` refuses to send between 20:00 and 09:00 — and useless,
+  because the evening is exactly when an agent opens this screen sitting
+  with an owner. Contactability is now judged at the next moment a
+  message would actually be permitted, and the sentence says "in the
+  morning" rather than "today".
+- **The count is the brokerage's; the names are not.** An agent
+  restricted to their own leads would be handed a smaller number than
+  the truth, which undersells the firm at the worst moment. They get the
+  full count, another agent's client shown as *"Tom Reilly's buyer"* with
+  no name and no link — the thing they can act on is knowing who to ask.
+- **A check that passed by not looking.** "Sorted by fit, then warmth"
+  was being proved against a list where every match scored 1.00. A
+  deliberate near-miss with the highest warmth score on the book now
+  makes the sort do work before it is allowed to pass.
+
+**Remaining P1:** semantic search.
 
 ---
 

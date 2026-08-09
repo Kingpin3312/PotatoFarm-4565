@@ -144,7 +144,7 @@ chart; spoken requests ("Ask").
   sentence creates the person, the requirement, the facts, the follow-up
   and a match.
 
-### The eight things you can re-run
+### The nine things you can re-run
 
 ```bash
 npm run check:tenancy       # two brokerages, one database, no leakage
@@ -153,6 +153,7 @@ npm run check:intelligence  # scoring, next-best-action, the nightly sweep
 npm run check:voice         # speech to text, including the iPhone path
 npm run check:deals         # deal risk, and the reason it gives
 npm run check:autonomy      # the ceiling holds at every mode
+npm run check:buyers        # who wants this property, and who may be told
 npm run check:sigv4         # request signing vs AWS's published vector
 npm run check:storage       # upload, read back byte-for-byte, delete
 ```

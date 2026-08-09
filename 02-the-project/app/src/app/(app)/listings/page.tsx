@@ -5,6 +5,7 @@ import { api } from "@/lib/trpc";
 import { QueryError } from "@/components/ui/query-state";
 import { aed, aedShort } from "@/lib/money";
 import { PublishCheck } from "./publish-check";
+import { WhoWantsIt } from "./who-wants-it";
 
 /**
  * Listings.
@@ -103,7 +104,8 @@ export default function ListingsPage() {
               {permit(l.permitDaysLeft)}
             </div>
 
-            <div className="justify-self-end max-[820px]:justify-self-start">
+            <div className="justify-self-end flex gap-2 flex-wrap justify-end max-[820px]:justify-self-start max-[820px]:justify-start">
+              <WhoWantsIt listingId={l.id} reference={l.reference} />
               <PublishCheck
                 listingId={l.id}
                 reference={l.reference}
