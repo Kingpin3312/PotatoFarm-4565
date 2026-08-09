@@ -83,6 +83,9 @@ export const billingRouter = router({
       sub.id, sub.currentFrom, new Date()
     );
     const card = await cardSummary(ctx.orgId);
+    const u = await usage(sub.id, sub.currentFrom, new Date());
+
+    const seatFils = BigInt(Math.round((Number(sub.seatPriceFils) / fullPeriodDays) * used));
 
     return {
       subscribed: true as const,
@@ -97,9 +100,30 @@ export const billingRouter = router({
       // surprised on the 1st.
       // The running bill in both. Charged in AED — that is what the
       // invoice will say and what the VAT is computed on.
-      runningTotal: priced(
-        BigInt(Math.round((Number(sub.seatPriceFils) / fullPeriodDays) * used))
-      ),
+      runningTotal: priced(seatFils + u.overageFils),
+
+      /**
+       * The bill, itemised.
+       *
+       * The screen shows seats and conversations as separate lines and
+       * warns at 80% of the allowance — it read `data.breakdown` and
+       * `status` never returned one, so the whole panel rendered nothing
+       * and a brokerage would first learn it had gone over when the
+       * invoice arrived. That is the precise outcome the allowance
+       * warning exists to prevent.
+       *
+       * `runningTotal` now includes the overage too. It was seats only,
+       * so a firm past its allowance was shown a running total lower
+       * than the bill it was going to get.
+       */
+      breakdown: {
+        answered: u.answered,
+        included: u.included,
+        over: u.over,
+        usedPct: u.usedPct,
+        seats: priced(seatFils),
+        overage: priced(u.overageFils),
+      },
       card,
     };
   }),

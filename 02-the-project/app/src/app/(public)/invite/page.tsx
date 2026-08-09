@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { use, useEffect } from "react";
 import { api } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 
@@ -15,19 +15,37 @@ import { Button } from "@/components/ui/button";
  * just clicked a link from their email. Being bounced to a login with no
  * explanation is where people give up.
  */
-export default function Invite({ searchParams }: { searchParams: { token?: string } }) {
-  const token = searchParams.token ?? "";
-  const { data: session, isLoading: checking } = api.org.mine.useQuery(undefined, {
+export default function Invite({ searchParams }: {
+  // Next 15 passes this as a Promise, the same as `params`.
+  searchParams: Promise<{ token?: string }>;
+}) {
+  const { token: tokenParam } = use(searchParams);
+  const token = tokenParam ?? "";
+
+  /**
+   * `org.mine` returns the brokerages this user belongs to. It has no
+   * `userId` on it — the screen read `session?.userId` and got
+   * `undefined` every time, so an already-signed-in agent never had
+   * their invitation accepted and sat looking at a sign-in prompt they
+   * did not need.
+   *
+   * A successful response is itself the proof of a session: the
+   * procedure is behind `orgProcedure` and throws UNAUTHORIZED
+   * otherwise. An empty array is a signed-in user with no brokerage
+   * yet, which is exactly who follows an invitation link.
+   */
+  const { data: memberships, isLoading: checking } = api.org.mine.useQuery(undefined, {
     retry: false,
   });
+  const signedIn = memberships !== undefined;
   const accept = api.org.acceptInvite.useMutation();
 
   // Signed in already — accept without making them press anything. They
   // clicked a link that says "join"; a second button asking the same
   // question is friction with no purpose.
   useEffect(() => {
-    if (session?.userId && token && accept.isIdle) accept.mutate({ token });
-  }, [session?.userId, token, accept]);
+    if (signedIn && token && accept.isIdle) accept.mutate({ token });
+  }, [signedIn, token, accept]);
 
   if (!token) {
     return (

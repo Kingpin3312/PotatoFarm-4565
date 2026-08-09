@@ -75,7 +75,7 @@ export default function Screening({ params }: { params: Promise<{ kycId: string 
             <span className="font-mono text-[11px] text-ink-3">
               {new Date(s.screenedAt).toLocaleDateString("en-GB")}
             </span>
-            <span className="text-[15px] text-ink">{s.listName ?? "—"}</span>
+            <span className="text-[15px] text-ink">{s.lists[0] ?? "—"}</span>
             <span className="ml-auto font-mono text-[10px] uppercase tracking-[0.1em] text-ink-3">
               {String(s.result).toLowerCase().replace(/_/g, " ")}
             </span>

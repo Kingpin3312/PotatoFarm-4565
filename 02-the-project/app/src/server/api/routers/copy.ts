@@ -52,7 +52,16 @@ export const copyRouter = router({
   /** Check copy somebody wrote by hand against the same portal rules. */
   checkCopy: requirePermission("listing:read")
     .input(z.object({ text: z.string().max(4000) }))
-    .query(({ input }) => {
+    /**
+     * A mutation, though it writes nothing.
+     *
+     * It is an action an agent takes on text they have just typed —
+     * "check this before I publish" — not a value to cache and refetch.
+     * As a query it would key on the whole description and accumulate a
+     * cache entry per keystroke-batch, and the screen calls it from a
+     * button either way.
+     */
+    .mutation(({ input }) => {
       const problems = check(input.text);
       return { problems, publishable: problems.length === 0 };
     }),

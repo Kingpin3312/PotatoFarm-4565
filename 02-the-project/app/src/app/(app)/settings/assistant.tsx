@@ -29,7 +29,10 @@ export function AssistantSettings() {
   const [budget, setBudget] = useState<number | null>(null);
   const [warnAt, setWarnAt] = useState<number | null>(null);
 
-  const currentBudget = budget ?? Number(status?.monthlyBudgetFils ?? 0) / 100;
+  // The budget lives under `usage.budgetFils` — `status` carries the
+  // spend ceiling alongside what has been spent against it, because
+  // one is meaningless without the other.
+  const currentBudget = budget ?? Number(status?.usage.budgetFils ?? 0) / 100;
   const currentWarn = warnAt ?? status?.warnAtPercent ?? 80;
 
   return (
@@ -38,13 +41,13 @@ export function AssistantSettings() {
         The assistant
       </h2>
       <p className="text-sm text-ink-2 mb-4 max-w-[48ch]">
-        {running?.running
+        {running?.enabled
           ? "Answering enquiries now."
           : "Stopped. Nothing is being sent on your behalf."}
       </p>
 
       <div className="flex gap-2 flex-wrap mb-8">
-        {running?.running ? (
+        {running?.enabled ? (
           <Button variant="secondary" loading={pause.isPending}
             onClick={() => pause.mutate({ reason: "Paused from settings" })}>
             Stop everything

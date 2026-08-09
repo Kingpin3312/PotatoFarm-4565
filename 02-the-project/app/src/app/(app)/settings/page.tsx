@@ -57,7 +57,10 @@ export default function SettingsPage() {
                 <span className="flex-1 h-[5px] bg-sunk rounded-sm overflow-hidden">
                   <span
                     className="block h-full bg-ink"
-                    style={{ width: `${(r.count / handovers.byReason[0].count) * 100}%` }}
+                    // The list is sorted, so [0] is the largest — but it is
+                    // still an index read, and dividing by zero would give
+                    // a NaN width rather than a bar.
+                    style={{ width: `${(r.count / Math.max(1, handovers.byReason[0]?.count ?? 1)) * 100}%` }}
                   />
                 </span>
                 <span className="font-mono text-[13px] text-ink-3 min-w-[28px] text-right">{r.count}</span>

@@ -28,7 +28,8 @@ import { cn } from "@/lib/cn";
 function parseCsv(text: string): Record<string, string | null>[] {
   const lines = text.trim().split(/\r?\n/).slice(0, 20_000);
   if (lines.length < 2) return [];
-  const head = lines[0].split(",").map((h) => h.trim().replace(/^"|"$/g, ""));
+  // Guarded above by `lines.length < 2`, but still an index read.
+  const head = (lines[0] ?? "").split(",").map((h) => h.trim().replace(/^"|"$/g, ""));
   return lines.slice(1).map((l) => {
     const cells = l.split(",").map((c) => c.trim().replace(/^"|"$/g, ""));
     return Object.fromEntries(head.map((h, i) => [h, cells[i] || null]));
@@ -44,7 +45,12 @@ export default function Import() {
   // mutate.
   const plan = api.migration.plan.useQuery();
   const { data: status } = api.migration.status.useQuery(undefined, {
-    refetchInterval: (d) => (d?.state === "RUNNING" ? 3000 : false),
+    // TanStack Query v5 hands `refetchInterval` the query, not the data.
+    // And there is no "RUNNING" MigrationState — the states are DRAFT,
+    // STAGED, RECONCILED, PARALLEL, COMPLETE, ABANDONED. `status` only
+    // ever returns one that is still in flight, so its mere presence is
+    // the signal to keep polling.
+    refetchInterval: (q) => (q.state.data ? 3000 : false),
   });
 
   return (
@@ -64,7 +70,7 @@ export default function Import() {
         </p>
       </header>
 
-      {status?.state === "RUNNING" ? (
+      {status ? (
         <div className="bg-sunk rounded-xl p-5">
           <p className="text-[16px] text-ink font-semibold">Import running</p>
           <p className="text-sm text-ink-2 mt-1.5 max-w-[44ch] leading-snug">
@@ -92,7 +98,7 @@ export default function Import() {
           {rows.length > 0 && (
             <p className="text-sm text-ink-2 mt-3 tabular">
               {fileName} — {rows.length.toLocaleString()} rows,{" "}
-              {Object.keys(rows[0]).length} columns.
+              {Object.keys(rows[0] ?? {}).length} columns.
             </p>
           )}
 
@@ -141,12 +147,28 @@ export default function Import() {
                 </span>
               </div>
 
-              <Button variant="primary" className="mt-6" loading={plan.isPending}
-                disabled={inspect.data.blockers > 0}
-                onClick={() => plan.mutate({ contacts: rows, deals: [] })}>
+              {/*
+                Disabled, and this is the honest reason.
+
+                This called `plan.mutate({ contacts, deals })`. `plan` is
+                a query returning three constants — the cutover stages,
+                the scope and the rollback policy — and there is no
+                procedure anywhere that performs an import. Nothing
+                creates a Migration row, nothing writes a contact, and
+                `migration.status` polls a table nothing populates.
+
+                Everything up to this point is real: the CSV is parsed,
+                the issues are grouped by severity with example rows, and
+                a brokerage can go and look at the records that will not
+                come across. Only the last step is missing, and a button
+                that silently does nothing is worse than one that says so
+                — a brokerage would believe four years of history had
+                moved.
+              */}
+              <Button variant="primary" className="mt-6" disabled>
                 {inspect.data.blockers > 0
                   ? "Fix the blockers first"
-                  : `Import ${(inspect.data.counted.contacts).toLocaleString()} contacts`}
+                  : `Ready to import ${(inspect.data.counted.contacts).toLocaleString()} contacts`}
               </Button>
             </>
           )}

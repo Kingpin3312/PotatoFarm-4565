@@ -28,7 +28,8 @@ export function DraftCopy({ listingId }: { listingId: string }) {
       <div className="flex gap-2 mt-3 flex-wrap">
         <Button variant="secondary" loading={draft.isPending}
           onClick={() => draft.mutate({ listingId },
-            { onSuccess: (d) => setText(d.text) })}>
+            // `draft`, not `text` — see the router's return.
+            { onSuccess: (d) => setText(d.draft) })}>
           Draft it for me
         </Button>
         <Button variant="secondary" loading={check.isPending} disabled={!text.trim()}
@@ -43,8 +44,13 @@ export function DraftCopy({ listingId }: { listingId: string }) {
         <div className="mt-4 border-t border-ink">
           {check.data.problems.map((p, i) => (
             <div key={i} className="py-3 border-b border-rule">
-              <p className="text-[15px] text-ink font-semibold">{p.what}</p>
-              <p className="text-sm text-ink-2 mt-1 max-w-[46ch] leading-snug">{p.why}</p>
+              {/* `rule` is what was breached, `found` is the text that
+                  breached it — which is the bit an agent needs in order
+                  to go and change it. */}
+              <p className="text-[15px] text-ink font-semibold">{p.rule}</p>
+              <p className="text-sm text-ink-2 mt-1 max-w-[46ch] leading-snug">
+                Found: &ldquo;{p.found}&rdquo;
+              </p>
             </div>
           ))}
         </div>

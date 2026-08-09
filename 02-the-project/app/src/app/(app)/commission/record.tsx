@@ -49,11 +49,22 @@ export function RecordCommission({ dealId, valueFils }: {
 
       {/* Shown before recording, not after. A split argument after the
           money moves is a different conversation entirely. */}
-      {preview.data && (
+      {/* `preview` returns a union — a split that does not total 100% comes
+          back as `{ ok: false, error }` rather than throwing, and the
+          message is written for the person to act on. Show it. */}
+      {preview.data?.ok === false && (
+        <p className="text-sm text-danger mt-4 max-w-[46ch] leading-snug">{preview.data.error}</p>
+      )}
+
+      {preview.data?.ok && (
         <div className="mt-5 border-t border-ink">
-          {preview.data.splits.map((s) => (
-            <div key={s.label} className="flex items-baseline gap-3 py-3 border-b border-rule">
-              <span className="text-[15px] text-ink">{s.label}</span>
+          {preview.data.splits.map((s, i) => (
+            <div key={i} className="flex items-baseline gap-3 py-3 border-b border-rule">
+              {/* There is no `label` on a split. Who it is, is the named
+                  person if there is one, otherwise the role. */}
+              <span className="text-[15px] text-ink">
+                {s.externalName ?? s.role.replace(/_/g, " ").toLowerCase()}
+              </span>
               <span className="ml-auto text-[15px] text-ink font-semibold tabular">
                 {s.amount}
               </span>

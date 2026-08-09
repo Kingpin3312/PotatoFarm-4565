@@ -17,7 +17,23 @@ import { Button } from "@/components/ui/button";
  * defend — and an inspector asks what the rating was based on, not what
  * it was.
  */
-export function AssessRisk({ kycId }: { kycId: string }) {
+/**
+ * Nothing mounts this yet.
+ *
+ * `AssessRisk` is imported by no screen — the compliance pages show
+ * screenings and reviews, and never offer the risk assessment that
+ * `aml.assessRisk` exists to record. Worth knowing before anyone counts
+ * risk rating as a working feature.
+ *
+ * `dealValueFils` is a required prop rather than a defaulted one:
+ * transaction value is one of the inputs that decides the rating, and a
+ * silent zero would quietly rate every high-value deal as low risk.
+ * Whoever mounts this has to supply it.
+ */
+export function AssessRisk({ kycId, dealValueFils }: {
+  kycId: string;
+  dealValueFils: bigint;
+}) {
   const assess = api.aml.assessRisk.useMutation();
   const [f, setF] = useState({
     isPep: false, isNonResident: false, isCompany: false,
@@ -77,7 +93,7 @@ export function AssessRisk({ kycId }: { kycId: string }) {
       )}
 
       <Button variant="primary" className="mt-5" loading={assess.isPending}
-        onClick={() => assess.mutate({ kycId, ...f })}>
+        onClick={() => assess.mutate({ kycId, dealValueFils, ...f })}>
         Assess
       </Button>
     </div>

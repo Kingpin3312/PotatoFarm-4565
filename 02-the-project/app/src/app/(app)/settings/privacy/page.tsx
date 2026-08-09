@@ -16,10 +16,31 @@ import { Button } from "@/components/ui/button";
  * version.
  */
 export default function Privacy() {
-  const subject = api.privacy.subjectAccess.useMutation();
-  const erase = api.privacy.erase.useMutation();
-  const [email, setEmail] = useState("");
+  /**
+   * Phone, not email.
+   *
+   * Both procedures key on the phone number, and they are right to:
+   * `Lead` is unique on `(orgId, phone)`, email is optional, and the
+   * whole product runs on WhatsApp. This screen collected an email and
+   * passed it to procedures that have no such input, so neither the
+   * subject-access file nor the erasure could ever have run.
+   *
+   * `erase` also requires the number twice. That is deliberate — it is
+   * the one irreversible action in the product — so the confirm step
+   * asks for it again rather than just showing an "are you sure".
+   */
+  const [phone, setPhone] = useState("");
+  const [confirmPhone, setConfirmPhone] = useState("");
+  const [reason, setReason] = useState("");
   const [confirm, setConfirm] = useState(false);
+
+  // `subjectAccess` is a query — it builds a file and logs that it was
+  // read. Run on demand rather than on every render.
+  const [building, setBuilding] = useState(false);
+  const subject = api.privacy.subjectAccess.useQuery({ phone }, { enabled: building && phone.length > 5 });
+  const erase = api.privacy.erase.useMutation();
+
+  const valid = phone.trim().length > 5;
 
   return (
     <div className="max-w-[620px] mx-auto px-6 pb-24">
@@ -33,10 +54,11 @@ export default function Privacy() {
       </header>
 
       <div className="border-t border-rule pt-5">
-        <label htmlFor="pemail" className="block font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3 mb-2">
-          Their email
+        <label htmlFor="pphone" className="block font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3 mb-2">
+          Their WhatsApp number
         </label>
-        <input id="pemail" type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+        <input id="pphone" type="tel" inputMode="tel" value={phone} placeholder="+971 50 123 4567"
+          onChange={(e) => { setPhone(e.target.value); setBuilding(false); }}
           className="w-full min-h-11 px-4 text-[16px] text-ink bg-sunk border border-rule rounded-lg focus-visible:outline-none focus-visible:shadow-[var(--ring)]" />
       </div>
 
@@ -47,8 +69,8 @@ export default function Privacy() {
         A file you can send them. Messages, viewings, offers and what was recorded about
         them, in plain language rather than a database dump.
       </p>
-      <Button variant="secondary" loading={subject.isPending} disabled={!email.includes("@")}
-        onClick={() => subject.mutate({ email })}>
+      <Button variant="secondary" loading={building && subject.isLoading} disabled={!valid}
+        onClick={() => setBuilding(true)}>
         Build the file
       </Button>
 
@@ -65,15 +87,24 @@ export default function Privacy() {
       </p>
 
       {!confirm ? (
-        <Button variant="secondary" disabled={!email.includes("@")} onClick={() => setConfirm(true)}>
+        <Button variant="secondary" disabled={!valid} onClick={() => setConfirm(true)}>
           Erase
         </Button>
       ) : (
         <div className="bg-sunk rounded-xl p-4 border-l-[3px] border-l-danger">
-          <p className="text-[15px] text-ink">This cannot be undone. Erase {email}?</p>
+          <p className="text-[15px] text-ink">This cannot be undone. Type the number again to confirm.</p>
+          <label htmlFor="pconfirm" className="sr-only">Confirm the number</label>
+          <input id="pconfirm" type="tel" inputMode="tel" value={confirmPhone}
+            onChange={(e) => setConfirmPhone(e.target.value)} placeholder="+971 50 123 4567"
+            className="w-full min-h-11 px-4 mt-3 text-[16px] text-ink bg-raised border border-rule rounded-lg focus-visible:outline-none focus-visible:shadow-[var(--ring)]" />
+          <label htmlFor="preason" className="sr-only">Why</label>
+          <input id="preason" type="text" value={reason} onChange={(e) => setReason(e.target.value)}
+            placeholder="Why — they asked, in writing, on 3 March"
+            className="w-full min-h-11 px-4 mt-2 text-[16px] text-ink bg-raised border border-rule rounded-lg focus-visible:outline-none focus-visible:shadow-[var(--ring)]" />
           <div className="flex gap-2 mt-3">
             <Button variant="primary" loading={erase.isPending}
-              onClick={() => { erase.mutate({ email }); setConfirm(false); }}>
+              disabled={confirmPhone !== phone || reason.trim().length < 3}
+              onClick={() => { erase.mutate({ phone, confirmPhone, reason }); setConfirm(false); }}>
               Yes, erase
             </Button>
             <Button variant="secondary" onClick={() => setConfirm(false)}>Cancel</Button>
@@ -81,7 +112,7 @@ export default function Privacy() {
         </div>
       )}
 
-      {erase.data?.deferred && (
+      {erase.data?.deferredUntil && (
         <p className="text-sm text-ink-2 mt-4 pl-3 border-l-2 border-l-accent-edge max-w-[48ch] leading-snug">
           Deferred — there is a live KYC file. Scheduled for {erase.data.deferredUntil}.
         </p>

@@ -42,7 +42,9 @@ export default function Ask() {
     r.interimResults = true;
     r.continuous = false;
     r.onresult = (e) => setText(
-      Array.from(e.results).map((x) => x[0].transcript).join(""));
+      // A SpeechRecognitionResult is an indexed collection; `[0]` is the
+      // top alternative and is optional to the compiler.
+      Array.from(e.results).map((x) => x[0]?.transcript ?? "").join(""));
     r.onend = () => setListening(false);
     r.start();
     rec.current = r;

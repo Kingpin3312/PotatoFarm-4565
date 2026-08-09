@@ -5,6 +5,22 @@ import { calculate, shareForAgent, SplitError, type Tier } from "@/server/lib/co
 import { aed } from "@/lib/money";
 import { audit } from "@/server/lib/audit";
 
+/**
+ * The whole fee to the brokerage, when no split has been entered.
+ *
+ * `calculate()` refuses anything that does not total 100% — deliberately,
+ * because silently scaling a 99% split set pays somebody the wrong
+ * amount. So "no splits" cannot mean an empty array; it has to mean one
+ * share of 100%.
+ *
+ * The brokerage taking the whole fee is a real arrangement and the
+ * honest default. The screen does not yet collect splits — it has a rate
+ * field and nothing else — and was calling both of these without the
+ * argument they require, so neither the preview nor the recording could
+ * run at all.
+ */
+const WHOLE_FEE_TO_BROKERAGE = [{ role: "BROKERAGE" as const, shareBp: 10_000 }];
+
 const splitInput = z.object({
   userId: z.string().optional(),
   externalName: z.string().max(80).optional(),
@@ -55,7 +71,7 @@ export const commissionRouter = router({
     .input(z.object({
       dealValueFils: z.bigint().positive(),
       rateBp: z.number().int().min(1).max(2_000),
-      splits: z.array(splitInput).min(1),
+      splits: z.array(splitInput).min(1).default(WHOLE_FEE_TO_BROKERAGE),
     }))
     .query(({ input }) => {
       try {
@@ -75,7 +91,7 @@ export const commissionRouter = router({
     .input(z.object({
       dealId: z.string(),
       rateBp: z.number().int().min(1).max(2_000),
-      splits: z.array(splitInput).min(1),
+      splits: z.array(splitInput).min(1).default(WHOLE_FEE_TO_BROKERAGE),
     }))
     .mutation(async ({ ctx, input }) =>
       ctx.db.$transaction(async (tx) => {

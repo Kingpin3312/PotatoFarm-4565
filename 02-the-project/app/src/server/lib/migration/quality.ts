@@ -150,15 +150,20 @@ export function summarise(issues: Issue[]) {
     decisions: issues.filter((i) => i.severity === "DECISION").length,
     notes: issues.filter((i) => i.severity === "NOTE").length,
     groups: [...byKind.entries()]
-      .map(([kind, items]) => ({
+      // `flatMap` with a guard rather than `map`. A group only exists
+      // because something was pushed into it, so `items[0]` is always
+      // there — but leaving it optional pushed an `undefined` severity
+      // out to the import screen, which colour-codes on it.
+      .flatMap(([kind, items]) => {
+        const first = items[0];
+        return first ? [{
         kind,
         count: items.length,
-        // A group only exists because something was pushed into it, so
-        // items[0] is always there — the compiler cannot see it.
-        severity: items[0]?.severity,
-        suggestion: items[0]?.suggestion,
+        severity: first.severity,
+        suggestion: first.suggestion,
         examples: items.slice(0, 3).map((i) => i.sourceRef).filter(Boolean),
-      }))
+        }] : [];
+      })
       .sort((a, b) => b.count - a.count),
   };
 }

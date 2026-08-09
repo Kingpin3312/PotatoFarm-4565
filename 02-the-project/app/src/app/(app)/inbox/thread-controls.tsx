@@ -25,7 +25,8 @@ export function ThreadControls({ conversationId, muted, windowOpen, handover }: 
 
   return (
     <div className="flex gap-2 flex-wrap items-center">
-      <Button variant={muted ? "primary" : "ghost"} loading={mute.isPending}
+      {/* "quiet", not "ghost" — see button.tsx for the variants that exist. */}
+      <Button variant={muted ? "primary" : "quiet"} loading={mute.isPending}
         onClick={() => mute.mutate({ conversationId, muted: !muted })}>
         {muted ? "Assistant is off here" : "I've got this"}
       </Button>
@@ -61,7 +62,7 @@ export function ThreadControls({ conversationId, muted, windowOpen, handover }: 
               <div className="flex gap-2 flex-wrap">
                 {["viewing_reminder", "new_listing_match", "checking_in"].map((t) => (
                   <button key={t} className="btn-inline"
-                    onClick={() => sendTemplate.mutate({ conversationId, template: t, variables: {} })}>
+                    onClick={() => sendTemplate.mutate({ conversationId, template: t, variables: [] })}>
                     {t.replace(/_/g, " ")}
                   </button>
                 ))}

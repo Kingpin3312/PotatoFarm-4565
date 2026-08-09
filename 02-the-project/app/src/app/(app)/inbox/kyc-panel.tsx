@@ -19,7 +19,20 @@ import { cn } from "@/lib/cn";
  */
 export function KycPanel({ leadId }: { leadId: string }) {
   const { data, isLoading } = api.aml.fileStatus.useQuery({ leadId });
-  const { data: wording } = api.aml.requestWording.useQuery({ leadId });
+
+  /**
+   * Wording for the document actually outstanding.
+   *
+   * `requestWording` takes a `docType` — the message differs between
+   * asking for a passport and asking for an Emirates ID — and was being
+   * passed a `leadId`, which it has no input for. It also returns
+   * `body`, not `text`.
+   */
+  const needs = data?.outstanding?.[0];
+  const { data: wording } = api.aml.requestWording.useQuery(
+    { docType: needs as "PASSPORT" | "EMIRATES_ID" | "TRADE_LICENCE" },
+    { enabled: Boolean(needs) }
+  );
 
   if (isLoading || !data) return null;
 
@@ -68,14 +81,14 @@ export function KycPanel({ leadId }: { leadId: string }) {
                   </li>
                 ))}
               </ul>
-              {wording?.text && (
+              {wording?.body && (
                 <div className="mt-4">
                   <p className="text-sm text-ink-3 mb-2">Ask them like this:</p>
                   <p className="text-[15px] text-ink bg-sunk rounded-xl p-3 leading-snug">
-                    {wording.text}
+                    {wording.body}
                   </p>
                   <Button variant="secondary" className="mt-2"
-                    onClick={() => void navigator.clipboard?.writeText(wording.text)}>
+                    onClick={() => void navigator.clipboard?.writeText(wording.body)}>
                     Copy
                   </Button>
                 </div>

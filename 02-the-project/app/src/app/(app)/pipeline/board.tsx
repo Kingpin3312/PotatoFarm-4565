@@ -103,7 +103,7 @@ export function Board() {
               move.mutate({
                 leadId: dragging,
                 toStageId: col.stage.id,
-                afterLeadId: index > 0 ? cards[index - 1].getAttribute("data-lead") : null,
+                afterLeadId: index > 0 ? cards[index - 1]?.getAttribute("data-lead") ?? null : null,
                 beforeLeadId: next ? next.getAttribute("data-lead") : null,
               });
               setDragging(null);
