@@ -84,7 +84,7 @@ export function SendFile({ conversationId, listingId, windowOpen }: {
       </label>
       <input id="upl" type="file" accept="image/jpeg,image/png,application/pdf"
         onChange={(e) => { const f = e.target.files?.[0]; if (f) void upload(f); }}
-        className="text-[15px] text-ink" />
+        className="text-[16px] text-ink" />
 
       {/* Every refusal says what to do instead. "Unsupported file type"
           leaves an agent standing in a lobby with nothing. */}

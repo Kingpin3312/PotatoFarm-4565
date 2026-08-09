@@ -45,7 +45,11 @@ export function InboxList({
             onClick={() => setFilter(f.id)}
             aria-pressed={filter === f.id}
             className={cn(
-              "font-mono text-[11px] uppercase tracking-[0.1em] py-0.5 border-b whitespace-nowrap",
+              // 44px tall. These were 22px — half the minimum — and they
+              // are the most-tapped controls on the screen an agent lives
+              // in. The underline still sits under the label; the target
+              // is the whole chip.
+              "font-mono text-[11px] uppercase tracking-[0.1em] min-h-11 inline-flex items-center border-b whitespace-nowrap",
               filter === f.id ? "text-accent border-accent" : "text-ink-3 border-transparent hover:text-ink"
             )}
           >

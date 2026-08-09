@@ -72,7 +72,7 @@ export default function Leads() {
           <select id="assign-to"
             onChange={(e) => e.target.value &&
               assign.mutate({ leadIds: [...picked], agentId: e.target.value })}
-            className="min-h-11 px-3 text-[15px] text-ink bg-raised border border-rule rounded-lg">
+            className="min-h-11 px-3 text-[16px] text-ink bg-raised border border-rule rounded-lg">
             <option value="">Assign to…</option>
             {(team?.members ?? []).map((m) => (
               // `m.id` is the membership id; assignment wants the user.
@@ -101,7 +101,7 @@ export default function Leads() {
                   className="w-5 h-5 accent-[var(--accent)]" />
               </label>
               <a href={`/inbox/${l.conversation?.id ?? l.id}`}
-                 className="text-[15px] text-ink no-underline flex-1">
+                 className="flex min-h-11 items-center text-[15px] text-ink no-underline flex-1">
                 {l.name ?? l.phone}
               </a>
               <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-3">

@@ -93,7 +93,7 @@ export default function Import() {
                 inspect.mutate({ contacts: parsed, deals: [] });
               });
             }}
-            className="text-[15px] text-ink" />
+            className="text-[16px] text-ink" />
 
           {rows.length > 0 && (
             <p className="text-sm text-ink-2 mt-3 tabular">

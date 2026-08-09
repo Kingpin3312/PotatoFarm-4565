@@ -115,7 +115,7 @@ export function KillSwitch() {
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             placeholder="e.g. wrong price quoted on MG2-1184"
-            className="w-full bg-transparent border-0 border-b border-rule py-2.5 text-[15px] text-ink focus:outline-none focus:border-accent focus:border-b-2"
+            className="w-full bg-transparent border-0 border-b border-rule py-2.5 text-[16px] text-ink focus:outline-none focus:border-accent focus:border-b-2"
           />
 
           <div className="flex gap-2.5 justify-end mt-6 flex-wrap">

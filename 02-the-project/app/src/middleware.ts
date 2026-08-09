@@ -71,5 +71,17 @@ export const config = {
    * would break it. The public pages are handled above rather than here,
    * so the whole rule is readable in one place.
    */
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+  matcher: [
+    /**
+     * Everything except the API, Next's own assets, and any path with a
+     * file extension.
+     *
+     * The extension rule matters: this named `favicon.ico` specifically,
+     * so the moment a second static file appeared — `site.webmanifest`,
+     * the touch icon, an OG image — it was caught by the auth redirect
+     * and served a 307 to the sign-in page. A manifest that redirects is
+     * a manifest the browser discards, silently.
+     */
+    "/((?!api|_next/static|_next/image|.*\\..*).*)",
+  ],
 };

@@ -62,7 +62,10 @@ export default function Team() {
             value={role}
             onChange={(e) => setRole(e.target.value as "AGENT" | "MANAGER")}
             aria-label="Role"
-            className="min-h-11 px-3 text-[15px] text-ink bg-sunk border border-rule rounded-lg"
+            // 16px for the same reason as the input above, which said so
+            // and then this line directly beneath it used 15. Anything
+            // under 16 makes iOS zoom the page on focus.
+            className="min-h-11 px-3 text-[16px] text-ink bg-sunk border border-rule rounded-lg"
           >
             <option value="AGENT">Agent</option>
             <option value="MANAGER">Manager</option>
