@@ -1,3 +1,4 @@
+import type { ChannelType } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { crossTenant } from "@/server/db/client";
 import { adapters } from "@/server/lib/portals";
@@ -22,8 +23,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ por
   const token = req.nextUrl.searchParams.get("t");
   if (!token) return NextResponse.json({ error: "Missing channel token." }, { status: 400 });
 
+  /**
+   * Looked up by `webhookToken`, not by `secretRef`.
+   *
+   * `secretRef` is the pointer to where this channel's access token is
+   * stored. Using it as the URL parameter meant handing a credential
+   * reference to a third party and letting it travel through their logs
+   * and every proxy on the way. The routing identifier and the secret
+   * pointer are now two values doing one job each.
+   */
   const channel = await crossTenant("sweep").channel.findFirst({
-    where: { secretRef: token, active: true, type: adapter.key as any },
+    where: { webhookToken: token, active: true, type: adapter.key as ChannelType },
     select: { id: true, orgId: true },
   });
   if (!channel) return NextResponse.json({ error: "Unknown channel." }, { status: 404 });

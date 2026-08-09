@@ -1,4 +1,9 @@
 /*
+  # The static site. Tighter than the application's, because this one has
+  # no third-party anything except the font — which is the one thing here
+  # worth removing later, since rsms.me sees every visitor's IP and the
+  # privacy page is two clicks away.
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://rsms.me; font-src 'self' https://rsms.me; img-src 'self' data:; connect-src 'self' https://potatofarm.io; form-action 'self' https://potatofarm.io; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; upgrade-insecure-requests
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   X-Frame-Options: SAMEORIGIN

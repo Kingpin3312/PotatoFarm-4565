@@ -434,6 +434,25 @@ model Channel {
   /// WhatsApp: the display number. Portal: the account identifier.
   identifier String
   secretRef  String?
+
+  /**
+   * The token in the portal's webhook URL, and it is deliberately not
+   * `secretRef`.
+   *
+   * `/api/webhooks/portals/[portal]?t=…` looked the channel up by
+   * `secretRef` — the pointer into the secrets manager. That put a
+   * credential reference into a URL handed to a third party, where it
+   * lands in their logs, in ours, in any proxy in between, and in a
+   * Referer header if a page is ever served from it. Two different jobs
+   * wearing one value: knowing which channel a delivery is for, and
+   * naming where that channel's access token is kept.
+   *
+   * Separate now. This one is a public routing identifier that can be
+   * rotated by issuing a new URL, and it grants nothing on its own — the
+   * signature check still has to pass.
+   */
+  webhookToken String? @unique
+
   active     Boolean    @default(true)
   lastSyncAt DateTime?
   lastError  String?

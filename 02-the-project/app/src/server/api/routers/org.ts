@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { randomBytes, createHash, timingSafeEqual } from "node:crypto";
 import { TRPCError } from "@trpc/server";
+import { limitAll, keysFor } from "@/server/lib/ratelimit";
 import { router, orgProcedure, publicProcedure, requirePermission } from "../trpc";
 import { switchOrg } from "@/server/auth/session";
 import { crossTenant } from "@/server/db/client";
@@ -105,6 +106,32 @@ export const orgRouter = router({
       const session = ctx.session;
       if (!session?.user?.id) {
         throw new TRPCError({ code: "UNAUTHORIZED", message: "Sign in first, then open the link again." });
+      }
+
+      /**
+       * Throttled, which it was not.
+       *
+       * `ratelimit.ts` has declared an `org.acceptInvite` rule since it
+       * was written and nothing ever called it — `billing.signup` was
+       * the only action actually limited. This mutation takes a token,
+       * looks it up by hash, and on a hit puts the caller inside a
+       * brokerage. Unthrottled, that is an offline guessing attack with
+       * no cost to the attacker and no trace beyond rows that look like
+       * ordinary failed lookups.
+       *
+       * Keyed on the user, not the IP: the caller is signed in by this
+       * point, so the account is the precise thing to limit, and an
+       * office behind one NAT is not punished for it.
+       */
+      const verdict = await limitAll("org.acceptInvite", keysFor({
+        ip: ctx.ip,
+        email: session.user.email ?? null,
+      }));
+      if (!verdict.ok) {
+        throw new TRPCError({
+          code: "TOO_MANY_REQUESTS",
+          message: `Too many attempts. Try again in ${Math.ceil(verdict.retryAfterSeconds / 60)} minutes.`,
+        });
       }
 
       const invite = await crossTenant("user-scoped").invitation.findUnique({
