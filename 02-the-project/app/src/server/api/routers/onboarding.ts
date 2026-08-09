@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { router, orgProcedure, requirePermission } from "../trpc";
-import { STEPS, BY_KEY, available, blocked, progress, type StepKey } from "@/server/lib/onboarding/steps";
+import { STEPS, STEP_ROUTES, BY_KEY, available, blocked, progress, type StepKey } from "@/server/lib/onboarding/steps";
 import { guessMapping, preview } from "@/server/lib/onboarding/import-listings";
 import { audit } from "@/server/lib/audit";
 
@@ -24,6 +24,31 @@ export const onboardingRouter = router({
       available: available(done).map((s) => ({ ...s, state: state.get(s.key)?.state ?? "TODO" })),
       blocked: blocked(done),
       done: [...done].map((k) => BY_KEY.get(k)!),
+
+      /**
+       * The same steps as one ordered list, for the checklist.
+       *
+       * Derived, not a second source of truth — the groups above stay,
+       * because "Meta is verifying your business" and "you haven't done
+       * the previous step" are different messages and must not be run
+       * together.
+       *
+       * A checklist still needs one list in order with a done flag on
+       * each, which is what the screen renders and what it could not get
+       * from five separate arrays. `why` rather than `detail` because
+       * that is what the screen calls it.
+       */
+      steps: STEPS.map((s) => ({
+        key: s.key,
+        title: s.title,
+        why: s.detail,
+        effort: s.effort,
+        optional: s.optional ?? false,
+        done: done.has(s.key),
+        state: state.get(s.key)?.state ?? "TODO",
+        blockedOn: state.get(s.key)?.blockedOn ?? null,
+        href: STEP_ROUTES[s.key] ?? null,
+      })),
     };
   }),
 

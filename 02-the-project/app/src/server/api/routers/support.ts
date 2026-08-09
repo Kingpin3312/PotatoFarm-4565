@@ -11,10 +11,21 @@ import { audit } from "@/server/lib/audit";
 export const supportRouter = router({
   /** What is active right now, and everything that ever was. */
   grants: orgProcedure.query(async ({ ctx }) => {
-    const [active, history] = await Promise.all([
+    const now = new Date();
+    const [rows, history] = await Promise.all([
+      /**
+       * Every grant, live or finished, newest first.
+       *
+       * This used to fetch only the live ones and pair them with audit
+       * rows. The screen renders a "Past grants" list reading
+       * `staffEmail` and `revokedAt` off each entry — grant columns, which
+       * an audit row does not have — so the brokerage could see who has
+       * access now and never who has had it. On the one screen whose
+       * entire purpose is that record, that is the wrong half.
+       */
       ctx.db.supportGrant.findMany({
-        where: { revokedAt: null, expiresAt: { gt: new Date() } },
         orderBy: { grantedAt: "desc" },
+        take: 100,
       }),
       crossTenant("sweep").auditLog.findMany({
         where: { orgId: ctx.orgId, action: { startsWith: "support." } },
@@ -23,7 +34,39 @@ export const supportRouter = router({
         select: { action: true, entity: true, entityId: true, after: true, createdAt: true },
       }),
     ]);
-    return { active, history };
+    /**
+     * `active` is computed, not stored. A grant expires by the clock
+     * rather than by anything writing to it, so asking the row whether it
+     * is live means comparing `expiresAt` to now every time.
+     */
+    /**
+     * Who granted it, by name.
+     *
+     * `grantedById` is a cuid. The card says "granted by <somebody>" to a
+     * brokerage owner deciding whether to revoke, and a 25-character id
+     * answers nothing. Resolved in one query rather than a join, because
+     * User is global and deliberately not org-scoped.
+     */
+    const granters = await crossTenant("pre-tenant").user.findMany({
+      where: { id: { in: [...new Set(rows.map((g) => g.grantedById))] } },
+      select: { id: true, name: true, email: true },
+    });
+    const nameFor = new Map(granters.map((u) => [u.id, u.name ?? u.email]));
+
+    const grants = rows.map((g) => ({
+      ...g,
+      active: g.revokedAt === null && g.expiresAt > now,
+      grantedBy: nameFor.get(g.grantedById) ?? "a former colleague",
+      /** Rounded up: "0h left" on a grant with 40 minutes to run reads as expired. */
+      hoursLeft: Math.max(0, Math.ceil((g.expiresAt.getTime() - now.getTime()) / 3_600_000)),
+    }));
+
+    return {
+      grants,
+      /** Kept for callers that only want what is live right now. */
+      active: grants.filter((g) => g.active),
+      history,
+    };
   }),
 
   /**

@@ -43,6 +43,30 @@ export type Step = {
   optional?: boolean;
 };
 
+/**
+ * Where each step is actually done.
+ *
+ * The checklist renders a "Do it" link per step and the Step type had
+ * nowhere to put the destination, so the link never rendered — a setup
+ * list that tells a brokerage what is outstanding and gives them no way
+ * to go and do any of it.
+ *
+ * Kept as a separate map rather than a field on Step because it is
+ * routing, and STEPS is the domain description of what onboarding is.
+ * `baseline` is deliberately absent: it is not a thing you go and click,
+ * it is a week of leaving the assistant switched off.
+ */
+export const STEP_ROUTES: Partial<Record<StepKey, string>> = {
+  company: "/settings",
+  whatsapp: "/settings/channels",
+  team: "/team",
+  hours: "/settings",
+  listings: "/listings",
+  portals: "/settings/channels",
+  questions: "/settings",
+  assistant: "/settings",
+};
+
 export const STEPS: Step[] = [
   {
     key: "company",
