@@ -77,6 +77,19 @@ Plain **HTML, CSS and JavaScript**. No framework, no build step, no
 
 **Database: PostgreSQL.**
 
+**The AI layer**, added after the S.MPLE audit — see
+`05-documents/SMPLE-GAP-ANALYSIS.md`:
+
+| | |
+|---|---|
+| `lib/requests/intake.ts` | One sentence → structured fields, with a confidence gate |
+| `lib/requests/apply-intake.ts` | Those fields → lead, requirement, facts, follow-up, match |
+| `lib/intelligence/score.ts` | Four components out of 25, rules not a model |
+| `lib/intelligence/next-action.ts` | One action per person, ordered by urgency |
+| `lib/intelligence/sweep.ts` | Nightly, in the jobs layer, never in a request |
+| `api/routers/today.ts` | The briefing the command centre reads |
+| `ClientFact` | Memory the CRM has no columns for |
+
 There is also `mobile/` — an Expo shell carrying push, offline policy and
 auth. **It cannot build.** No `app.json`, no `tsconfig.json`, no
 `babel.config.js`, no assets, and it targets Expo SDK 51 / React Native
@@ -87,10 +100,10 @@ token, which the web app cannot do. Treat it as a design sketch.
 
 ## 4. What is built
 
-**68 database models · 53 enums · 22 API routers · 103 procedures ·
-33 screens · 23 scheduled jobs · 13 audit scripts.**
+**72 database models · 60 enums · 23 API routers · 106 procedures ·
+34 screens · 24 scheduled jobs · 13 audit scripts.**
 
-**98 of 103 procedures have a screen.** The five that do not are in
+**101 of 106 procedures have a screen.** The five that do not are in
 section 5, and each is deliberate.
 
 Working areas: the WhatsApp assistant and its stop controls; the inbox;
@@ -120,18 +133,25 @@ chart; spoken requests ("Ask").
   documentation, and round-tripped through a local S3-shaped server that
   checks the signature independently.
 
-### The three things you can re-run
+- **The AI layer is real, not a column.** `Lead.score` is written nightly
+  with its four components and its history; every assigned lead gets at
+  most one recommended action with a stated reason; and one spoken
+  sentence creates the person, the requirement, the facts, the follow-up
+  and a match.
+
+### The five things you can re-run
 
 ```bash
-npm run check:tenancy   # two brokerages, one database, no leakage
-npm run check:sigv4     # request signing vs AWS's published vector
-npm run check:storage   # upload, read back byte-for-byte, delete
+npm run check:tenancy       # two brokerages, one database, no leakage
+npm run check:intake        # one sentence → client, requirement, match
+npm run check:intelligence  # scoring, next-best-action, the nightly sweep
+npm run check:sigv4         # request signing vs AWS's published vector
+npm run check:storage       # upload, read back byte-for-byte, delete
 ```
 
 These are not a test suite — there still isn't one — but they cover the
-three places where being wrong is expensive and invisible. Each was
-verified by deliberately breaking the thing it checks and confirming it
-fails.
+places where being wrong is expensive and invisible. Each was verified by
+deliberately breaking the thing it checks and confirming it fails.
 
 ---
 
@@ -149,7 +169,7 @@ your name on them:
    one-time link to a work email, so **email delivery is the only way
    into the product**. An unverified sender puts every sign-in link in a
    junk folder and the failure looks like the application being broken.
-3. **Vercel Pro, about $20/month.** 23 cron jobs and `maxDuration = 300`
+3. **Vercel Pro, about $20/month.** 24 cron jobs and `maxDuration = 300`
    both require it; Hobby allows 2 crons once a day at 60 seconds.
 4. Anthropic, WhatsApp Business, Meta and Stripe credentials, as and when
    each feature is wanted. The application boots without them and says in

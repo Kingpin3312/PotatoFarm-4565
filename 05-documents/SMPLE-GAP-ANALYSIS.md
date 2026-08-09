@@ -241,6 +241,41 @@ Ranked on user value × revenue impact × feasibility.
 
 ---
 
+## Status — what has been built since this was written
+
+P0 is done. Each item was verified against a real database rather than
+demonstrated, and each check was confirmed to fail when the thing it
+checks is broken.
+
+| | |
+|---|---|
+| 1. Structured extraction | **Done.** `npm run check:intake` |
+| 2. Lead scoring that writes `Lead.score` | **Done.** With four components and history |
+| 3. Next-best-action engine | **Done.** Ordered by urgency, not warmth |
+| 4. Command centre as the front door | **Done.** `/` no longer redirects to the inbox |
+| 5. A real daily briefing | **Done.** Five things, each with why |
+| 6. Client memory model | **Done.** `ClientFact`, written by the intake flow |
+
+Three bugs the work turned up, all found by running it:
+
+- **Budget fit used a median.** A buyer with a live 17.6m offer on a
+  property the brokerage held scored 6/25 for "budget above your usual
+  stock", because the median of a three-listing book is not the question
+  being asked. A price band is.
+- **"Today" started at the wrong hour.** The server's clock is UTC, so a
+  Dubai agent's day began at 4am and a 1am viewing was filed under
+  yesterday.
+- **Three rules could never fire.** `openOffers`, `offerExpiringInDays`
+  and `matchesWaiting` were hardcoded to zero in the sweep — the light
+  switch wired to nothing, and worse than absent because they read as
+  covered.
+
+**P1 is next**, and the highest-value item in it is voice that works on
+an iPhone. It is the one place S.MPLE is genuinely stronger, and it
+needs server-side transcription rather than the Web Speech API.
+
+---
+
 ## Build order
 
 1. Client memory + recommendation + score-history models (one migration)
