@@ -68,15 +68,53 @@ export const privacyRouter = router({
 
   /** Proof, for whoever asks. */
   erasureHistory: requirePermission("audit:read")
-    .input(z.object({ days: z.number().min(1).max(730).default(365) }))
-    .query(({ ctx, input }) =>
-      ctx.db.auditLog.findMany({
+    // Optional: the screen shows "past requests" and asks for no window.
+    .input(z.object({ days: z.number().min(1).max(730).default(365) }).optional())
+    .query(async ({ ctx, input }) => {
+      const days = input?.days ?? 365;
+      const rows = await ctx.db.auditLog.findMany({
         where: {
           action: { in: ["privacy.erasure", "privacy.subject_access"] },
-          createdAt: { gte: new Date(Date.now() - input.days * 86_400_000) },
+          createdAt: { gte: new Date(Date.now() - days * 86_400_000) },
         },
         orderBy: { createdAt: "desc" },
-        select: { action: true, createdAt: true, after: true, actor: { select: { name: true } } },
-      })
-    ),
+        select: {
+          id: true, action: true, createdAt: true, after: true,
+          actor: { select: { name: true } },
+        },
+      });
+
+      /**
+       * Shaped as requests, which is what the screen renders.
+       *
+       * It returned raw audit rows and the screen read `subject`,
+       * `requestedAt`, `state` and `dueAt` off them — none of which are
+       * audit columns. The values are all inside the `after` payload that
+       * `erase()` writes, so this unpacks it rather than making the
+       * screen guess at a JSON blob.
+       *
+       * The deferral is the part that matters: an erasure held back
+       * against a live KYC file is not a refusal and must not read as
+       * one. Five-year AML retention outranks the request, and the due
+       * date is when it will actually run.
+       */
+      return {
+        requests: rows.map((r) => {
+          const after = (r.after ?? {}) as {
+            phone?: string; leadId?: string;
+            deferredUntil?: string; deferredReason?: string;
+          };
+          return {
+            id: r.id,
+            subject: after.phone ?? after.leadId ?? "a contact",
+            requestedAt: r.createdAt,
+            state: after.deferredUntil ? ("DEFERRED" as const) : ("DONE" as const),
+            dueAt: after.deferredUntil ?? null,
+            reason: after.deferredReason ?? null,
+            kind: r.action === "privacy.erasure" ? ("ERASURE" as const) : ("ACCESS" as const),
+            by: r.actor?.name ?? null,
+          };
+        }),
+      };
+    }),
 });

@@ -19,7 +19,12 @@ import { cn } from "@/lib/cn";
  */
 export default function Routing() {
   const { data, isLoading, isError, refetch } = api.routing.rules.useQuery();
-  const [strategy, setStrategy] = useState<"ROUND_ROBIN"|"LEAST_LOADED"|"FASTEST"|"SPECIALIST">("ROUND_ROBIN");
+  // The five values AssignStrategy actually has. "SPECIALIST" was not
+  // one of them — matching on community and language is applied by
+  // `available()` before every strategy runs, so it is a filter on all
+  // of them rather than a strategy of its own.
+  const [strategy, setStrategy] =
+    useState<"ROUND_ROBIN"|"LEAST_LOADED"|"FASTEST"|"SPECIFIC"|"UNASSIGNED">("ROUND_ROBIN");
   const preview = api.routing.preview.useQuery({ strategy }, { enabled: Boolean(strategy) });
 
   if (isError) return <QueryError retry={() => void refetch()} what="the routing rules" />;
@@ -29,7 +34,8 @@ export default function Routing() {
     ["ROUND_ROBIN", "In turn", "Everyone gets the next one. Fair, and ignores who is drowning."],
     ["LEAST_LOADED", "Whoever has fewest", "Balances the load. New agents get more, which is usually right."],
     ["FASTEST", "Whoever replies fastest", "Rewards speed — and quietly punishes anyone in a viewing."],
-    ["SPECIALIST", "By area or budget", "Matches the lead to who knows that community."],
+    ["SPECIFIC", "Always one person", "Every lead matching this rule goes to the same agent."],
+    ["UNASSIGNED", "Shared pool", "Nobody gets it automatically. First to claim it owns it."],
   ] as const;
 
   return (

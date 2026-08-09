@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import { api } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 
@@ -15,7 +17,18 @@ import { Button } from "@/components/ui/button";
  */
 export function LeadRouting({ leadId }: { leadId: string }) {
   const { data } = api.routing.history.useQuery({ leadId });
-  const dispute = api.routing.dispute.useMutation();
+  /**
+   * `routing.dispute` is a query, not a mutation, and deliberately so —
+   * ownership.ts is explicit that it returns the facts and what the
+   * rule says, and never a verdict. Nothing is filed.
+   *
+   * So the button reveals the summary rather than claiming to have
+   * raised something. It was calling `.mutate()` on a query and then
+   * telling the agent "Raised. Your manager sees the routing decision
+   * alongside it" — which nothing in the codebase made true.
+   */
+  const [asking, setAsking] = useState(false);
+  const dispute = api.routing.dispute.useQuery({ leadId }, { enabled: asking });
   const claim = api.routing.claim.useMutation();
 
   if (!data) return null;
@@ -32,12 +45,18 @@ export function LeadRouting({ leadId }: { leadId: string }) {
           onClick={() => claim.mutate({ leadId })}>
           Claim it
         </Button>
-      ) : dispute.isSuccess ? (
-        <p className="text-sm text-success mt-3">
-          Raised. Your manager sees the routing decision alongside it.
-        </p>
+      ) : asking && dispute.data ? (
+        <div className="mt-3 bg-sunk rounded-lg p-3">
+          <p className="text-sm text-ink">{dispute.data.ruleSays}</p>
+          <ul className="mt-2 space-y-1">
+            {dispute.data.timeline.map((line, i) => (
+              <li key={i} className="font-mono text-[11px] text-ink-3">{line}</li>
+            ))}
+          </ul>
+          <p className="text-sm text-ink-2 mt-2 max-w-[46ch] leading-snug">{dispute.data.note}</p>
+        </div>
       ) : (
-        <button className="btn-inline mt-3" onClick={() => dispute.mutate({ leadId })}>
+        <button className="btn-inline mt-3" onClick={() => setAsking(true)}>
           This should have gone to someone else
         </button>
       )}

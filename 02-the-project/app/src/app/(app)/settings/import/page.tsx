@@ -39,7 +39,10 @@ export default function Import() {
   const [rows, setRows] = useState<Record<string, string | null>[]>([]);
   const [fileName, setFileName] = useState("");
   const inspect = api.migration.inspect.useMutation();
-  const plan = api.migration.plan.useMutation();
+  // `migration.plan` is a query — it returns the cutover stages, the
+  // honest scope and the rollback, all of them constants. Nothing to
+  // mutate.
+  const plan = api.migration.plan.useQuery();
   const { data: status } = api.migration.status.useQuery(undefined, {
     refetchInterval: (d) => (d?.state === "RUNNING" ? 3000 : false),
   });

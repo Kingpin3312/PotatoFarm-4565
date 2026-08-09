@@ -1,3 +1,4 @@
+import type { OwnershipReason } from "@prisma/client";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { router, orgProcedure, requirePermission } from "../trpc";
@@ -6,9 +7,23 @@ import { checkProtection, summariseDispute, DEFAULT_PROTECTION_DAYS } from "@/se
 import { audit } from "@/server/lib/audit";
 
 export const routingRouter = router({
-  rules: requirePermission("lead:assign").query(({ ctx }) =>
-    ctx.db.assignmentRule.findMany({ where: { active: true }, orderBy: { priority: "asc" } })
-  ),
+  rules: requirePermission("lead:assign").query(async ({ ctx }) => {
+    const rules = await ctx.db.assignmentRule.findMany({
+      where: { active: true },
+      orderBy: { priority: "asc" },
+    });
+
+    /**
+     * `current` is the strategy a lead with no special match actually
+     * gets: the lowest-priority-number active rule, which is the one
+     * `route()` reaches first.
+     *
+     * The heading on this screen reads "what happens to a new lead", and
+     * it had a bare array to answer that with — so it said "Not set" no
+     * matter how many rules existed.
+     */
+    return { rules, current: rules[0]?.strategy ?? null };
+  }),
 
   /** Who would get the next lead, and why. Shown because agents ask. */
   preview: requirePermission("lead:assign")
@@ -40,11 +55,67 @@ export const routingRouter = router({
   /** Ownership history. The record a dispute gets settled against. */
   history: orgProcedure
     .input(z.object({ leadId: z.string() }))
-    .query(({ ctx, input }) =>
-      ctx.db.leadOwnership.findMany({
-        where: { leadId: input.leadId }, orderBy: { startedAt: "asc" },
-      })
-    ),
+    .query(async ({ ctx, input }) => {
+      const [rows, lead] = await Promise.all([
+        ctx.db.leadOwnership.findMany({
+          where: { leadId: input.leadId }, orderBy: { startedAt: "asc" },
+        }),
+        ctx.db.lead.findUnique({
+          where: { id: input.leadId },
+          select: { assignedToId: true, assignedTo: { select: { name: true } } },
+        }),
+      ]);
+
+      const names = await ctx.db.membership.findMany({
+        where: { userId: { in: [...new Set(rows.flatMap((r) => [r.userId, r.fromUserId]).filter((v): v is string => Boolean(v)))] } },
+        select: { user: { select: { id: true, name: true, email: true } } },
+      });
+      const nameFor = new Map(names.map((m) => [m.user.id, m.user.name ?? m.user.email]));
+
+      // Every OwnershipReason, in the words an agent would use. Written
+      // out in full rather than prettified from the enum name, because
+      // "PROTECTION_LAPSED" is not an explanation.
+      const WHY: Record<OwnershipReason, string> = {
+        FIRST_ASSIGNMENT: "it was the first time anyone was put on it",
+        RULE: "a routing rule sent it here",
+        MANUAL: "a manager assigned it",
+        CLAIMED: "somebody claimed it from the pool",
+        PROTECTION: "they enquired before and the protection window was still open",
+        PROTECTION_LAPSED: "the previous owner's protection window had run out",
+        REASSIGNED: "a manager moved it",
+        AGENT_LEFT: "the agent who had it left the brokerage",
+      };
+
+      const latest = rows.at(-1);
+
+      /**
+       * One sentence, because that is what the panel renders.
+       *
+       * Agents ask "why did that lead not come to me" more than anything
+       * else in the product, and this returned an array of ownership rows
+       * for the screen to interpret. It read `explanation` and
+       * `unclaimed`, neither of which existed, so the panel showed
+       * nothing at all — on the exact question it was built to answer.
+       */
+      const explanation = !latest
+        ? "Nobody has been assigned to this lead yet."
+        : latest.userId
+          ? `Assigned to ${nameFor.get(latest.userId) ?? "an agent"} — ${WHY[latest.reason]}.`
+          : `In the shared pool — ${WHY[latest.reason]}.`;
+
+      return {
+        explanation,
+        /** Claimable when nobody currently owns it. */
+        unclaimed: !lead?.assignedToId,
+        timeline: rows.map((r) => ({
+          at: r.startedAt,
+          reason: r.reason,
+          to: r.userId ? nameFor.get(r.userId) ?? "an agent" : null,
+          from: r.fromUserId ? nameFor.get(r.fromUserId) ?? "an agent" : null,
+          note: r.note,
+        })),
+      };
+    }),
 
   /**
    * The dispute view. Facts and what the rule says, and no verdict — see

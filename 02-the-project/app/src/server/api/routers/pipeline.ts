@@ -6,12 +6,45 @@ import { leadScope } from "@/server/auth/rbac";
 import { audit } from "@/server/lib/audit";
 
 export const pipelineRouter = router({
-  stages: orgProcedure.query(({ ctx }) =>
-    ctx.db.pipelineStage.findMany({
-      where: { archived: false },
-      orderBy: { position: "asc" },
-    })
-  ),
+  stages: orgProcedure.query(async ({ ctx }) => {
+    const [stages, counts] = await Promise.all([
+      ctx.db.pipelineStage.findMany({
+        where: { archived: false },
+        orderBy: { position: "asc" },
+      }),
+      ctx.db.lead.groupBy({
+        by: ["stageId"],
+        where: { deletedAt: null },
+        _count: { _all: true },
+      }),
+    ]);
+
+    // Unassigned per stage, separately. A column of 80 where 60 belong to
+    // nobody is a different problem from a column of 80 that are all
+    // owned, and the screen calls them out differently.
+    const unassigned = await ctx.db.lead.groupBy({
+      by: ["stageId"],
+      where: { deletedAt: null, assignedToId: null },
+      _count: { _all: true },
+    });
+
+    /**
+     * `{ stages }` with a count on each, which is what the screen reads.
+     *
+     * It flags a stage holding more than 120 leads — the sign of a column
+     * nothing leaves, an agent hoarding, or one who has left. That check
+     * needs a number, and this returned bare rows with no count on them.
+     */
+    const countFor = new Map(counts.map((c) => [c.stageId, c._count._all]));
+    const idleFor = new Map(unassigned.map((c) => [c.stageId, c._count._all]));
+    return {
+      stages: stages.map((s) => ({
+        ...s,
+        count: countFor.get(s.id) ?? 0,
+        unassigned: idleFor.get(s.id) ?? 0,
+      })),
+    };
+  }),
 
   /**
    * The board.
