@@ -59,7 +59,10 @@ export async function leaderboard(args: {
 
   const members = await db.membership.findMany({
     where: { role: "AGENT" },
-    select: { userId: true, user: { select: { name: true } } },
+    // Email too: `User.name` is optional, because a magic-link sign-in
+    // creates a user from an address and nothing else. A leaderboard
+    // row reading "null" is worse than one reading their email.
+    select: { userId: true, user: { select: { name: true, email: true } } },
   });
 
   const rows: Row[] = [];
@@ -102,7 +105,7 @@ export async function leaderboard(args: {
 
     rows.push({
       userId: m.userId,
-      name: m.user.name,
+      name: m.user.name ?? m.user.email,
       isMe: m.userId === args.userId,
       rank: 0,
       viewingsBooked: viewings,

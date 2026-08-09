@@ -58,9 +58,35 @@ model Organisation {
 model User {
   id            String    @id @default(cuid())
   email         String    @unique
-  name          String
+
+  /**
+   * Optional, because sign-in cannot supply it.
+   *
+   * This was required. The magic-link provider creates a user from an
+   * email address and nothing else — there is no name to give until the
+   * person tells us one — so `createUser` inserted a null into a NOT NULL
+   * column and **every first sign-in would have failed with a database
+   * error**, on the only route into the product.
+   *
+   * The screens already expect it: `m.user.name ?? m.user.email` is the
+   * pattern in the team list and the assignment picker.
+   */
+  name          String?
+
   phone         String?
-  avatarUrl     String?
+
+  /**
+   * Named `image` because the adapter names it `image`.
+   *
+   * `@auth/prisma-adapter` writes a fixed shape — id, name, email,
+   * emailVerified, image — and this model called the column
+   * `avatarUrl`, so the adapter's insert would have been rejected for an
+   * unknown argument. The column keeps its old name through `@map`, so
+   * the fix costs nothing in the database. Nothing in the application
+   * read it.
+   */
+  image         String?   @map("avatarUrl")
+
   emailVerified DateTime?
   createdAt     DateTime  @default(now())
   lastSeenAt    DateTime?

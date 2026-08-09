@@ -1,8 +1,54 @@
 import { PrismaClient } from "@prisma/client";
 
-const base = new PrismaClient({
-  log: process.env.NODE_ENV === "development" ? ["query", "warn", "error"] : ["error"],
-});
+const logLevels: ("query" | "warn" | "error")[] =
+  process.env.NODE_ENV === "development" ? ["query", "warn", "error"] : ["error"];
+
+/**
+ * Two connections, and the difference between them is the whole point.
+ *
+ * `scoped` connects as a role that row-level security applies to. Every
+ * policy in rls.sql is enforced against it, so a query that forgets its
+ * `where orgId` returns nothing rather than everything.
+ *
+ * `privileged` connects as a role that bypasses RLS. It has to exist,
+ * and this was found the hard way: with RLS on every tenant table and a
+ * single connection, `getActiveMembership()` reads Membership before any
+ * brokerage is known, matches no policy, returns zero rows — and nobody
+ * can sign in to the product at all. Sign-in, org creation, the
+ * webhooks and every nightly sweep are all legitimately cross-tenant and
+ * cannot be scoped by definition.
+ *
+ * The split is safe here only because the codebase already funnels every
+ * unscoped query through one announced function. `crossTenant(reason)`
+ * was written to make the escape hatch visible; it now also decides
+ * which connection is used, so the privileged role is reachable from
+ * exactly one place and `crm-audit.py` already fails the build on a bare
+ * `rootDb`.
+ *
+ * **`DATABASE_URL_UNSCOPED` falls back to `DATABASE_URL`.** In
+ * development they are usually the same superuser and RLS never bites.
+ * In production they must differ, or RLS is decorative — the scoped role
+ * has to be one that does not own the tables and does not have
+ * BYPASSRLS. Said loudly at boot rather than left to be discovered.
+ */
+const scoped = new PrismaClient({ log: logLevels });
+
+const unscopedUrl = process.env.DATABASE_URL_UNSCOPED ?? process.env.DATABASE_URL;
+
+if (process.env.NODE_ENV === "production" && !process.env.DATABASE_URL_UNSCOPED) {
+  console.warn(
+    "[db] DATABASE_URL_UNSCOPED is not set, so scoped and unscoped queries share one " +
+      "connection. If that role owns the tables or has BYPASSRLS, row-level security " +
+      "is not enforcing anything. See src/server/db/rls.sql."
+  );
+}
+
+const privileged =
+  unscopedUrl && unscopedUrl !== process.env.DATABASE_URL
+    ? new PrismaClient({ log: logLevels, datasources: { db: { url: unscopedUrl } } })
+    : scoped;
+
+const base = scoped;
 
 /**
  * Tenant-scoped database handle.
@@ -18,10 +64,38 @@ export function forOrg(orgId: string) {
     query: {
       $allModels: {
         async $allOperations({ args, query }) {
-          return base.$transaction(async (tx) => {
-            await tx.$executeRaw`SELECT set_config('app.current_org', ${orgId}, true)`;
-            return query(args);
-          });
+          /**
+           * Both statements go in the array form of `$transaction`, and
+           * that is the entire point.
+           *
+           * This used to be the interactive form:
+           *
+           *     base.$transaction(async (tx) => {
+           *       await tx.$executeRaw`SELECT set_config(…)`;
+           *       return query(args);      // <- not on tx
+           *     })
+           *
+           * `set_config` ran on `tx`. `query(args)` is bound to `base`,
+           * so it took a **different connection out of the pool** — and
+           * `set_config(…, true)` is transaction-local, so the setting
+           * was never in scope for the query it was meant to scope.
+           *
+           * With a superuser connection nothing showed, because RLS is
+           * bypassed and every query worked. Against the restricted role
+           * this is meant to run as, `app.current_org` is unset for every
+           * read, no policy matches, and **every screen in the product
+           * returns nothing at all** — an empty inbox, an empty pipeline,
+           * no listings, no team. Found by running it.
+           *
+           * The array form issues both statements on one connection
+           * inside one transaction, which is the documented way to do
+           * RLS with Prisma.
+           */
+          const [, result] = await base.$transaction([
+            base.$executeRaw`SELECT set_config('app.current_org', ${orgId}, true)`,
+            query(args) as ReturnType<typeof base.$executeRaw>,
+          ]);
+          return result;
         },
       },
     },
@@ -29,7 +103,7 @@ export function forOrg(orgId: string) {
 }
 
 /** Unscoped. Sign-in, org creation, and scheduled jobs only. */
-export const rootDb = base;
+export const rootDb = privileged;
 
 /**
  * The escape hatch, made to announce itself.
@@ -64,5 +138,5 @@ export type CrossTenantReason =
  * reconstructing the argument.
  */
 export function crossTenant(_reason: CrossTenantReason) {
-  return rootDb;
+  return privileged;
 }
