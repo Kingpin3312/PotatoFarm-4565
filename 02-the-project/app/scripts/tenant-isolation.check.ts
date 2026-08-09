@@ -116,6 +116,45 @@ async function main() {
           i % 2 === 0 ? ["A-one", "A-two"] : ["B-one"])
   );
 
+  /**
+   * The intelligence tables, specifically.
+   *
+   * They were added in a later migration, and the RLS block that covers
+   * everything else ran at init — before they existed. A table added
+   * after that block is outside the tenant boundary and **nothing
+   * errors**: one brokerage reads another's client facts and
+   * recommendations, and the product looks like it is working.
+   *
+   * The catalogue says the policy is attached. This asks the database.
+   */
+  console.log("\nThe intelligence tables are inside the boundary too:");
+  {
+    await root.clientFact.createMany({
+      data: [
+        { orgId: a.id, leadId: (await root.lead.findFirstOrThrow({ where: { orgId: a.id } })).id,
+          kind: "MOTIVATION", body: "A-fact", source: "AGENT" },
+        { orgId: b.id, leadId: (await root.lead.findFirstOrThrow({ where: { orgId: b.id } })).id,
+          kind: "MOTIVATION", body: "B-fact", source: "AGENT" },
+      ],
+    });
+
+    const factsFor = async (orgId: string) =>
+      (await forOrg(orgId).clientFact.findMany({ select: { body: true } })).map((f) => f.body);
+
+    check("A sees only its own facts", await factsFor(a.id), ["A-fact"]);
+    check("B sees only its own facts", await factsFor(b.id), ["B-fact"]);
+
+    await root.recommendation.create({
+      data: {
+        orgId: b.id, agentId: "someone",
+        leadId: (await root.lead.findFirstOrThrow({ where: { orgId: b.id } })).id,
+        action: "CALL", headline: "B-rec", reason: "test", priority: 0.5,
+      },
+    });
+    const recs = await forOrg(a.id).recommendation.findMany({ select: { headline: true } });
+    check("A sees none of B's recommendations", recs.map((r) => r.headline), []);
+  }
+
   console.log("\nA write cannot cross either:");
   const stolen = await forOrg(a.id).lead.updateMany({
     where: { phone: `${TAG}00003` },          // B's lead, from A's client
@@ -125,6 +164,8 @@ async function main() {
   console.log(`  ${ok ? "✓" : "✗"} A updating B's lead affected ${stolen.count} rows`);
   if (!ok) fails.push(`A wrote to ${stolen.count} of B's rows`);
 
+  // Facts and recommendations cascade with the organisation, so the two
+  // deletes below take everything this script made.
   await root.lead.deleteMany({ where: { phone: { startsWith: TAG } } });
   await root.organisation.deleteMany({ where: { slug: { startsWith: SLUG } } });
 

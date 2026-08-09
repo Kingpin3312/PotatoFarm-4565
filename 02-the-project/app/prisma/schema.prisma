@@ -61,6 +61,12 @@ model Organisation {
 
   memberships   Membership[]
   invitations   Invitation[]
+
+  // The intelligence layer. See the block at the foot of this file.
+  clientFacts     ClientFact[]
+  recommendations Recommendation[]
+  leadScores      LeadScoreEvent[]
+  aiActions       AiAction[]
   leads         Lead[]
   listings      Listing[]
   conversations Conversation[]
@@ -2641,4 +2647,349 @@ model FollowUp {
 
   @@index([orgId, agentId, dueAt, completedAt])
   @@index([orgId, dueAt, notifiedAt])
+}
+
+// ---------------------------------------------------------- intelligence
+//
+// Four models that turn a system of record into something that has an
+// opinion. Added together because they are one idea: the product should
+// know things about a client, form a view, recommend an action, and be
+// accountable for every one of those it took on its own.
+//
+// Everything here carries `orgId` and is picked up by rls.sql, which
+// discovers tenant tables from information_schema rather than a hand
+// list — so these are inside the tenant boundary the moment they exist.
+
+/// Something true about a person that no column has a place for.
+///
+/// The CRM captures budget, bedrooms and timeframe because those are
+/// fields. It has nowhere for "wife is expecting in March, wants to be
+/// in before then", "walked away from the last one over service
+/// charges", or "does not answer the phone, only WhatsApp". Those are
+/// the things an agent with twenty years actually trades on, and they
+/// lived in one free-text `notes` column that nothing could query and
+/// the assistant could not retrieve selectively.
+///
+/// **Structured enough to retrieve, free enough to be true.** A rigid
+/// schema for human circumstances is a schema that loses the important
+/// half. So: a typed kind for retrieval, and the agent's own words for
+/// content.
+model ClientFact {
+  id    String @id @default(cuid())
+  orgId String
+
+  /// Exactly one of these. A fact belongs to a person, and in this
+  /// product a person is a buyer, an owner, or somebody in an agent's
+  /// private book. Enforced by a check constraint in rls.sql, because
+  /// Prisma cannot express it and a fact belonging to nobody is
+  /// invisible everywhere and reachable from nothing.
+  leadId           String?
+  vendorId         String?
+  blackbookEntryId String?
+
+  kind ClientFactKind
+
+  /// The fact, in the words it arrived in. Never a paraphrase: "needs to
+  /// be in before the baby comes in March" is worth more to the next
+  /// conversation than "TIMELINE: 2026-03".
+  body String
+
+  /// Where it came from, so a person can judge it. An inference drawn
+  /// from behaviour is not the same as something the client said, and
+  /// presenting the two identically is how an agent repeats a "fact"
+  /// back to a client who never said it.
+  source ClientFactSource @default(AGENT)
+
+  /// Present when the assistant or an extraction produced it. Below the
+  /// confidence floor nothing is written at all — see extract.ts.
+  confidence Float?
+
+  /// The conversation, request or message it came out of. The audit
+  /// trail for "where did you get that".
+  originRequestId String?
+
+  /// Facts go stale. A budget from eighteen months ago is not a budget.
+  /// Nothing deletes on this automatically — it weights retrieval, so
+  /// an old fact is shown as old rather than silently dropped.
+  statedAt   DateTime  @default(now())
+  supersededAt DateTime?
+  /// Set when an agent says it is wrong. Kept rather than deleted: a
+  /// correction is itself information, and the audit log has DELETE
+  /// revoked for the same reason.
+  retractedAt DateTime?
+  retractedById String?
+
+  createdAt DateTime @default(now())
+
+  org Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, leadId, retractedAt])
+  @@index([orgId, vendorId, retractedAt])
+  @@index([orgId, blackbookEntryId, retractedAt])
+  @@index([orgId, kind])
+}
+
+enum ClientFactKind {
+  /// Why they are moving at all. The strongest predictor in the set.
+  MOTIVATION
+  /// What is stopping them. Named objections are answerable; unnamed
+  /// ones lose the deal quietly.
+  OBJECTION
+  /// Household, children, schools, pets. Decides area more often than
+  /// budget does.
+  CIRCUMSTANCE
+  /// Taste rather than requirement. High floor, sea view, quiet road.
+  PREFERENCE
+  /// How to reach them and when. An instruction, not a nicety.
+  COMMUNICATION
+  /// A date that matters to them — visa, lease end, school term, birth.
+  KEY_DATE
+  /// Something that suggests they are closer than they say.
+  BUYING_SIGNAL
+  /// The same, from an owner.
+  SELLING_SIGNAL
+  /// What went wrong last time, on a deal that did not complete.
+  LOSS_REASON
+  /// Anything else worth remembering.
+  OTHER
+}
+
+enum ClientFactSource {
+  /// The agent typed or said it.
+  AGENT
+  /// The client said it, in a conversation we hold.
+  CLIENT
+  /// Extracted by the assistant from a conversation.
+  EXTRACTED
+  /// Inferred from behaviour rather than stated by anybody. Held to a
+  /// higher bar before it is shown, and always labelled.
+  INFERRED
+}
+
+/// What the product thinks you should do next, and why.
+///
+/// The difference between a CRM and an assistant. A CRM shows you 400
+/// leads and lets you decide; this names one action per person and
+/// stands behind it.
+///
+/// **Computed in the jobs layer, never in a request.** Scoring the
+/// database on a page load is how an intelligence layer becomes the
+/// reason the product feels slow.
+model Recommendation {
+  id    String @id @default(cuid())
+  orgId String
+
+  /// Who should do it. Recommendations are personal — a manager seeing
+  /// every agent's suggested calls is a report, not an assistant.
+  agentId String
+
+  /// What it concerns. Exactly one, same rule as ClientFact.
+  leadId    String?
+  vendorId  String?
+  listingId String?
+  dealId    String?
+
+  action NextAction
+
+  /// One line, in the imperative, naming the person. "Call James about
+  /// the Marina Gate offer" — not "Follow up on opportunity #4471".
+  headline String
+
+  /// Why this, why now. Shown alongside, always. An instruction with no
+  /// reason is one an agent learns to ignore, and the reason is also
+  /// how they catch it being wrong.
+  reason String
+
+  /// 0–1. Drives ordering, and is deliberately not shown as a
+  /// percentage — a number to two decimal places invites an argument
+  /// about the second one.
+  priority Float
+
+  /// What is on the table, in fils. Ordering considers it; it is not
+  /// the only input, because the biggest number is often the least
+  /// likely.
+  valueFils BigInt?
+
+  /// What the assistant is permitted to do with this, under the
+  /// brokerage's autonomy setting. Held on the row rather than derived
+  /// at read time so that a change of setting cannot retroactively
+  /// authorise something already prepared.
+  autonomy AutonomyLevel @default(SUGGEST)
+
+  state RecommendationState @default(OPEN)
+
+  /// Set when an agent acted, dismissed it, or it expired. Dismissals
+  /// are the training signal that matters most — a recommendation
+  /// dismissed forty times is a rule that is wrong.
+  resolvedAt   DateTime?
+  resolvedById String?
+  /// Why it was dismissed, where the agent said. Optional, because
+  /// forcing a reason means getting a bad one.
+  dismissReason String?
+
+  /// Recomputed daily. A recommendation that outlives the state it was
+  /// drawn from is worse than none — "call James, he has gone quiet"
+  /// on the morning after James called is the thing that makes an
+  /// agent stop trusting it.
+  computedAt DateTime @default(now())
+  expiresAt  DateTime?
+
+  org Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  /// One open recommendation per subject per action. The sweep upserts
+  /// on this rather than accumulating a pile of near-duplicates.
+  @@unique([orgId, agentId, leadId, action])
+  @@index([orgId, agentId, state, priority])
+  @@index([orgId, state, computedAt])
+}
+
+enum NextAction {
+  CALL
+  SEND_PROPERTY
+  FOLLOW_UP
+  REQUEST_DOCUMENTS
+  PREPARE_CMA
+  BOOK_VIEWING
+  ASK_FOR_LISTING
+  REACTIVATE
+  INTRODUCE_FINANCE
+  NEGOTIATE
+  /// Chase an outcome that was never recorded. Unglamorous and the most
+  /// frequently correct answer in a real brokerage.
+  RECORD_OUTCOME
+}
+
+enum RecommendationState {
+  OPEN
+  /// The agent did it. Detected where the system can see it — a call
+  /// logged, a message sent, a viewing booked — rather than asking them
+  /// to tick a box.
+  ACTED
+  DISMISSED
+  /// The state it was drawn from changed, so it no longer applies.
+  STALE
+}
+
+/// How much the assistant may do without being asked.
+///
+/// Not a single switch. The existing kill switch is binary and stays
+/// exactly as it is — it is a brake and must remain one. This is the
+/// gearbox: it decides, per action, whether the product suggests,
+/// prepares, or acts.
+enum AutonomyLevel {
+  /// Say it should happen. The agent does it.
+  SUGGEST
+  /// Prepare it — a drafted message, a filled form — and wait.
+  DRAFT
+  /// Do it, but only after an explicit yes on this specific thing.
+  CONFIRM
+  /// Do it. Reserved for actions that are reversible and internal.
+  EXECUTE
+}
+
+/// A lead's score, over time.
+///
+/// `Lead.score` is a single nullable Int and nothing has ever written
+/// to it. Even once something does, one number cannot answer the
+/// question that makes scoring useful — *"his engagement has increased
+/// significantly over the last seven days"* — because a single column
+/// has no last seven days.
+///
+/// Append-only. Small rows, swept on the same schedule as the rest.
+model LeadScoreEvent {
+  id     String @id @default(cuid())
+  orgId  String
+  leadId String
+
+  /// 0–100. An integer on purpose: a score presented to a person to one
+  /// decimal place claims a precision this does not have.
+  score Int
+
+  /// The components, so a score can be explained rather than asserted.
+  /// A number an agent cannot interrogate is a number they overrule.
+  recency      Int
+  engagement   Int
+  intent       Int
+  budgetFit    Int
+  /// Free-form notes on what moved it, for the explanation line.
+  drivers      String[] @default([])
+
+  computedAt DateTime @default(now())
+
+  org Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, leadId, computedAt])
+  @@index([orgId, computedAt])
+}
+
+/// Everything the assistant did, and whether anybody said it could.
+///
+/// The existing `AuditLog` records what a *user* did. This records what
+/// the *product* did on its own, which is a different question and the
+/// one that decides whether a brokerage will ever turn autonomy up.
+///
+/// The rule it exists to serve: an agent must always be able to see what
+/// happened, why, what information was used, what changed, and how to
+/// undo it.
+model AiAction {
+  id    String @id @default(cuid())
+  orgId String
+
+  /// Whose behalf. Null for a scheduled sweep acting for the brokerage.
+  agentId String?
+
+  /// What was asked, verbatim, where there was a request. Null when the
+  /// product acted on its own initiative.
+  request String?
+  /// What it understood the request to be. The gap between these two is
+  /// where every misfire is visible.
+  interpretation String?
+
+  /// The recipe, job or rule responsible. Named so a bad pattern can be
+  /// found and switched off rather than hunted.
+  origin String
+
+  action NextAction?
+  /// What it touched.
+  entity   String?
+  entityId String?
+
+  /// Before and after, for the fields that changed. Enough to undo.
+  before Json?
+  after  Json?
+
+  autonomy AutonomyLevel
+  /// Null when none was needed — a SUGGEST never asks. Set to the user
+  /// who said yes for CONFIRM and above.
+  approvedById String?
+  approvedAt   DateTime?
+
+  outcome AiActionOutcome
+  /// Present on FAILED, and written for a person rather than a log
+  /// parser.
+  error String?
+
+  /// Set when somebody reversed it, so the record shows both.
+  undoneAt   DateTime?
+  undoneById String?
+
+  createdAt DateTime @default(now())
+
+  org Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, createdAt])
+  @@index([orgId, agentId, createdAt])
+  @@index([orgId, entity, entityId])
+}
+
+enum AiActionOutcome {
+  /// Prepared and waiting on a person.
+  PENDING
+  DONE
+  /// A person said no.
+  REJECTED
+  FAILED
+  /// The guardrails stopped it. Distinct from FAILED because it is the
+  /// system working, not breaking.
+  REFUSED
 }
