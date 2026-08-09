@@ -37,8 +37,8 @@ export async function timeline(args: {
     args.leadId
       ? db.message.findMany({
           where: { conversation: { leadId: args.leadId } },
-          orderBy: { createdAt: "desc" }, take,
-          select: { body: true, direction: true, createdAt: true },
+          orderBy: { sentAt: "desc" }, take,
+          select: { body: true, direction: true, sentAt: true },
         })
       : Promise.resolve([]),
     db.emailMessage.findMany({
@@ -60,7 +60,7 @@ export async function timeline(args: {
   const { aed } = await import("@/lib/money");
   const entries: Entry[] = [
     ...messages.map((m) => ({
-      at: m.createdAt,
+      at: m.sentAt,
       channel: "whatsapp" as const,
       direction: m.direction === "INBOUND" ? ("in" as const) : ("out" as const),
       summary: oneLine(m.body ?? ""),
@@ -96,12 +96,16 @@ export async function timeline(args: {
    * silence a normal WhatsApp message does not arrive and nothing tells
    * you.
    */
-  const lastInbound = messages.find((m) => m.direction === "INBOUND")?.createdAt ?? null;
+  const lastInbound = messages.find((m) => m.direction === "INBOUND")?.sentAt ?? null;
   const w = args.leadId ? messagingWindow(lastInbound) : null;
 
   return {
     entries,
-    replyWindow: w ? { open: w.open, hoursLeft: w.hoursLeft } : null,
+    // `hoursLeft` is null only in the case where there has never been an
+    // inbound message, and `open` is false alongside it. Zero is the
+    // honest number to show there — there is no window, not an unknown
+    // amount of one left.
+    replyWindow: w ? { open: w.open, hoursLeft: w.hoursLeft ?? 0 } : null,
   };
 }
 

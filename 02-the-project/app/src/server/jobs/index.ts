@@ -24,6 +24,8 @@ import { askAt } from "@/server/lib/feedback/collect";
 import { compose } from "@/server/lib/feedback/report";
 import { crossTenant } from "@/server/db/client";
 import { dispatch } from "@/server/lib/notify/dispatch";
+// Used in two jobs and never imported.
+import { log } from "@/lib/log";
 
 /**
  * Every scheduled job, in one place.
@@ -184,9 +186,16 @@ export const JOBS = {
     for (const l of soon) byOrg.set(l.orgId, [...(byOrg.get(l.orgId) ?? []), l]);
 
     for (const [orgId, listings] of byOrg) {
-      const earliest = listings
+      // `[0]` on a possibly-empty array is `undefined` under
+      // noUncheckedIndexedAccess. byOrg is only ever built from a
+      // non-empty list so this cannot fire, but the compiler cannot see
+      // that and skipping the notification is the right thing to do if it
+      // ever does.
+      const [earliest] = listings
         .map((l) => l.permitExpiresAt!)
-        .sort((a, b) => a.getTime() - b.getTime())[0];
+        .sort((a, b) => a.getTime() - b.getTime());
+      if (!earliest) continue;
+
       const days = Math.floor((earliest.getTime() - Date.now()) / 86_400_000);
 
       await dispatch({
@@ -293,7 +302,7 @@ export const JOBS = {
     const fresh = await crossTenant("sweep").listing.findMany({
       where: { status: "AVAILABLE", deletedAt: null, createdAt: { gte: since } },
       select: {
-        id: true, orgId: true, reference: true, title: true, price: true,
+        id: true, orgId: true, reference: true, title: true, priceFils: true,
         bedrooms: true, community: true, purpose: true, createdAt: true,
       },
     });
@@ -337,7 +346,13 @@ export const JOBS = {
           },
           listings.map((l) => ({
             id: l.id, reference: l.reference, title: l.title,
-            priceFils: l.price ? BigInt(Math.round(Number(l.price) * 100)) : null,
+            // Straight through. The column is `priceFils` and is already
+            // in fils — the previous line selected a `price` field that
+            // does not exist and then multiplied it by 100 to "convert"
+            // it, which is the hundred-times bug money.ts was written to
+            // end. Had the column existed, every match would have scored
+            // against a budget a hundred times too large.
+            priceFils: l.priceFils,
             bedrooms: l.bedrooms, community: l.community,
             purpose: l.purpose as "SALE" | "RENT", listedAt: l.createdAt,
           }))

@@ -27,7 +27,16 @@ import { crossTenant } from "@/server/db/client";
  * provider. The adapter and session model do not change.
  */
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  adapter: PrismaAdapter(rootDb),
+  /**
+   * `crossTenant("pre-tenant")`, not a bare `rootDb`.
+   *
+   * The adapter reads and writes User, Account and Session before any
+   * brokerage is known, so it genuinely cannot be tenant-scoped — which
+   * is exactly the case "pre-tenant" exists to name. The identifier used
+   * here was `rootDb`, which was never imported and would in any case
+   * have failed the bare-rootDb check in crm-audit.py.
+   */
+  adapter: PrismaAdapter(crossTenant("pre-tenant")),
 
   session: {
     /**

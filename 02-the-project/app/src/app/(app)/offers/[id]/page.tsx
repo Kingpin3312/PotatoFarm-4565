@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { use, useState } from "react";
 import { api } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { QueryError } from "@/components/ui/query-state";
@@ -17,9 +17,14 @@ import { cn } from "@/lib/cn";
  * because the history is what a vendor asks for and what an agent needs
  * when a commission is disputed six months on.
  */
-export default function OfferThread({ params }: { params: { id: string } }) {
+export default function OfferThread({ params }: { params: Promise<{ id: string }> }) {
+  // Next 15 hands `params` to a page as a Promise. This component is
+  // a client component, so `use()` is how it is unwrapped — reading
+  // `id` straight off it yields undefined, and the query
+  // below would have run against nothing.
+  const { id } = use(params);
   const { data, isLoading, isError, refetch } =
-    api.offers.onListing.useQuery({ listingId: params.id });
+    api.offers.onListing.useQuery({ listingId: id });
   const presented = api.offers.presented.useMutation({ onSuccess: () => void refetch() });
   const counter   = api.offers.counter.useMutation({ onSuccess: () => { setAmt(""); void refetch(); } });
   const accept    = api.offers.accept.useMutation({ onSuccess: () => void refetch() });

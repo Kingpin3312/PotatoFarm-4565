@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { router, orgProcedure, requirePermission } from "../trpc";
-import { calculate, shareForAgent, SplitError, , type Tier } from "@/server/lib/commission/calculate";
+import { calculate, shareForAgent, SplitError, type Tier } from "@/server/lib/commission/calculate";
 import { aed } from "@/lib/money";
 import { audit } from "@/server/lib/audit";
 

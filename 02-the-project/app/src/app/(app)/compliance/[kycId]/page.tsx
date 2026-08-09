@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { use, useState } from "react";
 import { api } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { QueryError } from "@/components/ui/query-state";
@@ -13,9 +13,14 @@ import { QueryError } from "@/components/ui/query-state";
  * report as often as why you did. So "no filing" is a first-class
  * button here, not a way of closing the screen.
  */
-export default function Screening({ params }: { params: { kycId: string } }) {
+export default function Screening({ params }: { params: Promise<{ kycId: string }> }) {
+  // Next 15 hands `params` to a page as a Promise. This component is
+  // a client component, so `use()` is how it is unwrapped — reading
+  // `kycId` straight off it yields undefined, and the query
+  // below would have run against nothing.
+  const { kycId } = use(params);
   const { data, isLoading, isError, refetch } =
-    api.aml.screeningDetail.useQuery({ kycId: params.kycId });
+    api.aml.screeningDetail.useQuery({ kycId: kycId });
   const file = api.aml.file.useMutation({ onSuccess: () => void refetch() });
 
   const [type, setType] = useState<"REAR"|"STR"|"SAR"|"CNMR"|"FFR"|"NO_FILING">("NO_FILING");
@@ -113,7 +118,7 @@ export default function Screening({ params }: { params: { kycId: string } }) {
 
       <Button variant="primary" full className="mt-8" loading={file.isPending} disabled={!ready}
         onClick={() => file.mutate({
-          type, kycId: params.kycId, rationale,
+          type, kycId: kycId, rationale,
           notFiledReason: noFiling ? notFiledReason : undefined,
           goamlRef: goamlRef || undefined,
         })}>

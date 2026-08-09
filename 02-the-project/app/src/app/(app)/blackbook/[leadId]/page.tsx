@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { use, useState } from "react";
 import { api } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { QueryError } from "@/components/ui/query-state";
@@ -14,9 +14,14 @@ import { cn } from "@/lib/cn";
  * the hard part is that they are different shapes, and interleaving
  * them raw produces a list nobody can read.
  */
-export default function Person({ params }: { params: { leadId: string } }) {
+export default function Person({ params }: { params: Promise<{ leadId: string }> }) {
+  // Next 15 hands `params` to a page as a Promise. This component is
+  // a client component, so `use()` is how it is unwrapped — reading
+  // `leadId` straight off it yields undefined, and the query
+  // below would have run against nothing.
+  const { leadId } = use(params);
   const { data, isLoading, isError, refetch } =
-    api.blackbook.person.useQuery({ leadId: params.leadId });
+    api.blackbook.person.useQuery({ leadId: leadId });
   const note = api.blackbook.note.useMutation();
   const [draft, setDraft] = useState("");
   const [editing, setEditing] = useState(false);
@@ -63,7 +68,7 @@ export default function Person({ params }: { params: { leadId: string } }) {
           <textarea id="pnote" rows={4} value={draft} onChange={(e) => setDraft(e.target.value)}
             className="w-full px-4 py-2.5 text-[16px] text-ink bg-sunk border border-rule rounded-lg focus-visible:outline-none focus-visible:shadow-[var(--ring)]" />
           <Button variant="primary" className="mt-3" loading={note.isPending}
-            onClick={() => note.mutate({ id: params.leadId, privateNote: draft },
+            onClick={() => note.mutate({ id: leadId, privateNote: draft },
                                        { onSuccess: () => setEditing(false) })}>
             Save
           </Button>

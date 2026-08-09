@@ -1,4 +1,4 @@
-import type { PortalAdapter, RawEnquiry } from "./types";
+import type { Adapter, RawEnquiry } from "./types";
 import { log } from "@/lib/log";
 import crypto from "node:crypto";
 
@@ -158,7 +158,7 @@ export function verifySignature(rawBody: string, header: string | null): boolean
   return crypto.timingSafeEqual(Buffer.from(given), Buffer.from(expected));
 }
 
-export const metaAdapter: PortalAdapter = {
+export const metaAdapter: Adapter = {
   key: "META_LEAD_ADS",
   label: "Facebook & Instagram",
   /**

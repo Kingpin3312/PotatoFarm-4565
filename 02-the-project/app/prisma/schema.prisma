@@ -226,6 +226,11 @@ model Lead {
   enquiries    Enquiry[]
   viewings     Viewing[]
   answers      Answer[]
+  /// Declared here and on Requirement. The foreign key column existed on
+  /// Requirement from the start but neither side ever named the relation,
+  /// so `include: { lead: … }` in the matching job typed `r.lead` as
+  /// `never` and every field read off it was an error.
+  requirements Requirement[]
 
   /// One lead per phone number per brokerage. The same person enquiring
   /// with two agencies is two leads; enquiring twice with one is one.
@@ -312,6 +317,22 @@ model Conversation {
   handoverAt      DateTime?
   handoverReason  String?
 
+  /// Per-conversation mute, and it is not the same thing as handover.
+  ///
+  /// Handover says a person has taken this one over. Mute says an agent
+  /// wants the assistant quiet on this thread specifically — usually
+  /// because a negotiation just got delicate — while the assistant keeps
+  /// working every other conversation in the brokerage.
+  ///
+  /// `controls.ts` reads this before every model call and deliberately
+  /// does not cache it, for the same reason the kill switch is not
+  /// cached. The columns were missing entirely: the router wrote all
+  /// three and the assistant read the first, against a model that had
+  /// none of them, so a documented safety control did not exist.
+  assistantMuted   Boolean   @default(false)
+  assistantMutedBy String?
+  assistantMutedAt DateTime?
+
   unreadCount Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -354,9 +375,23 @@ model Message {
   @@index([orgId, conversationId, sentAt])
 }
 
-enum Direction { INBOUND OUTBOUND }
-enum Author    { LEAD ASSISTANT AGENT SYSTEM }
-enum MessageStatus { PENDING SENT DELIVERED READ FAILED }
+enum Direction {
+  INBOUND
+  OUTBOUND
+}
+enum Author {
+  LEAD
+  ASSISTANT
+  AGENT
+  SYSTEM
+}
+enum MessageStatus {
+  PENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
 
 // ------------------------------------------------------------- channels
 
@@ -475,8 +510,18 @@ enum PublishState {
   FAILED      // transport failure, will retry
 }
 
-enum Purpose { SALE RENT }
-enum ListingStatus { DRAFT AVAILABLE UNDER_OFFER SOLD LET WITHDRAWN }
+enum Purpose {
+  SALE
+  RENT
+}
+enum ListingStatus {
+  DRAFT
+  AVAILABLE
+  UNDER_OFFER
+  SOLD
+  LET
+  WITHDRAWN
+}
 
 /// A lead asking about a specific listing. One lead can enquire on several
 /// properties; the join carries which channel it arrived through, which is
@@ -576,7 +621,13 @@ model WorkingHours {
   @@unique([orgId, dayOfWeek])
 }
 
-enum ViewingStatus { SCHEDULED CONFIRMED COMPLETED NO_SHOW CANCELLED }
+enum ViewingStatus {
+  SCHEDULED
+  CONFIRMED
+  COMPLETED
+  NO_SHOW
+  CANCELLED
+}
 
 // -------------------------------------------------------- qualification
 
@@ -616,7 +667,14 @@ model Question {
   @@unique([profileId, key])
 }
 
-enum QuestionType { TEXT NUMBER MONEY CHOICE DATE BOOLEAN }
+enum QuestionType {
+  TEXT
+  NUMBER
+  MONEY
+  CHOICE
+  DATE
+  BOOLEAN
+}
 
 model Answer {
   id         String   @id @default(cuid())
@@ -1032,7 +1090,13 @@ model Invoice {
   @@index([orgId, issuedAt])
 }
 
-enum InvoiceStatus { DRAFT OPEN PAID FAILED VOID }
+enum InvoiceStatus {
+  DRAFT
+  OPEN
+  PAID
+  FAILED
+  VOID
+}
 
 // ------------------------------------------------------------------ jobs
 
@@ -1054,7 +1118,12 @@ model JobRun {
   @@index([state, startedAt])
 }
 
-enum JobState { RUNNING SUCCEEDED FAILED SKIPPED }
+enum JobState {
+  RUNNING
+  SUCCEEDED
+  FAILED
+  SKIPPED
+}
 
 /// Every payment event we have processed, by the provider's event id.
 /// The idempotency key for webhooks — a provider that redelivers finds
@@ -1132,7 +1201,10 @@ model PushDevice {
   @@index([orgId])
 }
 
-enum DevicePlatform { IOS ANDROID }
+enum DevicePlatform {
+  IOS
+  ANDROID
+}
 
 // ---------------------------------------------------------------- money
 //
@@ -1200,8 +1272,18 @@ model Deal {
   @@index([orgId, expectedAt])
 }
 
-enum DealType { SALE RENTAL OFF_PLAN }
-enum DealSide { BUYER SELLER BOTH LANDLORD TENANT }
+enum DealType {
+  SALE
+  RENTAL
+  OFF_PLAN
+}
+enum DealSide {
+  BUYER
+  SELLER
+  BOTH
+  LANDLORD
+  TENANT
+}
 
 /// The stages after the handshake. This is where deals actually die, and
 /// where the pipeline used to simply stop at "Won".
@@ -1244,7 +1326,12 @@ model Commission {
   @@index([orgId, status])
 }
 
-enum CommissionStatus { FORECAST INVOICED RECEIVED WRITTEN_OFF }
+enum CommissionStatus {
+  FORECAST
+  INVOICED
+  RECEIVED
+  WRITTEN_OFF
+}
 
 /// Who gets what. Several rows per commission — listing agent, selling
 /// agent, referrer, and whatever the brokerage keeps.
@@ -1270,7 +1357,13 @@ model CommissionSplit {
   @@index([orgId, userId, paidAt])
 }
 
-enum SplitRole { LISTING_AGENT SELLING_AGENT REFERRER MANAGER BROKERAGE }
+enum SplitRole {
+  LISTING_AGENT
+  SELLING_AGENT
+  REFERRER
+  MANAGER
+  BROKERAGE
+}
 
 /// Per-agent commission terms. Tiered, because most brokerages here pay a
 /// rising share once an agent passes a threshold.
@@ -1336,10 +1429,31 @@ model KycRecord {
   @@index([orgId, reviewDueAt])
 }
 
-enum SubjectType { INDIVIDUAL COMPANY TRUST }
-enum IdDocType { PASSPORT EMIRATES_ID GCC_ID TRADE_LICENCE }
-enum RiskRating { UNASSESSED LOW MEDIUM HIGH }
-enum KycStatus { NOT_STARTED COLLECTING PENDING_REVIEW APPROVED REJECTED EXPIRED }
+enum SubjectType {
+  INDIVIDUAL
+  COMPANY
+  TRUST
+}
+enum IdDocType {
+  PASSPORT
+  EMIRATES_ID
+  GCC_ID
+  TRADE_LICENCE
+}
+enum RiskRating {
+  UNASSESSED
+  LOW
+  MEDIUM
+  HIGH
+}
+enum KycStatus {
+  NOT_STARTED
+  COLLECTING
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  EXPIRED
+}
 
 /// The natural person behind a corporate buyer. The whole point of the
 /// obligation — shell companies are the mechanism it exists to catch.
@@ -1399,13 +1513,23 @@ model Screening {
   clearedById String?
   clearedNote String?
 
-  kyc KycRecord               @relation(fields: [kycId], references: [id], onDelete: Cascade)
+  /// Optional on both sides, because `kycId` and `uboId` are both
+  /// optional scalars — a screening is of the subject or of a beneficial
+  /// owner. `kyc` was declared required against an optional `kycId`,
+  /// which Prisma rejects outright, and it is the reason nothing in this
+  /// schema had ever been generated.
+  kyc KycRecord?               @relation(fields: [kycId], references: [id], onDelete: Cascade)
   ubo UltimateBeneficialOwner? @relation(fields: [uboId], references: [id], onDelete: Cascade)
 
   @@index([orgId, result, screenedAt])
 }
 
-enum ScreeningResult { CLEAR POSSIBLE_MATCH CONFIRMED_MATCH ERROR }
+enum ScreeningResult {
+  CLEAR
+  POSSIBLE_MATCH
+  CONFIRMED_MATCH
+  ERROR
+}
 
 /// A filing, or a decision not to file. Both matter — an inspector asks
 /// why you did not report as often as why you did.
@@ -1445,7 +1569,11 @@ enum ReportType {
   NO_FILING
 }
 
-enum Financing { UNKNOWN CASH MORTGAGE }
+enum Financing {
+  UNKNOWN
+  CASH
+  MORTGAGE
+}
 
 /// One row per step in the transaction. A row rather than a status field
 /// because the useful questions are "when was this done, by whom, and
@@ -1522,6 +1650,8 @@ model Requirement {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
 
   @@index([orgId, active, expiresAt])
   @@index([orgId, leadId])
@@ -1673,7 +1803,13 @@ model Document {
   @@index([orgId, ownerType, ownerId])
 }
 
-enum DocumentOwner { LEAD LISTING DEAL USER ORGANISATION }
+enum DocumentOwner {
+  LEAD
+  LISTING
+  DEAL
+  USER
+  ORGANISATION
+}
 
 enum DocumentType {
   // Client
@@ -1725,7 +1861,13 @@ model TaskPlan {
   @@unique([orgId, name])
 }
 
-enum PlanAudience { BUYER SELLER LANDLORD TENANT PAST_CLIENT }
+enum PlanAudience {
+  BUYER
+  SELLER
+  LANDLORD
+  TENANT
+  PAST_CLIENT
+}
 
 model PlanStep {
   id     String @id @default(cuid())
@@ -2125,8 +2267,18 @@ model OfferResponse {
   @@index([orgId, offerId, at])
 }
 
-enum OfferParty { BUYER VENDOR AGENT }
-enum OfferResponseKind { COUNTER ACCEPT REJECT WITHDRAW QUERY }
+enum OfferParty {
+  BUYER
+  VENDOR
+  AGENT
+}
+enum OfferResponseKind {
+  COUNTER
+  ACCEPT
+  REJECT
+  WITHDRAW
+  QUERY
+}
 
 /// One billable conversation.
 ///
@@ -2238,7 +2390,10 @@ model EmailAccount {
   @@index([orgId, active])
 }
 
-enum EmailProvider { GOOGLE MICROSOFT }
+enum EmailProvider {
+  GOOGLE
+  MICROSOFT
+}
 
 /// One email, reduced to what a CRM actually needs.
 ///

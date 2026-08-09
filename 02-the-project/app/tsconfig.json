@@ -18,5 +18,11 @@
     "paths": { "@/*": ["./src/*"] }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules"]
+  // `mobile/` is a separate Expo project with its own package.json, its own
+  // dependencies and its own React version. Compiled by this config it
+  // produced 60 errors that were all the same error — react-native and
+  // expo-* are not installed here and never will be, and its `@/*` alias
+  // points at mobile/, not src/. It needs its own tsconfig; until it has
+  // one, `npm run typecheck` should be about the web app.
+  "exclude": ["node_modules", "mobile"]
 }
