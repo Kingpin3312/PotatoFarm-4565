@@ -2,6 +2,7 @@ import { leaderboard, managerWindow } from "@/server/lib/reporting/leaderboard";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { router, orgProcedure } from "../trpc";
+import { can } from "@/server/auth/rbac";
 import { crossTenant } from "@/server/db/client";
 
 /**
@@ -36,7 +37,9 @@ export const reportsRouter = router({
   leaderboard: orgProcedure
     .input(z.object({ from: z.date(), to: z.date() }))
     .query(async ({ ctx, input }) => {
-      const canSeeEveryone = ctx.permissions.includes("lead:read:all");
+      // The context carries the role; `can()` is how a permission is
+      // checked. There is no `ctx.permissions`.
+      const canSeeEveryone = can(ctx.role, "lead:read:all");
       const board = await leaderboard({
         orgId: ctx.orgId, userId: ctx.userId, from: input.from, to: input.to,
       });

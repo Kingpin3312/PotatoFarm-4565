@@ -153,8 +153,10 @@ export function summarise(issues: Issue[]) {
       .map(([kind, items]) => ({
         kind,
         count: items.length,
-        severity: items[0].severity,
-        suggestion: items[0].suggestion,
+        // A group only exists because something was pushed into it, so
+        // items[0] is always there — the compiler cannot see it.
+        severity: items[0]?.severity,
+        suggestion: items[0]?.suggestion,
         examples: items.slice(0, 3).map((i) => i.sourceRef).filter(Boolean),
       }))
       .sort((a, b) => b.count - a.count),

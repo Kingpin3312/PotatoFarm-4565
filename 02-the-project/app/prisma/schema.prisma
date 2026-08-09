@@ -282,6 +282,9 @@ enum LeadSource {
   BAYUT
   DUBIZZLE
   WEBSITE
+  /// Distinct from WHATSAPP_AD: that is a click-to-WhatsApp ad, this is
+  /// an instant lead form filled in without leaving Facebook or Instagram.
+  META_LEAD_ADS
   WHATSAPP_AD
   REFERRAL
   WALK_IN
@@ -424,6 +427,11 @@ enum ChannelType {
   BAYUT
   DUBIZZLE
   WEBSITE_FORM
+  /// Facebook and Instagram lead forms. The webhook, the adapter and the
+  /// PortalKey union all had this from the start; the enum never did, so
+  /// `/api/webhooks/meta` queried Channel with `"META_LEAD_ADS" as never`
+  /// and no such channel could be stored in the first place.
+  META_LEAD_ADS
 }
 
 // ------------------------------------------------------------- listings

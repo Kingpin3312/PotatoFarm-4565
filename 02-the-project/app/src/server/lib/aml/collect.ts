@@ -124,8 +124,13 @@ export function qualityMessage(issues: QualityIssue[]) {
     cropped: "part of it looks cut off",
     glare: "there's some glare across it",
   };
+  // `issues[0]` is optional under noUncheckedIndexedAccess, and an
+  // unrecognised code would index to undefined anyway. Falls back to a
+  // sentence that still makes sense rather than "Thanks — undefined".
+  const first = issues[0];
+  const why = (first && say[first]) ?? "it hasn't come through clearly";
   return (
-    `Thanks — ${say[issues[0]]}. Could you send it once more, flat on a surface ` +
+    `Thanks — ${why}. Could you send it once more, flat on a surface ` +
     `with the whole page in frame? Sorry to ask twice.`
   );
 }

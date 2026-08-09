@@ -1,4 +1,4 @@
-import type { Adapter, RawEnquiry } from "./types";
+import type { RawEnquiry } from "./types";
 import { log } from "@/lib/log";
 import crypto from "node:crypto";
 
@@ -158,7 +158,23 @@ export function verifySignature(rawBody: string, header: string | null): boolean
   return crypto.timingSafeEqual(Buffer.from(given), Buffer.from(expected));
 }
 
-export const metaAdapter: Adapter = {
+/**
+ * Meta is described, not adapted.
+ *
+ * This was typed as an `Adapter` and is not one. An Adapter has a
+ * `delivery` and a `parse` that turns one webhook body into enquiries,
+ * and Meta does not work that way: the webhook carries only a
+ * `leadgen_id`, and the lead itself has to be fetched back with the
+ * Page's token — which is what `fetchLead` above does. That is exactly
+ * why Meta has its own route at `/api/webhooks/meta` rather than going
+ * through `/api/webhooks/portals/[portal]`.
+ *
+ * So it is not registered in the adapter table either, and nothing
+ * imports this. Kept because the silence threshold is a real decision
+ * worth recording next to the code it describes, and typed honestly so
+ * the next reader does not go looking for a `parse` that cannot exist.
+ */
+export const metaChannel = {
   key: "META_LEAD_ADS",
   label: "Facebook & Instagram",
   /**
@@ -167,4 +183,4 @@ export const metaAdapter: Adapter = {
    * do not switch their ads off overnight.
    */
   silenceAfterHours: 24,
-};
+} as const;

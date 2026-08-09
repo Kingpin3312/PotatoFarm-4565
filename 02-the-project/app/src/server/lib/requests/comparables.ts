@@ -105,11 +105,26 @@ export async function comparables(args: {
         ? Math.round((d.completedAt.getTime() - d.listing.createdAt.getTime()) / 86_400_000)
         : null,
     })),
-    ...listings.map((l) => ({
-      source: "OWN_LISTING" as const,
-      building: l.building, beds: l.bedrooms, sqft: l.areaSqft,
-      priceFils: l.priceFils, soldAt: null, daysToSell: null,
-    })),
+    /**
+     * `flatMap` with a guard, not `map`.
+     *
+     * `building`, `bedrooms` and `priceFils` are all nullable columns and
+     * `Comparable` requires all three. The where clause happens to
+     * constrain the first two, but nothing constrained the price — and a
+     * comparable with no price contributes nothing to a range while still
+     * counting towards the "do we have enough evidence" threshold. That
+     * is the worst of both: it makes thin evidence look sufficient and
+     * then does not inform the answer.
+     */
+    ...listings.flatMap((l) =>
+      l.building !== null && l.bedrooms !== null && l.priceFils !== null
+        ? [{
+            source: "OWN_LISTING" as const,
+            building: l.building, beds: l.bedrooms, sqft: l.areaSqft,
+            priceFils: l.priceFils, soldAt: null, daysToSell: null,
+          }]
+        : []
+    ),
   ].sort((a, b) => (b.soldAt?.getTime() ?? 0) - (a.soldAt?.getTime() ?? 0));
 
   const sold = comps.filter((c) => c.source === "OWN_DEAL");

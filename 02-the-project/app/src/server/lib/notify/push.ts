@@ -66,9 +66,14 @@ export async function sendPush(userId: string, msg: {
   await Promise.all(
     tickets.map((t, i) => {
       if (t.status === "ok") return null;
+      // Expo returns one ticket per device in order, but a short reply
+      // would silently update the wrong row. Skipping is safer than
+      // marking somebody else's device dead.
+      const device = devices[i];
+      if (!device) return null;
       const fatal = t.details?.error === "DeviceNotRegistered";
       return crossTenant("sweep").pushDevice.update({
-        where: { id: devices[i].id },
+        where: { id: device.id },
         data: fatal
           ? { failedAt: new Date(), failReason: t.details?.error }
           : { failReason: t.details?.error ?? "unknown" },

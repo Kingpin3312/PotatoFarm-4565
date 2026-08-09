@@ -59,5 +59,9 @@ export function normaliseLanguage(input?: string) {
   const map: Record<string, string> = {
     arabic: "ar", english: "en", russian: "ru", hindi: "hi", urdu: "ur",
   };
-  return map[s] ?? s.split(/[-_]/)[0].slice(0, 2) || "en";
+  // `??` and `||` cannot be mixed without parentheses, and the two
+  // read differently here: an unmapped language should fall back to
+  // its first two letters, and only an empty result should become
+  // "en". Parenthesised to say that rather than leave it ambiguous.
+  return map[s] ?? (s.split(/[-_]/)[0]?.slice(0, 2) || "en");
 }

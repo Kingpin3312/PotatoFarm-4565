@@ -68,7 +68,10 @@ export async function classify(args: {
   const raw = await callModel(SYSTEM,
     [{ body: args.transcript.slice(0, 2000), direction: "INBOUND" }]);
 
-  const parsed = Result.safeParse(safeJson(raw));
+  // `callModel` returns a usage envelope, not a string. Passing the
+  // whole object to safeJson meant JSON.parse never saw the reply and
+  // every spoken request would have come back "Sorry — say that again?".
+  const parsed = Result.safeParse(safeJson(raw.text));
   if (!parsed.success) {
     // A malformed reply is UNCLEAR, not a crash and not a guess.
     return { recipe: "UNCLEAR", confidence: 0, entities: {},

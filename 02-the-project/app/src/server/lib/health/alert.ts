@@ -64,11 +64,30 @@ const RUNBOOKS: Record<string, string> = {
   database: "Platform. Check connection limits before anything else — a pool exhausted by a stuck job looks exactly like an outage.",
 };
 
+/**
+ * One alert, before it has been reconciled against what is already open.
+ *
+ * Named because `evaluate()` ends by calling `reconcileAlerts(found)` and
+ * `reconcileAlerts` typed its parameter as
+ * `Awaited<ReturnType<typeof evaluate>> extends infer T ? any : never` —
+ * a circular reference through the very function that calls it. TypeScript
+ * cannot resolve that, so `evaluate` had no inferable return type either
+ * and both errors were the same knot.
+ */
+export type AlertDraft = {
+  key: string;
+  orgId?: string;
+  severity: Severity;
+  title: string;
+  detail: string;
+  runbook?: string;
+};
+
 export async function evaluate() {
   const tenants = await allTenants();
   const jobs = await jobsHealth();
 
-  const found: { key: string; orgId?: string; severity: Severity; title: string; detail: string; runbook?: string }[] = [];
+  const found: AlertDraft[] = [];
 
   // Everything broken at once is not fifty tenant problems.
   const broken = tenants.filter((t) => t.state === "broken");
@@ -89,7 +108,10 @@ export async function evaluate() {
           severity: severityFor(c, "tenant"),
           title: `${t.name}: ${c.key}`,
           detail: c.detail,
-          runbook: RUNBOOKS[c.key.split(":")[0]] ?? c.action,
+          // The key is namespaced "area:detail"; the prefix picks the
+          // runbook. `[0]` is optional to the compiler even though split
+          // always yields one element.
+          runbook: RUNBOOKS[c.key.split(":")[0] ?? ""] ?? c.action,
         });
       }
     }
@@ -114,7 +136,7 @@ export async function evaluate() {
  * Open, update or close. The dedupe key is what stops a five-minute check
  * producing a five-minute alarm.
  */
-async function reconcileAlerts(found: Awaited<ReturnType<typeof evaluate>> extends infer T ? any : never) {
+async function reconcileAlerts(found: AlertDraft[]) {
   const seen = new Set<string>();
   let notified = 0;
 

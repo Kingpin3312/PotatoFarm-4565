@@ -1,6 +1,37 @@
+import { randomBytes } from "node:crypto";
 import { crossTenant } from "@/server/db/client";
 import { audit } from "@/server/lib/audit";
 import { log } from "@/lib/log";
+
+/**
+ * The organisation's URL-safe handle.
+ *
+ * `Organisation.slug` is required and unique, and nothing anywhere
+ * generated one — this is the only place an organisation is created, and
+ * it passed a name and no slug, so sign-up could never have inserted a
+ * row.
+ *
+ * A six-character suffix rather than a uniqueness loop. Two brokerages
+ * called "Marina Properties" is not a hypothetical in this market, and a
+ * read-then-insert loop is both a race and a way for one firm to discover
+ * another exists by watching which slug it was given.
+ */
+function slugFor(name: string) {
+  const base = name
+    .trim()
+    .toLowerCase()
+    .normalize("NFKD")
+    // Strip accents, then anything that is not a letter, digit or space.
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 40);
+
+  // An all-Arabic name strips to nothing, which is a real case here.
+  return `${base || "brokerage"}-${randomBytes(3).toString("hex")}`;
+}
 
 /**
  * Becoming a customer.
@@ -102,7 +133,7 @@ export async function signup(input: SignupInput): Promise<SignupResult> {
 
   const result = await db.$transaction(async (tx) => {
     const org = await tx.organisation.create({
-      data: { name: input.brokerageName.trim() },
+      data: { name: input.brokerageName.trim(), slug: slugFor(input.brokerageName) },
     });
 
     const user = existing

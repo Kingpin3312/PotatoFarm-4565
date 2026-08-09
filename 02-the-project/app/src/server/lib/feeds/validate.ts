@@ -20,7 +20,10 @@ const DUBAI_PERMIT = /^\d{5,12}$/;
 
 export function validateForPublish(
   listing: Listing & { descriptions?: Record<string, string> | null },
-  portal: { requiresPermit: boolean; languages: string[]; minPhotos: number },
+  // `readonly string[]`: the caller's rule table is a literal, so its
+  // arrays are readonly tuples. This function only reads them, and
+  // widening here is better than casting at both call sites.
+  portal: { requiresPermit: boolean; languages: readonly string[]; minPhotos: number },
   photoCount: number
 ): Problem[] {
   const p: Problem[] = [];

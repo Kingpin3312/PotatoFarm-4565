@@ -42,7 +42,10 @@ export const leadsRouter = router({
         cursor: input.cursor ? { id: input.cursor } : undefined,
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         select: {
-          id: true, name: true, phone: true, status: true, stage: true,
+          // `stageRef` is the relation; `stage` is nothing. The board
+          // needs the name, not just the id.
+          id: true, name: true, phone: true, status: true,
+          stageRef: { select: { id: true, name: true } },
           budgetMinFils: true, budgetMaxFils: true, intent: true, source: true,
           createdAt: true,
           assignedTo: { select: { id: true, name: true } },

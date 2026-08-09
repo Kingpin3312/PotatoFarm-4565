@@ -153,7 +153,7 @@ export async function eraseSubject(args: {
       data: {
         phone: `erased:${lead.id}`,
         name: null, email: null, notes: null,
-        budgetMin: null, budgetMax: null, timeframe: null, financing: null,
+        budgetMinFils: null, budgetMaxFils: null, timeframe: null, financing: null,
         utmSource: null, utmMedium: null, utmCampaign: null,
         deletedAt: new Date(),
       },
@@ -243,9 +243,12 @@ export async function retentionSweep(retentionDays = AML_RETENTION_YEARS * 365) 
   // nobody looking is how a customer who was mid-renewal loses four years
   // of data — this raises it for a person to action.
   if (orgs.length) {
+    // Second argument is the log context, not a message. The names go
+    // in the third, which is where the scrubber can see them.
     log.warn(
-      `[retention] ${orgs.length} organisation(s) past the 90-day window and awaiting manual removal:`,
-      orgs.map((o) => o.name).join(", ")
+      `[retention] ${orgs.length} organisation(s) past the 90-day window and awaiting manual removal`,
+      {},
+      { organisations: orgs.map((o) => o.name).join(", ") }
     );
   }
 

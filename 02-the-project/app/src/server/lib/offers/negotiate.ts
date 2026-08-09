@@ -30,6 +30,13 @@ export async function counter(args: {
   amountFils: bigint;
   note?: string;
   actorId: string;
+  /**
+   * When the counter lapses. Written to the offer below and never
+   * declared here, so the value was always `undefined` — an offer
+   * countered on Tuesday kept Tuesday's deadline, which is the exact
+   * "deal lost to a calendar" the line below says it prevents.
+   */
+  expiresAt?: Date | null;
 }) {
   const db = forOrg(args.orgId);
 
@@ -161,7 +168,9 @@ export async function accept(args: {
         // The listing reference, so a deal and a property are findable
         // by the same string an agent already says on the phone.
         reference: listing.reference,
-        type: listing.purpose === "RENT" ? "LETTING" : "SALE",
+        // DealType is SALE | RENTAL | OFF_PLAN. "LETTING" is the word
+        // the UK-English copy uses and is not a value of the enum.
+        type: listing.purpose === "RENT" ? "RENTAL" : "SALE",
         valueFils: agreedFils,
         stage: "AGREED",
         financing: offer.financing,

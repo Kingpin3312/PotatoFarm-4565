@@ -146,7 +146,7 @@ export function checkProposedDate(deal: {
     needed,
     message:
       `${available} working days for a process that typically takes ${needed}. ` +
-      `The long pole is "${worst.title}" at around ${worst.typicalDays} days. ` +
+      `The long pole is "${worst?.title ?? "the slowest step"}" at around ${worst?.typicalDays ?? needed} days. ` +
       `Push the date out before anyone signs.`,
   };
 }

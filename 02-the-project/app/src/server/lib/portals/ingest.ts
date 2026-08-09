@@ -9,6 +9,7 @@ const SOURCE: Record<PortalKey, Prisma.LeadCreateInput["source"]> = {
   BAYUT: "BAYUT",
   DUBIZZLE: "DUBIZZLE",
   WEBSITE_FORM: "WEBSITE",
+  META_LEAD_ADS: "META_LEAD_ADS",
 };
 
 /**

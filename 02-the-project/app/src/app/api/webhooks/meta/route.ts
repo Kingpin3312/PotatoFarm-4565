@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
       // the only thing in a Meta payload that maps to a tenant — there
       // is no org id anywhere in it.
       const channel = await crossTenant("global-key").channel.findFirst({
-        where: { type: "META_LEAD_ADS" as never, identifier: pageId, active: true },
+        where: { type: "META_LEAD_ADS", identifier: pageId, active: true },
         select: { id: true, orgId: true },
       });
       if (!channel) {
@@ -75,12 +75,9 @@ export async function POST(req: NextRequest) {
         const { accessToken: token } = await getChannelCredentials(channel.orgId, channel.id);
         const enquiry = await fetchLead(leagenIdSafe(leadgenId), token);
         if (enquiry) {
-          await ingestEnquiry({
-            orgId: channel.orgId,
-            channelId: channel.id,
-            portal: "META_LEAD_ADS",
-            enquiry,
-          });
+          // Four positional arguments, as the portal webhook already
+          // calls it. This passed a single object.
+          await ingestEnquiry(channel.orgId, channel.id, "META_LEAD_ADS", enquiry);
         }
       } catch (err) {
         if (err instanceof TokenExpired) {
@@ -134,7 +131,7 @@ const leagenIdSafe = (id: string) =>
  */
 async function raiseTokenIncident(orgId: string, pageId: string) {
   await crossTenant("global-key").channel.updateMany({
-    where: { orgId, identifier: pageId, type: "META_LEAD_ADS" as never },
+    where: { orgId, identifier: pageId, type: "META_LEAD_ADS" },
     data: {
       lastError:
         "Meta access token rejected. Leads are arriving and cannot be collected — " +
