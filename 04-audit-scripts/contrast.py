@@ -93,6 +93,49 @@ def resolve(v):
     if m: return tokens.get(m.group(1))
     return v if re.fullmatch(r'#[0-9a-fA-F]{3,6}', v) else None
 
+# ---------------------------------------------------------------------
+# Brand exceptions, recorded rather than removed.
+#
+# The owner has set the brand orange to #FF6600 and asked for it on
+# headings, on buttons and on the .io. On the cream ground that measures
+# 2.65:1, below the 4.5:1 AA floor for text and below the 3:1 floor for
+# large text. That is a decision taken with the number known, and the
+# number was put in front of them before it was made.
+#
+# Why this is an allow-list and not a deleted check:
+#
+#   * The guard stays live for everything else. Captions, body links and
+#     every small orange label were moved to #A84900 precisely because
+#     this check caught them — they were collateral, not the request.
+#   * `WORST` pins the measured value. If somebody later lightens the
+#     orange, or puts it on a lighter ground, the ratio drops below the
+#     recorded figure and this fails again. An exception that cannot
+#     detect its own drift is just a hole.
+#   * It prints on every run. Nobody inherits this quietly.
+#
+# To retire the exception: make orange type pass, then delete the entry.
+BRAND_EXCEPTIONS = {
+    "h1,h2,h3":      ("#FF6600", 2.65),
+    ".brand .tld":   ("#FF6600", 2.65),
+    # The hero. A class, so it overrides the element rule and had to be
+    # changed separately — it stayed ink while every other heading went
+    # orange, which is what a half-applied palette looks like.
+    ".display":      ("#FF6600", 2.65),
+}
+ALLOWED = []
+
+def excepted(name, fg, r):
+    """True when this is the recorded brand decision and no worse than it."""
+    hit = BRAND_EXCEPTIONS.get(name.strip())
+    if not hit: return False
+    want_fg, floor = hit
+    if fg.upper() != want_fg: return False
+    if r < floor - 0.01:
+        return False          # it got worse — that is not the decision
+    ALLOWED.append(f"{name}  {fg}  {r}:1  (brand decision)")
+    return True
+
+
 # Rules that set both. Semi-transparent and gradient values are skipped —
 # they cannot be measured without compositing, and guessing is worse
 # than saying nothing.
@@ -109,7 +152,7 @@ for rule in re.finditer(r'([^{}]+)\{([^{}]+)\}', css):
     # 3:1 is the floor for large text; anything at 4.5 or above is fine
     # for everything. Between the two is a warning, below 3 a failure.
     name = selector(sel)
-    if r < 3.0:
+    if r < 3.0 and not excepted(name, f, r):
         FAILS.append(f"{name}  {f} on {b}  {r}:1")
     elif r < 4.5:
         WARNS.append(f"{name}  {f} on {b}  {r}:1 — only large text")
@@ -173,13 +216,17 @@ if ground:
         f = resolve(fg.group(1))
         if not f: continue
         r = ratio(f, ground)
-        if r < 3.0:
-            name = selector(sel)
+        name = selector(sel)
+        if r < 3.0 and not excepted(name, f, r):
             FAILS.append(f"{name}  {f} on the page ground {ground}  {r}:1")
 
 
 if __name__ == "__main__":
     print(f"{pairs} resolvable background+colour pairs in {ROOT}\n")
+    if ALLOWED:
+        print(f"{'='*62}\n{len(ALLOWED)} BRAND EXCEPTION(S) — below AA on purpose\n{'='*62}")
+        for x in sorted(set(ALLOWED)): print(f"  ! {x}")
+        print()
     print(f"{'='*62}\n{len(FAILS)} FAILURE(S)\n{'='*62}")
     for x in FAILS: print(f"  x {x}")
     print(f"\n{'='*62}\n{len(WARNS)} WARNING(S)\n{'='*62}")

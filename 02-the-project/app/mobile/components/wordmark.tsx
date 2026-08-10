@@ -57,7 +57,8 @@ const s = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center" },
   mark: { marginRight: 9 },
   name: { color: t.ink, fontWeight: "600", letterSpacing: -0.2 },
-  /** Type, so it takes the deeper orange — 5.56:1. The fill orange is
-   *  3.12:1 and unreadable at this size. */
+  /** The .io takes the brand orange #FF6600, same as the fill now.
+   *  2.65:1 on the cream — a brand decision, made with the number
+   *  known rather than in spite of it. */
   tld: { color: t.tld, fontWeight: "500" },
 });

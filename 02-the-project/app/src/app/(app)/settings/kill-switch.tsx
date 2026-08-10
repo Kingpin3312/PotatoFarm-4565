@@ -92,7 +92,7 @@ export function KillSwitch() {
         className="border border-ink rounded-[3px] p-0 max-w-[460px] w-[calc(100%-40px)] bg-raised text-ink-2 backdrop:bg-ink/50"
       >
         <div className="p-6">
-          <h2 className="font-sans font-semibold -tracking-[0.024em] text-[24px] text-ink mb-2.5">Stop the assistant?</h2>
+          <h2 className="font-sans font-semibold -tracking-[0.024em] text-[24px] text-accent-type mb-2.5">Stop the assistant?</h2>
           <p className="text-[15px] mb-1.5">
             It stops replying to every conversation, immediately.
           </p>

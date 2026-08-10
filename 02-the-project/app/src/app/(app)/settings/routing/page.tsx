@@ -44,7 +44,7 @@ export default function Routing() {
         <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-3 block mb-3">
           Lead routing
         </span>
-        <h1 className="font-sans font-semibold text-[clamp(2rem,1.5rem+2vw,2.5rem)] text-ink -tracking-[0.026em] leading-none">
+        <h1 className="font-sans font-semibold text-[clamp(2rem,1.5rem+2vw,2.5rem)] text-accent-type -tracking-[0.026em] leading-none">
           {data?.current ? label(data.current) : "Not set"}
         </h1>
         <p className="text-sm text-ink-2 mt-3 max-w-[50ch]">
@@ -68,7 +68,7 @@ export default function Routing() {
           strategy without this finds out from four complaints. */}
       {preview.data && (
         <>
-          <h2 className="font-sans font-semibold text-[17px] text-ink mt-10 mb-1">
+          <h2 className="font-sans font-semibold text-[17px] text-accent-type mt-10 mb-1">
             Who would get the next one
           </h2>
           {/* `pool`, not `agents` — and every field here comes from what

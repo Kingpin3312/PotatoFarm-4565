@@ -23,6 +23,7 @@
   --color-surface: var(--accent);
   --color-on-surface: var(--on-accent);
   --color-active: var(--accent-type);
+  --color-accent-deep: var(--accent-deep);
 
   /**
    * The two that were missing, and they are the two the palette is most
@@ -39,8 +40,8 @@
    *     of colour in the product simply was not there.
    *
    *   `border-accent-edge` (29) the hairline on every orange fill. That
-   *     is not decoration: tokens.css sets out that Hermes orange is
-   *     3.12:1 on the ground and 2.9:1 on the panel, so the same button
+   *     is not decoration: tokens.css sets out that #FF6600 is
+   *     2.65:1 on the ground and 2.44:1 on the panel, so the same button
    *     passes on one surface and fails on the other, and the darker
    *     edge is what defines the boundary regardless of what is behind
    *     it. Without it every orange button failed contrast on a panel.

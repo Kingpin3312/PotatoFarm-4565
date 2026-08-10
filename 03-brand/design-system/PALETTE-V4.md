@@ -14,9 +14,9 @@
 > | | This document | **Shipped** |
 > |---|---|---|
 > | ground | `#FDFBF7` | **`#F4F3F0`** |
-> | accent | `#E86A17` | **`#E87A2E`** |
-> | accent-type | `#A84A16` | **`#A84900`** |
-> | accent-edge | `#B8500F` | **`#C4621D`** |
+> | accent | `#FF6600` | **`#FF6600`** |
+> | accent-type | `#A84A16` | **`#FF6600`** |
+> | accent-edge | `#B8500F` | **`#E55C00`** |
 >
 > A stale fourth copy of the palette used to sit beside this file as
 > `tokens.css`, carrying ground `#F8F7F4` and accent `#FF6E00` — a
@@ -39,28 +39,37 @@ The ground is warm by about 2%, and that 2% is the whole effect. The
 near-black has brown in it for the same reason: a neutral grey next to
 orange looks like a spreadsheet.
 
-## One accent, two steps
+## One accent, and a deeper step for small type
 
-The Hermès-family orange measures **3.12:1** on the ground. Enough for a
-fill, nowhere near enough for type. So there are two, and merging them is
-the single easiest way to ship something unreadable:
+The brand orange is **#FF6600**, by owner decision, on every heading,
+every button and every `.io`. It measures **2.65:1** on the ground —
+below the 4.5:1 AA floor for text and below the 3:1 floor for large
+text. That is the cost, stated rather than buried.
 
-    --accent       fills only
-    --accent-type  every word. 5.56:1 on ground, 5.15:1 on panel
-    --accent-edge  the hairline on a fill
+    --accent       fills, and the brand colour itself
+    --accent-type  headings, buttons, .io — the same #FF6600
+    --accent-edge  #CC5200, the hairline on every fill
+    --accent-deep  #A84900 at 5.23:1 — captions and body links only
 
-**Three rules fell out of measurement rather than taste:**
+There used to be two oranges on the rule that a fill and a word need
+different contrast. The brand decision merged them; `--accent-deep`
+survives because the decision was about **headings**, and applying it to
+a 13px caption as well would have been collateral rather than compliance.
 
-**Labels on orange are ink, never white.** White measures 3.23:1 and
-fails; ink is 5.42:1. An orange button with near-black type is also the
-more Hermès answer, so the measurement and the reference agreed — which
-does not always happen.
+**Three rules keep it usable, and all three came from measurement:**
 
-**Every fill carries an edge.** The orange is 3.12:1 on the ground and
-**2.9:1 on the cream panel** — the same button passing on one surface
-and failing on the other. Rather than forbid orange on panels or lighten
-the panel until it works, the hairline defines the boundary regardless
-of what is behind it.
+**Labels on orange are ink, never white.** White measures 2.94:1 and
+fails; ink is **5.93:1** and passes. An orange button with near-black
+type is also the more Hermès answer, so the measurement and the
+reference agreed — which does not always happen.
+
+**Every fill carries an edge.** The orange is 2.65:1 on the ground and
+**2.44:1 on the cream panel** — failing on both, harder on one. The
+hairline is what defines the boundary regardless of what is behind it,
+and with the brand orange it is load-bearing rather than a nicety.
+
+**On leather it passes.** #FF6600 measures **4.63:1** on the dark
+surface, the one place the brand colour is both correct and legible.
 
 **Hot is the only thing wearing the accent.** With one orange, every
 other lead state is deliberately neutral. That is a stronger signal than

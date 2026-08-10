@@ -36,7 +36,7 @@ export default function Me() {
         <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-3 block mb-3">
           Last 30 days
         </span>
-        <h1 className="font-sans font-semibold text-[clamp(2rem,1.5rem+2vw,2.75rem)] text-ink -tracking-[0.026em] leading-none">
+        <h1 className="font-sans font-semibold text-[clamp(2rem,1.5rem+2vw,2.75rem)] text-accent-type -tracking-[0.026em] leading-none">
           Yours.
         </h1>
         {/* Stated plainly. An agent who suspects their manager is
@@ -56,7 +56,7 @@ export default function Me() {
 
       {me && (
         <>
-          <h2 className="font-sans font-semibold text-[22px] text-ink -tracking-[0.02em] mt-12 mb-1">
+          <h2 className="font-sans font-semibold text-[22px] text-accent-type -tracking-[0.02em] mt-12 mb-1">
             Where you are
           </h2>
           <p className="text-sm text-ink-3 max-w-[52ch]">
@@ -78,7 +78,7 @@ export default function Me() {
 
       {board && board.mode !== "PRIVATE" && (
         <>
-          <h2 className="font-sans font-semibold text-[22px] text-ink -tracking-[0.02em] mt-12 mb-4">
+          <h2 className="font-sans font-semibold text-[22px] text-accent-type -tracking-[0.02em] mt-12 mb-4">
             The board
           </h2>
           <div className="border-t border-ink">

@@ -36,7 +36,7 @@ export default function Today() {
   return (
     <div className="mx-auto max-w-[680px] px-6 pb-28">
       <header className="pt-10 pb-6">
-        <h1 className="font-sans text-[clamp(2rem,1.5rem+2vw,2.5rem)] font-semibold leading-none -tracking-[0.026em] text-ink">
+        <h1 className="font-sans text-[clamp(2rem,1.5rem+2vw,2.5rem)] font-semibold leading-none -tracking-[0.026em] text-accent-type">
           {/* "day" while it loads, not a guess at "morning". It is
               correct English at any hour, so the one-word settle when
               the query lands is a refinement rather than a correction —

@@ -22,7 +22,7 @@ export default function NewVendor() {
   if (create.isSuccess) {
     return (
       <div className="max-w-[560px] mx-auto px-6 py-20">
-        <h1 className="font-sans font-semibold text-[30px] text-ink -tracking-[0.026em]">Added.</h1>
+        <h1 className="font-sans font-semibold text-[30px] text-accent-type -tracking-[0.026em]">Added.</h1>
         <p className="text-[17px] text-ink-2 mt-3">Attach them to a listing next.</p>
         <a href="/listings" className="btn-inline mt-6 inline-block">Listings</a>
       </div>
@@ -40,7 +40,7 @@ export default function NewVendor() {
   return (
     <div className="max-w-[560px] mx-auto px-6 pb-24">
       <header className="pt-10 pb-6">
-        <h1 className="font-sans font-semibold text-[clamp(2rem,1.5rem+2vw,2.5rem)] text-ink -tracking-[0.026em] leading-none">
+        <h1 className="font-sans font-semibold text-[clamp(2rem,1.5rem+2vw,2.5rem)] text-accent-type -tracking-[0.026em] leading-none">
           Add an owner
         </h1>
       </header>

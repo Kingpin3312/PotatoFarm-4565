@@ -35,7 +35,7 @@ export default function Reports() {
         <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-3 block mb-3">
           Response time
         </span>
-        <h1 className="font-sans font-semibold text-[clamp(2rem,1.5rem+2vw,2.5rem)] text-ink -tracking-[0.026em] leading-none">
+        <h1 className="font-sans font-semibold text-[clamp(2rem,1.5rem+2vw,2.5rem)] text-accent-type -tracking-[0.026em] leading-none">
           {data?.baseline
             ? `${fmt(data.baseline.medianMins)} → ${fmt(data.current.medianMins)}`
             : fmt(data?.current.medianMins ?? 0)}
@@ -73,7 +73,7 @@ export default function Reports() {
       {/* Hour by hour. The point of this chart is the shape after six in
           the evening, which is where most brokerages discover their
           problem. */}
-      <h2 className="font-sans font-semibold text-[19px] text-ink -tracking-[0.02em] mb-1">
+      <h2 className="font-sans font-semibold text-[19px] text-accent-type -tracking-[0.02em] mb-1">
         By hour of day
       </h2>
       <p className="text-sm text-ink-2 mb-4 max-w-[48ch]">
@@ -106,7 +106,7 @@ export default function Reports() {
         ))}
       </div>
 
-      <h2 className="font-sans font-semibold text-[19px] text-ink -tracking-[0.02em] mt-12 mb-3">
+      <h2 className="font-sans font-semibold text-[19px] text-accent-type -tracking-[0.02em] mt-12 mb-3">
         Where they come from
       </h2>
       <div className="border-t border-ink">

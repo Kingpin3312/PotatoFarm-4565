@@ -148,7 +148,7 @@ function State({ state }: { state: string }) {
     <span
       className={cn(
         "font-mono text-[10px] uppercase tracking-[0.1em] w-14 shrink-0",
-        state === "DONE" ? "text-ink" : state === "REFUSED" ? "text-accent-type" : "text-ink-3"
+        state === "DONE" ? "text-ink" : state === "REFUSED" ? "text-accent-deep" : "text-ink-3"
       )}
     >
       {label}

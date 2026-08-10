@@ -30,7 +30,7 @@ export default function Deals() {
   return (
     <div className="mx-auto max-w-[760px] px-6 pb-28">
       <header className="pt-10 pb-6">
-        <h1 className="font-sans text-[clamp(2rem,1.5rem+2vw,2.5rem)] font-semibold leading-none -tracking-[0.026em] text-ink">
+        <h1 className="font-sans text-[clamp(2rem,1.5rem+2vw,2.5rem)] font-semibold leading-none -tracking-[0.026em] text-accent-type">
           Deals
         </h1>
         {data && data.counts.total > 0 && (
@@ -111,7 +111,7 @@ function Level({ level }: { level: "HEALTHY" | "WATCH" | "AT_RISK" }) {
     <span
       className={cn(
         "w-20 shrink-0 font-mono text-[10px] uppercase tracking-[0.1em]",
-        level === "AT_RISK" ? "text-accent-type" : level === "WATCH" ? "text-ink" : "text-ink-3"
+        level === "AT_RISK" ? "text-accent-deep" : level === "WATCH" ? "text-ink" : "text-ink-3"
       )}
     >
       {label}
@@ -182,7 +182,7 @@ function Detail({ id }: { id: string }) {
                     { day: "numeric", month: "short" })}
                 </span>
                 {s.blockedReason && (
-                  <span className="mt-1 block max-w-[44ch] text-sm leading-snug text-accent-type">
+                  <span className="mt-1 block max-w-[44ch] text-sm leading-snug text-accent-deep">
                     Blocked: {s.blockedReason}
                   </span>
                 )}

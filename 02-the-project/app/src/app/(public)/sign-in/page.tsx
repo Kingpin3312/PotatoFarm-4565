@@ -50,7 +50,7 @@ function SignInForm() {
 
   return (
     <main id="main" className="max-w-[46ch] mx-auto px-6 py-16">
-      <h1 className="font-sans font-semibold text-[32px] text-ink -tracking-[0.026em] leading-tight">
+      <h1 className="font-sans font-semibold text-[32px] text-accent-type -tracking-[0.026em] leading-tight">
         Sign in.
       </h1>
       <p className="text-[17px] text-ink-2 mt-3">
@@ -115,7 +115,7 @@ function SignInForm() {
 
       <p className="text-[15px] text-ink-2 mt-10">
         No account yet?{" "}
-        <a href="/signup" className="text-accent-type underline">
+        <a href="/signup" className="text-accent-deep underline">
           Start a trial
         </a>
         .

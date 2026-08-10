@@ -108,7 +108,7 @@ export default function Invite({ searchParams }: {
 function Shell({ title, children }: { title: string; children?: React.ReactNode }) {
   return (
     <main className="max-w-[46ch] mx-auto px-6 py-24">
-      <h1 className="font-sans font-semibold text-[32px] text-ink -tracking-[0.026em] leading-tight">
+      <h1 className="font-sans font-semibold text-[32px] text-accent-type -tracking-[0.026em] leading-tight">
         {title}
       </h1>
       <div className="mt-4">{children}</div>

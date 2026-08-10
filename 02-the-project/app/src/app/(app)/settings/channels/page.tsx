@@ -28,7 +28,7 @@ export default function Channels() {
         <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-3 block mb-3">
           Channels
         </span>
-        <h1 className="font-sans font-semibold text-[clamp(2rem,1.5rem+2vw,2.5rem)] text-ink -tracking-[0.026em] leading-none">
+        <h1 className="font-sans font-semibold text-[clamp(2rem,1.5rem+2vw,2.5rem)] text-accent-type -tracking-[0.026em] leading-none">
           {quiet.length === 0 ? "All connected." : `${quiet.length} gone quiet.`}
         </h1>
         <p className="text-sm text-ink-2 mt-3 max-w-[48ch]">

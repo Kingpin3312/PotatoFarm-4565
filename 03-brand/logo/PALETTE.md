@@ -1,79 +1,68 @@
 # The orange
 
-**`#FF6E00`.** Hue 26°, fully saturated — which is why every derived step
-comes down in **lightness** rather than chroma. Desaturating would have
-given six different oranges; this gives one colour at six weights.
+**`#FF6600`.** One colour, set by the owner. It goes on **every heading,
+every button and every `.io`**, and the mark is built from it.
 
-| Role | Hex | On off-white | Why it exists |
-|---|---|---|---|
-| Gradient high | `#FF9C52` | 1.94:1 | The lit core of the mark. Also the accent on a charcoal ground, where it measures **8.39:1** |
-| Gradient core | `#FF8529` | 2.27:1 | |
-| **Brand / fill** | **`#FF6E00`** | **2.62:1** | The logo, and every orange fill |
-| Rim / edge | `#CC5800` | 3.95:1 | The mark's outline, and the border on every fill |
-| Type | `#A84900` | 5.42:1 | The `.io`, prices, accent figures |
-| Eye | `#703000` | 9.28:1 | |
+Before this, the palette carried two oranges — a fill at `#E87A2E` and a
+darker type step at `#A84900` — on the rule that a fill and a word need
+different contrast. That rule was replaced by a brand decision. This
+document records what the decision costs, because the previous version
+of this file described a `#FF6E00` family that existed in no asset
+anywhere, and a palette document nobody can trust is worse than none.
 
-## The one rule that matters
+Every figure below was measured, not estimated.
 
-**`#FF6E00` is never type.** It measures **2.62:1** on off-white — below
-even the 3:1 that a non-text component needs, let alone the 4.5:1 for
-text.
+| Role | Hex | On ground `#F4F3F0` | On leather `#2E2E2E` | Where |
+|---|---|---|---|---|
+| Gradient high | `#FF8533` | 2.19:1 | 5.60:1 | The lit core of the mark |
+| **Brand** | **`#FF6600`** | **2.65:1** | **4.63:1** | Headings, buttons, `.io`, the mark |
+| Gradient shade | `#E55C00` | 3.23:1 | 3.79:1 | The mark's lower body, hover states |
+| Edge | `#CC5200` | 3.96:1 | 3.09:1 | The hairline on every orange fill |
+| Deep | `#A84900` | 5.23:1 | — | Captions and body links **only** |
+| Eye | `#8A4310` | 6.55:1 | — | The mark's eyes and drop shadow |
 
-That is fine for the logo: WCAG exempts brand marks, and the mark is the
-one place the pure brand colour appears untouched.
+## What this costs, plainly
 
-Everywhere else:
+`#FF6600` as **text** on the cream ground is **2.65:1**. WCAG AA asks
+4.5:1 for normal text and 3:1 for large. It clears neither.
 
-- **A fill carries `#CC5800` as a 1px rim.** The fill itself does not
-  clear 3:1 against the page, so the border is what makes the button's
-  edge discernible. It is not decoration and it is not optional.
-- **A label on orange is charcoal, never white.** White measures 2.81:1
-  and fails; charcoal is **6.2:1**.
-- **Orange text uses `#A84900`.** Same hue, 5.42:1.
+That is a decision, not an oversight, and it is taken with the number in
+front of us. What it means in practice: a person with reduced vision, or
+anybody reading a phone in Dubai sunlight, will find orange type harder
+than the near-black it replaced.
 
-## Where it is
+## The four rules that keep it usable
 
-25 files. The website, both design surfaces, the CRM shell, the mobile
-theme, and every logo asset — SVG masters and rendered PNGs at 16, 32,
-48, 180, 192, 512 and 1024.
+- **A label on orange is ink, never white.** `#1A1A1A` on `#FF6600` is
+  **5.93:1** and passes. White is **2.94:1** and does not. Every button
+  in the product takes `--on-accent`, which is ink.
+- **Every orange fill carries a `#CC5200` hairline.** The fill is 2.65:1
+  against the page, so the border is what makes the button's edge
+  discernible. Not decoration, not optional.
+- **Small orange type uses `--accent-deep` (`#A84900`, 5.23:1).**
+  Captions, body links and the ten-pixel state labels in the interface.
+  A 40px heading somebody scans and a 13px caption somebody reads word by
+  word are not the same problem, and the brand decision was about
+  headings.
+- **Orange is never the only signal for a state.** Every place colour
+  carries meaning also carries a word.
 
-`contrast.py` fails the build if `#FF6E00` is ever used as `color:`.
+## On the dark surface it passes
 
----
+`#FF6600` measures **4.63:1** on leather, which clears AA. The inverted
+sections are the one place the brand colour is both correct and legible,
+and worth using more if the palette is ever revisited.
 
-## Hierarchy is one hex
+## Where it lives
 
-**Every heading, title, price and button label is `#1A1A1A`.**
+One source per surface, four surfaces: `app/src/styles/tokens.css`,
+`website/assets/site.css`, and inline in each of the two design-system
+pages. `consistency.py` compares the hexes across all four and fails the
+build when one drifts.
 
-Buttons already were — `--on-accent` resolves to the same value as
-`--ink`, which is why a charcoal label on orange and a charcoal heading
-on off-white are the same colour under two names.
-
-Twelve things were not. Seven were hierarchy wearing an accent — the
-`$70` display, the pricing column, the step numerals, a running total, a
-hover heading. All now ink.
-
-### The rule underneath it
-
-**Colour carries state, not hierarchy.**
-
-Hierarchy is size, weight and space. If a heading needs colour to be
-read as a heading, the type scale is not doing its job and adding hue
-hides that rather than fixing it.
-
-State is different. Take the colour off a green delta or an amber
-allowance figure and you have removed the meaning, not the decoration.
-
-So four things stay coloured, and they are named so an exception is a
-decision rather than a miss:
-
-| | | |
-|---|---|---|
-| `.delta` `.stat .d` | green | performance up on last month |
-| `.allow-pct` | amber | near the conversation allowance |
-| `.tight` | orange | the gap between two viewings is tight |
-| `.tabs a.on` | orange | which tab is selected |
-
-`consistency.py` fails the build on any heading-shaped rule wearing an
-accent colour, with those four exempted by name. Verified by reverting
-one and confirming it is caught.
+`contrast.py` still measures every colour pair. The three brand
+exceptions — `h1,h2,h3`, `.display` and `.brand .tld` — are listed by
+name in `BRAND_EXCEPTIONS` with their measured value, printed on every
+run, and **the check fails again if the ratio ever drops below the
+recorded 2.65:1**. An exception that cannot detect its own drift is a
+hole, not an exception.

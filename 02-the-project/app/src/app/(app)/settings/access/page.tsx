@@ -37,7 +37,7 @@ export default function Access() {
         <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-3 block mb-3">
           Support access
         </span>
-        <h1 className="font-sans font-semibold text-[clamp(2rem,1.5rem+2vw,2.5rem)] text-ink -tracking-[0.026em] leading-none">
+        <h1 className="font-sans font-semibold text-[clamp(2rem,1.5rem+2vw,2.5rem)] text-accent-type -tracking-[0.026em] leading-none">
           {live.length === 0 ? "Nobody has access." : `${live.length} active`}
         </h1>
         <p className="text-sm text-ink-2 mt-3 max-w-[50ch]">
@@ -53,7 +53,7 @@ export default function Access() {
             <div key={g.id} className="py-4 border-b border-rule">
               <div className="flex items-baseline gap-3 flex-wrap">
                 <span className="text-[16px] text-ink font-semibold">{g.staffEmail}</span>
-                <span className="font-mono text-[11px] text-accent-type uppercase tracking-[0.1em]">
+                <span className="font-mono text-[11px] text-accent-deep uppercase tracking-[0.1em]">
                   {g.hoursLeft}h left
                 </span>
                 <Button variant="secondary" className="ml-auto"
@@ -71,7 +71,7 @@ export default function Access() {
         </div>
       )}
 
-      <h2 className="font-sans font-semibold text-[17px] text-ink mb-3">Grant access</h2>
+      <h2 className="font-sans font-semibold text-[17px] text-accent-type mb-3">Grant access</h2>
       <div className="space-y-4">
         <div>
           <label htmlFor="semail" className="block font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3 mb-2">
@@ -108,7 +108,7 @@ export default function Access() {
 
       {grants.filter((g) => !g.active).length > 0 && (
         <>
-          <h2 className="font-sans font-semibold text-[17px] text-ink mt-12 mb-3">Past grants</h2>
+          <h2 className="font-sans font-semibold text-[17px] text-accent-type mt-12 mb-3">Past grants</h2>
           <div className="border-t border-rule">
             {grants.filter((g) => !g.active).slice(0, 10).map((g) => (
               <div key={g.id} className="flex items-baseline gap-3 py-3 border-b border-rule">

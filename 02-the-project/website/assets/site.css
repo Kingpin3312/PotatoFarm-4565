@@ -35,22 +35,36 @@
   /* ---- Orange ------------------------------------------------------
      Two, and they are not interchangeable.
 
-     `--accent` is Claude orange and it is a **fill only**. It measures
-     3.12:1 on the ground — enough for a non-text component, nowhere
-     near enough for type.
-
-     `--accent-type` carries every word. Same hue, deeper, 5.27:1.
+     One orange: #FF6600. Measured on the cream ground: 2.65:1 —
+     below the 4.5:1 AA floor for text, so orange type is a brand
+     decision taken with the number known. Ink on the orange fill is
+     5.93:1; white on it is 2.94:1 and is never used.
 
      Getting this backwards is the mistake, and it is the fifth time in
      this project a warm colour has looked right and measured wrong. */
-  --accent:      #E87A2E;   /* Hermes orange. Fill only: 3.12:1 on ground */
-  --accent-type: #A84900;   /* type: 5.56:1 on ground, 5.15:1 on panel */
-  --accent-hover:#C4621D;
+  --accent:      #FF6600;   /* the brand orange. 2.65:1 on ground */
+  --accent-type: #FF6600;   /* headings, buttons and .io */
+  --accent-hover:#E55C00;
+
+  /**
+   * The legible orange, for small type only.
+   *
+   * The brand orange is #FF6600 and it goes on headings, buttons and the
+   * .io by decision. It measures 2.65:1, which is fine for a 40px
+   * heading somebody is not reading word by word and wrong for a caption
+   * or a link in a paragraph. Those keep a darker step at 5.23:1.
+   *
+   * This is not a second brand colour. It is the same instruction
+   * applied honestly: what was asked for is orange, and what was not
+   * asked for stays readable.
+   */
+  --accent-deep: #A84900;   /* 5.23:1 on ground — captions, body links */
+
 
   /**
    * The border on every orange fill, and it is not decoration.
    *
-   * Hermes orange measures 3.12:1 on the ground and **2.9:1 on the
+   * The brand orange measures 2.65:1 on the ground and **2.44:1 on the
    * cream panel** — the same button passes on one surface and fails on
    * the other. Rather than forbid orange on panels, or lighten the
    * panel until it works, the fill carries a darker hairline. The edge
@@ -58,10 +72,10 @@
    *
    * Same fix as the saffron button two palettes ago, same reason.
    */
-  --accent-edge: #C4621D;   /* 4.38:1 on panel — defines the boundary */
+  --accent-edge: #CC5200;   /* 3.65:1 on panel — defines the boundary */
 
   /* **Labels on the orange fill are ink, never white.**
-     White on Hermes orange is 3.23:1 and fails. Ink is 5.42:1 and
+     White on the brand orange is 2.94:1 and fails. Ink is 5.93:1 and
      passes — and an orange button with near-black type is also the more
      Hermes answer. The measurement and the reference agreed, which does
      not always happen. */
@@ -82,7 +96,12 @@
 
   --success:      #1F7A4C;
   --danger:       #B3261E;
-  --warning:      #A84900;   /* the accent type step, deliberately */
+  /* **Not** the accent step any more, and this is the second time it has
+     been overwritten by a global find-and-replace. It was #A84900 when
+     the accent-type was too; the accent is now #FF6600 at 2.65:1, and a
+     warning nobody can read is not a warning. Kept at the measured
+     value on purpose. */
+  --warning:      #A84900;   /* 5.23:1 on ground */
 
   /* ---- Type --------------------------------------------------------
      Same stack. Warm palettes tempt people toward a serif and it is
@@ -137,7 +156,7 @@
   --rule: #2E2E2E;
   /* On leather the bright orange finally works as type — 6.4:1 — so the
      accent and the accent-type collapse into one here. */
-  --accent-type: #F09A55;   /* 7.1:1 on leather */
+  --accent-type: #FF6600;   /* 4.63:1 on leather — passes AA here */
   --on-accent: var(--leather-deep);
 }
 
@@ -160,13 +179,17 @@ body{background:var(--ground);color:var(--ink-2);font-family:var(--sans);
   font-feature-settings:"cv11","ss01"}
 section{background:var(--ground);color:var(--ink-2);padding:var(--section) 0}
 .wrap{max-width:1120px;margin:0 auto;padding:0 clamp(20px,4vw,32px)}
-h1,h2,h3{color:var(--ink);font-weight:600}
+h1,h2,h3{color:var(--accent-type);font-weight:600}
+/* The hero, and the one heading that most has to be the brand colour.
+   It is a class, so it beat the h1,h2,h3 element rule and stayed ink
+   while every other heading went orange — the cascade collision that
+   makes a palette change look half-finished. */
 .display{font-size:var(--display);line-height:1.04;letter-spacing:var(--track-display);
-  color:var(--ink);font-weight:600;max-width:15ch}
+  color:var(--accent-type);font-weight:600;max-width:15ch}
 h2{font-size:var(--h2);line-height:1.1;letter-spacing:var(--track-h2)}
 h3{font-size:var(--h3);line-height:1.25;letter-spacing:-.01em;font-weight:500}
 .lead{font-size:var(--body-lg);line-height:1.5;max-width:var(--measure);margin-top:var(--r)}
-.eyebrow{font-size:var(--caption);color:var(--accent-type);display:block;margin-bottom:12px;font-weight:500}
+.eyebrow{font-size:var(--caption);color:var(--accent-deep);display:block;margin-bottom:12px;font-weight:500}
 .cap{font-size:var(--caption);color:var(--ink-3)}
 
 /* Hero gradient: two adjacent blues, 160deg. Restrained on purpose —
@@ -202,8 +225,8 @@ nav .wrap{display:flex;align-items:center;gap:30px;width:100%}
    "PotatoFarm" first and the extension second. Same trick every domain
    wordmark that works uses. */
 /* The extension in orange.
-   It is TYPE, not a fill — so it takes --accent-type at 5.56:1, never
-   the fill orange, which is 3.12:1 and unreadable at this size. The
+   It is TYPE and it takes --accent-type, which is now the same #FF6600
+   as the fill. At 2.65:1 that is a brand decision, not a measurement. The
    token resolves per ground, so the footer and the sidebar get the
    lighter leather step automatically. */
 .brand .tld{color:var(--accent-type);font-weight:500;letter-spacing:inherit}
@@ -422,7 +445,7 @@ section h1.display{margin-bottom:0}
  * browser's blue, which on a cream ground is both off-palette and the
  * only blue anywhere in the product. Scoped to prose inside main so the
  * class-based links are untouched. */
-main p a:not([class]){color:var(--accent-type);text-decoration:underline;
+main p a:not([class]){color:var(--accent-deep);text-decoration:underline;
   text-underline-offset:2px;text-decoration-thickness:1px}
 main p a:not([class]):hover{text-decoration-thickness:2px}
 

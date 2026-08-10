@@ -60,7 +60,7 @@ export default function Person({ params }: { params: Promise<{ leadId: string }>
         </div>
       )}
 
-      <h2 className="font-sans font-semibold text-[17px] text-ink mb-1">Your note</h2>
+      <h2 className="font-sans font-semibold text-[17px] text-accent-type mb-1">Your note</h2>
       <p className="text-sm text-ink-3 mb-3">Yours alone. No manager sees this.</p>
       {editing ? (
         <>
@@ -77,14 +77,14 @@ export default function Person({ params }: { params: Promise<{ leadId: string }>
         <button className="btn-inline" onClick={() => setEditing(true)}>Write a note</button>
       )}
 
-      <h2 className="font-sans font-semibold text-[17px] text-ink mt-10 mb-3">Everything</h2>
+      <h2 className="font-sans font-semibold text-[17px] text-accent-type mt-10 mb-3">Everything</h2>
       <div className="border-t border-ink">
         {(data?.entries ?? []).map((e, i) => (
           <div key={i} className="flex items-baseline gap-3 py-3 border-b border-rule">
             <span className={cn("font-mono text-[10px] uppercase tracking-[0.1em] w-16 shrink-0",
               e.channel === "email" ? "text-ink-3"
               : e.channel === "whatsapp" ? "text-ink-3"
-              : "text-accent-type")}>
+              : "text-accent-deep")}>
               {e.channel === "whatsapp" ? "wa" : e.channel}
             </span>
             <span className="text-[15px] text-ink flex-1 leading-snug">
@@ -93,7 +93,7 @@ export default function Person({ params }: { params: Promise<{ leadId: string }>
             </span>
             {e.link && (
               <a href={e.link} target="_blank" rel="noreferrer"
-                 className="font-mono text-[10px] uppercase tracking-[0.1em] text-accent-type no-underline shrink-0">
+                 className="font-mono text-[10px] uppercase tracking-[0.1em] text-accent-deep no-underline shrink-0">
                 open
               </a>
             )}

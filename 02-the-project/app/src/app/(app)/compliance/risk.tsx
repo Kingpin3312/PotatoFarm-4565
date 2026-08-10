@@ -60,7 +60,7 @@ export function AssessRisk({ kycId, dealValueFils }: {
 
   return (
     <div className="border-t border-rule pt-5">
-      <h2 className="font-sans font-semibold text-[17px] text-ink mb-1">Risk factors</h2>
+      <h2 className="font-sans font-semibold text-[17px] text-accent-type mb-1">Risk factors</h2>
       <p className="text-sm text-ink-2 mb-4 max-w-[46ch] leading-snug">
         Questions of fact, not judgement. The rating and the review interval come out of
         these — which is what an inspector asks about.

@@ -18,7 +18,7 @@ export function AddToBlackbook({ onDone }: { onDone?: () => void }) {
 
   return (
     <div className="bg-sunk rounded-xl p-5">
-      <h2 className="font-sans font-semibold text-[17px] text-ink mb-3">Add somebody</h2>
+      <h2 className="font-sans font-semibold text-[17px] text-accent-type mb-3">Add somebody</h2>
       <div className="space-y-4">
         <F label="Name" v={f.standaloneName} on={(v) => setF({ ...f, standaloneName: v })} />
         <F label="Phone" v={f.standalonePhone} on={(v) => setF({ ...f, standalonePhone: v })} type="tel" />

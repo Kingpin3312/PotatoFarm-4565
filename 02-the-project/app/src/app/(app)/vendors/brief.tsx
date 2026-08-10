@@ -57,7 +57,7 @@ export function VendorBrief({ vendorId }: { vendorId: string }) {
             On the table
           </span>
           <span className={cn("text-[17px] font-semibold tabular block mt-1",
-            data.sinceThen.liveOffers > 0 ? "text-accent-type" : "text-ink")}>
+            data.sinceThen.liveOffers > 0 ? "text-accent-deep" : "text-ink")}>
             {data.sinceThen.liveOffers} offer{data.sinceThen.liveOffers === 1 ? "" : "s"}
           </span>
         </div>

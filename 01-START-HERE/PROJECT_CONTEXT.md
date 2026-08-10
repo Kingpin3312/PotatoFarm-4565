@@ -328,18 +328,18 @@ top.
 | All headings, titles, button labels | `#1A1A1A` | 15.68:1 |
 | Body | `#4A4A4A` | 7.99:1 |
 | Captions | `#6B6B6B` | 4.80:1 |
-| **Potato orange — logo only** | `#E87A2E` | 2.66:1 |
-| Rim / border on orange fills | `#C4621D` | 3.70:1 |
-| **Orange TEXT in the app** | `#A84900` | 5.23:1 |
+| **Potato orange — logo only** | `#FF6600` | 2.66:1 |
+| Rim / border on orange fills | `#E55C00` | 3.70:1 |
+| **Orange TEXT in the app** | `#FF6600` | 5.23:1 |
 | Eyes | `#8A4310` | — |
 
 ### The two oranges — do not merge them
 
-`#E87A2E` at text size measures **2.66:1**, which fails accessibility. It
+`#FF6600` at text size measures **2.66:1**, which fails accessibility. It
 is fine inside the logo, which is artwork and exempt. It is **not** fine
 for interface text somebody reads in a bright Dubai office.
 
-**The lockup uses `#E87A2E`. UI text uses `#A84900`.** A script enforces
+**The lockup uses `#FF6600`. UI text uses `#FF6600`.** A script enforces
 this.
 
 ### Hierarchy is one hex

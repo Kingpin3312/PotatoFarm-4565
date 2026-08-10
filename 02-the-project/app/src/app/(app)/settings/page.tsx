@@ -14,7 +14,7 @@ export default function SettingsPage() {
         <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-3 block mb-3">
           Settings · Assistant
         </span>
-        <h1 className="font-sans text-[clamp(2rem,1.5rem+2vw,2.75rem)] text-ink -tracking-[0.01em] leading-none">
+        <h1 className="font-sans text-[clamp(2rem,1.5rem+2vw,2.75rem)] text-accent-type -tracking-[0.01em] leading-none">
           The assistant
         </h1>
         <p className="mt-3 max-w-[56ch] text-ink-2">
@@ -26,7 +26,7 @@ export default function SettingsPage() {
 
       {data && (
         <>
-          <h2 className="font-sans font-semibold -tracking-[0.024em] text-[22px] text-ink mt-12 mb-1">This month</h2>
+          <h2 className="font-sans font-semibold -tracking-[0.024em] text-[22px] text-accent-type mt-12 mb-1">This month</h2>
           <p className="text-sm text-ink-3 max-w-[60ch]">
             Every call is counted, including ones that were blocked or failed — a total
             that only reflects the successes under-reports exactly when something is
@@ -43,7 +43,7 @@ export default function SettingsPage() {
 
       {handovers && handovers.byReason.length > 0 && (
         <>
-          <h2 className="font-sans font-semibold -tracking-[0.024em] text-[22px] text-ink mt-12 mb-1">Why it stepped back</h2>
+          <h2 className="font-sans font-semibold -tracking-[0.024em] text-[22px] text-accent-type mt-12 mb-1">Why it stepped back</h2>
           <p className="text-sm text-ink-3 max-w-[60ch]">
             Last seven days, grouped. The useful question is what keeps happening, not
             what happened at 14:32.

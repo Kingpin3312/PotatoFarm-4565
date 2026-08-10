@@ -48,7 +48,7 @@ export function PublishCheck({
         className="border border-ink rounded-[3px] p-0 max-w-[520px] w-[calc(100%-40px)] bg-raised text-ink-2 backdrop:bg-ink/50"
       >
         <div className="p-6">
-          <h2 className="font-sans font-semibold -tracking-[0.024em] text-[24px] text-ink mb-1.5">Publish {reference}</h2>
+          <h2 className="font-sans font-semibold -tracking-[0.024em] text-[24px] text-accent-type mb-1.5">Publish {reference}</h2>
           <p className="text-sm text-ink-3 mb-5">
             Checked against each portal&rsquo;s rules before anything is sent.
           </p>

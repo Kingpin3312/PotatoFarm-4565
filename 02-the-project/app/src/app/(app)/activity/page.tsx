@@ -33,7 +33,7 @@ export default function Activity() {
   return (
     <div className="mx-auto max-w-[680px] px-6 pb-28">
       <header className="pt-10 pb-6">
-        <h1 className="font-sans text-[clamp(2rem,1.5rem+2vw,2.5rem)] font-semibold leading-none -tracking-[0.026em] text-ink">
+        <h1 className="font-sans text-[clamp(2rem,1.5rem+2vw,2.5rem)] font-semibold leading-none -tracking-[0.026em] text-accent-type">
           What it did
         </h1>
         <p className="mt-3 max-w-[48ch] text-[15px] leading-snug text-ink-2">
@@ -66,7 +66,7 @@ export default function Activity() {
                     <span className="text-[16px] font-semibold text-ink">{o.label}</span>
                     {/* In words. The border alone is not a signal. */}
                     {on && (
-                      <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-accent-type">
+                      <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-accent-deep">
                         On
                       </span>
                     )}
@@ -131,7 +131,7 @@ export default function Activity() {
                       "w-24 shrink-0 font-mono text-[10px] uppercase tracking-[0.1em]",
                       a.undoneAt ? "text-ink-3"
                         : a.outcome === "DONE" ? "text-ink"
-                        : a.outcome === "REFUSED" ? "text-accent-type" : "text-ink-3"
+                        : a.outcome === "REFUSED" ? "text-accent-deep" : "text-ink-3"
                     )}
                   >
                     {a.undoneAt ? "undone" : a.levelLabel}
@@ -154,7 +154,7 @@ export default function Activity() {
                       </p>
                     )}
                     {a.error && (
-                      <p className="mt-0.5 max-w-[48ch] text-sm leading-snug text-accent-type">
+                      <p className="mt-0.5 max-w-[48ch] text-sm leading-snug text-accent-deep">
                         {a.error}
                       </p>
                     )}

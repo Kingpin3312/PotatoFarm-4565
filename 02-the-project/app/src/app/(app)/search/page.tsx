@@ -31,7 +31,7 @@ export default function SearchPage() {
   return (
     <div className="mx-auto max-w-[680px] px-6 pb-28">
       <header className="pt-10 pb-5">
-        <h1 className="font-sans text-[clamp(2rem,1.5rem+2vw,2.5rem)] font-semibold leading-none -tracking-[0.026em] text-ink">
+        <h1 className="font-sans text-[clamp(2rem,1.5rem+2vw,2.5rem)] font-semibold leading-none -tracking-[0.026em] text-accent-type">
           Find anyone
         </h1>
         <p className="mt-3 max-w-[48ch] text-[15px] leading-snug text-ink-2">

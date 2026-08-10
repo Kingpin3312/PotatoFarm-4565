@@ -38,7 +38,7 @@ export default function Screening({ params }: { params: Promise<{ kycId: string 
   if (file.isSuccess) {
     return (
       <div className="max-w-[560px] mx-auto px-6 py-20">
-        <h1 className="font-sans font-semibold text-[30px] text-ink -tracking-[0.026em]">
+        <h1 className="font-sans font-semibold text-[30px] text-accent-type -tracking-[0.026em]">
           Recorded.
         </h1>
         <p className="text-[17px] text-ink-2 mt-3 max-w-[44ch]">
@@ -57,7 +57,7 @@ export default function Screening({ params }: { params: Promise<{ kycId: string 
         <a href="/compliance" className="font-mono text-[11px] uppercase tracking-[0.12em] text-ink-3 no-underline">
           ← Compliance
         </a>
-        <h1 className="font-sans font-semibold text-[clamp(1.75rem,1.4rem+1.6vw,2.25rem)] text-ink -tracking-[0.026em] leading-tight mt-3">
+        <h1 className="font-sans font-semibold text-[clamp(1.75rem,1.4rem+1.6vw,2.25rem)] text-accent-type -tracking-[0.026em] leading-tight mt-3">
           {latest?.result === "CONFIRMED_MATCH" ? "Confirmed match" : "Possible match"}
         </h1>
       </header>
@@ -68,7 +68,7 @@ export default function Screening({ params }: { params: Promise<{ kycId: string 
         </div>
       )}
 
-      <h2 className="font-sans font-semibold text-[17px] text-ink mb-3">Screening history</h2>
+      <h2 className="font-sans font-semibold text-[17px] text-accent-type mb-3">Screening history</h2>
       <div className="border-t border-ink mb-10">
         {(data ?? []).map((s) => (
           <div key={s.id} className="flex items-baseline gap-3 py-3 border-b border-rule">
@@ -83,7 +83,7 @@ export default function Screening({ params }: { params: Promise<{ kycId: string 
         ))}
       </div>
 
-      <h2 className="font-sans font-semibold text-[17px] text-ink mb-3">Your decision</h2>
+      <h2 className="font-sans font-semibold text-[17px] text-accent-type mb-3">Your decision</h2>
       <div className="flex gap-2 flex-wrap mb-5">
         {(["NO_FILING","STR","SAR","REAR","CNMR","FFR"] as const).map((t) => (
           <button key={t} onClick={() => setType(t)} aria-pressed={type === t}

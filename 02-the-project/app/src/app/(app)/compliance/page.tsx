@@ -36,7 +36,7 @@ export default function Compliance() {
         <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-3 block mb-3">
           Compliance
         </span>
-        <h1 className="font-sans font-semibold text-[clamp(2rem,1.5rem+2vw,2.5rem)] text-ink -tracking-[0.026em] leading-none">
+        <h1 className="font-sans font-semibold text-[clamp(2rem,1.5rem+2vw,2.5rem)] text-accent-type -tracking-[0.026em] leading-none">
           {pending.length === 0 && due.length === 0
             ? "Nothing waiting on you."
             : `${pending.length + due.length} need a decision.`}
@@ -71,7 +71,7 @@ export default function Compliance() {
         with payments from the screening flow.
       */}
 
-      <h2 className="font-sans font-semibold text-[19px] text-ink -tracking-[0.02em] mb-3">
+      <h2 className="font-sans font-semibold text-[19px] text-accent-type -tracking-[0.02em] mb-3">
         Waiting on a decision
       </h2>
       {pending.length === 0 ? (
@@ -88,7 +88,7 @@ export default function Compliance() {
                 <span className={cn("font-mono text-[10px] uppercase tracking-[0.1em] px-2 py-0.5 rounded-[3px] border",
                   p.result === "CONFIRMED_MATCH"
                     ? "border-danger text-danger font-semibold"
-                    : "border-accent-edge text-accent-type")}>
+                    : "border-accent-edge text-accent-deep")}>
                   {p.result === "CONFIRMED_MATCH" ? "confirmed" : "possible match"}
                 </span>
                 <span className="ml-auto font-mono text-[11px] text-ink-3">{p.heldFor}</span>
@@ -101,7 +101,7 @@ export default function Compliance() {
         </div>
       )}
 
-      <h2 className="font-sans font-semibold text-[19px] text-ink -tracking-[0.02em] mt-12 mb-3">
+      <h2 className="font-sans font-semibold text-[19px] text-accent-type -tracking-[0.02em] mt-12 mb-3">
         Reviews due
       </h2>
       {due.length === 0 ? (

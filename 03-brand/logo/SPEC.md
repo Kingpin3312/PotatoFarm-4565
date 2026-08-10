@@ -12,13 +12,13 @@
 | | Hex | |
 |---|---|---|
 | Ground | `#F4F3F0` | soft grey off-white |
-| Potato | `#E87A2E` | warm solid orange |
-| Highlight | `#EE9149` | upper portion |
-| Shade | `#DB6E22` | lower right |
+| Potato | `#FF6600` | warm solid orange |
+| Highlight | `#FF8533` | upper portion |
+| Shade | `#E55C00` | lower right |
 | Eyes | `#8A4310` | |
 | Wordmark | `#1A1A1A` | 15.68:1 |
-| `.io` in the lockup | `#E87A2E` | as briefed |
-| `.io` in an interface | `#A84900` | 5.23:1 |
+| `.io` in the lockup | `#FF6600` | as briefed |
+| `.io` in an interface | `#FF6600` | 5.23:1 |
 
 ## Three things chosen by rendering, not by assuming
 
@@ -44,7 +44,7 @@ a rim, and the rim is what made them read as stickers rather than
 objects.
 
 **Soft dimensional shading, not a heavy gradient.** A single linear pass
-from `#EE9149` at the top-left to `#DB6E22` at the bottom-right, plus
+from `#FF8533` at the top-left to `#E55C00` at the bottom-right, plus
 the clipped white highlight.
 
 **A soft drop shadow for lift.** `dy 2, blur 2.2, 18%`. Enough to seat
@@ -54,12 +54,12 @@ it, not enough to be noticed as a shadow.
 
 ## The one place the brief and accessibility disagree
 
-`#E87A2E` at wordmark size is **2.66:1** on this ground. That is fine
+`#FF6600` at wordmark size is **2.66:1** on this ground. That is fine
 inside a logo — artwork, reproduced as a unit, and exempt under WCAG.
 It is not fine for live interface text a broker reads in a bright
 office.
 
-So both exist: **the lockup exactly as briefed**, and `#A84900` for UI
+So both exist: **the lockup exactly as briefed**, and `#FF6600` for UI
 text at 5.23:1. If they ever have to match, the lockup wins and the
 interface value moves.
 

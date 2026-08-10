@@ -19,7 +19,7 @@ export function DraftCopy({ listingId }: { listingId: string }) {
 
   return (
     <div className="border-t border-rule pt-5">
-      <h2 className="font-sans font-semibold text-[17px] text-ink mb-3">Description</h2>
+      <h2 className="font-sans font-semibold text-[17px] text-accent-type mb-3">Description</h2>
 
       <label htmlFor="copy" className="sr-only">Listing description</label>
       <textarea id="copy" rows={6} value={text} onChange={(e) => setText(e.target.value)}

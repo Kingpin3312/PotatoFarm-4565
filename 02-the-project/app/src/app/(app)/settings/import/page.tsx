@@ -59,7 +59,7 @@ export default function Import() {
         <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-3 block mb-3">
           Import
         </span>
-        <h1 className="font-sans font-semibold text-[clamp(2rem,1.5rem+2vw,2.5rem)] text-ink -tracking-[0.026em] leading-none">
+        <h1 className="font-sans font-semibold text-[clamp(2rem,1.5rem+2vw,2.5rem)] text-accent-type -tracking-[0.026em] leading-none">
           Bring your history across
         </h1>
         {/* Says what it does, not what we wish it did. */}
@@ -104,7 +104,7 @@ export default function Import() {
 
           {inspect.data && (
             <>
-              <h2 className="font-sans font-semibold text-[19px] text-ink -tracking-[0.02em] mt-8 mb-1">
+              <h2 className="font-sans font-semibold text-[19px] text-accent-type -tracking-[0.02em] mt-8 mb-1">
                 {inspect.data.blockers > 0
                   ? `${inspect.data.blockers} record${inspect.data.blockers === 1 ? "" : "s"} cannot come across`
                   : "Nothing blocking"}

@@ -45,7 +45,7 @@ export default function OfferThread({ params }: { params: Promise<{ id: string }
         <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-3 block mb-3">
           On the table
         </span>
-        <h1 className="font-sans font-semibold text-[clamp(2rem,1.5rem+2vw,2.5rem)] text-ink -tracking-[0.026em] leading-none">
+        <h1 className="font-sans font-semibold text-[clamp(2rem,1.5rem+2vw,2.5rem)] text-accent-type -tracking-[0.026em] leading-none">
           {offers.length} offer{offers.length === 1 ? "" : "s"}
         </h1>
         {offers.length > 1 && (
@@ -83,7 +83,7 @@ export default function OfferThread({ params }: { params: Promise<{ id: string }
                 </span>
               )}
               {i === 0 && offers.length > 1 && (
-                <span className="ml-auto font-mono text-[10px] uppercase tracking-[0.12em] text-accent-type font-semibold">
+                <span className="ml-auto font-mono text-[10px] uppercase tracking-[0.12em] text-accent-deep font-semibold">
                   Strongest, not highest
                 </span>
               )}
@@ -175,7 +175,7 @@ export default function OfferThread({ params }: { params: Promise<{ id: string }
 function Tag({ children, good }: { children: React.ReactNode; good?: boolean }) {
   return (
     <span className={cn("font-mono text-[10px] uppercase tracking-[0.1em] px-2 py-0.5 border rounded-[3px]",
-      good ? "border-accent-edge text-accent-type font-semibold" : "border-rule text-ink-3")}>
+      good ? "border-accent-edge text-accent-deep font-semibold" : "border-rule text-ink-3")}>
       {children}
     </span>
   );

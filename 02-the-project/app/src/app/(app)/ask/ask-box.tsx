@@ -188,7 +188,7 @@ export function Ask({ compact = false }: { compact?: boolean }) {
             </button>
             <span
               role="status"
-              className="font-mono text-[10px] uppercase tracking-[0.1em] text-accent-type"
+              className="font-mono text-[10px] uppercase tracking-[0.1em] text-accent-deep"
             >
               {/* Words, not only the pulsing button. Colour is never the
                   only signal in this product.
@@ -288,7 +288,7 @@ export function Ask({ compact = false }: { compact?: boolean }) {
 function Report({ r }: { r: NonNullable<ReturnType<typeof api.requests.comparables.useMutation>["data"]> }) {
   return (
     <section className="mt-8">
-      <h2 className="font-sans text-[19px] font-semibold -tracking-[0.02em] text-ink">
+      <h2 className="font-sans text-[19px] font-semibold -tracking-[0.02em] text-accent-type">
         {r.subject.building} · {r.subject.beds} bed
       </h2>
 

@@ -10,7 +10,7 @@
 <style>
 /* ============================================================
    PotatoFarm.io — design tokens, v4
-   Warm white, Claude orange, Hermes discipline.
+   Warm white, #FF6600, Hermes discipline.
    ============================================================ */
 
 :root{
@@ -38,22 +38,21 @@
   /* ---- Orange ------------------------------------------------------
      Two, and they are not interchangeable.
 
-     `--accent` is Claude orange and it is a **fill only**. It measures
-     3.12:1 on the ground — enough for a non-text component, nowhere
-     near enough for type.
-
-     `--accent-type` carries every word. Same hue, deeper, 5.27:1.
+     One orange: #FF6600. Measured on the cream ground: 2.65:1 —
+     below the 4.5:1 AA floor for text, so orange type is a brand
+     decision taken with the number known. Ink on the orange fill is
+     5.93:1; white on it is 2.94:1 and is never used.
 
      Getting this backwards is the mistake, and it is the fifth time in
      this project a warm colour has looked right and measured wrong. */
-  --accent:      #E87A2E;   /* Hermes orange. Fill only: 3.12:1 on ground */
-  --accent-type: #A84900;   /* type: 5.56:1 on ground, 5.15:1 on panel */
-  --accent-hover:#C4621D;
+  --accent:      #FF6600;   /* the brand orange. 2.65:1 on ground */
+  --accent-type: #FF6600;   /* headings, buttons and .io */
+  --accent-hover:#E55C00;
 
   /**
    * The border on every orange fill, and it is not decoration.
    *
-   * Hermes orange measures 3.12:1 on the ground and **2.9:1 on the
+   * The brand orange measures 2.65:1 on the ground and **2.44:1 on the
    * cream panel** — the same button passes on one surface and fails on
    * the other. Rather than forbid orange on panels, or lighten the
    * panel until it works, the fill carries a darker hairline. The edge
@@ -61,10 +60,10 @@
    *
    * Same fix as the saffron button two palettes ago, same reason.
    */
-  --accent-edge: #C4621D;   /* 4.38:1 on panel — defines the boundary */
+  --accent-edge: #CC5200;   /* 3.65:1 on panel — defines the boundary */
 
   /* **Labels on the orange fill are ink, never white.**
-     White on Hermes orange is 3.23:1 and fails. Ink is 5.42:1 and
+     White on the brand orange is 2.94:1 and fails. Ink is 5.93:1 and
      passes — and an orange button with near-black type is also the more
      Hermes answer. The measurement and the reference agreed, which does
      not always happen. */
@@ -85,7 +84,7 @@
 
   --success:      #1F7A4C;
   --danger:       #B3261E;
-  --warning:      #A84900;   /* the accent type step, deliberately */
+  --warning:      #FF6600;   /* the accent type step, deliberately */
 
   /* ---- Type --------------------------------------------------------
      Same stack. Warm palettes tempt people toward a serif and it is
@@ -145,7 +144,7 @@
   --rule: #2E2E2E;
   /* On leather the bright orange finally works as type — 6.4:1 — so the
      accent and the accent-type collapse into one here. */
-  --accent-type: #F09A55;   /* 7.1:1 on leather */
+  --accent-type: #FF6600;   /* 7.1:1 on leather */
   --on-accent: var(--leather-deep);
 }
 
@@ -233,7 +232,7 @@ h2{font-size:15px;color:var(--ink);font-weight:600;letter-spacing:-.008em;
   <div class="status"><span>9:41</span><span>&#9679;&#9679;&#9679;</span></div>
 
   <div class="top">
-    <svg viewBox="0 0 64 64" aria-hidden="true"><g transform="translate(0.0,0.0) scale(1.0)"><defs><linearGradient id="shm1" x1="24%" y1="14%" x2="70%" y2="86%"><stop offset="0" stop-color="#EE9149"/><stop offset="0.5" stop-color="#E87A2E"/><stop offset="1" stop-color="#DB6E22"/></linearGradient><filter id="blm1"><feGaussianBlur stdDeviation="7"/></filter><filter id="dpm1" x="-35%" y="-35%" width="180%" height="180%"><feDropShadow dx="0" dy="2" stdDeviation="2.2" flood-color="#8A4310" flood-opacity="0.18"/></filter><clipPath id="cpm1"><path d="M33,4 C42,4.5 48,11 50,20 C52,29 50,37 48,44 C45,53 38,60 30,60 C21,60 15,54 13,45 C11,35 12,24 16,15 C20,7 26,3.5 33,4 Z"/></clipPath></defs><path d="M33,4 C42,4.5 48,11 50,20 C52,29 50,37 48,44 C45,53 38,60 30,60 C21,60 15,54 13,45 C11,35 12,24 16,15 C20,7 26,3.5 33,4 Z" fill="url(#shm1)" filter="url(#dpm1)"/><g clip-path="url(#cpm1)"><ellipse cx="25" cy="20" rx="17" ry="19" fill="#FFFFFF" opacity="0.15" filter="url(#blm1)"/></g><ellipse cx="25.5" cy="25" rx="3.2" ry="4.9" fill="#8A4310"/><ellipse cx="38.5" cy="24.2" rx="3.1" ry="4.8" fill="#8A4310"/></g></svg>
+    <svg viewBox="0 0 64 64" aria-hidden="true"><g transform="translate(0.0,0.0) scale(1.0)"><defs><linearGradient id="shm1" x1="24%" y1="14%" x2="70%" y2="86%"><stop offset="0" stop-color="#FF8533"/><stop offset="0.5" stop-color="#FF6600"/><stop offset="1" stop-color="#E55C00"/></linearGradient><filter id="blm1"><feGaussianBlur stdDeviation="7"/></filter><filter id="dpm1" x="-35%" y="-35%" width="180%" height="180%"><feDropShadow dx="0" dy="2" stdDeviation="2.2" flood-color="#8A4310" flood-opacity="0.18"/></filter><clipPath id="cpm1"><path d="M33,4 C42,4.5 48,11 50,20 C52,29 50,37 48,44 C45,53 38,60 30,60 C21,60 15,54 13,45 C11,35 12,24 16,15 C20,7 26,3.5 33,4 Z"/></clipPath></defs><path d="M33,4 C42,4.5 48,11 50,20 C52,29 50,37 48,44 C45,53 38,60 30,60 C21,60 15,54 13,45 C11,35 12,24 16,15 C20,7 26,3.5 33,4 Z" fill="url(#shm1)" filter="url(#dpm1)"/><g clip-path="url(#cpm1)"><ellipse cx="25" cy="20" rx="17" ry="19" fill="#FFFFFF" opacity="0.15" filter="url(#blm1)"/></g><ellipse cx="25.5" cy="25" rx="3.2" ry="4.9" fill="#8A4310"/><ellipse cx="38.5" cy="24.2" rx="3.1" ry="4.8" fill="#8A4310"/></g></svg>
     <b>PotatoFarm<i>.io</i></b>
     <button class="stop">Stop everything</button>
   </div>

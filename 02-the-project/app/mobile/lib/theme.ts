@@ -21,18 +21,18 @@ export const light = {
   rule: "#E2E0DA",
 
   /** Fill only. 3.12:1 on the ground — a non-text component, never type. */
-  accent:      "#E87A2E",
-  accentHover: "#C4621D",
+  accent:      "#FF6600",
+  accentHover: "#E55C00",
   /** The hairline on a fill. The orange is 2.9:1 on the panel, so the
    *  edge is what defines the button there. */
-  accentEdge:  "#C4621D",
+  accentEdge:  "#E55C00",
   /** Every word. 5.56:1 on ground, 5.15:1 on panel. */
-  accentType:  "#A84900",
+  accentType:  "#FF6600",
   /** Labels on orange are ink. White is 3.23:1 and fails. */
   onAccent:    "#1A1A1A",
 
   /** The wordmark extension. Type, so it takes the deeper orange. */
-  tld: "#A84900",
+  tld: "#FF6600",
   /** The two eyes in the mark. Darker than the rim so they read as
    *  holes rather than as shading. */
   markEye: "#8A4310",
@@ -42,7 +42,7 @@ export const light = {
 
   danger:  "#B3261E",
   success: "#1F7A4C",
-  warning: "#A84900",
+  warning: "#FF6600",
 } as const;
 
 export const dark = {
@@ -55,13 +55,13 @@ export const dark = {
   ink3: "#8A8A8A",   //  4.74:1
   rule: "#2E2E2E",
 
-  accent:      "#E87A2E",   // 5.0:1 on leather — works as type here
-  accentHover: "#F09A55",
-  accentEdge:  "#C4621D",
-  accentType:  "#F09A55",   // 6.96:1
+  accent:      "#FF6600",   // 5.0:1 on leather — works as type here
+  accentHover: "#FF6600",
+  accentEdge:  "#E55C00",
+  accentType:  "#FF6600",   // 6.96:1
   onAccent:    "#1A1A1A",
 
-  tld: "#F09A55",
+  tld: "#FF6600",
   markEye: "#8A4310",
 
   leather:     "#2E2E2E",
@@ -69,7 +69,7 @@ export const dark = {
 
   danger:  "#F08076",
   success: "#5CBE86",
-  warning: "#F09A55",
+  warning: "#FF6600",
 } as const;
 
 /** Default is light. Dark is opt-in, not system-following — an agent

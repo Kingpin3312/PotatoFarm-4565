@@ -122,7 +122,7 @@ for name in rows:
 #
 # One had already drifted and nothing could see it. A stale
 # `03-brand/design-system/tokens.css` carried ground `#F8F7F4` and
-# accent `#FF6E00` against the product's `#F4F3F0` and `#E87A2E` — a
+# accent `#FF6E00` against the product's `#F4F3F0` and `#FF6600` — a
 # different orange, in the folder a designer opens first.
 #
 # So: compare the hexes. This is the check that makes "tokens.css is the
@@ -209,9 +209,15 @@ WORDMARK = [
 # and space, never hue. A green delta or a warning percentage is state,
 # and taking its colour away takes the meaning with it.
 #
-# So anything heading-shaped must resolve to --ink. The four state
-# exceptions are named, so an exception is a decision rather than
-# something that slipped through.
+# So anything heading-shaped must resolve to --ink, **or** to
+# --accent-type, which headings now take by brand decision (#FF6600).
+#
+# The premise moved but the rule did not lose its job. What it enforces
+# is that hierarchy uses ONE colour across every surface: it caught the
+# website going orange while the two design-system pages stayed on ink,
+# which is exactly the drift it exists for. Any other accent on a
+# heading-shaped rule is still a failure, and the four state exceptions
+# below are still named individually.
 print("\nHierarchy colour (one ink for hierarchy):")
 STATE_OK = {".delta", ".stat .d", ".allow-pct", ".tight", ".tabs a.on", ".b.hot", ".need.urgent",
             # The demo form's per-field error. State, not hierarchy, and
@@ -246,7 +252,10 @@ for label, path in (("website",at(f"{SITE}/assets/site.css")),
         # --ink-3 is a caption, and a font-size declaration does not
         # make them headings. The rule is about ACCENT colour on
         # hierarchy, not about every text rule in the sheet.
-        if not c or c.group(1).startswith("--ink") or c.group(1) == "--on-accent":
+        # --accent-type is the brand's heading colour now. Everything
+        # else accent-coloured on a heading is still drift.
+        if (not c or c.group(1).startswith("--ink")
+                or c.group(1) in ("--on-accent", "--accent-type")):
             continue
         if sel in STATE_OK: continue
         if HEAD.search(decl) or re.match(r"^(h1|h2|h3)\b", sel):
