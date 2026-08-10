@@ -123,7 +123,12 @@ chart; spoken requests ("Ask").
 ### What has been proved, not assumed
 
 - `npx tsc --noEmit` exits 0. It began at **352 errors**.
-- `npm run build` succeeds. Every route compiles. 40 pages are static.
+- `npm run build` succeeds. Every route compiles: 38 pages and 11 API
+  routes. **None of the 38 is prerendered, and that is deliberate** —
+  the nonce in `script-src` requires per-request rendering. See the
+  security note in section 13. It costs little here: every page is
+  behind sign-in and fetches through tRPC on the client, so what used to
+  be prerendered was an empty shell.
 - Six migrations exist and apply cleanly to an empty database.
 - **Row-level security was tested with two brokerages in one database.**
   The second cannot see the first's leads. This is the whole security
@@ -656,6 +661,24 @@ unpooled for migrations. `.env.example` has the detail.
 
 Each came from a bug, a review, or a decision that took an argument.
 `app/CLAUDE.md` carries the same list with more of the reasoning.
+
+### Security
+- **`script-src` has no `'unsafe-inline'`, and keeping it that way costs
+  a line in the root layout.** The policy uses a per-request nonce with
+  `'strict-dynamic'`, minted in `src/middleware.ts`. Next can only stamp
+  that nonce onto its injected scripts if the document is rendered per
+  request, which is why `src/app/layout.tsx` sets
+  `export const dynamic = "force-dynamic"`. **Delete one and you must
+  delete the other in the same commit** — with pages prerendered and the
+  nonce policy live, the header looks immaculate, every script is
+  refused, and the app serves a blank page. That is not hypothetical: it
+  is what the first attempt did, and only a browser caught it.
+- **The nonce goes in two places.** The response header is the policy the
+  browser enforces; the *request* header is how Next learns the value.
+  Set only the request header and the scripts carry a nonce no policy
+  asks for — which is not an error, so it looks like it works and
+  protects nothing. `chaos.mjs` compares the header's nonce against the
+  document's and asserts it changes between requests.
 
 ### Safety
 - **Replay has no send capability.** `replay.ts` must never import the

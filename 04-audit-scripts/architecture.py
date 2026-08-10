@@ -15,6 +15,13 @@ files = {p: open(p).read() for p in glob.glob(os.path.join(ROOT, "src/**/*.ts*")
 # Layers, outermost first. An inner layer must never import an outer one.
 def layer(path):
     p = path.replace(ROOT + "/", "")
+    # Middleware is an entry point — the very edge of the request, outside
+    # even the route handlers. It was unclassified, so it fell to the
+    # `other` bucket at 9, which the layering rule treats as the innermost
+    # layer of all. The moment it imported anything from `src/lib` that
+    # read as an inner layer reaching outward and failed the build. The
+    # import was correct; the map had a hole in it.
+    if p == "src/middleware.ts":     return 1, "http"
     if p.startswith("src/app/api/"): return 1, "http"
     if p.startswith("src/app/"):     return 0, "ui"
     if "/api/routers/" in p:         return 2, "router"
@@ -59,6 +66,13 @@ for p in files:
     if key.endswith("/index.ts"): resolved[key[:-len("/index.ts")]] = p
 
 for p, s in files.items():
+    # Known gap, recorded rather than left to be discovered: this matches
+    # `import … from "@/x"` and not a side-effect import, `import "@/x"`.
+    # The latter is a real runtime dependency and would not be counted.
+    # Today the only one in the tree is `import "@/styles/globals.css"` in
+    # the root layout, which is a stylesheet and not a layer, so the hole
+    # is currently empty. Widen the pattern if a side-effect import of a
+    # TypeScript module ever appears.
     for m in re.finditer(r'(import\s+(?:type\s+)?[^;]*?from\s+)"(@/[^"]+)"', s):
         # A type-only import is erased at compile time. `lib/trpc.ts`
         # importing `AppRouter` is the standard tRPC pattern and is not a

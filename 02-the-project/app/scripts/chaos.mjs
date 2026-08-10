@@ -289,6 +289,48 @@ console.log("\n████ API\n");
   for (const k of ["content-security-policy","x-frame-options","x-content-type-options","referrer-policy","permissions-policy"]) {
     chk("security", k==="content-security-policy"?"high":"medium", `header ${k}`, !!h[k], (h[k]||"missing").slice(0,60));
   }
+
+  /**
+   * The CSP has to be enforced, not merely present.
+   *
+   * "Is there a Content-Security-Policy header" was the whole check, and
+   * it passes in both of the states that matter and are wrong:
+   *
+   *   * `script-src 'unsafe-inline'` — a header that permits exactly the
+   *     thing CSP exists to stop.
+   *   * a nonce in the header that no script tag carries — which is what
+   *     happened here the first time. The pages were still prerendered,
+   *     so their HTML was written at build time and could not know a
+   *     per-request value. The header looked immaculate and Chromium
+   *     refused all sixteen scripts; the sign-in page rendered fifteen
+   *     characters and never hydrated.
+   *
+   * So: no `'unsafe-inline'` in script-src, a nonce in the header, every
+   * script tag carrying that exact nonce, and a different nonce on the
+   * next request.
+   */
+  const csp = h["content-security-policy"] || "";
+  const scriptSrc = (csp.match(/script-src([^;]*)/i) || [,""])[1];
+  chk("security","high","script-src does not allow 'unsafe-inline'",
+      !/unsafe-inline/.test(scriptSrc), scriptSrc.trim().slice(0,70));
+
+  const headerNonce = (csp.match(/'nonce-([^']+)'/) || [])[1];
+  chk("security","high","the CSP carries a per-request nonce", !!headerNonce, headerNonce || "none");
+
+  if (headerNonce) {
+    const html = await r3.text();
+    const tags = html.match(/<script[^>]*>/g) || [];
+    const bare = tags.filter((t) => !t.includes(`nonce="${headerNonce}"`));
+    chk("security","high","every script tag carries the header's nonce",
+        tags.length > 0 && bare.length === 0,
+        `${tags.length - bare.length}/${tags.length} stamped`);
+
+    const again = await api.get("http://localhost:3000/sign-in");
+    const second = ((again.headers()["content-security-policy"]||"").match(/'nonce-([^']+)'/) || [])[1];
+    chk("security","high","the nonce changes between requests",
+        !!second && second !== headerNonce, `${headerNonce.slice(0,8)}… vs ${(second||"none").slice(0,8)}…`);
+  }
+
   await ctx.close();
 }
 

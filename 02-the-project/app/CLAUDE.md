@@ -29,6 +29,15 @@ worth keeping.
 Each of these looks like a bug or an inefficiency and is neither. If you
 think one should change, say so rather than changing it.
 
+**`force-dynamic` in the root layout is load-bearing, not a leftover.**
+`script-src` uses a per-request nonce instead of `'unsafe-inline'`, and
+Next can only stamp that nonce onto its scripts if the document renders
+per request. Removing the line while the nonce policy is live serves a
+blank page with a perfect-looking security header — sixteen scripts
+refused, fifteen characters rendered, no hydration. If you want the
+static pages back, put `'unsafe-inline'` back in `src/lib/csp.ts` in the
+same commit.
+
 **The kill switch is not cached.** `assistant/controls.ts` does one
 database read per assistant turn on purpose. A five-minute cache means
 five more minutes of messaging customers after somebody pressed stop.

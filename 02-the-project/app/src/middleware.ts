@@ -1,4 +1,35 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { buildCsp } from "@/lib/csp";
+
+/**
+ * The per-request nonce, and the two places it has to be written.
+ *
+ * This is what removed `'unsafe-inline'` from `script-src`. Next injects
+ * inline bootstrap and hydration scripts into every document, so the only
+ * way to allow those without allowing *any* inline script is to mark each
+ * one with a value the attacker cannot predict.
+ *
+ * It goes in two places and both are required:
+ *
+ *   1. the **request** header, which is how Next learns the nonce and
+ *      stamps it onto the scripts it injects;
+ *   2. the **response** header, which is the policy the browser enforces.
+ *
+ * Set only the response header and every Next script is blocked and the
+ * application renders a blank page. Set only the request header and the
+ * scripts carry a nonce no policy asks for, which is not an error — so it
+ * looks like it works and protects nothing. That second failure is the
+ * dangerous one, which is why the check asserts the header is present and
+ * that the document's script tags carry a nonce matching it.
+ *
+ * `crypto.randomUUID()` rather than `Math.random()`: the whole value of a
+ * nonce is that it cannot be guessed, and the edge runtime has real
+ * randomness available.
+ */
+function withCsp(res: NextResponse, nonce: string): NextResponse {
+  res.headers.set("Content-Security-Policy", buildCsp(nonce));
+  return res;
+}
 
 /**
  * Route protection.
@@ -44,10 +75,27 @@ const PUBLIC = [
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
+  const nonce = crypto.randomUUID().replace(/-/g, "");
+
+  /**
+   * The request headers Next itself reads.
+   *
+   * Next looks for the nonce on the incoming `Content-Security-Policy`
+   * header, not on a header of our choosing, so this has to be the real
+   * policy string rather than the bare value. `x-nonce` is passed as well
+   * so a server component can reach it if one ever needs to render an
+   * inline script of its own.
+   */
+  const headers = new Headers(req.headers);
+  const policy = buildCsp(nonce);
+  headers.set("Content-Security-Policy", policy);
+  headers.set("x-nonce", nonce);
+  const forward = { request: { headers } };
+
   // Exact match or a child path — `/sign-in/check-your-email` is public
   // because `/sign-in` is, while a hypothetical `/sign-in-report` is not.
   const isPublic = PUBLIC.some((p) => pathname === p || pathname.startsWith(`${p}/`));
-  if (isPublic) return NextResponse.next();
+  if (isPublic) return withCsp(NextResponse.next(forward), nonce);
 
   const cookie =
     req.cookies.get("__Secure-authjs.session-token") ??
@@ -57,9 +105,9 @@ export function middleware(req: NextRequest) {
     const url = new URL("/sign-in", req.url);
     // Carry the destination so sign-in returns them where they were going.
     url.searchParams.set("next", pathname);
-    return NextResponse.redirect(url);
+    return withCsp(NextResponse.redirect(url), nonce);
   }
-  return NextResponse.next();
+  return withCsp(NextResponse.next(forward), nonce);
 }
 
 export const config = {

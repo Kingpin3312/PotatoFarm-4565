@@ -2,6 +2,33 @@ import type { Metadata, Viewport } from "next";
 import { Providers } from "./providers";
 import "@/styles/globals.css";
 
+/**
+ * Every document is rendered per request, and the reason is the nonce.
+ *
+ * `script-src` carries `'nonce-…' 'strict-dynamic'` instead of
+ * `'unsafe-inline'`, so each of Next's injected scripts has to be stamped
+ * with the same one-time value the response header names. A prerendered
+ * page cannot be: its HTML is written once at build time and the nonce
+ * changes on every request.
+ *
+ * That is not a theory. With the pages still prerendered, the header
+ * carried a nonce, **zero of the sixteen script tags did**, and Chromium
+ * refused all sixteen — the sign-in page rendered fifteen characters and
+ * never hydrated. It looked fine to any check that only asserts the CSP
+ * header exists, which is exactly why the browser check now compares the
+ * header's nonce against the nonces in the document.
+ *
+ * **What it costs.** 30 pages that were prerendered are now
+ * server-rendered per request. For this product the bill is small: every
+ * one of them is behind sign-in and fetches its data through tRPC on the
+ * client anyway, so what was being prerendered was an empty shell. Vercel
+ * bills the invocations; the data queries are unchanged.
+ *
+ * To go back, delete this line — and put `'unsafe-inline'` back in
+ * `src/lib/csp.ts` in the same commit, or the app serves a blank page.
+ */
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "PotatoFarm.io",
   description: "The WhatsApp assistant that answers your enquiries before your competitors do.",
