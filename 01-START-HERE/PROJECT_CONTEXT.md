@@ -189,9 +189,42 @@ npm run check:storage       # upload, read back byte-for-byte, delete
 npm run check:load          # 5,000 leads, and where it gets slow
 ```
 
-These are not a test suite — there still isn't one — but they cover the
-places where being wrong is expensive and invisible. Each was verified by
-deliberately breaking the thing it checks and confirming it fails.
+These are not unit tests and are not trying to be. They need a real
+Postgres because what they prove — tenant isolation above all — cannot be
+proved against a mock. Each was verified by deliberately breaking the
+thing it checks and confirming it fails.
+
+### The unit tests
+
+```bash
+npm test                    # 78 assertions, no database, under a second
+```
+
+`package.json` declared `"test": "vitest run"` from the beginning with no
+test files and no config behind it, so the command exited 1 and said "No
+test files found" — a command claiming to run tests that could not, which
+is the same shape as a button that does not do what it says.
+
+Four files, and the selection is not "whatever was easy to test". Every
+case is a bug that actually happened here or a rule whose failure would
+be silent:
+
+| | |
+|---|---|
+| `lib/money.test.ts` | The unit is fils. The 100× bug, in assertions |
+| `server/lib/whatsapp.window.test.ts` | The 24-hour window, including both sides of the boundary |
+| `server/lib/matching/sendable.test.ts` | Dubai hours, and the 23:38 bug |
+| `server/lib/search/parse.test.ts` | Plural intents, budget bands, people vs properties |
+
+`vitest.config.ts` sets `passWithNoTests: false`, because a run that
+finds nothing is a failure and not a pass — that is the exact hole that
+let the command sit broken.
+
+**Writing them found a real bug.** `usd()` decided whether to print cents
+with `dollars % 1 === 0` on the raw quotient. Dividing by the peg almost
+never lands on a whole number, so the product's own price — round-tripped
+through `usdToFils(70)` — came back as 70.00136… and printed "$70.00" on
+a page whose headline says $70.
 
 ### The four browser checks
 
@@ -275,9 +308,13 @@ Ask — an agent can see what they asked for earlier and what came back.
 - **Voice recipes** `BOOK_VIEWING` and `COMPARABLES` return a follow-up
   question rather than completing in one step. Deliberate, but the second
   step is not wired to the booking screen.
-- **Zero automated tests.** `package.json` declares `"test": "vitest run"`
-  and there are no test files and no vitest config. The 13 audit scripts
-  are doing the work tests would do, and they are not the same thing.
+- **Unit tests cover four modules, not the codebase.** 78 assertions
+  across money, the 24-hour window, Dubai sending hours and the search
+  parser — the pure logic where being wrong is expensive and silent.
+  Everything stateful is still covered only by the eleven check suites
+  and the four browser checks, which is not the same thing as a test
+  suite. The next ones worth writing are `intelligence/score.ts` and
+  `deals/risk.ts`: both are pure, both are rules somebody will tune.
 - **The Expo app.** See section 3.
 
 ---

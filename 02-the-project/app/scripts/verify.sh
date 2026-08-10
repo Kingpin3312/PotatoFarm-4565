@@ -96,6 +96,12 @@ fi
 printf '\n%sTypes%s\n' "$bold" "$off"
 step "tsc --noEmit" npx tsc --noEmit
 
+printf '\n%sUnit tests%s\n' "$bold" "$off"
+# Pure functions, no database, milliseconds. Deliberately before the
+# check suites: if the window arithmetic or the money formatter is wrong,
+# there is no point spending two minutes seeding Postgres to find out.
+step "vitest" npm run --silent test
+
 printf '\n%sChecks%s\n' "$bold" "$off"
 for name in tenancy intake intelligence voice deals autonomy buyers search sigv4 storage load; do
   if [ "$name" = "load" ] && [ "$WITH_LOAD" -eq 0 ]; then

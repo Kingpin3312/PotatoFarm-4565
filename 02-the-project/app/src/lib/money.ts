@@ -74,8 +74,22 @@ export const AED_PER_USD = 3.6725;
 export function usd(fils: bigint | null | undefined): string {
   if (fils === null || fils === undefined) return "—";
   const dollars = Number(fils) / 100 / AED_PER_USD;
+
+  /**
+   * Decide "are there cents" on the figure being *shown*, not the raw
+   * float, and the difference is not academic.
+   *
+   * This read `dollars % 1 === 0`. Dividing by the peg almost never
+   * lands on a whole number, so the branch was very nearly dead: the
+   * product's own price round-tripped through `usdToFils(70)` comes back
+   * as 70.00136…, which is not `% 1 === 0`, so "$70" printed as
+   * "$70.00". Rounding to the two decimals the formatter is going to
+   * show anyway makes the test ask the question the comment claims it
+   * asks.
+   */
+  const shown = Math.round(dollars * 100) / 100;
   return `$${dollars.toLocaleString("en-GB", {
-    minimumFractionDigits: dollars % 1 === 0 ? 0 : 2,
+    minimumFractionDigits: shown % 1 === 0 ? 0 : 2,
     maximumFractionDigits: 2,
   })}`;
 }

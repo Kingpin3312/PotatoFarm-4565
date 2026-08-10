@@ -161,6 +161,23 @@ delivered, so a brokerage keeps working a pipeline that has gone quiet.
 `messagingWindow()` is the single source of truth and both the UI and the
 send path read it.
 
+## Run the tests
+
+    npm test          # 78 assertions, pure functions, no database
+    npm run verify    # tsc, the tests, 11 check suites, 13 audits
+
+`npm test` was declared from day one with no test files behind it, so it
+exited 1 and said "No test files found". There are four files now, and
+they cover the pure logic where being wrong is silent: the fils unit, the
+24-hour window on both sides of the boundary, Dubai sending hours, and
+the search parser's plural intents and budget bands.
+
+`passWithNoTests: false` is set deliberately. A run that finds nothing is
+a failure, not a pass — that is the hole that let the command sit broken.
+
+They do not replace the check suites. Those need a real Postgres because
+tenant isolation cannot be proved against a mock.
+
 ## Run the audits
 
 There are **thirteen**, in `04-audit-scripts/` at the repository root.

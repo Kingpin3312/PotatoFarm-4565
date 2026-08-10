@@ -10,7 +10,21 @@ import glob, os, re, sys
 from collections import defaultdict
 
 ROOT = sys.argv[1] if len(sys.argv) > 1 else "potato-crm"
-files = {p: open(p).read() for p in glob.glob(os.path.join(ROOT, "src/**/*.ts*"), recursive=True)}
+# Test files are excluded, and the reason is the unreachable check.
+#
+# A `*.test.ts` is an entry point — vitest runs it, no application module
+# imports it — so to a graph built from imports it looks exactly like the
+# thing this script exists to catch: a module nothing can reach. Counting
+# them would mean one false "unreachable" per test file, and the fix
+# somebody reaches for after the third one is to stop reading the output.
+#
+# Nothing is lost by leaving them out. A test importing a deep module is
+# not a layering violation, and a test is not a dependency of the product.
+files = {
+    p: open(p).read()
+    for p in glob.glob(os.path.join(ROOT, "src/**/*.ts*"), recursive=True)
+    if not p.endswith((".test.ts", ".test.tsx", ".spec.ts", ".spec.tsx"))
+}
 
 # Layers, outermost first. An inner layer must never import an outer one.
 def layer(path):
