@@ -2,6 +2,7 @@ import { z } from "zod";
 import { router, requirePermission } from "../trpc";
 import { timeline } from "@/server/lib/blackbook/timeline";
 import { audit } from "@/server/lib/audit";
+import { TRPCError } from "@trpc/server";
 
 /**
  * The blackbook.
@@ -38,10 +39,41 @@ export const blackbookRouter = router({
     }),
 
   /** One person, everything said to them, newest first. */
+  /**
+   * One person's whole history.
+   *
+   * The party is looked up before the timeline is built. `timeline()`
+   * queries by id and returns empty lists for an id that matches
+   * nothing, so a stale link rendered a complete, confident person page
+   * for somebody who does not exist — reply window, empty history and
+   * all. Worse than an error, because it looks like a real record with
+   * nothing in it.
+   *
+   * Also enforces that exactly one of the two is given. Neither would
+   * have thrown inside `timeline()` on `vendorId!`.
+   */
   person: requirePermission("lead:read:own")
     .input(z.object({ leadId: z.string().optional(), vendorId: z.string().optional() }))
-    .query(({ ctx, input }) =>
-      timeline({ orgId: ctx.orgId, agentId: ctx.userId, ...input })),
+    .query(async ({ ctx, input }) => {
+      if (!input.leadId === !input.vendorId) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Ask for a buyer or an owner, not both and not neither.",
+        });
+      }
+
+      const exists = input.leadId
+        ? await ctx.db.lead.findFirst({
+            where: { id: input.leadId, deletedAt: null }, select: { id: true } })
+        : await ctx.db.vendor.findFirst({
+            where: { id: input.vendorId }, select: { id: true } });
+
+      if (!exists) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "There is nobody here." });
+      }
+
+      return timeline({ orgId: ctx.orgId, agentId: ctx.userId, ...input });
+    }),
 
   /** Add somebody, or somebody who is in nobody's pipeline. */
   add: requirePermission("lead:read:own")

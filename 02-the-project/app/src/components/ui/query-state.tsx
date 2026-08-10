@@ -18,10 +18,26 @@ import { Button } from "./button";
  * reports a bug.
  */
 
-/** Refused on purpose, rather than failed. */
+/** Refused because of the role. Signing in again will not help. */
 function refused(error?: { data?: { code?: string } | null } | null): boolean {
-  const code = error?.data?.code;
-  return code === "FORBIDDEN" || code === "UNAUTHORIZED";
+  return error?.data?.code === "FORBIDDEN";
+}
+
+/**
+ * Signed out — which is a different thing entirely.
+ *
+ * These two were treated as one, so a session that expired mid-shift
+ * told an agent "you don't have access to your leads". They had access
+ * ten minutes ago; what they need is a way back in, not an explanation
+ * of permissions.
+ */
+function signedOut(error?: { data?: { code?: string } | null } | null): boolean {
+  return error?.data?.code === "UNAUTHORIZED";
+}
+
+/** It is not there — a stale link, or something somebody deleted. */
+function missing(error?: { data?: { code?: string } | null } | null): boolean {
+  return error?.data?.code === "NOT_FOUND";
 }
 
 export function QueryError({
@@ -38,6 +54,41 @@ export function QueryError({
    */
   error?: { data?: { code?: string } | null; message?: string } | null;
 }) {
+  if (signedOut(error)) {
+    return (
+      <div role="alert" className="px-6 py-10 max-w-[46ch]">
+        <p className="text-[15px] text-ink font-semibold">You&rsquo;ve been signed out.</p>
+        <p className="text-sm text-ink-2 mt-1.5">
+          Sessions don&rsquo;t last forever. Sign in again and you&rsquo;ll come straight
+          back here.
+        </p>
+        <a
+          href={`/sign-in?next=${encodeURIComponent(
+            typeof window === "undefined" ? "/" : window.location.pathname + window.location.search
+          )}`}
+          className="btn-inline mt-4 inline-flex min-h-11 items-center"
+        >
+          Sign in
+        </a>
+      </div>
+    );
+  }
+
+  if (missing(error)) {
+    return (
+      <div role="alert" className="px-6 py-10 max-w-[46ch]">
+        <p className="text-[15px] text-ink font-semibold">
+          We can&rsquo;t find {what}.
+        </p>
+        <p className="text-sm text-ink-2 mt-1.5">
+          It may have been deleted, or the link may be out of date. Nothing else is
+          affected.
+        </p>
+        {/* No Try again: it will not appear on a second attempt. */}
+      </div>
+    );
+  }
+
   if (refused(error)) {
     return (
       <div role="alert" className="px-6 py-10 max-w-[46ch]">

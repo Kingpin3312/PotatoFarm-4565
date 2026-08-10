@@ -1,14 +1,26 @@
 /*
-  # The static site. Tighter than the application's, because this one has
-  # no third-party anything except the font — which is the one thing here
-  # worth removing later, since rsms.me sees every visitor's IP and the
-  # privacy page is two clicks away.
+  # The static site, and now genuinely no third-party anything.
+  #
+  # It loaded Inter from rsms.me on every page. The comment that used to
+  # sit here said that was worth removing later because rsms.me sees
+  # every visitor's IP and the privacy page is two clicks away — on a
+  # product sold to brokerages on its compliance posture. "Later" is now.
+  #
+  # It cost nothing to remove: Inter sat *third* in the stack, behind
+  # -apple-system and BlinkMacSystemFont, so no Apple device ever used
+  # it, and the render is identical here with the request blocked. It
+  # also removes a render-blocking request to a third-party host from
+  # the Gulf, and a single point of failure for the whole site's
+  # typography.
+  #
+  # To bring Inter back: self-host the woff2 in /assets and add
+  # @font-face. Do not re-add the CDN.
   # connect-src carries app.potatofarm.io because the demo and guide
   # forms fetch the application's API — this site has no server of its
   # own. form-action deliberately does NOT: with JavaScript off, a native
   # post would land the visitor on a page of raw JSON, and the mailto
   # link beside every form is the better fallback.
-  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://rsms.me; font-src 'self' https://rsms.me; img-src 'self' data:; connect-src 'self' https://app.potatofarm.io; form-action 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; upgrade-insecure-requests
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self' https://app.potatofarm.io; form-action 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; upgrade-insecure-requests
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   X-Frame-Options: SAMEORIGIN

@@ -163,7 +163,24 @@ export const offersRouter = router({
   }),
 
   /** What the vendor is choosing between, ranked by strength not price. */
+  /**
+   * Offers on one property.
+   *
+   * The listing is looked up first, and that is not ceremony. `compare`
+   * returns an empty array for a property that does not exist, which the
+   * screen rendered as a confident "0 offers" — a stale link or a typo
+   * in the URL looked exactly like a property nobody has bid on. An
+   * agent could tell an owner there were no offers on a property that
+   * was not even ours.
+   */
   onListing: requirePermission("lead:read:own")
     .input(z.object({ listingId: z.string() }))
-    .query(({ ctx, input }) => compare(ctx.orgId, input.listingId)),
+    .query(async ({ ctx, input }) => {
+      const listing = await ctx.db.listing.findFirst({
+        where: { id: input.listingId, deletedAt: null },
+        select: { id: true },
+      });
+      if (!listing) throw new TRPCError({ code: "NOT_FOUND", message: "No such property." });
+      return compare(ctx.orgId, input.listingId);
+    }),
 });
