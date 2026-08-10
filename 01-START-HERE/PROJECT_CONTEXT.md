@@ -410,7 +410,7 @@ The honest accounting, because it is a real trade and not a free one:
 ```
 #FF6B35 on the ground   2.56:1   fails AA for text (needs 4.5)
 #FF6B35 on the panel    2.36:1   fails
-#FF6B35 on leather      6.14:1   passes comfortably
+#FF6B35 on charcoal     5.18:1   passes comfortably
 #1A1A1A on #FF6B35      6.14:1   passes — why buttons keep ink labels
 #FFFFFF on #FF6B35      2.84:1   fails — never put white on it
 ```

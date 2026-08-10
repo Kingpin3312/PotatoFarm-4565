@@ -25,9 +25,36 @@ amber gradient. The `.io` beside it does not — that is type.
 | Deep | `#A84015` | **5.55:1** | 5.12:1 | Captions and inline links **only** |
 | Ink | `#1A1A1A` | 16.94:1 | — | Body, button labels, figures, tables |
 
-On leather (`#1A1A1A`) the brand orange measures **6.14:1** and clears AA
+### The dark surfaces are charcoal, not black
+
+| Role | Hex | Where |
+|---|---|---|
+| Charcoal ground | `#2A2825` | The inverted band, and the mobile dark theme |
+| Charcoal raised | `#34322F` | Cards lifted inside that band |
+| Rule | `#42403D` | Borders on the dark surface |
+| Type | `#EBEAE6` · `#B5B5B5` · `#9A9A96` | 12.21 · 7.17 · 5.21 on the ground |
+
+On charcoal the brand orange measures **5.18:1** and clears AA
 comfortably. The inverted sections are the one place it is both correct
 and fully legible.
+
+**Charcoal has a ceiling, and it is lower than it looks.** Two pairs set
+it: the accent has to work as type on the *raised* step inside the band,
+and `.on-leather` sets `--on-accent: var(--leather-deep)`, so the ground
+colour is also the label on every orange button there. Both must clear
+4.5:1, which stops the ground going much past `#2A2825`. It is a real
+charcoal, not a mid grey, and it cannot be a mid grey while the orange
+is doing work on top of it.
+
+The muted grey had to move with it: `--leather-ink-3` was `#8A8A8A` at
+4.74:1 on black and falls to 4.03:1 on charcoal. It is `#9A9A96` now.
+Raising the floor of a surface raises everything standing on it, and
+that is the step a palette change usually forgets.
+
+`03-brand/charcoal.py` carries the measurements and makes the change.
+It edits **named declarations, never hex values** — `#1A1A1A` was both
+`--ink` and `--leather-deep`, so a value-level replace would have turned
+every heading and every button label charcoal too.
 
 ### The mark
 

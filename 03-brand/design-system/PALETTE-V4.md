@@ -72,8 +72,11 @@ reference agreed — which does not always happen.
 hairline is what defines the boundary regardless of what is behind it,
 and with the brand orange it is load-bearing rather than a nicety.
 
-**On leather it passes.** #FF6B35 measures **6.14:1** on the dark
+**On charcoal it passes.** #FF6B35 measures **5.18:1** on the dark
 surface, the one place the brand colour is both correct and legible.
+That surface is `#2A2825` — charcoal rather than the near-black it was,
+because a pure black band under a warm cream page reads as a hole in it
+rather than as a material.
 
 **Hot is the only thing wearing the accent.** With one orange, every
 other lead state is deliberately neutral. That is a stronger signal than

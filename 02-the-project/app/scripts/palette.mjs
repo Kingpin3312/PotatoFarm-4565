@@ -31,7 +31,7 @@ const SCREENS = ["/today","/inbox","/pipeline","/leads","/listings","/viewings",
 const ctx = await b.newContext({ viewport: { width: 1280, height: 1000 } });
 await ctx.addCookies([{ name:"authjs.session-token", value:"dev-session-token-ask-history", domain:"localhost", path:"/", httpOnly:true, sameSite:"Lax" }]);
 const p = await ctx.newPage();
-let offenders = 0, blueLinks = 0, scanned = 0, redirected = 0;
+let offenders = 0, blueLinks = 0, scanned = 0, redirected = 0, unreachable = 0;
 for (const s of SCREENS) {
   await p.goto("http://localhost:3000"+s, { waitUntil:"networkidle" }).catch(()=>{});
   await p.waitForTimeout(700);
@@ -55,8 +55,20 @@ for (const s of SCREENS) {
     }
     return { off:[...off.entries()], blue };
   });
-  const real = await p.evaluate(() => ({ url: location.pathname,
-     h1: (document.querySelector("h1")?.textContent||"").trim().slice(0,40) }));
+  const real = await p.evaluate(() => ({
+    url: location.pathname,
+    h1: (document.querySelector("h1")?.textContent||"").trim().slice(0,40),
+    // Chrome's own error page has no app chrome and a blue Reload button.
+    // Without this the scan happily "passes" 21 browser error pages and
+    // reports the browser's blue as a palette violation — which is what
+    // it did the first time the dev server was not running.
+    chromeError: !!document.querySelector("#main-frame-error, .error-code, button.blue-button"),
+    text: document.body.innerText.replace(/\s+/g," ").trim().length,
+  }));
+  if (real.chromeError || real.text < 40) {
+    console.log(`${s}  !! DID NOT LOAD — is the dev server running? (not scanned)`);
+    unreachable++; continue;
+  }
   if (real.url.startsWith("/sign-in")) { console.log(`${s}  !! REDIRECTED TO SIGN-IN — not scanned`); redirected++; continue; }
   scanned++;
   if (r.off.length || r.blue.length) {
@@ -66,5 +78,12 @@ for (const s of SCREENS) {
     offenders += r.off.length; blueLinks += r.blue.length;
   }
 }
-console.log(`\n${scanned} screens actually scanned (${redirected} redirected) · ${offenders} off-palette colour(s) · ${blueLinks} default-blue link(s)`);
+console.log(`\n${scanned} screens actually scanned (${redirected} redirected, ${unreachable} unreachable) · ${offenders} off-palette colour(s) · ${blueLinks} default-blue link(s)`);
+// A run that scanned nothing must not exit 0. That is the whole point.
+if (unreachable || redirected || scanned < SCREENS.length) {
+  console.log(`\n${SCREENS.length - scanned} of ${SCREENS.length} screens were never scanned — this run proves nothing about them.`);
+  process.exitCode = 1;
+} else if (offenders || blueLinks) {
+  process.exitCode = 1;
+}
 await b.close();

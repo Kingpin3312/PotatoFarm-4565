@@ -39,8 +39,10 @@ export const light = {
   markBody: "#F0A03A",
   markRim:  "#D9761C",
 
-  leather:     "#2E2E2E",
-  leatherDeep: "#1A1A1A",
+  /* The inverted band inside the light theme. Charcoal, matching
+     --leather / --leather-deep in tokens.css. */
+  leather:     "#34322F",
+  leatherDeep: "#2A2825",
 
   danger:  "#A84015",
   success: "#1A1A1A",
@@ -48,31 +50,39 @@ export const light = {
 } as const;
 
 export const dark = {
-  ground: "#1A1A1A",
-  sunk:   "#2E2E2E",
-  raised: "#2E2E2E",
+  /* Charcoal, not black — the same surfaces as the web app's dark band,
+     and the same reason: a pure black ground under a warm palette reads
+     as a hole rather than a material. Kept in step with
+     --leather-deep / --leather in tokens.css; 03-brand/charcoal.py has
+     the measurements and the ceiling that sets them. */
+  ground: "#2A2825",
+  sunk:   "#34322F",
+  raised: "#34322F",
 
-  ink:  "#EBEAE6",   // 14.49:1
-  ink2: "#B5B5B5",   //  8.02:1
-  ink3: "#8A8A8A",   //  4.74:1
-  rule: "#2E2E2E",
+  ink:  "#EBEAE6",   // 12.21:1
+  ink2: "#B5B5B5",   //  7.17:1
+  ink3: "#9A9A96",   //  5.21:1 — #8A8A8A fell to 4.03 on charcoal
+  rule: "#42403D",
 
-  accent:      "#FF6B35",   // 6.14:1 on this ground — works as type here
+  accent:      "#FF6B35",   // 5.18:1 on this ground — works as type here
   accentHover: "#FF6B35",
   accentEdge:  "#E85A25",
-  accentType:  "#FF6B35",   // 6.14:1
-  onAccent:    "#1A1A1A",
+  accentType:  "#FF6B35",   // 5.18:1
+  /* The label on an orange button. It is the ground colour, so it moved
+     with it — and 5.18:1 on the orange is why the ground could not go
+     any lighter than this. */
+  onAccent:    "#2A2825",
 
   tld: "#FF6B35",
   markEye: "#3B2416",
   markBody: "#F0A03A",
   markRim:  "#D9761C",
 
-  leather:     "#2E2E2E",
-  leatherDeep: "#1A1A1A",
+  leather:     "#34322F",
+  leatherDeep: "#2A2825",
 
   /* Two colours here as well. On this ground the brand orange measures
-     6.14:1, so danger needs no darker step — the light theme's
+     5.18:1, so danger needs no darker step — the light theme's
      #A84015 exists only because cream is a bright surface. Success is
      ink, as it is in the light theme: the word carries it. */
   danger:  "#FF6B35",
