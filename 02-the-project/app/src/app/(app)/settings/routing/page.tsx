@@ -18,7 +18,7 @@ import { cn } from "@/lib/cn";
  * four agents have complained.
  */
 export default function Routing() {
-  const { data, isLoading, isError, refetch } = api.routing.rules.useQuery();
+  const { data, isLoading, isError, refetch, error } = api.routing.rules.useQuery();
   // The five values AssignStrategy actually has. "SPECIALIST" was not
   // one of them — matching on community and language is applied by
   // `available()` before every strategy runs, so it is a filter on all
@@ -27,7 +27,7 @@ export default function Routing() {
     useState<"ROUND_ROBIN"|"LEAST_LOADED"|"FASTEST"|"SPECIFIC"|"UNASSIGNED">("ROUND_ROBIN");
   const preview = api.routing.preview.useQuery({ strategy }, { enabled: Boolean(strategy) });
 
-  if (isError) return <QueryError retry={() => void refetch()} what="the routing rules" />;
+  if (isError) return <QueryError retry={() => void refetch()} what="the routing rules" error={error} />;
   if (isLoading) return <div className="max-w-[680px] mx-auto px-6 pt-10"><div className="h-64 bg-sunk rounded-sm" aria-busy /></div>;
 
   const STRATEGIES = [

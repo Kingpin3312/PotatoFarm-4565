@@ -5,6 +5,7 @@ import { api } from "@/lib/trpc";
 import { cn } from "@/lib/cn";
 import { aedShort } from "@/lib/money";
 import type { StepStage } from "@/server/lib/deals/risk";
+import { QueryError } from "@/components/ui/query-state";
 
 /**
  * Deals, which nobody could see until now.
@@ -23,7 +24,7 @@ import type { StepStage } from "@/server/lib/deals/risk";
  * somebody needed to see.
  */
 export default function Deals() {
-  const { data, isLoading, isError, refetch } = api.deals.live.useQuery();
+  const { data, isLoading, isError, refetch, error } = api.deals.live.useQuery();
   const [open, setOpen] = useState<string | null>(null);
 
   return (
@@ -44,8 +45,7 @@ export default function Deals() {
 
       {isError && (
         <div>
-          <p className="text-[15px] text-ink">That didn&rsquo;t load.</p>
-          <button onClick={() => refetch()} className="btn-inline mt-2">Try again</button>
+          <QueryError retry={() => void refetch()} what="your deals" error={error} />
         </div>
       )}
 

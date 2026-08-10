@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { api } from "@/lib/trpc";
 import { cn } from "@/lib/cn";
+import { QueryError } from "@/components/ui/query-state";
 
 /**
  * What you asked for, and what came back.
@@ -24,7 +25,7 @@ import { cn } from "@/lib/cn";
  * about it. A manager reading that changes what gets asked.
  */
 export function History() {
-  const { data, isLoading, isError, refetch } = api.requests.mine.useQuery();
+  const { data, isLoading, isError, refetch, error } = api.requests.mine.useQuery();
   const [open, setOpen] = useState<string | null>(null);
 
   if (isLoading) {
@@ -34,8 +35,7 @@ export function History() {
   if (isError) {
     return (
       <div className="mt-10">
-        <p className="text-[15px] text-ink">That didn't load.</p>
-        <button onClick={() => refetch()} className="btn-inline mt-2">Try again</button>
+        <QueryError retry={() => void refetch()} what="your requests" error={error} />
       </div>
     );
   }

@@ -24,7 +24,11 @@ export const viewport: Viewport = {
   // Without this, env(safe-area-inset-*) resolves to zero and the
   // composer sits under the home indicator on a notched phone.
   viewportFit: "cover",
-  themeColor: "#F4F1EA",
+  // Must equal `--ground` in tokens.css. This said #F4F1EA — the ground
+  // from a palette ago — so on a phone the browser chrome was a very
+  // slightly different cream from the page it framed, which reads as a
+  // seam nobody can name.
+  themeColor: "#F4F3F0",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

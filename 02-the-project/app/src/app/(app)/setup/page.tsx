@@ -17,12 +17,12 @@ import { cn } from "@/lib/cn";
  * works without step two.
  */
 export default function Setup() {
-  const { data, isLoading, isError, refetch } = api.onboarding.checklist.useQuery();
+  const { data, isLoading, isError, refetch, error } = api.onboarding.checklist.useQuery();
   const setStep = api.onboarding.setStep.useMutation({
     onSuccess: () => void refetch(),
   });
 
-  if (isError) return <QueryError retry={() => void refetch()} what="your setup" />;
+  if (isError) return <QueryError retry={() => void refetch()} what="your setup" error={error} />;
   if (isLoading) return <div className="max-w-[680px] mx-auto px-6 pt-10"><div className="h-64 bg-sunk rounded-sm" aria-busy /></div>;
 
   const steps = data?.steps ?? [];

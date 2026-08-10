@@ -18,12 +18,12 @@ import { cn } from "@/lib/cn";
  * level up: not a module nothing imports, but a router nothing renders.
  */
 export default function Billing() {
-  const { data, isLoading, isError, refetch } = api.billing.status.useQuery();
+  const { data, isLoading, isError, refetch, error } = api.billing.status.useQuery();
   const { data: invoices } = api.billing.invoices.useQuery();
   const addCard = api.billing.addCard.useMutation();
   const [adding, setAdding] = useState(false);
 
-  if (isError) return <QueryError retry={() => void refetch()} what="your billing" />;
+  if (isError) return <QueryError retry={() => void refetch()} what="your billing" error={error} />;
   if (isLoading) return <Skeleton />;
   if (!data?.subscribed) {
     return (

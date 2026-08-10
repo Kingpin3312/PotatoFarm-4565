@@ -17,7 +17,7 @@ import { QueryError } from "@/components/ui/query-state";
  * button that works immediately.
  */
 export default function Access() {
-  const { data, isLoading, isError, refetch } = api.support.grants.useQuery();
+  const { data, isLoading, isError, refetch, error } = api.support.grants.useQuery();
   const grant = api.support.grant.useMutation({
     onSuccess: () => { setEmail(""); setReason(""); void refetch(); },
   });
@@ -26,7 +26,7 @@ export default function Access() {
   const [email, setEmail] = useState("");
   const [reason, setReason] = useState("");
 
-  if (isError) return <QueryError retry={() => void refetch()} what="support access" />;
+  if (isError) return <QueryError retry={() => void refetch()} what="support access" error={error} />;
 
   const grants = data?.grants ?? [];
   const live = grants.filter((g) => g.active);

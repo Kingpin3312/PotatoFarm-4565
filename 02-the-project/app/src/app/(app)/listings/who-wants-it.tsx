@@ -33,7 +33,7 @@ export function WhoWantsIt({ listingId, reference }: { listingId: string; refere
   const dialog = useRef<HTMLDialogElement>(null);
   const [asked, setAsked] = useState(false);
 
-  const { data, isLoading, isError, refetch } = api.listings.buyers.useQuery(
+  const { data, isLoading, isError, refetch, error } = api.listings.buyers.useQuery(
     { listingId },
     { enabled: asked }
   );
@@ -77,9 +77,22 @@ export function WhoWantsIt({ listingId, reference }: { listingId: string; refere
             {isLoading ? "Looking through your book…" : (data?.pitch ?? "Who wants it")}
           </h2>
 
+          {/**
+           * The answer arrives after the dialog has already been read out.
+           *
+           * A screen reader announces the dialog's label when it opens —
+           * at which point the label is still "Looking through your
+           * book…". The real sentence lands a second later and changes
+           * nothing audible. This says it when it arrives, and stays
+           * out of the way of everybody else.
+           */}
+          <p role="status" aria-live="polite" className="sr-only">
+            {isLoading ? "Looking through your book" : (data?.pitch ?? "")}
+          </p>
+
           {isError && (
             <div className="mt-4">
-              <QueryError retry={() => void refetch()} what="the buyers for this one" />
+              <QueryError retry={() => void refetch()} what="the buyers for this one" error={error} />
             </div>
           )}
 

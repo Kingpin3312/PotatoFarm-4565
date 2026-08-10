@@ -12,9 +12,9 @@ import { QueryError } from "@/components/ui/query-state";
  * hours needs a call now.
  */
 export default function Offers() {
-  const { data, isLoading, isError, refetch } = api.offers.live.useQuery();
+  const { data, isLoading, isError, refetch, error } = api.offers.live.useQuery();
 
-  if (isError) return <QueryError retry={() => void refetch()} what="live offers" />;
+  if (isError) return <QueryError retry={() => void refetch()} what="live offers" error={error} />;
   if (isLoading) return <div className="max-w-[760px] mx-auto px-6 pt-10"><div className="h-40 bg-sunk rounded-sm" aria-busy /></div>;
 
   const rows = data ?? [];

@@ -28,14 +28,14 @@ export default function Book({ searchParams }: {
   // which is who this screen is for. It used to read `userId` off
   // `org.mine`, which lists the brokerages you belong to and never had
   // one — so `agentId` was always "" and the query never ran.
-  const { data, isLoading, isError, refetch } =
+  const { data, isLoading, isError, refetch, error } =
     api.viewings.slots.useQuery({ listingId, days: 7 });
 
   const hold = api.viewings.hold.useMutation();
   const confirm = api.viewings.confirm.useMutation();
   const [picked, setPicked] = useState<string | null>(null);
 
-  if (isError) return <QueryError retry={() => void refetch()} what="available times" />;
+  if (isError) return <QueryError retry={() => void refetch()} what="available times" error={error} />;
 
   if (confirm.isSuccess) {
     return (

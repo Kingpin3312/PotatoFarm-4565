@@ -16,7 +16,7 @@ import { aed, aedShort } from "@/lib/money";
  */
 export function Board() {
   const utils = api.useUtils();
-  const { data, isLoading , isError, refetch } = api.pipeline.board.useQuery({ perColumn: 20 });
+  const { data, isLoading , isError, refetch, error } = api.pipeline.board.useQuery({ perColumn: 20 });
   const [dragging, setDragging] = useState<string | null>(null);
   const [conflict, setConflict] = useState(false);
 
@@ -34,7 +34,7 @@ export function Board() {
   });
 
   if (isLoading) return <BoardSkeleton />;
-  if (isError) return <QueryError retry={() => void refetch()} what="your pipeline" />;
+  if (isError) return <QueryError retry={() => void refetch()} what="your pipeline" error={error} />;
   if (!data) return null;
 
   /**

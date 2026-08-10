@@ -5,6 +5,7 @@ import { api } from "@/lib/trpc";
 import { cn } from "@/lib/cn";
 import { aedShort } from "@/lib/money";
 import { Ask } from "../ask/ask-box";
+import { QueryError } from "@/components/ui/query-state";
 
 /**
  * The front door.
@@ -22,7 +23,7 @@ import { Ask } from "../ask/ask-box";
  * moves further down.
  */
 export default function Today() {
-  const { data, isLoading, isError, refetch } = api.today.brief.useQuery();
+  const { data, isLoading, isError, refetch, error } = api.today.brief.useQuery();
   const utils = api.useUtils();
 
   const dismiss = api.today.dismiss.useMutation({
@@ -56,8 +57,7 @@ export default function Today() {
 
       {isError && (
         <div className="mt-10">
-          <p className="text-[15px] text-ink">That didn&rsquo;t load.</p>
-          <button onClick={() => refetch()} className="btn-inline mt-2">Try again</button>
+          <QueryError retry={() => void refetch()} what="today" error={error} />
         </div>
       )}
 

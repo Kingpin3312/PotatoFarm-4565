@@ -18,11 +18,11 @@ import { QueryError } from "@/components/ui/query-state";
  * leave the agent to decide.
  */
 export default function Viewings() {
-  const { data, isLoading, isError, refetch } = api.viewings.day.useQuery({
+  const { data, isLoading, isError, refetch, error } = api.viewings.day.useQuery({
     date: new Date(),
   });
 
-  if (isError) return <QueryError retry={() => void refetch()} what="today's viewings" />;
+  if (isError) return <QueryError retry={() => void refetch()} what="today's viewings" error={error} />;
   if (isLoading) return <Skeleton />;
 
   const list = data?.viewings ?? [];

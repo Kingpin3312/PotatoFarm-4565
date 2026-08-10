@@ -19,7 +19,7 @@ export default function Screening({ params }: { params: Promise<{ kycId: string 
   // `kycId` straight off it yields undefined, and the query
   // below would have run against nothing.
   const { kycId } = use(params);
-  const { data, isLoading, isError, refetch } =
+  const { data, isLoading, isError, refetch, error } =
     api.aml.screeningDetail.useQuery({ kycId: kycId });
   const file = api.aml.file.useMutation({ onSuccess: () => void refetch() });
 
@@ -28,7 +28,7 @@ export default function Screening({ params }: { params: Promise<{ kycId: string 
   const [notFiledReason, setNotFiled] = useState("");
   const [goamlRef, setRef] = useState("");
 
-  if (isError) return <QueryError retry={() => void refetch()} what="this screening" />;
+  if (isError) return <QueryError retry={() => void refetch()} what="this screening" error={error} />;
   if (isLoading) return <div className="max-w-[680px] mx-auto px-6 pt-10"><div className="h-64 bg-sunk rounded-sm" aria-busy /></div>;
 
   const latest = data?.[0];

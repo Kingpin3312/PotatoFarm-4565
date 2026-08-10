@@ -22,9 +22,9 @@ import { cn } from "@/lib/cn";
  *    not the floor.
  */
 export default function Compliance() {
-  const { data, isLoading, isError, refetch } = api.aml.reports.useQuery();
+  const { data, isLoading, isError, refetch, error } = api.aml.reports.useQuery();
 
-  if (isError) return <QueryError retry={() => void refetch()} what="the compliance file" />;
+  if (isError) return <QueryError retry={() => void refetch()} what="the compliance file" error={error} />;
   if (isLoading) return <div className="max-w-[760px] mx-auto px-6 pt-10"><div className="h-64 bg-sunk rounded-sm" aria-busy /></div>;
 
   const pending = data?.pending ?? [];

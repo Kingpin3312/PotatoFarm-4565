@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
  */
 export function Thread({ conversationId }: { conversationId: string }) {
   const utils = api.useUtils();
-  const { data, isLoading , isError, refetch } = api.conversations.thread.useQuery({ conversationId });
+  const { data, isLoading , isError, refetch, error } = api.conversations.thread.useQuery({ conversationId });
   const [draft, setDraft] = useState("");
   const [failed, setFailed] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
@@ -72,7 +72,7 @@ export function Thread({ conversationId }: { conversationId: string }) {
   }, [data?.messages.length]);
 
   if (isLoading) return <ThreadSkeleton />;
-  if (isError) return <QueryError retry={() => void refetch()} what="this" />;
+  if (isError) return <QueryError retry={() => void refetch()} what="this" error={error} />;
   if (!data) return null;
 
   const { window: w } = data;

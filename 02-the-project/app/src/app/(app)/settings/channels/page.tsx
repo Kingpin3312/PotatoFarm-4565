@@ -14,9 +14,9 @@ import { cn } from "@/lib/cn";
  * to make silence visible.
  */
 export default function Channels() {
-  const { data, isLoading, isError, refetch } = api.channels.health.useQuery();
+  const { data, isLoading, isError, refetch, error } = api.channels.health.useQuery();
 
-  if (isError) return <QueryError retry={() => void refetch()} what="your channels" />;
+  if (isError) return <QueryError retry={() => void refetch()} what="your channels" error={error} />;
   if (isLoading) return <div className="max-w-[680px] mx-auto px-6 pt-10"><div className="h-52 bg-sunk rounded-sm" aria-busy /></div>;
 
   const rows = data?.channels ?? [];

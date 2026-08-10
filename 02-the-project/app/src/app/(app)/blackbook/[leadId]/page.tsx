@@ -20,13 +20,13 @@ export default function Person({ params }: { params: Promise<{ leadId: string }>
   // `leadId` straight off it yields undefined, and the query
   // below would have run against nothing.
   const { leadId } = use(params);
-  const { data, isLoading, isError, refetch } =
+  const { data, isLoading, isError, refetch, error } =
     api.blackbook.person.useQuery({ leadId: leadId });
   const note = api.blackbook.note.useMutation();
   const [draft, setDraft] = useState("");
   const [editing, setEditing] = useState(false);
 
-  if (isError) return <QueryError retry={() => void refetch()} what="this person" />;
+  if (isError) return <QueryError retry={() => void refetch()} what="this person" error={error} />;
   if (isLoading) return <div className="max-w-[680px] mx-auto px-6 pt-10"><div className="h-72 bg-sunk rounded-sm" aria-busy /></div>;
 
   const w = data?.replyWindow;

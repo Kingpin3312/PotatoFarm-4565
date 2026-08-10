@@ -19,9 +19,9 @@ import { cn } from "@/lib/cn";
  */
 export default function Blackbook() {
   const [tag, setTag] = useState<string | undefined>();
-  const { data, isLoading, isError, refetch } = api.blackbook.mine.useQuery({ tag });
+  const { data, isLoading, isError, refetch, error } = api.blackbook.mine.useQuery({ tag });
 
-  if (isError) return <QueryError retry={() => void refetch()} what="your blackbook" />;
+  if (isError) return <QueryError retry={() => void refetch()} what="your blackbook" error={error} />;
 
   const rows = data ?? [];
   const tags = [...new Set(rows.flatMap((r) => r.tags))].sort();

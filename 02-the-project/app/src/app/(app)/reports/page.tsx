@@ -17,13 +17,13 @@ import { QueryError } from "@/components/ui/query-state";
  * is usually the moment the conversation stops being about software.
  */
 export default function Reports() {
-  const { data, isLoading, isError, refetch } = api.reports.responseTime.useQuery();
+  const { data, isLoading, isError, refetch, error } = api.reports.responseTime.useQuery();
   const { data: byHour } = api.reports.responseByHour.useQuery();
   const { data: byChannel } = api.reports.byChannel.useQuery();
   const capture = api.reports.captureBaseline.useMutation({ onSuccess: () => void refetch() });
   const [label, setLabel] = useState("Baseline week");
 
-  if (isError) return <QueryError retry={() => void refetch()} what="your numbers" />;
+  if (isError) return <QueryError retry={() => void refetch()} what="your numbers" error={error} />;
   if (isLoading) return <div className="max-w-[760px] mx-auto px-6 pt-10"><div className="h-72 bg-sunk rounded-sm" aria-busy /></div>;
 
   const hours = byHour?.hours ?? [];

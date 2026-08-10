@@ -2,6 +2,7 @@
 
 import { api } from "@/lib/trpc";
 import { cn } from "@/lib/cn";
+import { QueryError } from "@/components/ui/query-state";
 
 /**
  * What the assistant did, and the button that reverses it.
@@ -17,7 +18,7 @@ import { cn } from "@/lib/cn";
 export default function Activity() {
   const utils = api.useUtils();
   const { data: settings } = api.activity.autonomy.useQuery();
-  const { data: actions, isLoading, isError, refetch } = api.activity.mine.useQuery();
+  const { data: actions, isLoading, isError, refetch, error } = api.activity.mine.useQuery();
 
   const setMode = api.activity.setAutonomy.useMutation({
     onSettled: () => void utils.activity.autonomy.invalidate(),
@@ -109,8 +110,7 @@ export default function Activity() {
 
         {isError && (
           <div className="mt-3">
-            <p className="text-[15px] text-ink">That didn&rsquo;t load.</p>
-            <button onClick={() => refetch()} className="btn-inline mt-2">Try again</button>
+            <QueryError retry={() => void refetch()} what="what it has been doing" error={error} />
           </div>
         )}
 

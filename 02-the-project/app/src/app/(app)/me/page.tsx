@@ -20,12 +20,12 @@ export default function Me() {
   const from = new Date(Date.now() - 30 * 86_400_000);
   const to = new Date();
 
-  const { data: money, isLoading: l1, isError: e1, refetch: r1 } =
+  const { data: money, isLoading: l1, isError: e1, refetch: r1, error } =
     api.commission.mine.useQuery({});
   const { data: board, isLoading: l2 } =
     api.reports.leaderboard.useQuery({ from, to });
 
-  if (e1) return <QueryError retry={() => void r1()} what="your figures" />;
+  if (e1) return <QueryError retry={() => void r1()} what="your figures" error={error} />;
   if (l1 || l2) return <Skeleton />;
 
   const me = board?.rows.find((r) => r.isMe);

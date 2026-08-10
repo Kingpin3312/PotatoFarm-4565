@@ -12,7 +12,7 @@ import { QueryError } from "@/components/ui/query-state";
  * a CRM with one user in it. This was a mounted router with no screen.
  */
 export default function Team() {
-  const { data, isLoading, isError, refetch } = api.org.members.useQuery();
+  const { data, isLoading, isError, refetch, error } = api.org.members.useQuery();
   const remove = api.org.removeMember.useMutation({ onSuccess: () => void refetch() });
   const invite = api.org.invite.useMutation({
     onSuccess: () => { setEmail(""); void refetch(); },
@@ -20,7 +20,7 @@ export default function Team() {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<"AGENT" | "MANAGER">("AGENT");
 
-  if (isError) return <QueryError retry={() => void refetch()} what="your team" />;
+  if (isError) return <QueryError retry={() => void refetch()} what="your team" error={error} />;
 
   const members = data?.members ?? [];
   const seats = members.length;

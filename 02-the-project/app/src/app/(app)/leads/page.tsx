@@ -19,7 +19,7 @@ import { cn } from "@/lib/cn";
 export default function Leads() {
   const [filter, setFilter] = useState<"all"|"unassigned"|"cold"|"hot">("all");
   const [picked, setPicked] = useState<Set<string>>(new Set());
-  const { data, isLoading, isError, refetch } = api.leads.list.useQuery({ filter });
+  const { data, isLoading, isError, refetch, error } = api.leads.list.useQuery({ filter });
   // pipeline.bulkAssign, not leads.assign — the latter takes ONE leadId
   // and this screen selects many. Passing an array to it would have
   // failed at runtime with a validation error nobody could read.
@@ -29,7 +29,7 @@ export default function Leads() {
   const remove = api.leads.remove.useMutation({ onSuccess: () => void refetch() });
   const { data: team } = api.org.members.useQuery();
 
-  if (isError) return <QueryError retry={() => void refetch()} what="your leads" />;
+  if (isError) return <QueryError retry={() => void refetch()} what="your leads" error={error} />;
 
   // `leads.list` returns `{ rows, nextCursor }` — the cursor is how the
   // list pages, and naming the array `leads` here hid that.

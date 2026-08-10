@@ -17,10 +17,10 @@ import { cn } from "@/lib/cn";
  * The number is still shown, large. The ranking just isn't it.
  */
 export function OfferBoard({ listingId }: { listingId: string }) {
-  const { data, isLoading, isError, refetch } =
+  const { data, isLoading, isError, refetch, error } =
     api.offers.onListing.useQuery({ listingId });
 
-  if (isError) return <QueryError retry={() => void refetch()} what="the offers" />;
+  if (isError) return <QueryError retry={() => void refetch()} what="the offers" error={error} />;
   if (isLoading) return <div className="h-40 bg-sunk rounded-sm" aria-busy />;
   if (!data?.length) {
     return (

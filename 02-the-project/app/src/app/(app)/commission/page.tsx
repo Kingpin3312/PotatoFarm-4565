@@ -12,11 +12,11 @@ import { QueryError } from "@/components/ui/query-state";
  * nothing else above the fold.
  */
 export default function CommissionPage() {
-  const { data, isLoading , isError, refetch } = api.commission.mine.useQuery({});
+  const { data, isLoading , isError, refetch, error } = api.commission.mine.useQuery({});
   const { data: tier } = api.commission.myTier.useQuery();
 
   if (isLoading) return <Skeleton />;
-  if (isError) return <QueryError retry={() => void refetch()} what="this" />;
+  if (isError) return <QueryError retry={() => void refetch()} what="this" error={error} />;
   if (!data) return null;
 
   return (

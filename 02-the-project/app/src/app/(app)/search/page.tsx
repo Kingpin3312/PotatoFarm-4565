@@ -23,7 +23,7 @@ export default function SearchPage() {
   const [text, setText] = useState("");
   const [asked, setAsked] = useState("");
 
-  const { data, isFetching, isError, refetch } = api.search.ask.useQuery(
+  const { data, isFetching, isError, refetch, error } = api.search.ask.useQuery(
     { q: asked },
     { enabled: asked.length > 0 }
   );
@@ -50,7 +50,18 @@ export default function SearchPage() {
           // Not `type="search"` — Safari's clear button is a native
           // control that ignores the theme and sits on the wrong side.
           type="text"
-          autoFocus
+          /**
+           * No `autoFocus`, and it was there until a keyboard test.
+           *
+           * Focusing the field on load drops everybody straight into
+           * the middle of the page: the first Tab went to an example
+           * chip instead of the skip link, and a screen-reader user
+           * landed on an unlabelled text box having never heard the
+           * heading that says what the page is.
+           *
+           * It costs a sighted keyboard user one keystroke. It costs
+           * everybody else the answer to "where am I".
+           */
           maxLength={200}
           aria-label="What are you looking for?"
           placeholder="Emirati investor in Downtown around 4 million"
@@ -93,20 +104,38 @@ export default function SearchPage() {
 
       {asked && (
         <section className="mt-7">
-          {/* What it understood. Never hidden, even when it understood
-              nothing — "nothing structured" is itself the explanation
-              for a disappointing result. */}
-          {data && (
-            <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3">
-              {data.reading.length ? `Read as: ${data.reading.join(" · ")}` : "Searched as words"}
-            </p>
-          )}
+          {/**
+           * Everything that changes without the page changing goes in
+           * one polite status region.
+           *
+           * Results arrive by fetch, so nothing navigates and a screen
+           * reader says nothing at all — the user is left holding a
+           * search box wondering whether it worked. The list itself
+           * stays *outside* the region on purpose: announcing thirty
+           * rows is worse than announcing none. What gets read is the
+           * count and how the question was understood, which is the
+           * same thing a sighted user takes from a glance.
+           */}
+          <div role="status" aria-live="polite">
+            {/* What it understood. Never hidden, even when it understood
+                nothing — "nothing structured" is itself the explanation
+                for a disappointing result. */}
+            {data && (
+              <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3">
+                {data.reading.length ? `Read as: ${data.reading.join(" · ")}` : "Searched as words"}
+              </p>
+            )}
 
-          {isFetching && <p className="mt-3 text-sm text-ink-3">Looking…</p>}
+            {isFetching && <p className="mt-3 text-sm text-ink-3">Looking…</p>}
+
+            {data && !isFetching && data.hits.length > 0 && (
+              <p className="mt-2 text-[15px] text-ink">{summary(data.counts)}</p>
+            )}
+          </div>
 
           {isError && (
             <div className="mt-3">
-              <QueryError retry={() => void refetch()} what="those results" />
+              <QueryError retry={() => void refetch()} what="those results" error={error} />
             </div>
           )}
 
@@ -126,10 +155,6 @@ export default function SearchPage() {
 
           {data && data.hits.length > 0 && (
             <>
-              <p className="mt-2 text-[15px] text-ink">
-                {summary(data.counts)}
-              </p>
-
               <ul className="mt-3 border-t border-ink">
                 {data.hits.map((h) => (
                   <li key={`${h.kind}:${h.id}`} className="border-b border-rule py-3.5">

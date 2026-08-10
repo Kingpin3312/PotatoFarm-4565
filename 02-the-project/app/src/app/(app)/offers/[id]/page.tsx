@@ -23,7 +23,7 @@ export default function OfferThread({ params }: { params: Promise<{ id: string }
   // `id` straight off it yields undefined, and the query
   // below would have run against nothing.
   const { id } = use(params);
-  const { data, isLoading, isError, refetch } =
+  const { data, isLoading, isError, refetch, error } =
     api.offers.onListing.useQuery({ listingId: id });
   const presented = api.offers.presented.useMutation({ onSuccess: () => void refetch() });
   const counter   = api.offers.counter.useMutation({ onSuccess: () => { setAmt(""); void refetch(); } });
@@ -34,7 +34,7 @@ export default function OfferThread({ params }: { params: Promise<{ id: string }
   const [by, setBy]       = useState<"BUYER"|"VENDOR"|"AGENT">("VENDOR");
   const [confirming, setConfirming] = useState<string | null>(null);
 
-  if (isError) return <QueryError retry={() => void refetch()} what="the offers" />;
+  if (isError) return <QueryError retry={() => void refetch()} what="the offers" error={error} />;
   if (isLoading) return <div className="max-w-[680px] mx-auto px-6 pt-10"><div className="h-64 bg-sunk rounded-sm" aria-busy /></div>;
 
   const offers = [...(data ?? [])].sort((a, b) => b.strength - a.strength);
