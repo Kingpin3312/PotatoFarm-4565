@@ -40,6 +40,45 @@ pages = {os.path.basename(p): open(p).read()
          if not os.path.basename(p).startswith("preview-")}
 
 
+
+# ---------- how the host resolves a path ----------
+#
+# The site links to `/product`, not `product.html`, because that is what
+# every canonical tag and every sitemap entry says the page is. A static
+# host only knows that because `_redirects` says so — so any check that
+# asks "does this link go anywhere" has to read the routing table, not
+# just the filesystem.
+#
+# The link check below did not, and reported all 144 clean URLs as broken
+# the moment they became canonical. One resolver now, used by both.
+def _rules():
+    rp = os.path.join(SITE, "_redirects")
+    if not os.path.exists(rp):
+        return []
+    out = []
+    for line in open(rp, encoding="utf-8"):
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        parts = line.split()
+        if len(parts) >= 3:
+            out.append((parts[0], parts[2].rstrip("!")))
+    return out
+
+
+REDIRECT_RULES = _rules()
+
+
+def serves(path):
+    """Would the deployed host return a page for this path?"""
+    if path in ("", "/"):
+        return os.path.exists(os.path.join(SITE, "index.html"))
+    if os.path.exists(os.path.join(SITE, path.lstrip("/"))):
+        return True
+    return any(src == path and code in ("200", "301", "302")
+               for src, code in REDIRECT_RULES)
+
+
 # ---------- 1. Links ----------
 internal, external = {}, set()
 for name, s in pages.items():
@@ -51,13 +90,33 @@ for name, s in pages.items():
 
 for target, sources in sorted(internal.items()):
     if not target: continue
-    if target not in pages and not os.path.exists(os.path.join(SITE, target)):
-        bug(", ".join(sorted(sources)), f"links to {target}, which does not exist")
+    if target in pages:
+        continue
+    # Absolute paths go through the routing table; a bare filename is a
+    # relative link and is still just a file.
+    resolved = serves(target if target.startswith("/") else "/" + target)
+    if not resolved and not os.path.exists(os.path.join(SITE, target)):
+        bug(", ".join(sorted(sources)), f"links to {target}, which nothing serves")
 
 
 # ---------- 2. Orphans — the exact fault I criticised in the competitor ----------
+#
+# Link targets and filenames are no longer the same string. The site
+# links to `/product`; the file is `product.html`. Both forms are folded
+# to the filename before comparing, or every page reads as an orphan the
+# moment the links become canonical — which is what happened.
+def _as_file(target):
+    t = target.split("#")[0].split("?")[0]
+    if t in ("", "/"):
+        return "index.html"
+    t = t.lstrip("/")
+    return t if t.endswith(".html") else f"{t}.html"
+
+
 linked = set()
-for t in internal: linked.add(t)
+for t in internal:
+    linked.add(t)
+    linked.add(_as_file(t))
 for name in pages:
     # index is the root; 404 is served by the host on a miss and is
     # correctly linked from nowhere. Neither is an orphan.
@@ -205,22 +264,7 @@ def _url_routing():
         bug("_redirects", "missing — every extensionless URL will 404")
         return
 
-    rules = []
-    for line in open(rp, encoding="utf-8"):
-        line = line.strip()
-        if not line or line.startswith("#"):
-            continue
-        parts = line.split()
-        if len(parts) >= 3:
-            rules.append((parts[0], parts[2].rstrip("!")))
-
-    def serves(path):
-        if path == "/":
-            return os.path.exists(os.path.join(SITE, "index.html"))
-        if os.path.exists(os.path.join(SITE, path.lstrip("/"))):
-            return True
-        return any(src == path and code in ("200", "301", "302")
-                   for src, code in rules)
+    rules = REDIRECT_RULES
 
     sm = os.path.join(SITE, "sitemap.xml")
     if os.path.exists(sm):
@@ -245,6 +289,20 @@ def _url_routing():
     # The registered domain is www; both hosts resolving is duplicate content.
     if not any(src.startswith("https://www.") for src, _ in rules):
         bug("_redirects", "no www → apex redirect, and the domain is registered as www")
+
+    # Internal links must already be canonical.
+    #
+    # Every one of the 144 internal links pointed at `product.html`,
+    # which 301s to `/product`. That is a wasted round trip on every
+    # click and crawl budget spent on redirects instead of pages. The
+    # .html rules stay in `_redirects` as a safety net for links that
+    # escaped into the wild; nothing on the site should need them.
+    for f in sorted(glob.glob(os.path.join(SITE, "*.html"))):
+        body = open(f, encoding="utf-8").read()
+        stale = sorted(set(re.findall(r'href="([a-z0-9-]+\.html)(?:#[^"]*)?"', body)))
+        if stale:
+            bug(os.path.basename(f),
+                f"links to {', '.join(stale[:3])} — use the canonical /path, not the .html")
 
 
 _url_routing()
