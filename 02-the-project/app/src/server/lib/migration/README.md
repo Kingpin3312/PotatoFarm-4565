@@ -99,3 +99,37 @@ it waiting on decisions rather than on the import.**
 - Conversation history. Notes and call logs can come across. WhatsApp
   history from another system largely cannot, and saying so early is
   better than discovering it at cutover.
+
+## Run ANALYZE when the import finishes
+
+Not a nicety. Measured, in `npm run check:load`:
+
+| | first read of one person's message history |
+|---|---|
+| 160,000 messages just bulk-inserted | **50,677 ms** |
+| the same rows, after `ANALYZE` | **5 ms** |
+
+Ten thousand times. The index was already there and the connection was
+already warm — what was missing was **statistics**. Postgres had just
+been handed the rows in bulk, still believed the table was empty, and
+planned the join to `Conversation` as a nested loop over all of it.
+
+Autovacuum fixes it on its own schedule. On a table that size that is
+minutes, and for those minutes every screen touching messages is
+unusable — which is precisely the first hour of a new customer's life,
+immediately after their data lands, while they are deciding whether they
+have made a mistake.
+
+So the last step of any bulk load is:
+
+```sql
+ANALYZE "Lead", "Listing", "Requirement", "ClientFact", "Message", "Conversation";
+```
+
+Run it inside the import, after the final batch, before the customer is
+told the import is done. It takes a second or two on these volumes.
+
+This is the same shape as everything else in this codebase: the failure
+is silent. Nothing errors, nothing logs, the import reports success —
+the product is just inexplicably broken for a while and then quietly
+fixes itself, which is the hardest kind of fault to be told about.

@@ -16,6 +16,7 @@
     "check:intelligence": "esbuild scripts/intelligence.check.ts --bundle --platform=node --format=esm --outfile=.tmp/intel.mjs --external:@prisma/client --log-level=warning && node --env-file-if-exists=.env .tmp/intel.mjs",
     "check:voice": "esbuild scripts/voice.check.ts --bundle --platform=node --format=esm --outfile=.tmp/voice.mjs --external:@prisma/client --log-level=warning && node .tmp/voice.mjs",
     "check:autonomy": "esbuild scripts/autonomy.check.ts --bundle --platform=node --format=esm --outfile=.tmp/aut.mjs --external:@prisma/client --log-level=warning && node --env-file-if-exists=.env .tmp/aut.mjs",
+    "check:load": "esbuild scripts/load.check.ts --bundle --platform=node --format=esm --outfile=.tmp/load.mjs --external:@prisma/client --log-level=warning && node --env-file-if-exists=.env .tmp/load.mjs",
     "check:search": "esbuild scripts/search.check.ts --bundle --platform=node --format=esm --outfile=.tmp/search.mjs --external:@prisma/client --log-level=warning && node --env-file-if-exists=.env .tmp/search.mjs",
     "check:buyers": "esbuild scripts/buyers.check.ts --bundle --platform=node --format=esm --outfile=.tmp/buyers.mjs --external:@prisma/client --log-level=warning && node --env-file-if-exists=.env .tmp/buyers.mjs",
     "check:deals": "esbuild scripts/deals.check.ts --bundle --platform=node --format=esm --outfile=.tmp/deals.mjs --external:@prisma/client --log-level=warning && node .tmp/deals.mjs",

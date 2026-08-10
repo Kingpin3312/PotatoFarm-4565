@@ -184,6 +184,71 @@ if client and server:
         bug("demo-form.tsx", "client does not import the shared schema — two sources of truth")
 
 
+
+# ---------------------------------------------------------------------
+# Every published URL must actually be servable.
+#
+# The site canonicalises to extensionless paths — /trakheesi-permits, not
+# /trakheesi-permits.html — and a static host only knows that because
+# `_redirects` says so. Three of the eight rules were missing, so the
+# three guide pages sat in the sitemap, carried canonical tags, were
+# linked from the guides index, and would have returned 404 the day the
+# domain was pointed at the host. The entire content-marketing surface,
+# dead on arrival, while actively asking Google to index it.
+#
+# Nothing in the HTML can show that. It is only visible by reading the
+# published URLs against the routing table.
+# ---------------------------------------------------------------------
+def _url_routing():
+    rp = os.path.join(SITE, "_redirects")
+    if not os.path.exists(rp):
+        bug("_redirects", "missing — every extensionless URL will 404")
+        return
+
+    rules = []
+    for line in open(rp, encoding="utf-8"):
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        parts = line.split()
+        if len(parts) >= 3:
+            rules.append((parts[0], parts[2].rstrip("!")))
+
+    def serves(path):
+        if path == "/":
+            return os.path.exists(os.path.join(SITE, "index.html"))
+        if os.path.exists(os.path.join(SITE, path.lstrip("/"))):
+            return True
+        return any(src == path and code in ("200", "301", "302")
+                   for src, code in rules)
+
+    sm = os.path.join(SITE, "sitemap.xml")
+    if os.path.exists(sm):
+        for loc in re.findall(r"<loc>([^<]+)</loc>", open(sm, encoding="utf-8").read()):
+            path = re.sub(r"^https?://[^/]+", "", loc) or "/"
+            if not serves(path):
+                bug("sitemap.xml", f"lists {loc} but nothing serves {path}")
+
+    for f in sorted(glob.glob(os.path.join(SITE, "*.html"))):
+        body = open(f, encoding="utf-8").read()
+        m = re.search(r'rel="canonical" href="([^"]+)"', body)
+        if not m:
+            continue
+        url = m.group(1)
+        name = os.path.basename(f)
+        if "www." in url:
+            bug(name, f"canonical uses www ({url}) — the apex is canonical")
+        path = re.sub(r"^https?://[^/]+", "", url) or "/"
+        if not serves(path):
+            bug(name, f"canonical {url} but nothing serves {path}")
+
+    # The registered domain is www; both hosts resolving is duplicate content.
+    if not any(src.startswith("https://www.") for src, _ in rules):
+        bug("_redirects", "no www → apex redirect, and the domain is registered as www")
+
+
+_url_routing()
+
 if __name__ == "__main__":
     print(f"{len(pages)} pages, {len(back)} backend files\n")
     for label, items in (("BUG", BUGS), ("WARNING", WARN), ("NOTE", NOTE)):

@@ -88,6 +88,16 @@ console.log("\n████ APP — chaos\n");
   p.on("pageerror", e => errs.push(String(e).slice(0, 140)));
   p.on("console", m => m.type()==="error" && !m.text().includes("rsms.me") && errs.push(m.text().slice(0,140)));
 
+  // Warm every route first. `next dev` compiles a route on its first
+  // request, and the first run of this reported /blackbook/<bad id> as
+  // blank — the page had simply not finished compiling. A harness that
+  // fails on a cold server teaches people to re-run it until it passes,
+  // which is how a real failure gets waved through.
+  for (const u of ["/blackbook/warm","/offers/warm","/compliance/warm","/search","/listings","/today","/deals"]) {
+    await p.goto(`http://localhost:3000${u}`, { waitUntil: "networkidle" }).catch(()=>{});
+  }
+  errs.length = 0;
+
   // 1. A record id that does not exist.
   for (const url of ["/blackbook/does-not-exist", "/offers/nope", "/compliance/nope"]) {
     await p.goto(`http://localhost:3000${url}`, { waitUntil: "networkidle" }).catch(()=>{});
