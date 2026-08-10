@@ -1,9 +1,72 @@
 import fs from "node:fs";
 import pw from "/opt/node22/lib/node_modules/playwright/index.js";
+
+/**
+ * Find Chromium without hardcoding a build number.
+ *
+ * These began as throwaway harnesses with an absolute path to
+ * `chromium-1194` in them. That path is correct on exactly one machine
+ * and silently wrong everywhere else — and a browser check that cannot
+ * start a browser is the same silent-absence failure the product itself
+ * is built to catch.
+ */
+function chromePath() {
+  const explicit = process.env.CHROME_PATH;
+  if (explicit && fs.existsSync(explicit)) return explicit;
+  const root = process.env.PLAYWRIGHT_BROWSERS_PATH || "/opt/pw-browsers";
+  if (fs.existsSync(`${root}/chromium`)) return `${root}/chromium`;
+  if (fs.existsSync(root)) {
+    for (const d of fs.readdirSync(root).filter((x) => x.startsWith("chromium")).sort().reverse()) {
+      const p = `${root}/${d}/chrome-linux/chrome`;
+      if (fs.existsSync(p)) return p;
+    }
+  }
+  return undefined;   // let Playwright use its own default
+}
+
 const { chromium, devices } = pw;
 const R = "/home/user/PotatoFarm-4565";
 const SITE = `file://${R}/02-the-project/website`;
-const b = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome" });
+
+/**
+ * Resolve an internal link the way the host will, not the way the
+ * filesystem does.
+ *
+ * This check used to be `fs.existsSync(website + href)`, which was
+ * correct while every link ended in `.html`. The site's internal links
+ * were later repointed at their canonical clean URLs — `/product`
+ * rather than `/product.html`, so a crawler is handed the canonical
+ * form and not a 301 hop — and this check began reporting all 80 of
+ * them as broken. Every one was a false positive, and 80 of those is
+ * how a suite stops being read.
+ *
+ * `_redirects` is what turns `/product` into `product.html`, so that is
+ * what has to be consulted. Same precedence as serve.mjs: an existing
+ * file wins, then the redirect table.
+ */
+const RULES = fs.existsSync(`${R}/02-the-project/website/_redirects`)
+  ? fs.readFileSync(`${R}/02-the-project/website/_redirects`, "utf8").split("\n")
+      .map((l) => l.trim()).filter((l) => l && !l.startsWith("#"))
+      .map((l) => l.split(/\s+/)).filter((x) => x.length >= 3)
+      .map(([from, to, code]) => ({ from, to, code: Number(code.replace("!", "")) }))
+  : [];
+
+function serves(href) {
+  const path = href.split("#")[0].split("?")[0];
+  if (!path) return true;
+  const direct = path === "/" ? "/index.html" : path;
+  if (fs.existsSync(`${R}/02-the-project/website${direct}`)) return true;
+  for (const r of RULES) {
+    if (r.from.startsWith("http")) continue;          // host rules, not paths
+    if (r.code === 404) continue;                     // the catch-all is not a resolution
+    const hit = r.from.endsWith("/*")
+      ? path.startsWith(r.from.slice(0, -1))
+      : r.from === path;
+    if (hit && fs.existsSync(`${R}/02-the-project/website${r.to}`)) return true;
+  }
+  return false;
+}
+const b = await chromium.launch({ executablePath: chromePath() });
 const F = [];
 const bad = (area, sev, what, detail = "") => F.push({ area, sev, what, detail });
 const say = (l, p, d = "") => console.log(`  ${p ? "✓" : "✗"} ${l}${d ? `  — ${d}` : ""}`);
@@ -62,10 +125,7 @@ const pages = fs.readdirSync(`${R}/02-the-project/website`).filter(f => f.endsWi
 
     // Every internal link must resolve to a file that exists.
     for (const href of m.internal) {
-      const clean = href.split("#")[0].split("?")[0];
-      if (!clean) continue;
-      const target = `${R}/02-the-project/website/${clean}`;
-      if (!fs.existsSync(target)) bad("website", "high", `${f} → broken link "${href}"`);
+      if (!serves(href)) bad("website", "high", `${f} → broken link "${href}"`);
     }
   }
   chk("website", "high", "no console errors anywhere on the site", errs.length === 0, [...new Set(errs)].join(" | "));

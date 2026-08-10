@@ -14,9 +14,12 @@
 > | | This document | **Shipped** |
 > |---|---|---|
 > | ground | `#FDFBF7` | **`#F4F3F0`** |
-> | accent | `#FF6600` | **`#FF6600`** |
-> | accent-type | `#A84A16` | **`#FF6600`** |
-> | accent-edge | `#B8500F` | **`#E55C00`** |
+> | accent | `#FF6600` | **`#FF6B35`** |
+> | accent-type | `#A84A16` | **`#FF6B35`** |
+> | accent-edge | `#B8500F` | **`#CC4E1D`** |
+> | accent-deep | — | **`#A84015`** |
+> | success | `#1F7A4C` | **`#1A1A1A`** — state is not a hue any more |
+> | danger | `#B3261E` | **`#A84015`** |
 >
 > A stale fourth copy of the palette used to sit beside this file as
 > `tokens.css`, carrying ground `#F8F7F4` and accent `#FF6E00` — a
@@ -41,15 +44,16 @@ orange looks like a spreadsheet.
 
 ## One accent, and a deeper step for small type
 
-The brand orange is **#FF6600**, by owner decision, on every heading,
-every button and every `.io`. It measures **2.65:1** on the ground —
+The brand orange is **#FF6B35**, by owner decision, on every heading,
+every tab, every link and every `.io`. It measures **2.56:1** on the
+ground —
 below the 4.5:1 AA floor for text and below the 3:1 floor for large
 text. That is the cost, stated rather than buried.
 
     --accent       fills, and the brand colour itself
-    --accent-type  headings, buttons, .io — the same #FF6600
-    --accent-edge  #CC5200, the hairline on every fill
-    --accent-deep  #A84900 at 5.23:1 — captions and body links only
+    --accent-type  headings, tabs, links, .io — the same #FF6B35
+    --accent-edge  #CC4E1D, the hairline on every fill
+    --accent-deep  #A84015 at 5.55:1 — captions and inline links only
 
 There used to be two oranges on the rule that a fill and a word need
 different contrast. The brand decision merged them; `--accent-deep`
@@ -58,17 +62,17 @@ a 13px caption as well would have been collateral rather than compliance.
 
 **Three rules keep it usable, and all three came from measurement:**
 
-**Labels on orange are ink, never white.** White measures 2.94:1 and
-fails; ink is **5.93:1** and passes. An orange button with near-black
+**Labels on orange are ink, never white.** White measures 2.84:1 and
+fails; ink is **6.14:1** and passes. An orange button with near-black
 type is also the more Hermès answer, so the measurement and the
 reference agreed — which does not always happen.
 
-**Every fill carries an edge.** The orange is 2.65:1 on the ground and
-**2.44:1 on the cream panel** — failing on both, harder on one. The
+**Every fill carries an edge.** The orange is 2.56:1 on the ground and
+**2.36:1 on the cream panel** — failing on both, harder on one. The
 hairline is what defines the boundary regardless of what is behind it,
 and with the brand orange it is load-bearing rather than a nicety.
 
-**On leather it passes.** #FF6600 measures **4.63:1** on the dark
+**On leather it passes.** #FF6B35 measures **6.14:1** on the dark
 surface, the one place the brand colour is both correct and legible.
 
 **Hot is the only thing wearing the accent.** With one orange, every

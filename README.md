@@ -15,8 +15,10 @@ first** — it is written for somebody arriving cold.
 | **06-skills** | Three installable Claude skills |
 
 The website lives in `02-the-project/website/` and deploys straight from
-there — see its `GO-LIVE.md`. There used to be a second copy at
-`07-ready-to-deploy/`; the two drifted, so there is one now.
+there — see its `DEPLOY.md`. There used to be a second copy at
+`07-ready-to-deploy/`; the two drifted, so there is one now. There were
+also two deploy checklists, `GO-LIVE.md` and `DEPLOY.md`, for the same
+deploy; they are one document now, for the same reason.
 
 Two things are in git history rather than the working tree.
 `99-superseded/` held earlier versions of the site and design system —

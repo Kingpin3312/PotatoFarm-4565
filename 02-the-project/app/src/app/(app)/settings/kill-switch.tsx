@@ -51,9 +51,17 @@ export function KillSwitch() {
         <div className={cn("p-6 flex gap-5 items-center flex-wrap", !running && "bg-accent/5")}>
           <div>
             <div className="font-sans font-semibold -tracking-[0.024em] text-[28px] text-ink flex items-center gap-2.5">
+              {/* Filled versus hollow, not green versus red.
+                  The palette is two colours now, so a dot that relied on
+                  hue to say "running" would have said nothing. Shape
+                  survives the palette and colour blindness both. Filled
+                  is the state that wants attention. */}
               <span
                 aria-hidden
-                className={cn("size-2.5 rounded-full", running ? "bg-success" : "bg-accent")}
+                className={cn(
+                  "size-2.5 rounded-full",
+                  running ? "border-2 border-ink-3" : "bg-accent",
+                )}
               />
               {running ? "Running" : "Stopped"}
             </div>

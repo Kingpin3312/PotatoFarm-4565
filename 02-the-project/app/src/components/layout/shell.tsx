@@ -78,7 +78,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
             {/* One line, deliberately. JSX collapses the whitespace around a
                 newline or a comment into a real space — this was written across
                 several lines for readability and rendered "PotatoFarm .io".
-                The extension is #FF6600 at 20px semibold — 2.65:1 on the
+                The extension is #FF6B35 at 20px semibold — 2.65:1 on the
                 ground, which is a brand decision rather than a passing
                 measurement. Large and bold is the least-bad place for it. */}
             <span className="font-sans font-semibold text-[20px] text-ink -tracking-[0.024em]">PotatoFarm<span className="text-accent-type font-medium">.io</span></span>

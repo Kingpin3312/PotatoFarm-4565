@@ -21,18 +21,18 @@ export const light = {
   rule: "#E2E0DA",
 
   /** Fill only. 3.12:1 on the ground — a non-text component, never type. */
-  accent:      "#FF6600",
-  accentHover: "#E55C00",
+  accent:      "#FF6B35",
+  accentHover: "#E85A25",
   /** The hairline on a fill. The orange is 2.9:1 on the panel, so the
    *  edge is what defines the button there. */
-  accentEdge:  "#E55C00",
+  accentEdge:  "#E85A25",
   /** Every word. 5.56:1 on ground, 5.15:1 on panel. */
-  accentType:  "#FF6600",
+  accentType:  "#FF6B35",
   /** Labels on orange are ink. White is 3.23:1 and fails. */
   onAccent:    "#1A1A1A",
 
   /** The wordmark extension. Type, so it takes the deeper orange. */
-  tld: "#FF6600",
+  tld: "#FF6B35",
   /** The two eyes in the mark. Darker than the rim so they read as
    *  holes rather than as shading. */
   markEye: "#3B2416",
@@ -42,9 +42,9 @@ export const light = {
   leather:     "#2E2E2E",
   leatherDeep: "#1A1A1A",
 
-  danger:  "#B3261E",
-  success: "#1F7A4C",
-  warning: "#FF6600",
+  danger:  "#A84015",
+  success: "#1A1A1A",
+  warning: "#FF6B35",
 } as const;
 
 export const dark = {
@@ -57,13 +57,13 @@ export const dark = {
   ink3: "#8A8A8A",   //  4.74:1
   rule: "#2E2E2E",
 
-  accent:      "#FF6600",   // 5.0:1 on leather — works as type here
-  accentHover: "#FF6600",
-  accentEdge:  "#E55C00",
-  accentType:  "#FF6600",   // 6.96:1
+  accent:      "#FF6B35",   // 6.14:1 on this ground — works as type here
+  accentHover: "#FF6B35",
+  accentEdge:  "#E85A25",
+  accentType:  "#FF6B35",   // 6.14:1
   onAccent:    "#1A1A1A",
 
-  tld: "#FF6600",
+  tld: "#FF6B35",
   markEye: "#3B2416",
   markBody: "#F0A03A",
   markRim:  "#D9761C",
@@ -71,9 +71,13 @@ export const dark = {
   leather:     "#2E2E2E",
   leatherDeep: "#1A1A1A",
 
-  danger:  "#F08076",
-  success: "#5CBE86",
-  warning: "#FF6600",
+  /* Two colours here as well. On this ground the brand orange measures
+     6.14:1, so danger needs no darker step — the light theme's
+     #A84015 exists only because cream is a bright surface. Success is
+     ink, as it is in the light theme: the word carries it. */
+  danger:  "#FF6B35",
+  success: "#EBEAE6",
+  warning: "#FF6B35",
 } as const;
 
 /** Default is light. Dark is opt-in, not system-following — an agent

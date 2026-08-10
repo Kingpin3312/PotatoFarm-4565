@@ -105,11 +105,12 @@ token, which the web app cannot do. Treat it as a design sketch.
 
 ## 4. What is built
 
-**72 database models · 60 enums · 23 API routers · 106 procedures ·
-34 screens · 24 scheduled jobs · 13 audit scripts.**
+**72 database models · 60 enums · 26 API routers · 128 procedures ·
+37 screens · 24 scheduled jobs · 13 audit scripts · 11 check suites.**
 
-**101 of 106 procedures have a screen.** The five that do not are in
-section 5, and each is deliberate.
+**123 of 128 procedures have a screen.** The five that do not are in
+section 5, and each is deliberate. `reachability.py` prints the five by
+name every run, so this number cannot quietly drift.
 
 Working areas: the WhatsApp assistant and its stop controls; the inbox;
 pipeline and leads; listings with Trakheesi permit tracking; viewings
@@ -122,8 +123,8 @@ chart; spoken requests ("Ask").
 ### What has been proved, not assumed
 
 - `npx tsc --noEmit` exits 0. It began at **352 errors**.
-- `npm run build` succeeds. Every route compiles.
-- Three migrations exist and apply cleanly to an empty database.
+- `npm run build` succeeds. Every route compiles. 40 pages are static.
+- Six migrations exist and apply cleanly to an empty database.
 - **Row-level security was tested with two brokerages in one database.**
   The second cannot see the first's leads. This is the whole security
   promise of the product and it is the one thing worth re-testing after
@@ -144,7 +145,30 @@ chart; spoken requests ("Ask").
   sentence creates the person, the requirement, the facts, the follow-up
   and a match.
 
-### The nine things you can re-run
+### One command before you deploy
+
+```bash
+npm run verify
+```
+
+That is `tsc --noEmit`, then all eleven check suites, then all thirteen
+audit scripts, in one run that stops at the first failure. It exists
+because the alternative was twenty-five commands in a particular order,
+and the thing about a twenty-five-command ritual is that somebody
+eventually runs twenty-four of them.
+
+**Seven of the eleven need Postgres, and `verify` fails without it
+rather than skipping.** That is deliberate and it is the same principle
+as everything else here: one of those seven is the tenant-isolation
+check, and a green result that silently did not test tenancy is worse
+than no command, because somebody deploys on the strength of it. **A
+check that reads nothing must not be able to look like a pass.**
+
+For the laptop case there is `VERIFY_ALLOW_NO_DB=1 npm run verify`,
+which runs the four that need nothing and prints — in the summary, not
+just at the top — exactly which seven did not run.
+
+### The eleven things you can re-run
 
 ```bash
 npm run check:tenancy       # two brokerages, one database, no leakage
@@ -154,13 +178,50 @@ npm run check:voice         # speech to text, including the iPhone path
 npm run check:deals         # deal risk, and the reason it gives
 npm run check:autonomy      # the ceiling holds at every mode
 npm run check:buyers        # who wants this property, and who may be told
+npm run check:search        # one sentence → people and properties
 npm run check:sigv4         # request signing vs AWS's published vector
 npm run check:storage       # upload, read back byte-for-byte, delete
+npm run check:load          # 5,000 leads, and where it gets slow
 ```
 
 These are not a test suite — there still isn't one — but they cover the
 places where being wrong is expensive and invisible. Each was verified by
 deliberately breaking the thing it checks and confirming it fails.
+
+### The four browser checks
+
+`verify` cannot run these — they need a browser and a running server, so
+they are a separate step rather than a silent skip inside the gate.
+
+```bash
+npm run dev &                 # they drive the real thing, not a mock
+npm run browser:a11y          # keyboard only, screen reader, 200% zoom, dialogs
+npm run browser:roles         # VIEWER / COMPLIANCE / MANAGER see a sentence, not a crash
+npm run browser:palette       # 21 screens: no colour outside the brand family
+npm run browser:chaos         # bad ids, triple submit, forged cookie, headers
+```
+
+They find a different class of problem from the eleven suites — the
+eleven prove the logic, these prove what a person actually meets. Each
+has caught something the others could not: a VIEWER told "that didn't
+load" when the server had correctly refused, a dialog that ran off an
+iPhone with its Close button unreachable, and search results announced
+to nobody.
+
+**`browser:palette` refuses to report a clean sweep on a page that
+redirected to sign-in.** It counts what it scanned and prints that
+number, because the first version of it "passed" 21 screens that were
+all the sign-in page.
+
+**`check:load` is the odd one and is not in `verify`'s critical path in
+the way the others are.** It seeds a database, which takes minutes and
+leaves rows behind, so it is for before a release rather than before a
+commit. It also reports **cold and warm timings separately**, on purpose:
+they need opposite fixes, and averaging them once hid a 415ms figure that
+was entirely cold start behind a query that actually took 5ms. Two
+findings came out of it and both are now migrations — trigram indexes for
+search, and an `ANALYZE` after bulk insert without which a message-history
+read took **50 seconds**.
 
 ---
 
@@ -325,27 +386,82 @@ top.
 
 | Use | Hex | Contrast on ground |
 |---|---|---|
-| All headings, titles, button labels | `#1A1A1A` | 15.68:1 |
-| Body | `#4A4A4A` | 7.99:1 |
-| Captions | `#6B6B6B` | 4.80:1 |
-| **Potato orange — logo only** | `#FF6600` | 2.66:1 |
-| Rim / border on orange fills | `#E55C00` | 3.70:1 |
-| **Orange TEXT in the app** | `#FF6600` | 5.23:1 |
-| Eyes | `#8A4310` | — |
+| **Headings, tabs, links, accents, `.io`** | `#FF6B35` | 2.56:1 — see below |
+| **Button fills** | `#FF6B35` | label stays ink at 6.14:1 |
+| Body | `#4A4A4A` | 8.34:1 |
+| Captions, small orange type | `#A84015` | 5.55:1 |
+| Muted | `#6B6B6B` | 5.86:1 |
+| Ink — button labels, figures, tables | `#1A1A1A` | 16.94:1 |
+| Rim / border on every orange fill | `#CC4E1D` | 3.73:1 on panel |
+| Logo eyes | `#3B2416` | — |
 
-### The two oranges — do not merge them
+### Two colours, and what that costs
 
-`#FF6600` at text size measures **2.66:1**, which fails accessibility. It
-is fine inside the logo, which is artwork and exempt. It is **not** fine
-for interface text somebody reads in a bright Dubai office.
+**The product is `#FF6B35` and black.** Every heading, every tab, every
+link, every accent and the `.io` take the orange; everything else is
+ink. There is no third hue — the green and the red are gone.
 
-**The lockup uses `#FF6600`. UI text uses `#FF6600`.** A script enforces
-this.
+Two things this document used to say are now false, and are corrected
+rather than left to send somebody looking for a bug: headings are not
+`#1A1A1A`, and colour does not carry state.
 
-### Hierarchy is one hex
+The honest accounting, because it is a real trade and not a free one:
 
-**Every heading, title, price and button label is `#1A1A1A`.** The rule:
-**colour carries state, not hierarchy.**
+```
+#FF6B35 on the ground   2.56:1   fails AA for text (needs 4.5)
+#FF6B35 on the panel    2.36:1   fails
+#FF6B35 on leather      6.14:1   passes comfortably
+#1A1A1A on #FF6B35      6.14:1   passes — why buttons keep ink labels
+#FFFFFF on #FF6B35      2.84:1   fails — never put white on it
+```
+
+Three mitigations, all in place and all checked:
+
+1. **A label on an orange fill stays ink** (`--on-accent`), never white.
+2. **Every orange fill carries `--accent-edge`**, so the shape is defined
+   by its border on either surface rather than by the colour.
+3. **Small orange type is `--accent-deep` `#A84015` at 5.55:1.** Captions
+   and inline links do not take the brand orange. A 40px heading nobody
+   reads word by word is a different thing from a caption.
+
+`contrast.py` handles the headings with an allow-list that **pins the
+measured value**: headings, `.brand .tld` and `.display` are permitted at
+2.56:1 and **fail if the ratio drops below it**. It is an exception for a
+known figure, not a switch that turns the check off — proved by setting
+the orange to `#FF9977` and watching all three fail at 1.88:1.
+
+Never merge `--accent` and `--accent-deep`. They are the same instruction
+applied honestly: what was asked for is orange, and what was not asked
+for stays readable.
+
+### Removing the state colours was the risky half
+
+`--success` was green and `--danger` was red. Both are gone. The check
+that made this safe was run **before** the change, not after: all 32
+places that used them already carried the word beside the colour —
+"Sent.", "PAID", "Reply window closed", or the error sentence itself
+inside a `role="alert"`.
+
+**Two did not**, and they are the reason this has its own heading: a
+status dot in the kill switch, and the dot in the 24-hour reply-window
+badge. In both, hue was the entire difference between two states — and
+the reply window is the one piece of state in this product whose failure
+is silent. They are **filled versus hollow** now, which survives this
+palette, the next one, and colour blindness.
+
+**Never re-introduce a third colour to mean something.** The way to show
+state here is a word, a shape, or weight.
+
+### Changing the palette again
+
+`python3 03-brand/repalette.py` — report — then `--apply`. It moves all
+thirteen surfaces at once, asserts the old value was present, refuses to
+leave a stale hex behind, and is idempotent.
+
+Do not do it with find-and-replace. That has been tried twice and failed
+the same way twice: a bulk replace of the accent also caught `--warning`,
+which happened to share the hex but was a different decision, and a
+warning nobody can read is not a warning.
 
 ---
 
@@ -363,12 +479,21 @@ this.
 
 ### On a phone
 
-The top nav is `hidden md:flex`. Below that, a **bottom tab bar** of four
+The top nav is `hidden lg:flex`. Below that, a **bottom tab bar** of four
 plus More: Inbox, Today, Pipeline, Ask. Those four are what an agent does
 standing in a lobby; everything else is a considered visit and lives
 behind More. The bar is within thumb reach and always visible, which the
 horizontal scroller it replaced was not — at 375px, 356px of the nav was
 off-screen with no affordance saying so.
+
+**The breakpoint is `lg` (1024px), not `md` (768px), and that was a bug
+fix.** At `md` an iPad Air in portrait — 834px, the single most common
+tablet width in a UAE office — got the *desktop* nav: seven links plus
+the org name crammed into one row, "Settings" clipped at the edge, and
+tap targets measuring 32px against a design system that says 44. A
+tablet is a big phone held in two hands, not a small desktop. Verified
+at 1020, 1024, 1080, 1180, 1280 and 1440px: the tab bar goes at 1024 and
+the nav that replaces it fits with room to spare.
 
 ### The logo
 
@@ -386,17 +511,36 @@ wordmark 30px / weight 500 / tracking −0.4, baseline 146.
    renderers. Left-anchor at a measured x.
 4. The highlight must stay **clipped to the form**.
 
+**The mark is drawn in exactly one place: `03-brand/logo/mark.py`.** It
+is inlined into 34 copies across 23 files, and hand-editing 34 copies is
+not a thing anybody does correctly twice. Change the shape there and run
+`python3 03-brand/logo/mark.py --apply`, which rewrites every copy and is
+idempotent — running it twice changes nothing, which is how you can tell
+it worked.
+
+One trap it already caught: the first version silently skipped
+`shell.tsx`. The SVG in a `.tsx` file uses JSX camelCase attributes
+(`strokeWidth`, `clipPath`), so a replace written against HTML markup
+matched 33 of 34 files and reported success.
+
 Full spec: `03-brand/logo/SPEC.md`.
 
 ---
 
 ## 10. Database, API, auth, integrations
 
-**Database:** PostgreSQL via Prisma. `app/prisma/schema.prisma`, 68
-models. Three migrations in `app/prisma/migrations/`. **`rls.sql` is
+**Database:** PostgreSQL via Prisma. `app/prisma/schema.prisma`, 72
+models. Six migrations in `app/prisma/migrations/`. **`rls.sql` is
 appended to the init migration** — it is not a file somebody has to
 remember to run, because the tenant boundary is not something to leave to
 memory.
+
+The sixth migration, `20260810090000_search_indexes`, is the one worth
+knowing about. It enables `pg_trgm` and adds seven trigram GIN indexes so
+that `ILIKE '%…%'` can be index-scanned. Global search across 20,000
+leads took **3,649ms** without them and **198ms** with them, and the
+difference is not a tuning preference — at three and a half seconds an
+agent stops using the search box.
 
 **Two connections, deliberately.** `DATABASE_URL` is the application's,
 and in production it must be a role that does **not** own the tables and
@@ -479,8 +623,8 @@ and refusing to boot over it would be worse than saying so.
 
 ## 12. Deployment
 
-**The application → Vercel.** `app/vercel.json` defines **23 cron jobs**
-matching the 23 in `src/server/jobs/index.ts`; a check enforces that they
+**The application → Vercel.** `app/vercel.json` defines **24 cron jobs**
+matching the 24 in `src/server/jobs/index.ts`; a check enforces that they
 stay in step. `prisma generate` is in the build script — without it,
 Vercel's cached `node_modules` gives you a stale client and a guaranteed
 first-deploy failure.
@@ -491,10 +635,12 @@ and the equivalent goes in `vercel.json`.
 
 **Order matters.** The website's forms post to `app.potatofarm.io`.
 Deploy the application first or the site goes live with two dead forms.
-`02-the-project/website/GO-LIVE.md` is the checklist.
+`02-the-project/website/DEPLOY.md` is the checklist, and every command
+in it was run against the site served over real HTTP by `serve.mjs`
+rather than written from memory.
 
 **Put a pooler in front of Postgres before real traffic.** Every
-serverless instance opens its own Prisma pool and 23 crons can fire in
+serverless instance opens its own Prisma pool and 24 crons can fire in
 the same minute; Postgres defaults to 100 connections. The failure is not
 gradual — it is `FATAL: sorry, too many clients already` on the first
 busy afternoon, which to a brokerage looks like the product falling over

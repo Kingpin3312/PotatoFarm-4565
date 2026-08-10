@@ -1,6 +1,6 @@
 /* ============================================================
    PotatoFarm.io — design tokens, v4
-   Warm white, #FF6600, Hermes discipline.
+   Warm white, #FF6B35 and black, Hermes discipline.
    ============================================================ */
 
 :root{
@@ -26,50 +26,56 @@
   --rule-strong: #CFCCC4;
 
   /* ---- Orange ------------------------------------------------------
-     **One orange now: #FF6600.** Headings, buttons and the .io all take
-     it, by brand decision, and `--accent` and `--accent-type` are the
-     same value rather than a fill and a darker type step.
+     **The product is two colours: #FF6B35 and black.**
 
-     What that costs, recorded here rather than discovered later:
+     Every heading, every tab, every link, every accent and the `.io`
+     take the orange. Everything else is ink. There is no third hue —
+     no green for success, no red for danger, no blue for active. Those
+     were removed by brand decision, and what replaces them is in the
+     `--success` / `--danger` note below.
 
-       #FF6600 on the ground   2.65:1   fails AA for text (needs 4.5)
-       #FF6600 on the panel    2.44:1   fails
-       #FF6600 on leather      4.63:1   passes
-       #1A1A1A on #FF6600      5.93:1   passes — why buttons keep ink labels
-       #FFFFFF on #FF6600      2.94:1   fails — never put white on it
+     What the orange costs, recorded here rather than discovered later:
+
+       #FF6B35 on the ground   2.56:1   fails AA for text (needs 4.5)
+       #FF6B35 on the panel    2.36:1   fails
+       #FF6B35 on leather      6.14:1   passes comfortably
+       #1A1A1A on #FF6B35      6.14:1   passes — why buttons keep ink labels
+       #FFFFFF on #FF6B35      2.84:1   fails — never put white on it
 
      So orange type is legible against the dark surface and marginal
-     against the light one. The mitigations that are in place: labels on
-     an orange fill stay ink (`--on-accent`), every orange fill keeps its
-     darker hairline (`--accent-edge`) so the shape is defined by the
-     border rather than the colour, and no orange is ever the only
-     signal for a state.
+     against the light one. Three mitigations, all enforced: labels on
+     an orange fill stay ink (`--on-accent`), every orange fill keeps
+     its darker hairline (`--accent-edge`) so the shape is defined by
+     the border rather than the colour, and small orange type takes
+     `--accent-deep`.
 
-     The one thing not to do is put orange type on the cream at small
+     The one thing not to do is put `--accent` on the cream at small
      sizes. Headings are large; body text stays `--ink`. */
-  --accent:      #FF6600;   /* the brand orange. 2.65:1 on ground */
-  --accent-type: #FF6600;   /* headings, buttons and .io — see the note above */
-  --accent-hover:#E55C00;
+  --accent:      #FF6B35;   /* the brand orange. 2.56:1 on ground */
+  --accent-type: #FF6B35;   /* headings, tabs, links, .io — see the note above */
+  --accent-hover:#E85A25;   /* 3.20:1 — a fill state, not type */
 
   /**
    * The legible orange, for small type only.
    *
-   * The brand orange is #FF6600 and it goes on headings, buttons and the
-   * .io by decision. It measures 2.65:1, which is fine for a 40px
-   * heading somebody is not reading word by word and wrong for a caption
-   * or a link in a paragraph. Those keep a darker step at 5.23:1.
+   * The brand orange is #FF6B35 and it goes on headings, tabs, links
+   * and the .io by decision. It measures 2.56:1, which is fine for a
+   * 40px heading somebody is not reading word by word and wrong for a
+   * caption or an inline link in a paragraph. Those take a darker step
+   * of the same hue at 5.55:1.
    *
-   * This is not a second brand colour. It is the same instruction
-   * applied honestly: what was asked for is orange, and what was not
-   * asked for stays readable.
+   * This is not a second brand colour — it is the same hue, darkened
+   * until it is readable. It is the same instruction applied honestly:
+   * what was asked for is orange, and what was not asked for stays
+   * legible in a bright Dubai office.
    */
-  --accent-deep: #A84900;   /* 5.23:1 on ground — captions, body links */
+  --accent-deep: #A84015;   /* 5.55:1 on ground, 5.12:1 on panel */
 
 
   /**
    * The border on every orange fill, and it is not decoration.
    *
-   * The brand orange measures 2.65:1 on the ground and **2.44:1 on the
+   * The brand orange measures 2.56:1 on the ground and **2.36:1 on the
    * cream panel** — the same button passes on one surface and fails on
    * the other. Rather than forbid orange on panels, or lighten the
    * panel until it works, the fill carries a darker hairline. The edge
@@ -77,10 +83,10 @@
    *
    * Same fix as the saffron button two palettes ago, same reason.
    */
-  --accent-edge: #CC5200;   /* 3.65:1 on panel — defines the boundary */
+  --accent-edge: #CC4E1D;   /* 3.73:1 on panel — defines the boundary */
 
   /* **Labels on the orange fill are ink, never white.**
-     White on the brand orange is 2.94:1 and fails. Ink is 5.93:1 and
+     White on the brand orange is 2.84:1 and fails. Ink is 6.14:1 and
      passes — and an orange button with near-black type is also the more
      Hermes answer. The measurement and the reference agreed, which does
      not always happen. */
@@ -99,14 +105,29 @@
   --leather-ink-2: #B5B5B5;   /*  8.02:1 */
   --leather-ink-3: #8A8A8A;   /*  4.74:1 */
 
-  --success:      #1F7A4C;
-  --danger:       #B3261E;
-  /* **Not** the accent step any more, and this is the second time it has
-     been overwritten by a global find-and-replace. It was #A84900 when
-     the accent-type was too; the accent is now #FF6600 at 2.65:1, and a
-     warning nobody can read is not a warning. Kept at the measured
-     value on purpose. */
-  --warning:      #A84900;   /* 5.23:1 on ground */
+  /* ---- State, and why it is no longer a colour ---------------------
+     The green and the red are gone. The product is two colours by
+     brand decision, so state cannot be carried by hue any more.
+
+     **This was checked before it was done, not after.** Every one of
+     the 32 places that used `--success` or `--danger` already said the
+     thing in words next to the colour — "Sent.", "PAID", "Reply window
+     closed", or the error sentence itself inside a `role="alert"`. The
+     hue was reinforcement, not the message, so removing it removes
+     nothing a person or a screen reader was relying on.
+
+     Two places were the exception — a status dot in the kill switch and
+     one in the reply-window badge, where the colour genuinely *was* the
+     only difference. Those are now filled versus hollow, which is a
+     difference in shape and survives both this change and colour
+     blindness. They would have been the bug in this change.
+
+     Danger keeps the accent, in its readable step, because an error
+     still has to pull the eye. Success drops to ink: a confirmation
+     that has already happened does not need to shout. */
+  --success:      #1A1A1A;   /* black — the word carries it */
+  --danger:       #A84015;   /* the accent, dark enough to read at 13px */
+  --warning:      #A84015;
 
   /* ---- Type --------------------------------------------------------
      Same stack. Warm palettes tempt people toward a serif and it is
@@ -149,7 +170,7 @@
   /* Warmer and shallower than a neutral shadow. A grey shadow on a
      cream ground looks like dirt. */
   --lift: 0 1px 2px rgb(43 30 23 / .05), 0 6px 20px rgb(43 30 23 / .06);
-  --ring: 0 0 0 3px rgb(255 102 0 / .40);
+  --ring: 0 0 0 3px rgb(255 107 53 / .40);
 }
 
 /* The inverted section. Leather, not black — a pure black band under a
@@ -164,9 +185,9 @@
   --ground: var(--leather-deep); --panel: var(--leather); --raised: var(--leather);
   --ink: var(--leather-ink); --ink-2: var(--leather-ink-2); --ink-3: var(--leather-ink-3);
   --rule: #2E2E2E;
-  /* On leather the bright orange finally works as type — 6.4:1 — so the
-     accent and the accent-type collapse into one here. */
-  --accent-type: #FF6600;   /* 4.63:1 on leather — passes AA here */
+  /* On leather the bright orange finally works as type — 6.14:1 — so
+     there is nothing to darken here. */
+  --accent-type: #FF6B35;   /* 6.14:1 on leather-deep — passes AA */
   --on-accent: var(--leather-deep);
 }
 

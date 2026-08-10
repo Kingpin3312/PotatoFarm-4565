@@ -122,7 +122,7 @@ for name in rows:
 #
 # One had already drifted and nothing could see it. A stale
 # `03-brand/design-system/tokens.css` carried ground `#F8F7F4` and
-# accent `#FF6E00` against the product's `#F4F3F0` and `#FF6600` — a
+# accent `#FF6E00` against the product's `#F4F3F0` and the brand orange — a
 # different orange, in the folder a designer opens first.
 #
 # So: compare the hexes. This is the check that makes "tokens.css is the
@@ -210,7 +210,7 @@ WORDMARK = [
 # and taking its colour away takes the meaning with it.
 #
 # So anything heading-shaped must resolve to --ink, **or** to
-# --accent-type, which headings now take by brand decision (#FF6600).
+# --accent-type, which headings now take by brand decision (#FF6B35).
 #
 # The premise moved but the rule did not lose its job. What it enforces
 # is that hierarchy uses ONE colour across every surface: it caught the

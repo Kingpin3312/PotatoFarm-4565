@@ -9,16 +9,26 @@
 
 ## Colour
 
+**The mark's colours are defined in `mark.py`, not here.** This table is
+a reader's copy of that file; if the two disagree, `mark.py` is right.
+It used to describe a flat `#FF6600` potato with an `#FF8533` highlight,
+which was two artworks ago and matched nothing that shipped.
+
 | | Hex | |
 |---|---|---|
 | Ground | `#F4F3F0` | soft grey off-white |
-| Potato | `#FF6600` | warm solid orange |
-| Highlight | `#FF8533` | upper portion |
-| Shade | `#E55C00` | lower right |
-| Eyes | `#3B2416` | Dark brown, not black |
-| Wordmark | `#1A1A1A` | 15.68:1 |
-| `.io` in the lockup | `#FF6600` | as briefed |
-| `.io` in an interface | `#FF6600` | 5.23:1 |
+| Body, lit | `#F8BA5E` | top-left of the gradient |
+| Body, mid | `#F0A03A` | the body |
+| Body, low | `#E5842A` | lower right |
+| Rim | `#D9761C` | the darker edge, all the way round |
+| Crease | `#DD8A2E` | cheek line and surface marks |
+| Eyes | `#3B2416` | dark brown, not black |
+| Wordmark | `#1A1A1A` | 16.94:1 |
+| `.io`, everywhere | `#FF6B35` | the brand orange, as briefed |
+
+The mark keeps an amber gradient while the `.io` takes the brand orange.
+That is deliberate: the potato is artwork and exempt from contrast
+rules, the `.io` is type.
 
 ## Three things chosen by rendering, not by assuming
 
@@ -44,8 +54,8 @@ a rim, and the rim is what made them read as stickers rather than
 objects.
 
 **Soft dimensional shading, not a heavy gradient.** A single linear pass
-from `#FF8533` at the top-left to `#E55C00` at the bottom-right, plus
-the clipped white highlight.
+from `#F8BA5E` at the top-left through `#F0A03A` to `#E5842A` at the
+bottom-right, plus the clipped white highlight.
 
 **A soft drop shadow for lift.** `dy 2, blur 2.2, 18%`. Enough to seat
 it, not enough to be noticed as a shadow.
@@ -60,14 +70,14 @@ At favicon size that shape is the whole character.
 
 ## The one place the brief and accessibility disagree
 
-`#FF6600` at wordmark size is **2.66:1** on this ground. That is fine
+`#FF6B35` at wordmark size is **2.56:1** on this ground. That is fine
 inside a logo — artwork, reproduced as a unit, and exempt under WCAG.
-It is not fine for live interface text a broker reads in a bright
-office.
+It is not fine for a 13px caption a broker reads in a bright office.
 
-So both exist: **the lockup exactly as briefed**, and `#FF6600` for UI
-text at 5.23:1. If they ever have to match, the lockup wins and the
-interface value moves.
+So the lockup is exactly as briefed, and small interface text takes
+`--accent-deep` (`#A84015`, **5.55:1**) instead. Headings keep the brand
+orange by decision, with the cost recorded in `PALETTE.md`. If the two
+ever have to match, the lockup wins and the interface value moves.
 
 ## What not to change
 

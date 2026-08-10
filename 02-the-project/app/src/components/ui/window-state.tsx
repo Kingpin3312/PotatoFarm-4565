@@ -10,8 +10,11 @@ import { Button } from "./button";
  * wrong, the failure is silent and the agent thinks the lead ignored
  * them.
  *
- * Open uses cyan, the site's active-state colour. Closed uses red, which
- * is now free to mean exactly this.
+ * **Open is a hollow dot, closed is a filled one.** It used to be cyan
+ * versus red, and the palette is two colours now — so hue alone would
+ * have made the two states identical, on the one component in the
+ * product where being wrong is silent. Shape carries it instead, and
+ * the words say it outright either way.
  */
 export function WindowState({ open, hoursLeft }: { open: boolean; hoursLeft: number | null }) {
   return (
@@ -23,7 +26,10 @@ export function WindowState({ open, hoursLeft }: { open: boolean; hoursLeft: num
     >
       <span
         aria-hidden
-        className={cn("size-1.5 rounded-full", open ? "bg-active" : "bg-danger-deep")}
+        className={cn(
+          "size-1.5 rounded-full",
+          open ? "border border-ink-3" : "bg-accent",
+        )}
       />
       {open ? `Reply window open · ${hoursLeft}h left` : "Reply window closed"}
     </div>

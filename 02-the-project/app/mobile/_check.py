@@ -77,7 +77,7 @@ for cand in ("../src/styles/tokens.css", "../../potato-launch/assets/site.css"):
         web = open(cand).read(); break
 if theme and web:
     pairs = {"#FDFBF7":"ground","#F7F2EA":"panel","#1F1815":"ink",
-             "#FF6600":"accent","#A84A16":"accent-type","#B8500F":"accent-edge",
+             "#FF6B35":"accent","#A84A16":"accent-type","#B8500F":"accent-edge",
              "#4A3428":"leather","#2B1E17":"leather-deep"}
     for hexv, name in pairs.items():
         if hexv.lower() in theme.lower() and hexv.lower() not in web.lower():

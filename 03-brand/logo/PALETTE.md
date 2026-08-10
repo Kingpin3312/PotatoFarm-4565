@@ -1,29 +1,33 @@
-# The orange
+# The palette
 
-**`#FF6600`.** One colour, set by the owner. It goes on **every heading,
-every button and every `.io`**, and the mark is built from it.
+**Two colours: `#FF6B35` and black.** Set by the owner. The orange goes
+on **every heading, every tab, every link, every accent and the `.io`**.
+Everything that is not orange is ink. There is no third hue anywhere in
+the product.
 
-Before this, the palette carried two oranges — a fill at `#E87A2E` and a
-darker type step at `#A84900` — on the rule that a fill and a word need
-different contrast. That rule was replaced by a brand decision. This
-document records what the decision costs, because the previous version
-of this file described a `#FF6E00` family that existed in no asset
-anywhere, and a palette document nobody can trust is worse than none.
+Two palettes ago this file described a `#FF6E00` family that existed in
+no asset anywhere, so the rule now is that every figure below is
+measured against the shipped token, not estimated and not carried
+forward. `03-brand/repalette.py` is what moves all the surfaces at once,
+and `consistency.py` fails the build if one of them drifts.
 
-Every figure below was measured, not estimated.
-
-**Two families, and the split is deliberate.** The interface takes one
-orange; the mark keeps its own warmer amber, because a logo is exempt
-from contrast rules and a button is not.
+**The mark is the exception, and it is the only one.** A logo is exempt
+from contrast rules; a button is not. The illustration keeps its warmer
+amber gradient. The `.io` beside it does not — that is type.
 
 ### The interface
 
-| Role | Hex | On ground `#F4F3F0` | On leather `#2E2E2E` | Where |
+| Role | Hex | On ground `#F4F3F0` | On panel `#EBEAE6` | Where |
 |---|---|---|---|---|
-| **Brand** | **`#FF6600`** | **2.65:1** | **4.63:1** | Headings, buttons, `.io` |
-| Hover / shade | `#E55C00` | 3.23:1 | 3.79:1 | Hover states |
-| Edge | `#CC5200` | 3.96:1 | 3.09:1 | The hairline on every orange fill |
-| Deep | `#A84900` | 5.23:1 | — | Captions and body links **only** |
+| **Brand** | **`#FF6B35`** | **2.56:1** | 2.36:1 | Headings, tabs, links, accents, `.io` |
+| Hover / shade | `#E85A25` | 3.20:1 | 2.95:1 | Hover on a fill — never type |
+| Edge | `#CC4E1D` | 4.05:1 | **3.73:1** | The hairline on every orange fill |
+| Deep | `#A84015` | **5.55:1** | 5.12:1 | Captions and inline links **only** |
+| Ink | `#1A1A1A` | 16.94:1 | — | Body, button labels, figures, tables |
+
+On leather (`#1A1A1A`) the brand orange measures **6.14:1** and clears AA
+comfortably. The inverted sections are the one place it is both correct
+and fully legible.
 
 ### The mark
 
@@ -36,48 +40,70 @@ from contrast rules and a button is not.
 | Crease | `#DD8A2E` | The cheek line and the surface marks |
 | Eye | `#3B2416` | Dark brown, not black |
 
+Drawn in one place — `03-brand/logo/mark.py` — and inlined into 34 copies
+by `--apply`.
+
 ## What this costs, plainly
 
-`#FF6600` as **text** on the cream ground is **2.65:1**. WCAG AA asks
+`#FF6B35` as **text** on the cream ground is **2.56:1**. WCAG AA asks
 4.5:1 for normal text and 3:1 for large. It clears neither.
 
-That is a decision, not an oversight, and it is taken with the number in
-front of us. What it means in practice: a person with reduced vision, or
-anybody reading a phone in Dubai sunlight, will find orange type harder
-than the near-black it replaced.
+That is a decision, taken with the number in front of us, not an
+oversight. What it means in practice: a person with reduced vision, or
+anybody reading a phone in Dubai sunlight, will find an orange heading
+harder than the near-black it replaced. The four rules below are what
+keep that confined to headings.
 
 ## The four rules that keep it usable
 
-- **A label on orange is ink, never white.** `#1A1A1A` on `#FF6600` is
-  **5.93:1** and passes. White is **2.94:1** and does not. Every button
-  in the product takes `--on-accent`, which is ink.
-- **Every orange fill carries a `#CC5200` hairline.** The fill is 2.65:1
-  against the page, so the border is what makes the button's edge
+- **A label on orange is ink, never white.** `#1A1A1A` on `#FF6B35` is
+  **6.14:1** and passes. White is **2.84:1** and does not. Every button
+  takes `--on-accent`, which is ink.
+- **Every orange fill carries a `#CC4E1D` hairline.** The fill is 2.36:1
+  against a panel, so the border is what makes the button's edge
   discernible. Not decoration, not optional.
-- **Small orange type uses `--accent-deep` (`#A84900`, 5.23:1).**
-  Captions, body links and the ten-pixel state labels in the interface.
-  A 40px heading somebody scans and a 13px caption somebody reads word by
-  word are not the same problem, and the brand decision was about
-  headings.
-- **Orange is never the only signal for a state.** Every place colour
-  carries meaning also carries a word.
+- **Small orange type uses `--accent-deep` (`#A84015`, 5.55:1).**
+  Captions, inline links and the ten-pixel state labels. A 40px heading
+  somebody scans and a 13px caption somebody reads word by word are not
+  the same problem, and the brand decision was about headings.
+- **Colour is never the only signal for a state.** This became load-
+  bearing when the green and the red were removed — see below.
 
-## On the dark surface it passes
+## State is no longer a colour
 
-`#FF6600` measures **4.63:1** on leather, which clears AA. The inverted
-sections are the one place the brand colour is both correct and legible,
-and worth using more if the palette is ever revisited.
+`--success` was `#1F7A4C` and `--danger` was `#B3261E`. Both are gone:
+success is now ink, danger is `--accent-deep`.
+
+**This was checked before it was done.** All 32 places that used them
+already carried the word beside the colour — "Sent.", "PAID", "Reply
+window closed", or the error sentence itself inside a `role="alert"` —
+so the hue was reinforcement and removing it removes nothing a person or
+a screen reader relied on.
+
+**Two places were the exception**, and they are the reason this section
+exists rather than a line in a changelog:
+
+| Component | Was | Now |
+|---|---|---|
+| `settings/kill-switch.tsx` | green dot / orange dot | hollow ring / filled dot |
+| `ui/window-state.tsx` | cyan dot / red dot | hollow ring / filled dot |
+
+In both, colour genuinely *was* the only difference between two states —
+and one of them is the 24-hour reply window, the single piece of state in
+this product whose failure is silent. Shape carries it now, which
+survives this palette, the next one, and colour blindness.
 
 ## Where it lives
 
 One source per surface, four surfaces: `app/src/styles/tokens.css`,
 `website/assets/site.css`, and inline in each of the two design-system
-pages. `consistency.py` compares the hexes across all four and fails the
-build when one drifts.
+pages. `consistency.py` compares the hexes across all four and fails when
+one drifts.
 
 `contrast.py` still measures every colour pair. The three brand
 exceptions — `h1,h2,h3`, `.display` and `.brand .tld` — are listed by
 name in `BRAND_EXCEPTIONS` with their measured value, printed on every
 run, and **the check fails again if the ratio ever drops below the
-recorded 2.65:1**. An exception that cannot detect its own drift is a
-hole, not an exception.
+recorded 2.56:1**. Proved by setting the orange to `#FF9977` and watching
+all three fail at 1.88:1. An exception that cannot detect its own drift
+is a hole, not an exception.

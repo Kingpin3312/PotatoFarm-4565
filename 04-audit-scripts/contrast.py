@@ -96,16 +96,16 @@ def resolve(v):
 # ---------------------------------------------------------------------
 # Brand exceptions, recorded rather than removed.
 #
-# The owner has set the brand orange to #FF6600 and asked for it on
-# headings, on buttons and on the .io. On the cream ground that measures
-# 2.65:1, below the 4.5:1 AA floor for text and below the 3:1 floor for
-# large text. That is a decision taken with the number known, and the
+# The owner has set the brand orange to #FF6B35 and asked for it on
+# every heading, every tab, every link and the .io. On the cream ground
+# that measures 2.56:1, below the 4.5:1 AA floor for text and below the
+# 3:1 floor for large text. That is a decision taken with the number known, and the
 # number was put in front of them before it was made.
 #
 # Why this is an allow-list and not a deleted check:
 #
 #   * The guard stays live for everything else. Captions, body links and
-#     every small orange label were moved to #A84900 precisely because
+#     every small orange label were moved to #A84015 precisely because
 #     this check caught them — they were collateral, not the request.
 #   * `WORST` pins the measured value. If somebody later lightens the
 #     orange, or puts it on a lighter ground, the ratio drops below the
@@ -115,12 +115,12 @@ def resolve(v):
 #
 # To retire the exception: make orange type pass, then delete the entry.
 BRAND_EXCEPTIONS = {
-    "h1,h2,h3":      ("#FF6600", 2.65),
-    ".brand .tld":   ("#FF6600", 2.65),
+    "h1,h2,h3":      ("#FF6B35", 2.56),
+    ".brand .tld":   ("#FF6B35", 2.56),
     # The hero. A class, so it overrides the element rule and had to be
     # changed separately — it stayed ink while every other heading went
     # orange, which is what a half-applied palette looks like.
-    ".display":      ("#FF6600", 2.65),
+    ".display":      ("#FF6B35", 2.56),
 }
 ALLOWED = []
 

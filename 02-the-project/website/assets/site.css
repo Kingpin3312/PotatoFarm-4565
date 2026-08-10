@@ -35,21 +35,21 @@
   /* ---- Orange ------------------------------------------------------
      Two, and they are not interchangeable.
 
-     One orange: #FF6600. Measured on the cream ground: 2.65:1 —
+     One orange: #FF6B35. Measured on the cream ground: 2.65:1 —
      below the 4.5:1 AA floor for text, so orange type is a brand
      decision taken with the number known. Ink on the orange fill is
      5.93:1; white on it is 2.94:1 and is never used.
 
      Getting this backwards is the mistake, and it is the fifth time in
      this project a warm colour has looked right and measured wrong. */
-  --accent:      #FF6600;   /* the brand orange. 2.65:1 on ground */
-  --accent-type: #FF6600;   /* headings, buttons and .io */
-  --accent-hover:#E55C00;
+  --accent:      #FF6B35;   /* the brand orange. 2.65:1 on ground */
+  --accent-type: #FF6B35;   /* headings, buttons and .io */
+  --accent-hover:#E85A25;
 
   /**
    * The legible orange, for small type only.
    *
-   * The brand orange is #FF6600 and it goes on headings, buttons and the
+   * The brand orange is #FF6B35 and it goes on headings, buttons and the
    * .io by decision. It measures 2.65:1, which is fine for a 40px
    * heading somebody is not reading word by word and wrong for a caption
    * or a link in a paragraph. Those keep a darker step at 5.23:1.
@@ -58,7 +58,7 @@
    * applied honestly: what was asked for is orange, and what was not
    * asked for stays readable.
    */
-  --accent-deep: #A84900;   /* 5.23:1 on ground — captions, body links */
+  --accent-deep: #A84015;   /* 5.23:1 on ground — captions, body links */
 
 
   /**
@@ -72,7 +72,7 @@
    *
    * Same fix as the saffron button two palettes ago, same reason.
    */
-  --accent-edge: #CC5200;   /* 3.65:1 on panel — defines the boundary */
+  --accent-edge: #CC4E1D;   /* 3.65:1 on panel — defines the boundary */
 
   /* **Labels on the orange fill are ink, never white.**
      White on the brand orange is 2.94:1 and fails. Ink is 5.93:1 and
@@ -94,14 +94,14 @@
   --leather-ink-2: #B5B5B5;   /*  8.02:1 */
   --leather-ink-3: #8A8A8A;   /*  4.74:1 */
 
-  --success:      #1F7A4C;
-  --danger:       #B3261E;
+  --success:      #1A1A1A;
+  --danger:       #A84015;
   /* **Not** the accent step any more, and this is the second time it has
-     been overwritten by a global find-and-replace. It was #A84900 when
-     the accent-type was too; the accent is now #FF6600 at 2.65:1, and a
+     been overwritten by a global find-and-replace. It was #A84015 when
+     the accent-type was too; the accent is now #FF6B35 at 2.65:1, and a
      warning nobody can read is not a warning. Kept at the measured
      value on purpose. */
-  --warning:      #A84900;   /* 5.23:1 on ground */
+  --warning:      #A84015;   /* 5.23:1 on ground */
 
   /* ---- Type --------------------------------------------------------
      Same stack. Warm palettes tempt people toward a serif and it is
@@ -156,7 +156,7 @@
   --rule: #2E2E2E;
   /* On leather the bright orange finally works as type — 6.4:1 — so the
      accent and the accent-type collapse into one here. */
-  --accent-type: #FF6600;   /* 4.63:1 on leather — passes AA here */
+  --accent-type: #FF6B35;   /* 4.63:1 on leather — passes AA here */
   --on-accent: var(--leather-deep);
 }
 
@@ -225,7 +225,7 @@ nav .wrap{display:flex;align-items:center;gap:30px;width:100%}
    "PotatoFarm" first and the extension second. Same trick every domain
    wordmark that works uses. */
 /* The extension in orange.
-   It is TYPE and it takes --accent-type, which is now the same #FF6600
+   It is TYPE and it takes --accent-type, which is now the same #FF6B35
    as the fill. At 2.65:1 that is a brand decision, not a measurement. The
    token resolves per ground, so the footer and the sidebar get the
    lighter leather step automatically. */
@@ -331,7 +331,11 @@ footer a:hover{color:var(--ink)}
 .thread .pending.is-in{opacity:1;transform:none;
   transition:opacity .42s var(--ease),transform .42s var(--ease)}
 [id]{scroll-margin-top:64px}
-.skip{position:absolute;left:-9999px}
+/* An explicit colour even though it is off-screen until focused.
+   Without one the anchor computes to the browser default #0000EE,
+   which is the one blue left in a two-colour product — and it is
+   on all ten pages, on the first element a keyboard user reaches. */
+.skip{position:absolute;left:-9999px;color:var(--ink)}
 .skip:focus{left:16px;top:12px;z-index:200;background:var(--accent);color:var(--on-accent);
   padding:10px 16px;border-radius:8px;border:1px solid var(--accent-edge)}
 
@@ -541,7 +545,17 @@ section.on-ocean{background:var(--leather)}
 
 /* Cards that are links. Handled in the component rather than on every
    instance. */
-.steps a.step{text-decoration:none}
+/* The colour matters as much as the underline here. This rule set
+   text-decoration and not colour, so the three guide cards on
+   /guides were browser-blue anchors — invisible only because every
+   child happens to set its own colour, which is luck, not design. */
+.steps a.step{text-decoration:none;color:var(--accent-deep)}
+/* --accent-deep, not --accent-type. The first attempt used the brand
+   orange and contrast.py failed it at 2.56:1 within the same run —
+   the heading exception covers h1/h2/h3, and an anchor is not one.
+   Same hue, readable step: the rule the whole product already uses
+   for small orange type. The h3 inside the card is still the brand
+   orange, so the card reads as it was briefed. */
 .steps a.step:hover h3{color:var(--ink)}
 
 /* A centred note under a section. Two instances, one shape. */
