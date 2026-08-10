@@ -49,11 +49,34 @@ attempts" means the rate limiter is working. Wait a minute, or clear
 Free, fast in the Gulf, and it reads `_redirects` and `_headers` without
 configuration. Netlify behaves the same way if you prefer it.
 
+Build the package first. The exclusions are the point — every one of
+those is a development tool, and uploading it publishes it:
+
+```bash
+cd 02-the-project/website
+zip -r -X ../../potatofarm-site.zip . \
+  -x "DEPLOY.md" "serve.mjs" "og.mjs" "predeploy.mjs" "predeploy-links.mjs" \
+     "demo-flow.mjs" "subscribe-flow.mjs" "preview-*.html" "*.DS_Store"
+```
+
+That is 25 files: ten HTML pages, `assets/`, `_redirects`, `_headers`,
+`robots.txt`, `sitemap.xml`, `site.webmanifest`. The zip is git-ignored
+— it is rebuilt from this folder, never edited.
+
+**Check the package, not the folder it came from.** They are not the
+same thing, and the difference is exactly what a bad exclusion looks
+like:
+
+```bash
+mkdir /tmp/zt && cd /tmp/zt && unzip -q ../potatofarm-site.zip
+cp <repo>/02-the-project/website/serve.mjs .
+node serve.mjs 4399 &
+node <repo>/02-the-project/website/predeploy.mjs
+```
+
 1. **Cloudflare → Workers & Pages → Create → Pages → Upload assets.**
-2. Upload the **contents** of `02-the-project/website/` — the ten HTML
-   files, `assets/`, `_redirects`, `_headers`, `robots.txt`,
-   `sitemap.xml`. Not the folder itself, and not `serve.mjs`,
-   `predeploy*.mjs` or this file.
+2. Drop the zip in, or upload the extracted contents — not the folder
+   itself.
 3. Project name `potatofarm`. No build command, no output directory —
    there is no build.
 

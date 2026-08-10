@@ -50,3 +50,19 @@ npm-debug.log*
 # Generated preview pages — the real pages are the ones without the
 # preview- prefix. Path is anchored from the repository root.
 02-the-project/website/preview-*.html
+
+# The deploy package.
+#
+# `potatofarm-site.zip` is the ten pages and their assets, zipped for
+# dragging onto Cloudflare Pages. It is built from
+# 02-the-project/website/ and contains nothing that is not already in
+# this repository, so committing it would store the whole site twice and
+# guarantee the two copies drift.
+#
+# This project has already been here: its first commit was a repository
+# containing exactly one file, POTATOFARM-MASTER.zip, with all 653 real
+# files sealed inside it where nothing could read, diff or review them.
+# A build artifact goes in a release, not in the tree.
+#
+# Rebuild it any time — the recipe is in website/DEPLOY.md.
+potatofarm-site.zip
