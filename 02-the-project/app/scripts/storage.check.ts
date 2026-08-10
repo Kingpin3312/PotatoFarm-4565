@@ -17,6 +17,7 @@
 import { createHmac, createHash } from "node:crypto";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
+import { fatal } from "./fatal";
 
 const KEY_ID = "TESTKEYID";
 const SECRET = "testsecretkey";
@@ -254,8 +255,4 @@ async function main() {
   process.exit(1);
 }
 
-main().catch((e) => {
-  console.error(e);
-  server.close();
-  process.exit(1);
-});
+main().catch((e) => fatal(e, () => server.close()));

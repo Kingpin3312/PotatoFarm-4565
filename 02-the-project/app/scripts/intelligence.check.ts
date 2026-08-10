@@ -21,6 +21,7 @@ import { movement, scoreLead, type ScoreInput } from "../src/server/lib/intellig
 import { nextAction, type Subject } from "../src/server/lib/intelligence/next-action";
 import { sweepIntelligence } from "../src/server/lib/intelligence/sweep";
 import { dayWindow } from "../src/server/api/routers/today";
+import { fatal } from "./fatal";
 
 const root = crossTenant("sweep");
 const SLUG = "intel-check-";
@@ -307,4 +308,4 @@ async function main() {
   process.exit(1);
 }
 
-main().catch((e) => { console.error(e); process.exit(1); });
+main().catch(fatal);

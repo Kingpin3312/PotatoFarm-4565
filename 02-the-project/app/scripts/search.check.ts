@@ -22,6 +22,7 @@ import { crossTenant } from "../src/server/db/client";
 import { parse, isEmpty } from "../src/server/lib/search/parse";
 import { search } from "../src/server/lib/search/run";
 import { placesIn } from "../src/server/lib/places";
+import { fatal } from "./fatal";
 
 const root = crossTenant("sweep");
 const SLUG = "search-check-";
@@ -400,4 +401,4 @@ async function main() {
   process.exit(fails.length ? 1 : 0);
 }
 
-main().catch((e) => { console.error(e); process.exit(1); });
+main().catch(fatal);

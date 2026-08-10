@@ -28,6 +28,7 @@
  */
 import { PrismaClient } from "@prisma/client";
 import { crossTenant, forOrg } from "../src/server/db/client";
+import { fatal } from "./fatal";
 
 const root = crossTenant("sweep");
 const fails: string[] = [];
@@ -180,7 +181,4 @@ async function main() {
   process.exit(1);
 }
 
-main().catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
+main().catch(fatal);

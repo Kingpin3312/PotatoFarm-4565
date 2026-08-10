@@ -19,6 +19,7 @@
 import { crossTenant } from "../src/server/db/client";
 import { buyersFor, pitch, sendableAt, SHOW_THRESHOLD } from "../src/server/lib/matching/buyers";
 import { SEND_THRESHOLD } from "../src/server/lib/matching/score";
+import { fatal } from "./fatal";
 
 const root = crossTenant("sweep");
 const SLUG = "buyers-check-";
@@ -448,7 +449,4 @@ async function main() {
   process.exit(fails.length ? 1 : 0);
 }
 
-main().catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
+main().catch(fatal);

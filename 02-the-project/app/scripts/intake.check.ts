@@ -18,6 +18,7 @@
 import { crossTenant, forOrg } from "../src/server/db/client";
 import { applyIntake } from "../src/server/lib/requests/apply-intake";
 import { normalisePhone, trusted, type Intake } from "../src/server/lib/requests/intake";
+import { fatal } from "./fatal";
 
 const root = crossTenant("sweep");
 const SLUG = "intake-check-";
@@ -225,4 +226,4 @@ async function main() {
   process.exit(1);
 }
 
-main().catch((e) => { console.error(e); process.exit(1); });
+main().catch(fatal);

@@ -13,6 +13,7 @@
  *     npm run check:deals
  */
 import { assessRisk, RISK_LABEL, STEP_STAGES, type RiskInput } from "../src/server/lib/deals/risk";
+import { fatal } from "./fatal";
 
 const fails: string[] = [];
 function ok(label: string, pass: boolean, detail = "") {
@@ -140,4 +141,7 @@ function main() {
   process.exit(1);
 }
 
-main();
+// Synchronous — this one is pure rules and never opens a connection,
+// which is why it kept passing while Postgres was down. `.catch` on a
+// void return is a compile error, so it is a try rather than a promise.
+try { main(); } catch (e) { fatal(e); }

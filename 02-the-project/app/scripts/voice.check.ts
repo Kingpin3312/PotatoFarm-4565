@@ -17,6 +17,7 @@
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { confidenceFrom, MAX_BYTES, MIN_MS } from "../src/server/lib/voice/transcribe";
+import { fatal } from "./fatal";
 
 const fails: string[] = [];
 function ok(label: string, pass: boolean, detail = "") {
@@ -160,4 +161,4 @@ async function main() {
   process.exit(1);
 }
 
-main().catch((e) => { console.error(e); server.close(); process.exit(1); });
+main().catch((e) => fatal(e, () => server.close()));

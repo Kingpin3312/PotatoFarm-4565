@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { cn } from "@/lib/cn";
 import { api } from "@/lib/trpc";
 import { QueryError } from "@/components/ui/query-state";
-import { aed, aedShort } from "@/lib/money";
+import { aedWhole } from "@/lib/money";
 import { PublishCheck } from "./publish-check";
 import { WhoWantsIt } from "./who-wants-it";
 
@@ -94,7 +94,7 @@ function Listings() {
       </div>
 
       <div className="border-t border-ink mt-9">
-        <div className="grid grid-cols-[1.6fr_92px_1fr_132px_88px] gap-4 py-3.5 px-1 border-b border-ink font-mono text-[9px] uppercase tracking-[0.14em] text-ink-3 max-[820px]:hidden">
+        <div className="grid grid-cols-[1.6fr_140px_1fr_120px_auto] gap-4 py-3.5 px-1 border-b border-ink font-mono text-[9px] uppercase tracking-[0.14em] text-ink-3 max-[820px]:hidden">
           <span>Property</span><span>Price</span><span>Portals</span><span>Permit</span><span />
         </div>
 
@@ -103,7 +103,7 @@ function Listings() {
         {rows.map((l) => (
           <div
             key={l.id}
-            className="grid grid-cols-[1.6fr_92px_1fr_132px_88px] gap-4 items-center py-3.5 px-1 border-b border-rule hover:bg-raised max-[820px]:grid-cols-1 max-[820px]:gap-2"
+            className="grid grid-cols-[1.6fr_140px_1fr_120px_auto] gap-4 items-center py-3.5 px-1 border-b border-rule hover:bg-raised max-[820px]:grid-cols-1 max-[820px]:gap-2"
           >
             <div>
               <div className="font-mono text-[11px] text-ink-3">{l.reference}</div>
@@ -111,7 +111,14 @@ function Listings() {
             </div>
 
             <div className="font-mono text-[13px] text-ink">
-              {aed(l.priceFils)}
+              {/* Whole dirhams. `money.ts` says so in as many words —
+                  "nobody says the fils on a flat, and `.00` on the end
+                  of a seven-figure number reads as a system that has
+                  not been thought about" — and this screen was the one
+                  place still calling `aed()`. It was also overflowing:
+                  "AED 11,500,000.00" does not fit a 92px column, so
+                  every price wrapped with AED alone on the first line. */}
+              {aedWhole(l.priceFils)}
             </div>
 
             <div className="flex gap-1.5 flex-wrap">

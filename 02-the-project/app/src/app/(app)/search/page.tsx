@@ -77,7 +77,11 @@ export default function SearchPage() {
               <li key={e}>
                 <button
                   onClick={() => { setText(e); setAsked(e); }}
-                  className="rounded-full border border-rule px-3 py-1.5 text-[13px] text-ink-2 hover:border-rule-strong hover:text-ink"
+                  // 44px, not the 34px this shipped with. The design
+                  // system says 44 and the sweep caught these at 34 —
+                  // a chip is exactly the sort of small control that
+                  // gets an approximate tap and does nothing.
+                  className="inline-flex min-h-11 items-center rounded-full border border-rule px-4 text-[13px] text-ink-2 hover:border-rule-strong hover:text-ink"
                 >
                   {e}
                 </button>

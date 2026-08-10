@@ -83,18 +83,29 @@ export function Shell({ children }: { children: React.ReactNode }) {
             <span className="font-sans font-semibold text-[20px] text-ink -tracking-[0.024em]">PotatoFarm<span className="text-accent-type font-medium">.io</span></span>
           </Link>
 
-          {/* Desktop only. At 375px this scrolled sideways with 356px
-              of itself hidden and no affordance saying so — roughly
-              half the navigation was unreachable. The bottom bar below
-              takes over on a phone. */}
-          <nav className="hidden md:flex gap-5 ml-2 overflow-x-auto">
+          {/* `lg`, not `md`, and that one letter was a real bug.
+              At 375px this scrolled sideways with 356px of itself
+              hidden and no affordance saying so — fixed by handing
+              phones the bottom bar. But `md` is 768px, so an iPad at
+              834px was still getting the *desktop* nav: seven links at
+              32px tall on a touch screen, with "Settings" clipped
+              mid-word at the right edge and no way to reach it. The
+              same failure, one breakpoint up, on the device an agent
+              presents to an owner with.
+
+              The bar now appears only where there is room to lay it
+              out and a pointer to use it. Everything below 1024px gets
+              the touch bar. The links are 44px because a finger is
+              not a mouse, and the header is 56px so they still
+              centre. */}
+          <nav className="hidden lg:flex gap-5 ml-2 overflow-x-auto">
             {NAV.map((n) => (
               <Link
                 key={n.href}
                 href={n.href}
                 aria-current={pathname.startsWith(n.href) ? "page" : undefined}
                 className={cn(
-                  "text-[15px] no-underline py-1 border-b whitespace-nowrap",
+                  "inline-flex min-h-11 items-center text-[15px] no-underline border-b whitespace-nowrap",
                   pathname.startsWith(n.href)
                     ? "text-ink border-ink"
                     : "text-ink-3 border-transparent hover:text-ink"
@@ -115,7 +126,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
               href="/search"
               aria-current={pathname.startsWith("/search") ? "page" : undefined}
               className={cn(
-                "hidden md:flex min-h-11 items-center gap-1.5 text-[15px] no-underline",
+                "hidden lg:flex min-h-11 items-center gap-1.5 text-[15px] no-underline",
                 pathname.startsWith("/search") ? "text-ink" : "text-ink-3 hover:text-ink"
               )}
             >
@@ -152,7 +163,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           app feel broken without anyone being able to say why. */}
       <main
         id="main"
-        className="flex-1 min-h-0 pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-0"
+        className="flex-1 min-h-0 pb-[calc(3.5rem+env(safe-area-inset-bottom))] lg:pb-0"
       >
         {children}
       </main>
@@ -233,7 +244,7 @@ function MobileTabs({ pathname }: { pathname: string }) {
   return (
     <>
       {more && (
-        <div className="md:hidden fixed inset-0 z-40" role="dialog" aria-modal="true" aria-label="More">
+        <div className="lg:hidden fixed inset-0 z-40" role="dialog" aria-modal="true" aria-label="More">
           <button
             className="absolute inset-0 w-full bg-[rgb(26_26_26/.45)]"
             aria-label="Close"
@@ -259,7 +270,7 @@ function MobileTabs({ pathname }: { pathname: string }) {
 
       <nav
         aria-label="Main"
-        className="md:hidden fixed bottom-0 inset-x-0 z-50 grid grid-cols-5 border-t border-rule bg-ground pb-[env(safe-area-inset-bottom)]"
+        className="lg:hidden fixed bottom-0 inset-x-0 z-50 grid grid-cols-5 border-t border-rule bg-ground pb-[env(safe-area-inset-bottom)]"
       >
         {TABS.map((t) => {
           const on = pathname.startsWith(t.href);

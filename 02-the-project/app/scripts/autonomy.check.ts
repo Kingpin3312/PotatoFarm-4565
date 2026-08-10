@@ -1,6 +1,7 @@
 import { crossTenant } from "../src/server/db/client";
 import { sweepIntelligence } from "../src/server/lib/intelligence/sweep";
 import { levelFor } from "../src/server/lib/intelligence/autonomy";
+import { fatal } from "./fatal";
 
 const db = crossTenant("sweep");
 let bad = 0;
@@ -70,4 +71,4 @@ async function main() {
   console.log(bad === 0 ? "\nPASS\n" : `\nFAIL — ${bad}\n`);
   process.exit(bad ? 1 : 0);
 }
-main().catch(e => { console.error(e); process.exit(1); });
+main().catch(fatal);
