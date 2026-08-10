@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet } from "react-native";
-import Svg, { Path, Ellipse } from "react-native-svg";
+import Svg, { Path, Rect } from "react-native-svg";
 import { t } from "@/lib/theme";
 
 /**
@@ -18,9 +18,10 @@ import { t } from "@/lib/theme";
  */
 
 const BODY =
-  "M33,4 C42,4.5 48,11 50,20 C52,29 50,37 48,44 " +
-  "C45,53 38,60 30,60 C21,60 15,54 13,45 " +
-  "C11,35 12,24 16,15 C20,7 26,3.5 33,4 Z";
+  "M31.8,3.2 C38.4,2.9 43.8,7.4 46.6,14.2 C49.0,20.0 49.8,26.4 50.4,32.6 " +
+  "C51.0,39.2 50.6,46.2 46.8,51.8 C42.9,57.6 35.6,61.2 28.6,60.6 " +
+  "C21.6,60.0 15.6,55.0 13.2,48.4 C10.8,41.8 11.4,34.4 12.6,27.4 " +
+  "C13.9,19.8 16.2,11.6 21.8,6.6 C24.6,4.1 28.0,3.4 31.8,3.2 Z";
 
 /** Fixed. Their unevenness is what makes the shape read as a potato
  *  rather than a bean, so they are not to be re-scattered. */
@@ -29,8 +30,11 @@ const BODY =
 /** Two ovals, similar size, slightly offset — character without
  *  becoming a face. */
 /** Upper half of the form, similar size, slightly offset. */
+/** x, y, w, h — capsules, matching the SVG masters. The source artwork
+ *  has flat-sided eyes with round ends, and at this size that shape is
+ *  the whole character. */
 const EYES: [number, number, number, number][] = [
-  [25.5, 25, 3.2, 4.9], [38.5, 24.2, 3.1, 4.8],
+  [22.8, 22.2, 4.5, 10.0], [35.0, 21.6, 4.2, 9.6],
 ];
 
 export function Wordmark({ size = 17 }: { size?: number }) {
@@ -41,9 +45,10 @@ export function Wordmark({ size = 17 }: { size?: number }) {
   return (
     <View style={s.row}>
       <Svg width={mark} height={mark} viewBox="0 0 64 64" style={s.mark}>
-        <Path d={BODY} fill={t.accent} />
-        {EYES.map(([cx, cy, rx, ry], i) => (
-          <Ellipse key={i} cx={cx} cy={cy} rx={rx} ry={ry} fill={t.markEye} />
+        <Path d={BODY} fill={t.markBody} stroke={t.markRim} strokeWidth={1.7}
+              strokeLinejoin="round" />
+        {EYES.map(([x, y, w, h], i) => (
+          <Rect key={i} x={x} y={y} width={w} height={h} rx={w / 2} fill={t.markEye} />
         ))}
       </Svg>
       <Text style={[s.name, { fontSize: size }]}>

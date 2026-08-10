@@ -35,7 +35,9 @@ export const light = {
   tld: "#FF6600",
   /** The two eyes in the mark. Darker than the rim so they read as
    *  holes rather than as shading. */
-  markEye: "#8A4310",
+  markEye: "#3B2416",
+  markBody: "#F0A03A",
+  markRim:  "#D9761C",
 
   leather:     "#2E2E2E",
   leatherDeep: "#1A1A1A",
@@ -62,7 +64,9 @@ export const dark = {
   onAccent:    "#1A1A1A",
 
   tld: "#FF6600",
-  markEye: "#8A4310",
+  markEye: "#3B2416",
+  markBody: "#F0A03A",
+  markRim:  "#D9761C",
 
   leather:     "#2E2E2E",
   leatherDeep: "#1A1A1A",

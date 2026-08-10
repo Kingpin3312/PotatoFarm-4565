@@ -12,14 +12,29 @@ anywhere, and a palette document nobody can trust is worse than none.
 
 Every figure below was measured, not estimated.
 
+**Two families, and the split is deliberate.** The interface takes one
+orange; the mark keeps its own warmer amber, because a logo is exempt
+from contrast rules and a button is not.
+
+### The interface
+
 | Role | Hex | On ground `#F4F3F0` | On leather `#2E2E2E` | Where |
 |---|---|---|---|---|
-| Gradient high | `#FF8533` | 2.19:1 | 5.60:1 | The lit core of the mark |
-| **Brand** | **`#FF6600`** | **2.65:1** | **4.63:1** | Headings, buttons, `.io`, the mark |
-| Gradient shade | `#E55C00` | 3.23:1 | 3.79:1 | The mark's lower body, hover states |
+| **Brand** | **`#FF6600`** | **2.65:1** | **4.63:1** | Headings, buttons, `.io` |
+| Hover / shade | `#E55C00` | 3.23:1 | 3.79:1 | Hover states |
 | Edge | `#CC5200` | 3.96:1 | 3.09:1 | The hairline on every orange fill |
 | Deep | `#A84900` | 5.23:1 | — | Captions and body links **only** |
-| Eye | `#8A4310` | 6.55:1 | — | The mark's eyes and drop shadow |
+
+### The mark
+
+| Role | Hex | Where |
+|---|---|---|
+| Gradient high | `#F8BA5E` | The lit top-left of the body |
+| Gradient mid | `#F0A03A` | The body |
+| Gradient low | `#E5842A` | The lower right |
+| Rim | `#D9761C` | The darker edge, all the way round |
+| Crease | `#DD8A2E` | The cheek line and the surface marks |
+| Eye | `#3B2416` | Dark brown, not black |
 
 ## What this costs, plainly
 

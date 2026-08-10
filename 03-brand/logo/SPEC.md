@@ -15,14 +15,14 @@
 | Potato | `#FF6600` | warm solid orange |
 | Highlight | `#FF8533` | upper portion |
 | Shade | `#E55C00` | lower right |
-| Eyes | `#8A4310` | |
+| Eyes | `#3B2416` | Dark brown, not black |
 | Wordmark | `#1A1A1A` | 15.68:1 |
 | `.io` in the lockup | `#FF6600` | as briefed |
 | `.io` in an interface | `#FF6600` | 5.23:1 |
 
 ## Three things chosen by rendering, not by assuming
 
-**Eye height.** The form runs y=4 to 60, so its centre is 32. The eyes
+**Eye height.** The form runs y=3.2 to 60.6, so its centre is ~32. The eyes
 were at 30 — dead centre. They now sit at **25**, in the upper half as
 briefed. Three positions were compared; moving them up and keeping them
 full size reads friendly, moving them up *and* shrinking them reads
@@ -50,7 +50,13 @@ the clipped white highlight.
 **A soft drop shadow for lift.** `dy 2, blur 2.2, 18%`. Enough to seat
 it, not enough to be noticed as a shadow.
 
-**Two eyes and nothing else.** No surface marks, no decoration.
+**Two eyes, a cheek crease and three surface marks.** The second
+artwork adds the marks a potato actually has. They are all drawn at
+lower opacity than the eyes, so the face still reads first and the
+detail dissolves rather than muddles at sixteen pixels.
+
+The eyes are **capsules, not ellipses** — flat-sided with round ends.
+At favicon size that shape is the whole character.
 
 ## The one place the brief and accessibility disagree
 

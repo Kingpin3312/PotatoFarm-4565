@@ -274,7 +274,12 @@ MARK_SURFACES = [
     at(f"{APP}/mobile/components/wordmark.tsx"),
     at(f"{LOGO}/lockup.svg"),
 ]
-POTATO = "M33,4 C42,4.5"   # the upright teardrop
+# The first eleven characters of the body path, which is generated from
+# one definition and pasted into seven surfaces. Changing the mark means
+# changing this line — deliberately, so a redraw cannot land on six
+# surfaces and miss the seventh, which is exactly what this caught when
+# the new artwork went in.
+POTATO = "M31.8,3.2"   # the tapered potato, second artwork
 for path in MARK_SURFACES:
     if not require(path): continue
     body = open(path).read()
