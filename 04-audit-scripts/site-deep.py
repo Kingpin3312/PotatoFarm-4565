@@ -141,7 +141,14 @@ for name, s in pages.items():
             bug(name, f"references {m.group(1)}, which is missing")
     for m in re.finditer(r'<img[^>]+src="([^"]+)"', s):
         src = m.group(1)
-        if not src.startswith("http") and not os.path.exists(os.path.join(SITE, src)):
+        if src.startswith("http") or src.startswith("data:"):
+            continue
+        # `os.path.join(SITE, "/assets/x")` throws SITE away and returns
+        # "/assets/x", so a root-relative image was always reported
+        # missing however plainly it existed. Both forms mean the same
+        # file on a static host, so both have to resolve the same way.
+        rel = src.lstrip("/").split("?")[0].split("#")[0]
+        if not os.path.exists(os.path.join(SITE, rel)):
             bug(name, f"image {src} is missing")
 
 

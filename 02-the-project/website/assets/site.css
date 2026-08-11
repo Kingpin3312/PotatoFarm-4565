@@ -561,3 +561,71 @@ section.on-ocean{background:var(--leather)}
 /* A centred note under a section. Two instances, one shape. */
 .note-mid{text-align:center;margin:20px auto 0;max-width:52ch}
 .cta-row{margin-top:36px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+
+
+/* ---- Product shots -------------------------------------------------
+   The site had no images at all. Ten pages of typography describing an
+   interface nobody could see, against competitors whose sites are mostly
+   screenshots. This is the one section that shows the thing.
+
+   Composition rather than a plain screenshot: the laptop frame carries
+   the width, the phone overlaps its lower right, and the pair reads as a
+   product rather than a document. The phone is the point in this market
+   — an agent works from one — so on a narrow screen the phone is what
+   survives and the laptop is dropped rather than shrunk to illegibility.
+
+   Both images are lazy and carry explicit width/height, so the section
+   reserves its space before they arrive and the page does not jump. */
+.shots-section { padding-bottom: clamp(48px, 7vw, 92px); }
+
+.shots {
+  position: relative;
+  margin: clamp(34px, 5vw, 56px) 0 0;
+  display: flex;
+  justify-content: center;
+}
+
+.shot-desktop {
+  display: block;
+  width: 100%;
+  max-width: 940px;
+  height: auto;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-lg);
+  background: var(--raised);
+  /* Warmer and deeper than the card lift — this one is meant to sit off
+     the page rather than on it. */
+  box-shadow: 0 2px 6px rgb(43 30 23 / .06), 0 24px 60px rgb(43 30 23 / .13);
+}
+
+.shot-phone {
+  display: none;                    /* joins the composition at >=880px */
+  position: absolute;
+  right: max(0px, calc(50% - 470px - 18px));
+  bottom: -22px;
+  width: 168px;
+  height: auto;
+  border: 1px solid var(--rule);
+  border-radius: 20px;
+  background: var(--raised);
+  box-shadow: 0 2px 6px rgb(43 30 23 / .07), 0 18px 44px rgb(43 30 23 / .18);
+}
+
+@media (min-width: 880px) {
+  .shot-phone { display: block; }
+  /* Room for the phone to hang past the laptop without clipping. */
+  .shots { padding-bottom: 26px; }
+}
+
+/* Below that the laptop is unreadable at thumb width, so show the phone
+   on its own — which is also the honest picture of how the product is
+   used here. */
+@media (max-width: 879px) {
+  .shot-desktop { display: none; }
+  .shot-phone {
+    display: block;
+    position: static;
+    width: min(300px, 76vw);
+    border-radius: 22px;
+  }
+}
