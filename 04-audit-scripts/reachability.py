@@ -135,7 +135,6 @@ KNOWN_UNWRITTEN = {
     "KycRecord": "AML files cannot be opened from the product",
     "Screening": "sanctions screening has no row to write",
     "QualificationProfile": "qualification answers cannot be stored",
-    "CommissionPlan": "no commission plan can be defined",
     "CommissionSplit": "a split cannot be recorded",
     "WorkingHours": "sending hours cannot be configured",
     "AgentAvailability": "the diary cannot be told when an agent is free",

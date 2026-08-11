@@ -60,6 +60,7 @@ export const SETTINGS_NAV = [
   { href: "/settings/channels", label: "Channels" },
   { href: "/settings/import", label: "Import" },
   { href: "/team", label: "Team" },
+  { href: "/settings/commission", label: "Commission plans" },
   { href: "/settings/billing", label: "Billing" },
 ];
 

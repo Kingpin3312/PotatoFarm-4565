@@ -94,3 +94,61 @@ export function shareForAgent(tiers: Tier[], earnedThisYearFils: bigint) {
 }
 
 
+
+/**
+ * Tiers, across the JSON boundary.
+ *
+ * `CommissionPlan.tiers` is a `Json` column and `Tier.fromFils` is a
+ * `bigint`. JSON has no bigint, so the two cannot meet without a
+ * conversion — and there wasn't one. `myTier` read the column and cast
+ * it (`plan.tiers as unknown as Tier[]`), which types fine and produces
+ * whatever the writer happened to put there.
+ *
+ * That cast was survivable only by luck. Relational comparison between a
+ * bigint and a numeric string coerces, so `earned >= t.fromFils` happens
+ * to work when the threshold was written as `"5000000"`. Write it as
+ * `5_000_000` and it still works. Write `"5,000,000"` and the coercion
+ * throws `SyntaxError: Cannot convert 5,000,000 to a BigInt` — inside a
+ * query, on the screen an agent opens to see what they are owed.
+ *
+ * Both directions live here so the shape is decided once. Stored as a
+ * decimal string because that is the only JSON representation of fils
+ * that cannot lose precision: a dirham threshold above about nine
+ * quadrillion fils is not reachable, but `Number` silently rounds long
+ * before anything else complains, and this codebase has already paid for
+ * one money-unit mistake.
+ */
+export type StoredTier = { fromFils: string; shareBp: number };
+
+export function serialiseTiers(tiers: Tier[]): StoredTier[] {
+  return tiers.map((t) => ({ fromFils: t.fromFils.toString(), shareBp: t.shareBp }));
+}
+
+/**
+ * Parse, and refuse rather than guess.
+ *
+ * A malformed plan is not something to recover from silently — an agent
+ * shown the wrong band believes it. The caller decides what to do with
+ * `null`, and every caller so far treats it as "no plan", which is the
+ * same thing the screen already handles.
+ */
+export function parseTiers(raw: unknown): Tier[] | null {
+  if (!Array.isArray(raw) || raw.length === 0) return null;
+  const out: Tier[] = [];
+  for (const t of raw) {
+    if (!t || typeof t !== "object") return null;
+    const { fromFils, shareBp } = t as Record<string, unknown>;
+    if (typeof shareBp !== "number" || !Number.isInteger(shareBp)) return null;
+    if (shareBp < 0 || shareBp > 10_000) return null;
+    if (typeof fromFils !== "string" && typeof fromFils !== "number") return null;
+    let from: bigint;
+    try {
+      from = BigInt(fromFils);
+    } catch {
+      return null;
+    }
+    if (from < 0n) return null;
+    out.push({ fromFils: from, shareBp });
+  }
+  return out.sort((a, b) => (a.fromFils < b.fromFils ? -1 : a.fromFils > b.fromFils ? 1 : 0));
+}
