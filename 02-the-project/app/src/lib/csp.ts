@@ -70,6 +70,18 @@ export function buildCsp(nonce?: string): string {
      */
     "style-src 'self' 'unsafe-inline'",
 
+    /**
+     * The service worker, and the manifest.
+     *
+     * `worker-src` is not covered by `script-src` in every browser and
+     * falls back to `child-src` then `default-src` when absent — with
+     * `'strict-dynamic'` in play that is exactly the sort of gap where a
+     * worker silently fails to register and the only symptom is a cold
+     * open that stayed slow. Named explicitly instead.
+     */
+    "worker-src 'self'",
+    "manifest-src 'self'",
+
     // Avatars and listing photos come from object storage over https.
     "img-src 'self' data: blob: https:",
 

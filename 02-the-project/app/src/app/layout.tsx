@@ -29,6 +29,8 @@ import "@/styles/globals.css";
  */
 export const dynamic = "force-dynamic";
 
+import { RegisterServiceWorker } from "@/components/layout/install";
+
 export const metadata: Metadata = {
   title: "PotatoFarm.io",
   description: "The WhatsApp assistant that answers your enquiries before your competitors do.",
@@ -62,6 +64,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en-GB">
       <body>
+        <RegisterServiceWorker />
         <a href="#main" className="skip">Skip to content</a>
         <Providers>{children}</Providers>
       </body>

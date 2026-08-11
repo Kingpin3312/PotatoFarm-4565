@@ -30,7 +30,8 @@
     "check:storage": "esbuild scripts/storage.check.ts --bundle --platform=node --format=esm --outfile=.tmp/storage.mjs --external:@prisma/client --log-level=warning && node .tmp/storage.mjs",
     "check:tenancy": "esbuild scripts/tenant-isolation.check.ts --bundle --platform=node --format=esm --outfile=.tmp/tenancy.mjs --external:@prisma/client --log-level=warning && node --env-file-if-exists=.env .tmp/tenancy.mjs",
     "test": "vitest run",
-    "browser:optimistic": "node scripts/optimistic.mjs"
+    "browser:optimistic": "node scripts/optimistic.mjs",
+    "browser:installable": "node scripts/installable.mjs"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.7.0",

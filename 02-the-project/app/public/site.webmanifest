@@ -1,12 +1,22 @@
 {
+  "id": "/today",
   "name": "PotatoFarm.io",
   "short_name": "PotatoFarm",
-  "icons": [
-    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
-  ],
+  "description": "Every property enquiry answered in seconds, and one screen that says what to do next.",
+  "start_url": "/today",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
   "theme_color": "#F4F3F0",
   "background_color": "#F4F3F0",
-  "display": "standalone",
-  "start_url": "/inbox"
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Today", "url": "/today" },
+    { "name": "Inbox", "url": "/inbox" },
+    { "name": "Ask", "url": "/ask" }
+  ]
 }

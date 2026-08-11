@@ -252,6 +252,7 @@ npm run browser:roles         # VIEWER / COMPLIANCE / MANAGER see a sentence, no
 npm run browser:palette       # 21 screens: no colour outside the brand family
 npm run browser:chaos         # bad ids, triple submit, forged cookie, headers
 npm run browser:optimistic    # the row leaves early — and comes back if it fails
+npm run browser:installable   # manifest, worker, and what it put on the device
 ```
 
 They find a different class of problem from the eleven suites — the
@@ -260,6 +261,14 @@ has caught something the others could not: a VIEWER told "that didn't
 load" when the server had correctly refused, a dialog that ran off an
 iPhone with its Close button unreachable, and search results announced
 to nobody.
+
+**`browser:installable` needs the server stopped for its second half,
+and that is the only honest way to test it.** Playwright's `setOffline`
+and CDP's `emulateNetworkConditions` both govern the *page's* requests
+and leave the service worker's own `fetch` going to the real network —
+so an "offline" navigation quietly succeeded, returned the sign-in page,
+and the check would have passed while proving nothing. Build, start,
+run phase 1, stop the server, then `OFFLINE=1`.
 
 **`browser:optimistic` tests the half everybody skips.** Holding the
 mutation for 2.5 seconds and asserting the row is gone in under half of

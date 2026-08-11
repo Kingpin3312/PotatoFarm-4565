@@ -70,6 +70,13 @@ const PUBLIC = [
   "/sign-in",
   "/signup",
   "/invite",
+  /**
+   * The offline fallback. It holds no data and needs no session, and the
+   * service worker fetches it to precache — which, behind the auth
+   * redirect, would cache a 307 to /sign-in and show that instead of the
+   * offline page.
+   */
+  "/offline",
 ];
 
 export function middleware(req: NextRequest) {
