@@ -5,7 +5,7 @@
 <title>What being a DNFBP means for a UAE property brokerage</title>
 <meta name="description" content="goAML registration, customer due diligence, sanctions screening, the AED 55,000 cash reporting threshold and five-year records — in plain English.">
 <link rel="canonical" href="https://potatofarm.io/uae-aml-for-brokerages">
-<meta name="theme-color" content="#001B44">
+<meta name="theme-color" content="#F4F3F0">
 <meta property="og:title" content="What being a DNFBP means for a UAE property brokerage">
 <meta property="og:description" content="goAML registration, customer due diligence, sanctions screening, the AED 55,000 cash reporting threshold and five-year records — in plain English.">
 <meta property="og:type" content="article">
@@ -78,6 +78,74 @@
          being considered, is <strong>tipping off</strong> — an offence in its own right,
          separate from anything the client may have done.</p></div>
   </div>
+  <figure class="diagram" data-reveal="120">
+    <div class="diagram-scroll">
+      <svg viewBox="0 30 700 262" role="img" aria-labelledby="amlt amld">
+        <title id="amlt">When a Real Estate Activity Report is required</title>
+        <desc id="amld">Four cases measured against the AED 55,000 cash
+          threshold. A single cash payment of 60,000 crosses it and must be
+          reported. Three linked payments of 25,000, 20,000 and 15,000 also
+          total 60,000 and must be reported — they are added together because
+          they belong to one transaction. Two linked payments totalling 27,000
+          fall under the threshold and need no report. A settlement in virtual
+          assets must be reported whatever the amount.</desc>
+
+        <!-- The threshold as a line the bars either cross or do not,
+             because the guide's own point is that the failure is
+             arithmetic: three payments nobody added up. -->
+        <path class="d-cut" d="M481 62v196"/>
+        <text class="d-lbl d-warn" x="481" y="54" text-anchor="middle">AED 55,000 in cash</text>
+
+        <text class="d-tick" x="190" y="272" text-anchor="middle">0</text>
+        <text class="d-tick" x="560" y="272" text-anchor="middle">AED 70,000</text>
+        <path class="d-axis" d="M190 258h370"/>
+
+        <!-- 1. The obvious one. -->
+        <text class="d-lbl" x="180" y="84" text-anchor="end">One cash payment</text>
+        <rect class="d-bad" x="190" y="70" width="317" height="22" rx="3"/>
+        <text class="d-sub" x="348" y="86" text-anchor="middle">60,000</text>
+        <text class="d-lbl d-warn" x="580" y="86">Report</text>
+
+        <!-- 2. The one the guide says gets missed: same total, three
+                payments, and nothing about any single one of them
+                trips a threshold check that looks at payments. -->
+        <text class="d-lbl" x="180" y="139" text-anchor="end">Three linked payments</text>
+        <rect class="d-bad" x="190" y="125" width="132" height="22" rx="3"/>
+        <rect class="d-bad" x="326" y="125" width="105" height="22" rx="3"/>
+        <rect class="d-bad" x="435" y="125" width="72"  height="22" rx="3"/>
+        <text class="d-sub" x="256" y="141" text-anchor="middle">25,000</text>
+        <text class="d-sub" x="378" y="141" text-anchor="middle">20,000</text>
+        <!-- 464, not the segment centre: the threshold line falls at 481 and
+             struck straight through the numeral. -->
+        <text class="d-sub" x="464" y="141" text-anchor="middle">15,000</text>
+        <text class="d-lbl d-warn" x="580" y="141">Report</text>
+        <text class="d-sub d-warn" x="580" y="156">added together</text>
+
+        <!-- 3. Under, and therefore not. Included because a diagram that
+                only shows the failing cases teaches "report everything",
+                which is its own kind of wrong. -->
+        <text class="d-lbl" x="180" y="194" text-anchor="end">Two linked payments</text>
+        <rect class="d-open" x="190" y="180" width="79" height="22" rx="3"/>
+        <rect class="d-open" x="273" y="180" width="63" height="22" rx="3"/>
+        <text class="d-sub" x="230" y="196" text-anchor="middle">15,000</text>
+        <text class="d-sub" x="305" y="196" text-anchor="middle">12,000</text>
+        <text class="d-sub d-ok" x="580" y="196">No report</text>
+
+        <!-- 4. The case with no threshold at all. -->
+        <text class="d-lbl" x="180" y="240" text-anchor="end">Virtual asset settlement</text>
+        <rect class="d-bad" x="190" y="226" width="46" height="22" rx="3"/>
+        <path class="d-cut" d="M240 237h26"/>
+        <text class="d-sub" x="282" y="242">any amount</text>
+        <text class="d-lbl d-warn" x="580" y="242">Report</text>
+      </svg>
+    </div>
+    <p class="diagram-hint">Scroll to see each&nbsp;verdict&nbsp;&rarr;</p>
+    <figcaption>Linked payments are added together, so three transfers that each
+      look unremarkable can carry a reporting obligation the individual amounts
+      never suggest. A virtual asset settlement is reportable at any size — there
+      is no threshold to fall under.</figcaption>
+  </figure>
+
   <p class="narrow t-4 cap">Written from Ministry of
      Economy guidance and the FIU's published requirements. It is a starting point for a
      conversation with a compliance adviser, not legal advice, and you should treat anybody

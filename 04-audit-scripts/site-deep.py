@@ -314,6 +314,111 @@ def _url_routing():
 
 _url_routing()
 
+
+# ---------- 10. Colours nothing renders, and nothing was checking ----------
+def _chrome_colour():
+    """
+    `theme-color` and the manifest, against the stylesheet.
+
+    These are the only brand colours on the site that never appear in a
+    rendered pixel, so `palette.mjs` — which scans screens — cannot see
+    them by construction. All ten pages were still carrying `#001B44`,
+    a navy from a palette two generations dead, and the manifest gave
+    two further answers of its own: `#FDFBF7` and a brown `#4A3428`
+    that exists nowhere in the project.
+
+    Nobody sees it on a desktop. On a phone it is the browser's own
+    chrome above the page and the splash screen behind an installed
+    icon — so the first thing a visitor sees is the wrong brand, and
+    the one place it shows is the one place nobody was testing.
+
+    `--ground` is read from the stylesheet rather than written here, so
+    changing the palette moves this check with it instead of leaving a
+    second copy to go stale in the same way.
+    """
+    css_path = os.path.join(SITE, "assets", "site.css")
+    if not os.path.exists(css_path):
+        return
+    m = re.search(r'--ground:\s*(#[0-9A-Fa-f]{6})', open(css_path, encoding="utf-8").read())
+    if not m:
+        warn("site.css", "no --ground token — cannot check the browser chrome colour")
+        return
+    ground = m.group(1).upper()
+
+    for f in sorted(glob.glob(os.path.join(SITE, "*.html"))):
+        body = open(f, encoding="utf-8").read()
+        found = re.search(r'<meta\s+name="theme-color"\s+content="(#[0-9A-Fa-f]{6})"', body)
+        if not found:
+            warn(os.path.basename(f), "no theme-color — the phone browser picks its own")
+        elif found.group(1).upper() != ground:
+            bug(os.path.basename(f),
+                f"theme-color {found.group(1)} is not the ground {ground} — "
+                "wrong brand colour in the phone's browser chrome")
+
+    mani = os.path.join(SITE, "site.webmanifest")
+    if os.path.exists(mani):
+        try:
+            data = json.load(open(mani, encoding="utf-8"))
+        except json.JSONDecodeError as e:
+            bug("site.webmanifest", f"is not valid JSON ({e}) — the browser discards it whole")
+            return
+        for key in ("theme_color", "background_color"):
+            val = data.get(key)
+            if val is None:
+                warn("site.webmanifest", f"no {key}")
+            elif val.upper() != ground:
+                bug("site.webmanifest",
+                    f"{key} {val} is not the ground {ground} — "
+                    "wrong colour behind the installed icon")
+
+
+_chrome_colour()
+
+
+# ---------- 11. Diagrams that describe themselves ----------
+def _diagrams():
+    """
+    An inline SVG is invisible to a screen reader unless it says so.
+
+    Unlike an `<img>`, there is no `alt` to forget and nothing renders
+    differently when the description is missing — the diagram simply is
+    not there for anyone not looking at it. The three guides carry the
+    only real explanation of the 24-hour window, permit expiry and the
+    cash threshold, so a silent diagram is the accessible version of the
+    page losing its argument.
+
+    `aria-labelledby` is checked by resolving it, not by its presence: a
+    reference to an id that does not exist reads exactly like a correct
+    one in the source and announces nothing in a browser.
+    """
+    for f in sorted(glob.glob(os.path.join(SITE, "*.html"))):
+        body = open(f, encoding="utf-8").read()
+        name = os.path.basename(f)
+        for m in re.finditer(r'<svg\b[^>]*>.*?</svg>', body, re.S):
+            svg = m.group(0)
+            # The brand mark is decorative and correctly hidden.
+            if 'aria-hidden="true"' in svg[:200]:
+                continue
+            if 'role="img"' not in svg:
+                bug(name, "inline <svg> with no role=\"img\" — assistive "
+                          "technology has no idea it is a picture")
+                continue
+            ref = re.search(r'aria-labelledby="([^"]+)"', svg)
+            if not ref:
+                bug(name, "diagram has role=\"img\" but no aria-labelledby — "
+                          "it announces nothing")
+                continue
+            for token in ref.group(1).split():
+                if not re.search(rf'id="{re.escape(token)}"', svg):
+                    bug(name, f'diagram aria-labelledby points at "{token}", '
+                              "which is not an id in the diagram — silently announces nothing")
+            if "<desc" not in svg:
+                warn(name, "diagram has a title but no <desc> — a title alone "
+                           "names the picture without describing it")
+
+
+_diagrams()
+
 if __name__ == "__main__":
     print(f"{len(pages)} pages, {len(back)} backend files\n")
     for label, items in (("BUG", BUGS), ("WARNING", WARN), ("NOTE", NOTE)):

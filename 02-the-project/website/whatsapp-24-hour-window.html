@@ -5,7 +5,7 @@
 <title>Why your WhatsApp message never arrived — the 24-hour rule</title>
 <meta name="description" content="Meta allows free-form business messages only within 24 hours. Outside it they are accepted and silently never delivered. What to do about it.">
 <link rel="canonical" href="https://potatofarm.io/whatsapp-24-hour-window">
-<meta name="theme-color" content="#001B44">
+<meta name="theme-color" content="#F4F3F0">
 <meta property="og:title" content="Why your WhatsApp message never arrived — the 24-hour rule">
 <meta property="og:description" content="Meta allows free-form business messages only within 24 hours. Outside it they are accepted and silently never delivered. What to do about it.">
 <meta property="og:type" content="article">
@@ -61,6 +61,93 @@
        sees a sent message, and concludes the buyer is ignoring them. The buyer never
        received anything. Both sides are behaving reasonably and the deal quietly dies.</p>
 
+  </div>
+
+  <!-- Outside `.narrow` deliberately. The text measure is 34rem — a
+       reading width, correct for prose and much too narrow for a
+       timeline, which was clipping the last event behind a scrollbar on
+       a 27-inch monitor. A diagram is not read left-to-right one word
+       at a time and does not want the same measure. -->
+  <figure class="diagram" data-reveal="300">
+    <div class="diagram-scroll">
+      <svg viewBox="0 0 680 284" role="img" aria-labelledby="w24t w24d">
+        <title id="w24t">The 24-hour window over the life of one conversation</title>
+        <desc id="w24d">A timeline. The buyer's message at hour zero opens a
+          24-hour window during which any reply is delivered. After 24 hours the
+          window is shut: a free-form message is still accepted by the API and
+          shown as sent, but it is never delivered. Only a pre-approved template
+          arrives. Any new message from the buyer reopens the window and restarts
+          the clock at zero.</desc>
+
+        <!-- The two states, drawn as spans rather than points, because
+             what a reader gets wrong is that these run across working
+             hours rather than following them. -->
+        <rect class="d-open" x="60" y="150" width="300" height="52" rx="4"/>
+        <rect class="d-shut" x="360" y="150" width="280" height="52" rx="4"/>
+
+        <text class="d-lbl" x="210" y="182" text-anchor="middle">WINDOW OPEN</text>
+        <text class="d-lbl d-warn" x="500" y="176" text-anchor="middle">WINDOW SHUT</text>
+        <text class="d-sub" x="500" y="192" text-anchor="middle">not to scale — this is the rest of time</text>
+
+        <!-- Hour ticks on the open half only. The shut half has no scale
+             because it does not end on its own. -->
+        <path class="d-axis" d="M60 202v10M135 202v6M210 202v6M285 202v6M360 202v10"/>
+        <text class="d-tick" x="60"  y="228" text-anchor="middle">0h</text>
+        <text class="d-tick" x="210" y="228" text-anchor="middle">12h</text>
+        <text class="d-tick" x="360" y="228" text-anchor="middle">24h</text>
+
+        <!-- Every event dot sits on the band's top edge, not its centre.
+             Centred, the day-3 dot landed on the "W" of WINDOW SHUT. -->
+
+        <!-- 1. The buyer's message. An arrow pointing in, because the
+                clock is started by them and never by us. -->
+        <path class="d-stem" d="M60 58v87"/>
+        <path class="d-in" d="M44 40v14M44 54l-5-5M44 54l5-5"/>
+        <text class="d-lbl" x="58" y="34">Buyer messages</text>
+        <text class="d-sub" x="58" y="50">the clock starts here</text>
+
+        <!-- 2 and 3. Ordinary replies, inside. -->
+        <circle class="d-dot" cx="150" cy="150" r="5"/>
+        <path class="d-stem" d="M150 126v19"/>
+        <text class="d-lbl" x="150" y="102" text-anchor="middle">You reply</text>
+        <text class="d-sub d-ok" x="150" y="118" text-anchor="middle">arrives</text>
+
+        <circle class="d-dot" cx="300" cy="150" r="5"/>
+        <path class="d-stem" d="M300 58v87"/>
+        <text class="d-lbl" x="300" y="34" text-anchor="middle">Viewing reminder</text>
+        <text class="d-sub d-ok" x="300" y="50" text-anchor="middle">arrives</text>
+
+        <!-- 4. The one this guide exists for. -->
+        <circle class="d-dot-bad" cx="470" cy="150" r="5"/>
+        <path class="d-stem" d="M470 127v18"/>
+        <text class="d-lbl" x="470" y="88" text-anchor="middle">Day 3: you follow up</text>
+        <text class="d-sub d-warn" x="470" y="104" text-anchor="middle">shows as sent — never delivered</text>
+        <text class="d-sub" x="470" y="119" text-anchor="middle">no error, no bounce</text>
+
+        <!-- 5. The only thing that gets through once it has shut. -->
+        <circle class="d-dot" cx="600" cy="150" r="5"/>
+        <path class="d-stem" d="M600 58v87"/>
+        <text class="d-lbl" x="620" y="34" text-anchor="end">Approved template</text>
+        <text class="d-sub d-ok" x="620" y="50" text-anchor="end">arrives</text>
+
+        <!-- The cycle. Drawn, because "it resets" in prose reads as a
+             detail, and the loop is what makes answering fast the actual
+             fix rather than a nicety. -->
+        <path class="d-loop" d="M600 214v46H80"/>
+        <path class="d-head" d="M60 260l14-5v10z"/>
+        <text class="d-sub" x="330" y="252" text-anchor="middle">
+          any new message from the buyer reopens the window — the clock restarts at 0h
+        </text>
+      </svg>
+    </div>
+    <p class="diagram-hint">Scroll to see what happens after 24&nbsp;hours&nbsp;&rarr;</p>
+    <figcaption>The window is measured from the buyer's last message, not from
+      yours. Every inbound message resets it to a full 24 hours, which is why
+      answering quickly is a fix and a reminder to &ldquo;follow up later&rdquo;
+      is not.</figcaption>
+  </figure>
+
+  <div class="narrow">
     <h2 data-reveal="320" style="margin-top:48px">What to do about it</h2>
   </div>
   <div class="steps">

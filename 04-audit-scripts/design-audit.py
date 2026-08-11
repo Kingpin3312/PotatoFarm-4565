@@ -34,7 +34,20 @@ TARGETS = sys.argv[1:] or ["potato-design-v3", "potato-launch", "potato-crm"]
 FAIL, WARN = [], []
 
 def scan(label, files, html_files=None):
-    css = "\n".join(files.values())
+    # Comments are prose, not CSS.
+    #
+    # A stylesheet comment explaining *why* a rule exists will quote the
+    # thing it is warning about — `var(--x)`, a hex value, a property
+    # name — and every check below then reads the explanation as a
+    # declaration. That is how a note reading "never write fill=var(--x)"
+    # came back as "var() used but never defined: --x": the audit found
+    # the fault in the sentence describing the fault.
+    #
+    # Stripped once, here, so no individual check has to remember. The
+    # same class of bug has now been fixed in ux-audit.py, and it is
+    # worth stating the general rule: a matcher that reads comments
+    # measures how well the code is explained, not what it does.
+    css = "\n".join(re.sub(r'/\*.*?\*/', '', v, flags=re.S) for v in files.values())
 
     # Strip the token block itself — a definition is not drift.
     body = re.sub(r':root\s*\{.*?\n\s*\}', '', css, flags=re.S)

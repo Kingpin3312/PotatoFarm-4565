@@ -639,3 +639,102 @@ section.on-ocean{background:var(--leather)}
    product rather than two designers. */
 .shots.shot-wide { margin: clamp(28px, 4vw, 44px) 0 0; }
 .shots.shot-wide .shot-desktop { display: block; max-width: 940px; }
+
+/* ==================================================================
+   Diagrams
+   ------------------------------------------------------------------
+   The three guides carried no picture at all, and each one explains a
+   mechanism that is genuinely spatial: a window that opens and shuts
+   over time, a permit that gates a listing, a check that runs before
+   money moves. Prose can describe a sequence, but it cannot show that
+   two things overlap — which, for the 24-hour window, is the entire
+   point a reader is here to understand.
+
+   Every diagram is inline SVG rather than a file: it inherits the
+   palette through currentColor and the custom properties, so it can
+   never be the thing that still shows last year's brand, and there is
+   no second asset to keep in step. `img-src` in the CSP does not need
+   widening for it either.
+   ================================================================== */
+.diagram{margin:clamp(32px,5vw,48px) 0 0}
+
+/* A wide diagram scrolls inside its own box rather than making the
+   page scroll sideways. The alternative — scaling it to a 320px phone
+   — puts the labels at seven pixels, which is a picture of a diagram
+   rather than a diagram. */
+.diagram-scroll{overflow-x:auto;overscroll-behavior-x:contain;
+  -webkit-overflow-scrolling:touch;padding-bottom:4px}
+.diagram-scroll>svg{display:block;min-width:600px;width:100%;height:auto}
+
+.diagram figcaption{font-size:var(--caption);color:var(--ink-3);
+  margin-top:14px;max-width:var(--measure)}
+
+/* Text inside a diagram. Set here rather than as attributes on forty
+   elements, which is where a font-family goes stale. */
+.diagram svg text{font-family:var(--sans);fill:var(--ink)}
+.diagram svg .d-lbl{font-size:13px;font-weight:600}
+.diagram svg .d-sub{font-size:12px;fill:var(--ink-3);font-weight:400}
+.diagram svg .d-tick{font-family:var(--mono);font-size:11px;fill:var(--ink-3)}
+/* --accent-deep, not the brand orange: this is small text, and
+   contrast.py exempts headings, not diagram labels. Learned on the
+   guide cards one section up. */
+.diagram svg .d-warn{fill:var(--danger);font-weight:600}
+.diagram svg .d-ok{fill:var(--accent-deep);font-weight:600}
+
+/* Shapes. Classes rather than presentation attributes carrying var(),
+   because a `fill="var(--x)"` attribute is a property value in a place
+   older Safari treats as a plain string — it fails to black, silently,
+   on exactly the phone this market uses most. */
+.diagram svg .d-axis{stroke:var(--rule-strong);stroke-width:1;fill:none}
+.diagram svg .d-stem{stroke:var(--rule-strong);stroke-width:1;
+  stroke-dasharray:2 3;fill:none}
+.diagram svg .d-open{fill:var(--accent);fill-opacity:.14;
+  stroke:var(--accent-edge);stroke-width:1.5}
+.diagram svg .d-shut{fill:var(--panel);stroke:var(--rule-strong);
+  stroke-width:1.5;stroke-dasharray:5 4}
+.diagram svg .d-dot{fill:var(--accent-edge)}
+.diagram svg .d-dot-bad{fill:var(--danger)}
+.diagram svg .d-in{fill:none;stroke:var(--ink);stroke-width:1.75}
+.diagram svg .d-loop{fill:none;stroke:var(--accent-edge);stroke-width:1.5;
+  stroke-dasharray:4 4}
+.diagram svg .d-head{fill:var(--accent-edge)}
+
+/* Wider than the prose it sits between, capped short of the full wrap.
+   A timeline stretched to 1056px puts three inches of empty band
+   between two events and reads as a gap rather than a duration. */
+.diagram{max-width:840px}
+
+/* The scroll affordance.
+   ------------------------------------------------------------------
+   A diagram wider than the screen is only honest if the reader knows
+   there is more of it. On a 390px phone the first version showed the
+   open window and hid the whole point of the page — the message that
+   is accepted and never delivered — behind an edge with nothing
+   indicating it was an edge. That is the same fault as the app's
+   original nav bar, which scrolled 356px of itself out of view and
+   said nothing.
+
+   Shown by width rather than by measuring overflow, because measuring
+   needs JavaScript and this must be right for a reader who has it
+   blocked. The breakpoint is the SVG's own min-width plus the wrap
+   padding, so the hint appears exactly when the diagram cannot fit. */
+.diagram-hint{display:none;font-size:var(--caption);color:var(--accent-deep);
+  font-weight:600;margin-top:10px}
+@media(max-width:664px){
+  .diagram-hint{display:block}
+  /* A soft right edge, so the cut looks deliberate rather than broken. */
+  .diagram-scroll{
+    -webkit-mask-image:linear-gradient(to right,#000 calc(100% - 32px),transparent);
+    mask-image:linear-gradient(to right,#000 calc(100% - 32px),transparent);
+  }
+}
+
+/* The state that costs money. Red fill, red dashed edge — never red
+   alone: every diagram that uses this also names the state in words,
+   because ux-audit.py is right that colour on its own is not a label. */
+.diagram svg .d-bad{fill:var(--danger);fill-opacity:.12;
+  stroke:var(--danger);stroke-width:1.5;stroke-dasharray:5 4}
+.diagram svg .d-lane{font-family:var(--mono);font-size:11px;
+  fill:var(--ink-3);letter-spacing:.08em}
+.diagram svg .d-cut{stroke:var(--danger);stroke-width:1.5;
+  stroke-dasharray:4 3;fill:none}
