@@ -156,7 +156,7 @@ chart; spoken requests ("Ask").
 npm run verify
 ```
 
-That is `tsc --noEmit`, then the 128 unit tests, then all eleven check
+That is `tsc --noEmit`, then the 175 unit tests, then all eleven check
 suites, then all thirteen audit scripts — one run, and it reports every
 failure rather than stopping at the first. It exists because the
 alternative was twenty-six commands in a particular order, and the thing
@@ -202,7 +202,7 @@ thing it checks and confirming it fails.
 ### The unit tests
 
 ```bash
-npm test                    # 128 assertions, no database, ~3 seconds
+npm test                    # 175 assertions, no database, ~3 seconds
 ```
 
 `package.json` declared `"test": "vitest run"` from the beginning with no
@@ -210,7 +210,7 @@ test files and no config behind it, so the command exited 1 and said "No
 test files found" — a command claiming to run tests that could not, which
 is the same shape as a button that does not do what it says.
 
-Six files, and the selection is not "whatever was easy to test". Every
+Seven files, and the selection is not "whatever was easy to test". Every
 case is a bug that actually happened here or a rule whose failure would
 be silent:
 
@@ -222,6 +222,7 @@ be silent:
 | `server/lib/search/parse.test.ts` | Plural intents, budget bands, people vs properties |
 | `server/lib/intelligence/score.test.ts` | Recency decay, the book-band bug, the two overriding statuses |
 | `server/lib/deals/risk.test.ts` | Blockers, silence thresholds, one action or none |
+| `server/assistant/guardrails.test.ts` | What reaches a customer, and what is refused |
 
 **They were checked against deliberate breakage, not just run.** Setting
 a new lead's recency back to zero, moving the silence threshold from 7
@@ -320,14 +321,15 @@ Ask — an agent can see what they asked for earlier and what came back.
 - **Voice recipes** `BOOK_VIEWING` and `COMPARABLES` return a follow-up
   question rather than completing in one step. Deliberate, but the second
   step is not wired to the booking screen.
-- **Unit tests cover six modules, not the codebase.** 128 assertions
+- **Unit tests cover seven modules, not the codebase.** 175 assertions
   across money, the 24-hour window, Dubai sending hours, the search
-  parser, lead scoring and deal risk — the pure logic where being wrong
-  is expensive and silent. Everything stateful is still covered only by
-  the eleven check suites and the four browser checks, which is not the
-  same thing as a test suite. The largest untested surface is the
-  assistant: `assistant/` decides what gets said to a customer, and its
-  guardrails are exercised only through `check:autonomy`.
+  parser, lead scoring, deal risk and the assistant's guardrails — the
+  pure logic where being wrong is expensive and silent. Everything
+  stateful is still covered only by the eleven check suites and the four
+  browser checks, which is not the same thing as a test suite. What is
+  left untested in `assistant/` is everything that needs a model:
+  `run.ts`, `prompt.ts` and `extract.ts` are exercised only through
+  `check:autonomy` and by replaying real transcripts.
 - **The Expo app.** See section 3.
 
 ---
@@ -367,6 +369,23 @@ read a key that was not set and returned true every time.
 The three the previous version of this document listed as fixed were
 fixed. These are the ones found since, kept because the *pattern* is what
 generalises.
+
+**The assistant refused to discuss Arabian Ranches.** `PROTECTED_TOPICS`
+was matched with `includes()`, and substrings of those words are
+everywhere in property English: "Arabian Ranches" contains `arab`,
+"single storey" contains `single`, "terrace" and "Meydan Racecourse"
+contain `race`. Every such enquiry was handed to a human as a protected
+attribute, and the assistant's own drafts naming the community were
+discarded on the way out. Arabian Ranches is one of the largest
+communities in Dubai and a canonical entry in this product's own
+`places.ts`.
+
+The failure was invisible by construction. The message went to a person,
+the person answered it, and the only symptom was that the assistant
+seemed not to handle very much — against a product whose entire promise
+is a reply in ninety seconds. Now matched on word boundaries, with bare
+`single` removed and the discriminatory phrasings ("singles only", "no
+bachelors") listed instead.
 
 **Three separate 100× money errors.** `Lead.budgetMax` and
 `Listing.price` were `Decimal` AED while everything else was `BigInt`

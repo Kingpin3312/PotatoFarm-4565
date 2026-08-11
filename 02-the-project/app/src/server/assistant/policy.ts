@@ -70,11 +70,45 @@ export const HARD_RULES = [
  * lead volunteers them. Matched on the way in and dropped before the
  * message reaches extraction.
  */
+/**
+ * **Matched on word boundaries, not as substrings.** See
+ * `mentionsProtectedTopic` — this list is what it is because of how it
+ * is matched, and the two have to be read together.
+ *
+ * The substring version handed three ordinary enquiries to a human:
+ *
+ *   "anything in Arabian Ranches?"   -> matched "arab"
+ *   "is it a single storey villa?"   -> matched "single"
+ *   "can I see the terrace?"         -> matched "race"
+ *
+ * Arabian Ranches is one of the largest communities in Dubai and is a
+ * canonical entry in this product's own `places.ts`. The assistant could
+ * not discuss it, in either direction: an enquiry about it was refused
+ * on the way in, and its own draft mentioning it was discarded on the
+ * way out. The failure was invisible — the message went to a person, a
+ * person answered it, and the brokerage concluded the assistant was
+ * simply not very good.
+ *
+ * `single` is gone as a bare word. In property English it means a
+ * storey or a bedroom far more often than a marital status, and the
+ * discriminatory use always carries a qualifier — which is why the
+ * phrases below carry it instead.
+ *
+ * `bachelor` stays, deliberately. In UAE housing it is not a synonym for
+ * unmarried; "no bachelors" is the restriction itself.
+ */
 export const PROTECTED_TOPICS = [
-  "nationality", "citizenship", "passport", "religion", "muslim", "christian",
-  "hindu", "ethnicity", "race", "arab", "asian", "european", "african",
-  "married", "marital", "single", "family status", "pregnant", "children only",
-  "gender", "male only", "female only", "ladies only", "bachelor",
+  // Origin and belief
+  "nationality", "citizenship", "passport", "religion", "religious",
+  "muslim", "christian", "hindu", "jewish",
+  "ethnicity", "race", "arab", "asian", "european", "african",
+  // Family and marital status
+  "married", "marital", "divorced", "pregnant", "family status",
+  // Sex, and the restrictions written in listings
+  "gender", "bachelor", "bachelors",
+  "male only", "males only", "female only", "females only",
+  "ladies only", "gents only", "children only", "no children",
+  "singles only", "no singles", "single ladies", "single men",
 ] as const;
 
 /** Conditions that end the assistant's turn and fetch a person. */

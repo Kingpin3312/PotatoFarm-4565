@@ -36,9 +36,27 @@ export function looksLikeInjection(text: string) {
   return INJECTION_PATTERNS.some((p) => p.test(text));
 }
 
+/**
+ * Word boundaries, not `includes`.
+ *
+ * This was a substring test, and substrings of these words appear all
+ * over ordinary property English. "Arabian Ranches" contains `arab`,
+ * "single storey" contains `single`, "terrace" contains `race` — so the
+ * assistant refused to discuss one of Dubai's largest communities, in
+ * both directions, and nobody could see why. The whole promise of the
+ * product is a reply in ninety seconds; this quietly sent those
+ * enquiries to a person instead.
+ *
+ * The list is built into one alternation rather than tested one term at
+ * a time, so a phrase like "family status" still matches as a phrase.
+ */
+const PROTECTED_RE = new RegExp(
+  `\\b(${PROTECTED_TOPICS.map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})\\b`,
+  "i",
+);
+
 export function mentionsProtectedTopic(text: string) {
-  const t = text.toLowerCase();
-  return PROTECTED_TOPICS.some((k) => t.includes(k));
+  return PROTECTED_RE.test(text);
 }
 
 /** Runs before the model. Returns a reason if a person should take over. */
