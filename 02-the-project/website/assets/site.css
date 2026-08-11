@@ -629,3 +629,13 @@ section.on-ocean{background:var(--leather)}
     border-radius: 22px;
   }
 }
+
+
+/* A single wide product shot, for the pages that argue one point at a
+   time. The homepage composition pairs a laptop with a phone; here the
+   screen is the whole illustration, so it only needs room to breathe.
+
+   Same frame as the homepage laptop so the two pages look like one
+   product rather than two designers. */
+.shots.shot-wide { margin: clamp(28px, 4vw, 44px) 0 0; }
+.shots.shot-wide .shot-desktop { display: block; max-width: 940px; }
