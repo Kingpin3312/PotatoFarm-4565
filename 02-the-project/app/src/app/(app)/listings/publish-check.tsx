@@ -16,6 +16,32 @@ import { Button } from "@/components/ui/button";
  *
  * The person who pressed publish is the one who can fix it, and they are
  * looking at the screen right now. Three days later they are not.
+ *
+ * ---------------------------------------------------------------------
+ * **Nothing transmits the listing to a portal yet, and this screen says
+ * so.**
+ *
+ * `listings.publish` writes a `ListingPublication` row at state
+ * `PENDING`. That row is read by nothing: there is no adapter that
+ * pushes a listing out and no job among the twenty-four that drains the
+ * queue. Portal *lead ingest* exists; portal *distribution* does not,
+ * and it cannot until there is a partner agreement and a real wire
+ * format for each portal.
+ *
+ * Until then the button records an intention rather than performing an
+ * action, and it has to read that way. The dialog used to say "Publish
+ * to the 2 that are ready" and then close, so an agent had every reason
+ * to believe the villa was on Bayut. It was not, nothing errored, and
+ * the first person to find out would have been the owner.
+ *
+ * This is the same call already made three times in this codebase — the
+ * REAR cash panel, "Import contacts", the dispute confirmation. A
+ * control that looks like it works and does not is worse than no
+ * control, because somebody relies on it.
+ *
+ * **When distribution is built:** restore the plain wording, and delete
+ * this note along with the `manual` copy below.
+ * ---------------------------------------------------------------------
  */
 export function PublishCheck({
   listingId,
@@ -31,9 +57,14 @@ export function PublishCheck({
     { listingId, channelIds },
     { enabled: channelIds.length > 0 }
   );
-  const publish = api.listings.publish.useMutation({
-    onSuccess: () => dialog.current?.close(),
-  });
+  /**
+   * Kept open on success, deliberately.
+   *
+   * Closing the dialog is the gesture that says "done". It is not done —
+   * it is written down. The confirmation stays on screen and says what
+   * actually happened and what the agent still has to do.
+   */
+  const publish = api.listings.publish.useMutation();
 
   const ready = data?.filter((d) => d.canPublish) ?? [];
 
@@ -90,19 +121,42 @@ export function PublishCheck({
             ))}
           </div>
 
+          {/* Said before the press, not only after. An agent deciding
+              whether to bother needs to know it is a note to themselves. */}
+          <p className="mt-5 text-[13px] leading-snug text-ink-2 max-w-[54ch]">
+            PotatoFarm does not upload to the portals yet. This records which
+            listings passed the checks and are ready to go up, so whoever does
+            the uploading is working from a list rather than from memory.
+          </p>
+
+          {publish.isSuccess && (
+            /* role="status" because nothing navigates — without it a
+               screen reader user presses the button and hears nothing. */
+            <p role="status" className="mt-3 text-[15px] text-ink">
+              <strong className="font-semibold">Marked ready.</strong>{" "}
+              Upload {reference} to the portal as usual — this did not send it.
+            </p>
+          )}
+
+          {publish.error && (
+            <p role="alert" className="mt-3 text-sm text-danger">{publish.error.message}</p>
+          )}
+
           <div className="flex gap-2.5 justify-end mt-5 flex-wrap">
-            <Button variant="secondary" onClick={() => dialog.current?.close()}>Cancel</Button>
+            <Button variant="secondary" onClick={() => dialog.current?.close()}>
+              {publish.isSuccess ? "Close" : "Cancel"}
+            </Button>
             <Button
               variant="primary"
               loading={publish.isPending}
-              disabled={ready.length === 0}
+              disabled={ready.length === 0 || publish.isSuccess}
               onClick={() =>
                 publish.mutate({ listingId, channelIds: ready.map((r) => r.channelId) })
               }
             >
               {ready.length === 0
                 ? "Nothing can go yet"
-                : `Publish to the ${ready.length} that ${ready.length === 1 ? "is" : "are"} ready`}
+                : `Mark ${ready.length} ready to upload`}
             </Button>
           </div>
         </div>

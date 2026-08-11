@@ -89,6 +89,28 @@ export const listingsRouter = router({
       });
     }),
 
+  /**
+   * Records that a listing passed its checks and is ready to go up.
+   *
+   * **It does not transmit anything, and the name is now the only part
+   * that still says otherwise.** The `ListingPublication` row written
+   * below sits at `PENDING` and is read by nothing — no adapter pushes a
+   * listing out, and none of the twenty-four scheduled jobs drains the
+   * queue. Portal *lead ingest* exists (`lib/portals/`); portal
+   * *distribution* does not, and cannot until there is a partner
+   * agreement and a wire format per portal.
+   *
+   * The screen says so plainly now. It used to close the dialog on
+   * success, which reads as "sent" — an agent had every reason to think
+   * the villa was on Bayut, nothing errored, and the first person to
+   * discover otherwise would have been the owner ringing to ask.
+   *
+   * **What to build when the agreements exist:** a `portals.publish` job
+   * that reads `PENDING`, calls a per-portal adapter, and moves the row
+   * to `LIVE` or `REJECTED` with the portal's reason. The rejection
+   * column already exists and is already cleared on retry here. Then
+   * restore the plain wording in `publish-check.tsx`.
+   */
   publish: requirePermission("listing:write")
     .input(z.object({ listingId: z.string(), channelIds: z.array(z.string()).min(1) }))
     .mutation(async ({ ctx, input }) =>
