@@ -31,7 +31,8 @@
     "check:tenancy": "esbuild scripts/tenant-isolation.check.ts --bundle --platform=node --format=esm --outfile=.tmp/tenancy.mjs --external:@prisma/client --log-level=warning && node --env-file-if-exists=.env .tmp/tenancy.mjs",
     "test": "vitest run",
     "browser:optimistic": "node scripts/optimistic.mjs",
-    "browser:installable": "node scripts/installable.mjs"
+    "browser:installable": "node scripts/installable.mjs",
+    "browser:palette-keys": "node scripts/palette-keys.mjs"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.7.0",

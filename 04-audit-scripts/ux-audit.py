@@ -58,9 +58,18 @@ for p, s in files.items():
     # deliberately does *not* use showModal, and reported the file for
     # the thing it had just been written to avoid. A dialog being opened
     # is always a call.
+    # The distance is measured with comments removed, and that is the
+    # second time comments have broken this one rule. The note above is
+    # the first: a bare `showModal` matched prose. This is the mirror of
+    # it — a palette that *does* move focus was reported because the
+    # explanation of *why* focus is deferred to the next frame sits
+    # between the two calls and is longer than the window. Measuring
+    # source distance through a comment measures how well the code is
+    # explained, which is precisely backwards.
     if "showModal()" in s:
+        code = re.sub(r'/\*.*?\*/|//[^\n]*', '', s, flags=re.S)
         labelled = "aria-labelledby" in s or "aria-label" in s
-        focused = re.search(r'showModal\(\)[^}]{0,80}focus\(\)', s) or "autoFocus" in s
+        focused = re.search(r'showModal\(\)[^}]{0,80}focus\(\)', code) or "autoFocus" in s
         if not (labelled and focused):
             issue(b, "dialog opens without both a label and focus moved into it")
 

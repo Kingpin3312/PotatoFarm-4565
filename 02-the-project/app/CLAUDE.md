@@ -63,6 +63,15 @@ one was safe — but safe by argument, not by construction, and nothing
 announced which was which. Every bypass now declares itself as one of
 four reasons and `crm-audit.py` fails the build on a bare `rootDb`.
 
+**The nav lists live in `components/layout/nav.ts`, not in the shell.**
+Moving them back into `shell.tsx` closes a cycle: the shell renders the
+command palette and the palette reads the same lists, so the palette's
+module-scope read of `NAV` throws "Cannot access 'NAV' before
+initialization" — a 500 with no dialog anywhere in the DOM and nothing
+in the type-check to warn you. `nav.ts` imports nothing on purpose, so
+it cannot be the link in a future cycle. The general rule it came from:
+a component is the wrong home for a constant another component needs.
+
 **Logging lives in `src/lib/log.ts`, not in a domain module.** It was
 inside `lib/health` until the portal ingest needed it, which closed a
 cycle. Use `log()` from there and never `console` — it scrubs personal
@@ -163,7 +172,7 @@ send path read it.
 
 ## Run the tests
 
-    npm test          # 190 assertions, pure functions, no database
+    npm test          # 214 assertions, pure functions, no database
     npm run verify    # tsc, the tests, 11 check suites, 13 audits
 
 `npm test` was declared from day one with no test files behind it, so it

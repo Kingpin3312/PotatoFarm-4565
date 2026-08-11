@@ -4,54 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/cn";
+import { NAV, SETTINGS_NAV, MORE } from "./nav";
+import { CommandPalette, PaletteButton } from "@/components/ui/command-palette";
 import { api } from "@/lib/trpc";
-
-/**
- * Six items, not ten.
- *
- * Setup disappears once it is done, and Team and Billing live under
- * Settings — they are things an owner visits monthly, not a place
- * anybody works. A nav bar with ten entries is one nobody reads.
- */
-/** Under Settings. Visited occasionally, never lived in. */
-/**
- * The second tier. Visited weekly or monthly, never lived in.
- *
- * The top bar drifted to nine items twice — each new screen looked like
- * it belonged there. The rule that holds it: a top-level item is
- * somewhere an agent goes several times a day. Everything else is here.
- */
-export const SETTINGS_NAV = [
-  { href: "/deals", label: "Deals" },
-  { href: "/activity", label: "What it did" },
-  { href: "/reports", label: "Reports" },
-  { href: "/me", label: "Mine" },
-  { href: "/leads", label: "Leads" },
-  { href: "/listings", label: "Listings" },
-  { href: "/settings", label: "General" },
-  { href: "/compliance", label: "Compliance" },
-  { href: "/settings/privacy", label: "Privacy" },
-  { href: "/settings/access", label: "Access" },
-  { href: "/settings/routing", label: "Routing" },
-  { href: "/settings/channels", label: "Channels" },
-  { href: "/settings/import", label: "Import" },
-  { href: "/team", label: "Team" },
-  { href: "/settings/billing", label: "Billing" },
-];
-
-const NAV = [
-  // Today is first because it is the front door — `/` redirects here.
-  // It carries the same natural-language input the Ask screen has, so
-  // Ask is no longer a separate destination in a bar with a ceiling of
-  // seven; it moved under More.
-  { href: "/today", label: "Today" },
-  { href: "/inbox", label: "Inbox" },
-  { href: "/viewings", label: "Diary" },
-  { href: "/pipeline", label: "Pipeline" },
-  { href: "/blackbook", label: "Blackbook" },
-  { href: "/offers", label: "Offers" },
-  { href: "/settings", label: "Settings" },
-];
 
 /**
  * The frame every screen sits in.
@@ -60,6 +15,10 @@ const NAV = [
  * because an agent working across two agencies needs to know which one
  * they are looking at before they message somebody — and the assistant's
  * state, because silence with no explanation reads as a fault.
+ *
+ * The nav lists it renders live in `./nav`, not here. See that file for
+ * why — in short, the palette needs them too and a component is the
+ * wrong home for a constant another component reads.
  */
 export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -122,21 +81,15 @@ export function Shell({ children }: { children: React.ReactNode }) {
                 has a ceiling of seven and this is not a destination in
                 the same sense — it is the thing you reach for when you
                 cannot remember which destination holds the answer.
-                Mobile reaches it through More. */}
-            <Link
-              href="/search"
-              aria-current={pathname.startsWith("/search") ? "page" : undefined}
-              className={cn(
-                "hidden lg:flex min-h-11 items-center gap-1.5 text-[15px] no-underline",
-                pathname.startsWith("/search") ? "text-ink" : "text-ink-3 hover:text-ink"
-              )}
-            >
-              <svg viewBox="0 0 24 24" aria-hidden="true" className="w-4 h-4"
-                   fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" />
-              </svg>
-              Find
-            </Link>
+                Mobile reaches it through More.
+
+                It opens the palette rather than navigating, and that is
+                not a link quietly turned into a button: the palette
+                answers the same question in one keystroke instead of a
+                page load, and the full Find screen is still the first
+                entry inside it. What was lost — middle-click, open in a
+                new tab — nobody does to a search box. */}
+            <PaletteButton className="hidden lg:flex" />
 
             {/* Only shown when it is off. A green "everything is fine"
                 badge is noise; its absence is the normal state. */}
@@ -170,6 +123,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
       </main>
 
       <MobileTabs pathname={pathname} />
+      <CommandPalette />
     </div>
   );
 }
@@ -197,22 +151,7 @@ const TABS = [
   { href: "/pipeline", label: "Pipeline", icon: "M4 5h5v14H4zM10 5h5v9h-5zM16 5h4v6h-4z" },
 ] as const;
 
-/** Behind More, ordered by how often an agent opens them. */
-const MORE = [
-  { href: "/search", label: "Find anyone" },
-  { href: "/ask", label: "Ask" },
-  { href: "/deals", label: "Deals" },
-  { href: "/activity", label: "What it did" },
-  { href: "/blackbook", label: "Blackbook" },
-  { href: "/offers", label: "Offers" },
-  { href: "/leads", label: "Leads" },
-  { href: "/listings", label: "Listings" },
-  { href: "/commission", label: "Commission" },
-  { href: "/compliance", label: "Compliance" },
-  { href: "/reports", label: "Reports" },
-  { href: "/team", label: "Team" },
-  { href: "/settings", label: "Settings" },
-];
+
 
 function MobileTabs({ pathname }: { pathname: string }) {
   const [more, setMore] = useState(false);
