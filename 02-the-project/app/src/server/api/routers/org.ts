@@ -7,6 +7,7 @@ import { switchOrg } from "@/server/auth/session";
 import { crossTenant } from "@/server/db/client";
 import { audit } from "@/server/lib/audit";
 import { sendInvite } from "@/server/lib/mail";
+import { DAY_NAMES, DEFAULT_HOURS, hhmm, fromHhmm } from "@/server/lib/hours/defaults";
 
 const hash = (token: string) => createHash("sha256").update(token).digest("hex");
 
@@ -283,5 +284,112 @@ export const orgRouter = router({
       });
 
       return { ok: true };
+    }),
+  /**
+   * The working week.
+   *
+   * Lives on the org router because it is a property of the brokerage,
+   * not of a person — `WorkingHours` is keyed by `orgId` and day, and
+   * `availableSlots()` reads it for whichever agent is being booked.
+   *
+   * Readable by anyone signed in: an agent needs to know why a Friday
+   * morning is not on offer, and the hours are not sensitive. Writing
+   * needs `org:update`.
+   */
+  hours: orgProcedure.query(async ({ ctx }) => {
+    const rows = await ctx.db.workingHours.findMany({ orderBy: { dayOfWeek: "asc" } });
+    return DAY_NAMES.map((name, dow) => {
+      const row = rows.find((r) => r.dayOfWeek === dow);
+      /**
+       * The fallback is `DEFAULT_HOURS`, not a flat nine-to-seven.
+       *
+       * It was the latter, which meant the form pre-filled Friday at
+       * 09:00 while `seedHours` writes 14:30 — two answers to "what is
+       * the default week", and whichever ran second won. A brokerage
+       * that signed up got Friday afternoons; one that opened this
+       * screen and pressed Save got Friday mornings nobody will attend.
+       *
+       * One source, so they cannot disagree.
+       */
+      const fallback = DEFAULT_HOURS.find((h) => h.dayOfWeek === dow);
+      return {
+        dayOfWeek: dow,
+        name,
+        // A missing row is not a closed day — it is a day nobody has
+        // said anything about, and `availableSlots` skips it exactly as
+        // if it were closed. Reported as `unset` so the screen can show
+        // the difference the scheduler cannot.
+        unset: !row,
+        closed: row?.closed ?? fallback?.closed ?? false,
+        start: hhmm(row?.startMin ?? fallback?.startMin ?? 9 * 60),
+        end: hhmm(row?.endMin ?? fallback?.endMin ?? 19 * 60),
+      };
+    });
+  }),
+
+  setHours: requirePermission("org:update")
+    .input(z.object({
+      days: z.array(z.object({
+        dayOfWeek: z.number().int().min(0).max(6),
+        closed: z.boolean(),
+        /** "09:00". Parsed on the server; minutes are the stored unit. */
+        start: z.string().max(5),
+        end: z.string().max(5),
+      })).length(7),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const rows = input.days.map((d) => {
+        const start = fromHhmm(d.start);
+        const end = fromHhmm(d.end);
+        if (start === null || end === null) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: `${DAY_NAMES[d.dayOfWeek]}: use 24-hour times like 09:00.`,
+          });
+        }
+        /**
+         * A day that ends before it starts is refused rather than
+         * stored.
+         *
+         * `availableSlots` steps `for (m = startMin; m + duration <=
+         * endMin; ...)`, so an inverted day produces no slots and looks
+         * exactly like a closed one — the brokerage would see Tuesday
+         * quietly stop being bookable with nothing to explain it.
+         * Closed days skip the check because their times are ignored.
+         */
+        if (!d.closed && end <= start) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: `${DAY_NAMES[d.dayOfWeek]} ends before it starts. Close the day instead if you do not work it.`,
+          });
+        }
+        return { dayOfWeek: d.dayOfWeek, closed: d.closed, startMin: start, endMin: end };
+      });
+
+      // One transaction: a half-written week is a week where some days
+      // silently stopped being bookable.
+      await ctx.db.$transaction(
+        rows.map((r) =>
+          ctx.db.workingHours.upsert({
+            where: { orgId_dayOfWeek: { orgId: ctx.orgId, dayOfWeek: r.dayOfWeek } },
+            create: { orgId: ctx.orgId, ...r },
+            update: { closed: r.closed, startMin: r.startMin, endMin: r.endMin },
+          })
+        )
+      );
+
+      await audit(ctx.db, ctx.orgId, {
+        actorId: ctx.userId,
+        action: "org.setHours",
+        entity: "Organisation",
+        entityId: ctx.orgId,
+        after: {
+          days: rows.map((r) =>
+            r.closed ? `${DAY_NAMES[r.dayOfWeek]} closed`
+                     : `${DAY_NAMES[r.dayOfWeek]} ${hhmm(r.startMin)}-${hhmm(r.endMin)}`),
+        },
+      });
+
+      return { days: rows.length };
     }),
 });

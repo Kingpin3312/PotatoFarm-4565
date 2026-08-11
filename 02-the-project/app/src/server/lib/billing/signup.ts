@@ -3,6 +3,7 @@ import { crossTenant } from "@/server/db/client";
 import { audit } from "@/server/lib/audit";
 import { log } from "@/lib/log";
 import { seedStages } from "@/server/lib/pipeline/defaults";
+import { seedHours } from "@/server/lib/hours/defaults";
 
 /**
  * The organisation's URL-safe handle.
@@ -153,6 +154,12 @@ export async function signup(input: SignupInput): Promise<SignupResult> {
     // without a pipeline is a state nothing else in the product can
     // recover from.
     await seedStages(tx, org.id);
+
+    // And with no working hours, `availableSlots()` skips every day and
+    // returns nothing, so the booking screen can never offer a time —
+    // while telling the agent their week is full. Same reasoning, same
+    // transaction.
+    await seedHours(tx, org.id);
 
     const sub = await tx.subscription.create({
       data: {

@@ -78,7 +78,7 @@ export const viewingsRouter = router({
           })
         : null;
 
-      const slots = await availableSlots({
+      const { slots, configured } = await availableSlots({
         orgId: ctx.orgId,
         agentId,
         from: new Date(),
@@ -86,7 +86,13 @@ export const viewingsRouter = router({
         community: listing?.community,
       });
 
-      return offerable(slots).map((s) => ({ ...s, label: humanSlot(s) }));
+      // `configured` travels with the slots so the screen can tell "your
+      // week is full" from "nobody has set the working hours" — which
+      // are the same empty list and opposite instructions.
+      return {
+        configured,
+        slots: offerable(slots).map((s) => ({ ...s, label: humanSlot(s) })),
+      };
     }),
 
   /**

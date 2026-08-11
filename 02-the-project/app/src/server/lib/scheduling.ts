@@ -23,6 +23,20 @@ const SLOT_MINUTES = 30;
 const SAME_BUILDING_BUFFER = 10;
 const ACROSS_TOWN_BUFFER = 45;
 
+/**
+ * An empty list used to mean two different things.
+ *
+ * "Every slot this week is taken" and "this brokerage has never had
+ * working hours set" both came back as `[]`, and the booking screen
+ * rendered the first message for both: *"Nothing free in the next week.
+ * Widen the range or move something."* An agent was told to move a
+ * viewing to make room, on a diary that had nothing in it.
+ *
+ * `configured` separates them. It is the only way the caller can tell a
+ * full week from an unconfigured one, and they need opposite actions.
+ */
+export type Availability = { slots: Slot[]; configured: boolean };
+
 export async function availableSlots(args: {
   orgId: string;
   agentId: string;
@@ -31,7 +45,7 @@ export async function availableSlots(args: {
   durationMins?: number;
   /// Where the viewing is, so travel buffers can be worked out.
   community?: string | null;
-}): Promise<Slot[]> {
+}): Promise<Availability> {
   const duration = args.durationMins ?? SLOT_MINUTES;
 
   const [org, hours, booked] = await Promise.all([
@@ -57,6 +71,11 @@ export async function availableSlots(args: {
 
   const tz = org?.timezone ?? "Asia/Dubai";
   const byDay = new Map(hours.map((h) => [h.dayOfWeek, h]));
+
+  // No rows at all is not "closed all week" — it is "nobody has said".
+  // Returned rather than logged, because the person who can fix it is
+  // the one looking at the screen.
+  if (hours.length === 0) return { slots: [], configured: false };
 
   // Held slots still block, until the hold lapses. A slot offered to one
   // lead must not be offered to the next one thirty seconds later.
@@ -95,7 +114,7 @@ export async function availableSlots(args: {
     }
   }
 
-  return slots;
+  return { slots, configured: true };
 }
 
 /**

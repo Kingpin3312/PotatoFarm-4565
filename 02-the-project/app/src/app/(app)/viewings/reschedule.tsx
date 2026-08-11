@@ -19,14 +19,22 @@ export function Reschedule({ viewingId, agentId, listingId, onDone }: {
   const [picked, setPicked] = useState<string | null>(null);
 
   // `viewings.slots` returns the array itself, not `{ slots }`.
-  const slots = data ?? [];
+  const slots = data?.slots ?? [];
+  const unconfigured = data ? !data.configured : false;
 
   return (
     <div className="bg-sunk rounded-xl p-4">
       <span className="block font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3 mb-2">
         Move it to
       </span>
-      {slots.length === 0 ? (
+      {unconfigured ? (
+        // Same distinction as the booking screen: an unset working week
+        // is not a full one, and telling an agent there is nothing free
+        // sends them looking at a diary rather than at Settings.
+        <p className="text-sm text-ink-2 max-w-[42ch] leading-snug">
+          No working hours are set, so nothing can be offered yet.
+        </p>
+      ) : slots.length === 0 ? (
         <p className="text-sm text-ink-2 max-w-[42ch] leading-snug">
           Nothing free this week that you could get to in time.
         </p>

@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { use, useState } from "react";
 import { api } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
@@ -49,7 +51,11 @@ export default function Book({ searchParams }: {
     );
   }
 
-  const slots = data ?? [];
+  const slots = data?.slots ?? [];
+  // `false` only once the query has answered. While loading, `data` is
+  // undefined and claiming the hours are unset would flash the wrong
+  // advice on every open.
+  const unconfigured = data ? !data.configured : false;
   const byDay = slots.reduce<Record<string, typeof slots>>((acc, s) => {
     const k = new Date(s.start).toLocaleDateString("en-GB",
       { weekday: "long", day: "numeric", month: "long" });
@@ -71,6 +77,28 @@ export default function Book({ searchParams }: {
 
       {isLoading ? (
         <div className="h-64 bg-sunk rounded-sm" aria-busy />
+      ) : unconfigured ? (
+        /**
+         * The state this screen showed as a full diary.
+         *
+         * `availableSlots` skips any day with no `WorkingHours` row, and
+         * nothing ever created one — so every brokerage got an empty
+         * list and was told to move a viewing to make room, on a week
+         * with nothing in it. Different cause, opposite instruction, and
+         * it needs to name the screen that fixes it.
+         */
+        <div className="border-t border-rule pt-5 max-w-[46ch]">
+          <p className="text-[17px] text-ink">No working hours are set.</p>
+          <p className="text-sm text-ink-2 mt-2">
+            Nothing can be booked until the brokerage says which days and times it
+            works — the diary is not full, it is unset.
+          </p>
+          <p className="mt-4">
+            <Link href="/settings/hours" className="text-[15px] text-accent-deep">
+              Set the working week
+            </Link>
+          </p>
+        </div>
       ) : slots.length === 0 ? (
         <p className="text-[17px] text-ink-2 border-t border-rule pt-5 max-w-[44ch]">
           Nothing free in the next week. Widen the range or move something.

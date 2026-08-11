@@ -1,9 +1,10 @@
 import { PrismaClient } from "@prisma/client";
 import { DEFAULT_STAGES, seedStages } from "@/server/lib/pipeline/defaults";
+import { DEFAULT_HOURS, seedHours } from "@/server/lib/hours/defaults";
 
 /**
- * Give every existing brokerage a pipeline, and put its stranded leads
- * into it.
+ * Give every existing brokerage a pipeline and a working week, and put
+ * its stranded leads onto the board.
  *
  *     npm run backfill:stages -- --dry
  *     npm run backfill:stages
@@ -41,6 +42,7 @@ const db = new PrismaClient({
 let orgsFixed = 0;
 let stagesMade = 0;
 let leadsPlaced = 0;
+let hoursFixed = 0;
 const unmapped: string[] = [];
 
 const orgs = await db.organisation.findMany({
@@ -56,9 +58,23 @@ for (const org of orgs) {
   const stranded = await db.lead.count({
     where: { orgId: org.id, stageId: null, deletedAt: null },
   });
+  /**
+   * Working hours, for the same reason and with the same failure shape.
+   *
+   * `availableSlots()` skips any day of the week it has no row for, so
+   * a brokerage with none gets an empty list from every booking query
+   * and the screen reports a full diary. Counted separately from stages
+   * because an organisation can plausibly have one and not the other.
+   */
+  const hoursHave = await db.workingHours.count({ where: { orgId: org.id } });
+  let hoursMade = 0;
+  if (hoursHave === 0) {
+    hoursMade = dry ? DEFAULT_HOURS.length : await db.$transaction((tx) => seedHours(tx, org.id));
+    hoursFixed += hoursMade ? 1 : 0;
+  }
 
-  if (have > 0 && stranded === 0) {
-    console.log(`  ·  ${org.name.padEnd(28)} ${have} stages, nothing stranded`);
+  if (have > 0 && stranded === 0 && hoursMade === 0) {
+    console.log(`  ·  ${org.name.padEnd(28)} ${have} stages, ${hoursHave} days, nothing stranded`);
     continue;
   }
 
@@ -128,13 +144,14 @@ for (const org of orgs) {
 
   console.log(
     `  ✓  ${org.name.padEnd(28)} ${made ? `+${made} stages` : `${have} stages`}` +
+      (hoursMade ? `, +${hoursMade} days of hours` : "") +
       (stranded ? `, ${placed}/${stranded} stranded leads placed` : ""),
   );
 }
 
 console.log(
   `\n${orgsFixed} organisation(s) given a pipeline · ${stagesMade} stage(s) · ` +
-    `${leadsPlaced} lead(s) placed`,
+    `${hoursFixed} given a working week · ${leadsPlaced} lead(s) placed`,
 );
 
 if (unmapped.length) {
