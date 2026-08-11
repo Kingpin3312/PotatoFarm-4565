@@ -77,6 +77,10 @@ DRIVERS = [
     ("Viewing",      "outcomes, feedback, vendor reports"),
     ("Invoice",      "getting paid"),
     ("ConversationCharge", "the conversation allowance and every overage line"),
+    # Added after the board was found to have no columns for any
+    # brokerage: `pipeline.board` selects leads by `stageId`, so with no
+    # stage nothing appears and every lead is created invisible.
+    ("PipelineStage", "the pipeline board — with no stages it has no columns at all"),
 ]
 
 schema = open(f"{ROOT}/prisma/schema.prisma").read()
@@ -93,6 +97,84 @@ for model, drives in DRIVERS:
     created = re.search(rf'\.{lower}\.(?:create|createMany|upsert)\b', allsrc)
     if not created:
         FAILS.append(f"nothing creates a {model} — {drives} cannot start")
+
+# ---------------------------------------------------------------------
+# The same question, asked of every model rather than a list of nine.
+#
+# `DRIVERS` above is hand-curated, and a hand-curated list is the thing
+# that goes stale: `PipelineStage`, `Listing` and `Channel` were never
+# added to it, and all three turned out to be read everywhere and
+# written nowhere. The pipeline board selected by `stageId`, nothing had
+# ever created a stage, and the empty state told a brokerage with
+# thirteen leads that enquiries would "appear here" — while every one of
+# them sat invisible with a null stage.
+#
+# So the scan is now the whole schema, and the curated list survives only
+# to say *what breaks* for the models where that is worth spelling out.
+#
+# ## Why the known ones are notes rather than failures
+#
+# Sixteen models are in this state today. Turning them all red would
+# make `npm run verify` fail every run until sixteen features exist,
+# and a gate that is permanently red is a gate everybody learns to
+# ignore — which is how the original list came to be missing three
+# entries in the first place.
+#
+# Instead this ratchets: everything currently unwritten is listed below
+# with what it costs, and anything *new* that becomes read-but-unwritten
+# is a failure. Debt is visible and cannot grow silently. Fixing one and
+# forgetting to delete its line here is also reported, so the list
+# cannot quietly become fiction.
+# ---------------------------------------------------------------------
+KNOWN_UNWRITTEN = {
+    # Written by NextAuth's PrismaAdapter, which is a dependency rather
+    # than our source — a real writer this scan cannot see.
+    "Session": "NextAuth PrismaAdapter",
+
+    # Genuine gaps. Each is a feature that can be read and not created.
+    "Listing": "no screen can add a property — 22 read sites over an empty table",
+    "Channel": "WhatsApp cannot be connected; inbound messages have no channel to match",
+    "KycRecord": "AML files cannot be opened from the product",
+    "Screening": "sanctions screening has no row to write",
+    "QualificationProfile": "qualification answers cannot be stored",
+    "CommissionPlan": "no commission plan can be defined",
+    "CommissionSplit": "a split cannot be recorded",
+    "WorkingHours": "sending hours cannot be configured",
+    "AgentAvailability": "the diary cannot be told when an agent is free",
+    "AssignmentRule": "round-robin routing cannot be set up",
+    "TeamVisibility": "team scoping cannot be configured",
+    "NotificationPrefs": "an agent cannot change what they are notified about",
+    "Document": "no document can be filed",
+    "PlanSubscription": "portal plan subscriptions cannot be created",
+    "EmailAccount": "no mailbox can be connected",
+    "Migration": "no import can be started",
+}
+
+_all_models = re.findall(r"^model (\w+)", schema, re.M)
+_still_unwritten = set()
+for _m in _all_models:
+    _l = _m[0].lower() + _m[1:]
+    _read = re.search(rf"\.{_l}\.(?:find\w*|count|aggregate|groupBy)\b", allsrc)
+    _written = re.search(rf"\.{_l}\.(?:create|createMany|upsert)\b", allsrc)
+    if not _read or _written:
+        continue
+    _still_unwritten.add(_m)
+    if _m in KNOWN_UNWRITTEN:
+        NOTES.append(f"{_m} is read but never written — {KNOWN_UNWRITTEN[_m]}")
+    else:
+        FAILS.append(
+            f"nothing creates a {_m}, and it is read — a screen will show an "
+            f"empty table nobody can fill. Fix it, or add it to "
+            f"KNOWN_UNWRITTEN in reachability.py with what it costs."
+        )
+
+# A stale entry makes the list fiction, so the list checks itself. It
+# fires for both reasons an entry stops applying: the model gained a
+# writer, or it stopped being read. `Account` and `VerificationToken`
+# were on here from the first draft and are neither — written by the
+# adapter and never read by us — which this caught immediately.
+for _m in sorted(set(KNOWN_UNWRITTEN) - _still_unwritten):
+    NOTES.append(f"{_m} no longer needs a KNOWN_UNWRITTEN entry — remove it")
 
 # The reverse: a model created and never read is a table nobody looks at.
 for model, _ in DRIVERS:

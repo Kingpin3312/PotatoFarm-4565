@@ -262,11 +262,76 @@ route_src = "\n".join(
     s2 for p2, s2 in src.items()
     if p2.replace(os.sep, "/").endswith("/route.ts") and "/app/api/" in p2.replace(os.sep, "/")
 )
-reachable = router_src + jobs_src + route_src
+# Reachability is transitive, and the one-hop version was wrong.
+#
+# This asked whether a router, a job or a route handler mentioned
+# `lib/<mod>/` *directly*. Most modules are reached that way, so it
+# looked correct for a long time. `lib/pipeline` is not: signup calls
+# it, WhatsApp ingest calls it, the portal feed calls it — and all three
+# are themselves libraries, reached in turn from the billing router and
+# the webhook route handlers. A module two hops from an entry point is
+# reachable by every meaning of the word, and reporting it as dead sends
+# somebody to delete working code.
+#
+# So the frontier is walked rather than read once. The check still fails
+# for a genuine island, which is the thing it was written to catch.
+_entry = {
+    p2 for p2 in src
+    if "/routers/" in p2 or p2.endswith("root.ts") or "/jobs/" in p2
+    or (p2.replace(os.sep, "/").endswith("/route.ts")
+        and "/app/api/" in p2.replace(os.sep, "/"))
+}
+
+_IMPORT_RE = re.compile(r"""from\s+["']([^"']+)["']""")
+
+
+def _mod_of(path):
+    """The `lib/<mod>` a file belongs to, if any."""
+    m = re.search(r"src/server/lib/([^/]+)/", path.replace(os.sep, "/"))
+    return m.group(1) if m else None
+
+
+def _lib_imports(path, body):
+    """Which lib modules this file imports, by alias or by relative path."""
+    out = set()
+    here = _mod_of(path)
+    for spec in _IMPORT_RE.findall(body):
+        m = re.match(r"@/server/lib/([^/]+)/", spec)
+        if m:
+            out.add(m.group(1))
+        elif spec.startswith("."):
+            # A relative hop out of one module and into a sibling.
+            resolved = os.path.normpath(
+                os.path.join(os.path.dirname(path.replace(os.sep, "/")), spec))
+            m2 = re.search(r"src/server/lib/([^/]+)/", resolved + "/")
+            if m2 and m2.group(1) != here:
+                out.add(m2.group(1))
+    return out
+
+
+_edges = {p2: _lib_imports(p2, s2) for p2, s2 in src.items()}
+_by_mod = {}
+for _p in src:
+    _m = _mod_of(_p)
+    if _m:
+        _by_mod.setdefault(_m, []).append(_p)
+
+_reached = set()
+_frontier = set()
+for _p in _entry:
+    _frontier |= _edges.get(_p, set())
+while _frontier:
+    _mod = _frontier.pop()
+    if _mod in _reached:
+        continue
+    _reached.add(_mod)
+    for _f in _by_mod.get(_mod, []):
+        _frontier |= _edges.get(_f, set()) - _reached
 
 for mod in sorted(lib_dirs):
-    if f"lib/{mod}/" not in reachable:
-        fail(f"module 'lib/{mod}' is not reachable — no router, no job, no route handler imports it")
+    if mod not in _reached:
+        fail(f"module 'lib/{mod}' is not reachable — no path from any router, "
+             f"job or route handler reaches it")
 
 
 # 9. Imports must resolve.

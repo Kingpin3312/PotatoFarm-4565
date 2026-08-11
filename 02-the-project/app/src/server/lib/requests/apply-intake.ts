@@ -3,6 +3,7 @@ import { audit } from "@/server/lib/audit";
 import { best, type Candidate } from "@/server/lib/matching/score";
 import { defaultExpiry } from "@/server/lib/matching/requirements";
 import { aedToFils, normalisePhone, type Intake } from "./intake";
+import { entryStageId } from "@/server/lib/pipeline/defaults";
 
 /**
  * Turning an extracted note into rows.
@@ -96,9 +97,13 @@ export async function applyIntake(args: {
       });
       did.push(`updated ${existing.name ?? name ?? "them"} on your board`);
     } else {
+      const intakeStageId = await entryStageId(db, args.orgId, "QUALIFYING");
       const lead = await db.lead.create({
         data: {
           orgId: args.orgId,
+          // QUALIFYING, matching the status below: somebody has spoken to
+          // this person, so New would be a step backwards on the board.
+          ...(intakeStageId ? { stageId: intakeStageId } : {}),
           phone,
           name,
           email: intake.person.email,

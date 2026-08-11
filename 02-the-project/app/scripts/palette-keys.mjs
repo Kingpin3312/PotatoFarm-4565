@@ -93,7 +93,15 @@ console.log("\n=== it finds people and properties, not just screens ===");
 await p.keyboard.press("Control+k");
 await p.waitForTimeout(400);
 await p.keyboard.type("David");
-await p.waitForTimeout(1800);
+// Waits for the result rather than sleeping for a guessed interval. A
+// fixed 1800ms passed eight times out of eight in isolation and failed
+// once when five browser suites ran back to back against a dev server
+// that was still compiling — which is a flaky check, and a flaky check
+// is worse than none because the next real failure gets shrugged at.
+await p.waitForFunction(
+  ()=>[...document.querySelectorAll('[role="option"]')].some(o=>/david/i.test(o.textContent||"")),
+  null, {timeout:15000},
+).catch(()=>{});
 const people = await p.evaluate(()=>[...document.querySelectorAll('[role="option"]')].map(o=>o.textContent?.trim()));
 ok("a person comes back from the server", people.some(l=>/david/i.test(l||"")), people.slice(0,2).join(" | "));
 // `textContent`, not `innerText`, and case-insensitively. The headings

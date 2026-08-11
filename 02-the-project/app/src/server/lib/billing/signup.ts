@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { crossTenant } from "@/server/db/client";
 import { audit } from "@/server/lib/audit";
 import { log } from "@/lib/log";
+import { seedStages } from "@/server/lib/pipeline/defaults";
 
 /**
  * The organisation's URL-safe handle.
@@ -145,6 +146,13 @@ export async function signup(input: SignupInput): Promise<SignupResult> {
     await tx.membership.create({
       data: { orgId: org.id, userId: user.id, role: "OWNER" },
     });
+
+    // A brokerage with no pipeline stages has no board at all — every
+    // lead lands with `stageId: null` and is invisible on the screen
+    // meant to show it. Inside the transaction because an organisation
+    // without a pipeline is a state nothing else in the product can
+    // recover from.
+    await seedStages(tx, org.id);
 
     const sub = await tx.subscription.create({
       data: {

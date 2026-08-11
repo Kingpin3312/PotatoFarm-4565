@@ -20,16 +20,107 @@ export function Board() {
   const [dragging, setDragging] = useState<string | null>(null);
   const [conflict, setConflict] = useState(false);
 
+  const [failed, setFailed] = useState<string | null>(null);
+
+  /**
+   * The card moves on drop, not on the server's reply.
+   *
+   * Dragging is the most physical thing in this product — a hand moved
+   * a card across a screen — and it was the slowest: the card snapped
+   * back to its old column and sat there for a mutation *and* a refetch
+   * before appearing where it had been put. Two round trips of the card
+   * being visibly in the wrong place, on the one interaction where the
+   * agent has already committed.
+   *
+   * `perColumn: 20` is repeated here because a cache write is keyed by
+   * the input. Written with `undefined` it silently updates nothing —
+   * no error, no change, and the only symptom is the optimism appearing
+   * not to work.
+   */
+  const KEY = { perColumn: 20 } as const;
+  type Board = ReturnType<typeof utils.pipeline.board.getData>;
+
   const move = api.pipeline.move.useMutation({
-    onError(err) {
+    async onMutate(vars): Promise<{ previous: Board }> {
+      setFailed(null);
+      // Before the snapshot: a refetch already in flight when the card
+      // was dropped will otherwise land afterwards and undo the move on
+      // its own, which reads as the drag having been ignored.
+      await utils.pipeline.board.cancel();
+      const previous = utils.pipeline.board.getData(KEY);
+
+      utils.pipeline.board.setData(KEY, (old) => {
+        if (!old) return old;
+        const from = old.columns.find((c) => c.leads.some((l) => l.id === vars.leadId));
+        const card = from?.leads.find((l) => l.id === vars.leadId);
+        if (!from || !card) return old;
+        const sameColumn = from.stage.id === vars.toStageId;
+
+        return {
+          ...old,
+          columns: old.columns.map((col) => {
+            const without = col.leads.filter((l) => l.id !== vars.leadId);
+
+            if (col.stage.id === vars.toStageId) {
+              // The neighbours come from the drop handler, which read
+              // them off the DOM with the dragged card excluded — so
+              // they index into `without`, not into `col.leads`.
+              const before = vars.beforeLeadId
+                ? without.findIndex((l) => l.id === vars.beforeLeadId)
+                : -1;
+              const after = vars.afterLeadId
+                ? without.findIndex((l) => l.id === vars.afterLeadId)
+                : -1;
+              const at = before >= 0 ? before : after >= 0 ? after + 1 : without.length;
+
+              const leads = [...without];
+              leads.splice(at, 0, {
+                ...card,
+                // Moving a lead resets `stageEnteredAt` server-side, so
+                // carrying the old "Untouched 12 days" across would be a
+                // stale badge on a card the agent has just touched.
+                stale: sameColumn ? card.stale : false,
+              });
+
+              return sameColumn ? { ...col, leads } : {
+                ...col,
+                leads,
+                total: col.total + 1,
+                value: sum(col.value, card.budgetMaxFils),
+              };
+            }
+
+            if (col.stage.id === from.stage.id) {
+              return { ...col, leads: without, total: Math.max(0, col.total - 1),
+                       value: sum(col.value, card.budgetMaxFils, -1) };
+            }
+            return col;
+          }),
+        };
+      });
+
+      return { previous };
+    },
+
+    onError(err, _vars, ctx) {
+      // Put it back first, whatever went wrong. A card left in the
+      // column the server rejected is the worst of both worlds.
+      if (ctx?.previous) utils.pipeline.board.setData(KEY, ctx.previous);
+
       if (err.data?.code === "CONFLICT") {
         // Not an error message to dismiss — the board was wrong and is
         // being corrected. Say so, then fix it.
         setConflict(true);
         void utils.pipeline.board.invalidate();
         setTimeout(() => setConflict(false), 3000);
+        return;
       }
+      // Every other failure. Silence here would leave the card sliding
+      // back with no explanation, which is worse than never having
+      // moved it — the agent cannot tell whether the move was recorded.
+      setFailed(err.message || "That move did not save. The card is back where it was.");
     },
+
     onSettled: () => utils.pipeline.board.invalidate(),
   });
 
@@ -45,6 +136,41 @@ export function Board() {
    * distinction is the whole difference between patience and a support
    * call.
    */
+  /**
+   * No stages at all, which is not the same thing as no leads.
+   *
+   * This screen used to answer both with "Your pipeline is empty. Leads
+   * appear here the moment an enquiry arrives" — told to a brokerage
+   * that had thirteen. Nothing created a `PipelineStage`, so the board
+   * had no columns, every lead sat with `stageId: null`, and the empty
+   * state reassured the owner that nothing was wrong while their whole
+   * pipeline was unreachable.
+   *
+   * Checked before the lead count, because with no columns the lead
+   * count is always zero and the wrong message wins.
+   */
+  if (data.columns.length === 0) {
+    return (
+      <div className="grid place-items-center min-h-[60vh] px-6">
+        <div className="max-w-[46ch] text-center">
+          <p className="text-[19px] font-semibold text-ink">
+            This brokerage has no pipeline stages.
+          </p>
+          <p className="text-sm text-ink-2 mt-2">
+            A board needs columns before it can show anything, and none were set
+            up. Any leads you already have are safe — they are on the Leads
+            screen, and they will appear here once stages exist.
+          </p>
+          <p className="mt-5">
+            <a href="/settings" className="text-[15px] text-accent-deep">
+              Set up your stages
+            </a>
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   const totalLeads = data.columns.reduce((n, c) => n + c.total, 0);
   if (totalLeads === 0) {
     return (
@@ -68,6 +194,22 @@ export function Board() {
       {conflict && (
         <div role="status" className="px-5 py-3 bg-ink text-ground text-sm">
           Someone else moved this column while you were dragging. Refreshed.
+        </div>
+      )}
+
+      {/* `alert`, not `status`: the card has just slid back under the
+          agent's hand and they need to know why without going looking
+          for it. The column totals have already been restored. */}
+      {failed && (
+        <div role="alert" className="px-5 py-3 bg-ink text-ground text-sm flex items-center gap-4">
+          <span>{failed}</span>
+          <button
+            type="button"
+            onClick={() => setFailed(null)}
+            className="ml-auto min-h-11 px-2 bg-transparent border-0 text-ground underline cursor-pointer"
+          >
+            Dismiss
+          </button>
         </div>
       )}
 
@@ -199,3 +341,23 @@ function BoardSkeleton() {
 }
 
 const days = (d: Date) => Math.floor((Date.now() - new Date(d).getTime()) / 86_400_000);
+
+/**
+ * Column value, adjusted by one card.
+ *
+ * `bigint` because the whole product holds money in fils and a column
+ * total in a busy brokerage passes `Number.MAX_SAFE_INTEGER` — 9.007e15
+ * fils is around AED 900 billion, which sounds unreachable until you
+ * remember fils are two decimal places on top of a market that prices in
+ * millions. Doing this in `number` would be right for years and then
+ * quietly wrong.
+ *
+ * A lead with no budget contributes nothing rather than zero, so a
+ * column of unpriced leads still reads "—" instead of "AED 0" — which an
+ * owner would read as a pipeline worth nothing.
+ */
+function sum(total: bigint | null, delta: bigint | null, sign: 1 | -1 = 1): bigint | null {
+  if (delta === null) return total;
+  const next = (total ?? 0n) + (sign === 1 ? delta : -delta);
+  return next < 0n ? 0n : next;
+}

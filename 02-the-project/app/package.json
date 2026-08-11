@@ -32,7 +32,9 @@
     "test": "vitest run",
     "browser:optimistic": "node scripts/optimistic.mjs",
     "browser:installable": "node scripts/installable.mjs",
-    "browser:palette-keys": "node scripts/palette-keys.mjs"
+    "browser:palette-keys": "node scripts/palette-keys.mjs",
+    "backfill:stages": "esbuild scripts/backfill-stages.ts --bundle --platform=node --format=esm --outfile=.tmp/backfill-stages.mjs --external:@prisma/client --log-level=warning && node --env-file-if-exists=.env .tmp/backfill-stages.mjs",
+    "browser:optimistic-board": "node scripts/optimistic-board.mjs"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.7.0",

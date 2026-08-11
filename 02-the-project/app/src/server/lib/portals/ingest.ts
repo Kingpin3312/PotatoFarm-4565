@@ -3,6 +3,7 @@ import { crossTenant, forOrg } from "@/server/db/client";
 import { Prisma } from "@prisma/client";
 import type { RawEnquiry, PortalKey } from "./types";
 import { normalisePhone, normaliseEmail, normaliseLanguage, isProxyNumber } from "./normalise";
+import { entryStageId } from "@/server/lib/pipeline/defaults";
 
 const SOURCE: Record<PortalKey, Prisma.LeadCreateInput["source"]> = {
   PROPERTY_FINDER: "PROPERTY_FINDER",
@@ -61,6 +62,11 @@ export async function ingestEnquiry(
       ? await tx.lead.findUnique({ where: { orgId_phone: { orgId, phone } } })
       : await tx.lead.findFirst({ where: { orgId, email, deletedAt: null } });
 
+    // Resolved before the branch rather than inside the `data` object:
+    // an `await` spread into a Prisma `create` defeats its `Exact` type
+    // and the error it produces names thirty unrelated fields.
+    const newStageId = existing ? null : await entryStageId(tx, orgId, "NEW");
+
     const lead = existing
       ? await tx.lead.update({
           where: { id: existing.id },
@@ -75,6 +81,9 @@ export async function ingestEnquiry(
       : await tx.lead.create({
           data: {
             orgId,
+            // See ingest.ts — a lead with no stage is one the pipeline
+            // board cannot show, whatever else is right about it.
+            ...(newStageId ? { stageId: newStageId } : {}),
             phone: phone ?? `pending:${raw.externalId}`,
             name: raw.name,
             email,

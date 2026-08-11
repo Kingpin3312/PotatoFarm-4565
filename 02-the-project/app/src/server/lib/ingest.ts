@@ -2,6 +2,7 @@ import { log } from "@/lib/log";
 import { crossTenant } from "@/server/db/client";
 import { forOrg } from "@/server/db/client";
 import { Prisma } from "@prisma/client";
+import { entryStageId } from "@/server/lib/pipeline/defaults";
 
 /**
  * Inbound WhatsApp.
@@ -66,6 +67,12 @@ async function inbound(db: any, channel: { id: string; orgId: string }, msg: any
   await db.$transaction(async (tx: Prisma.TransactionClient) => {
     // The lead is identified by phone. Upsert rather than create, because
     // a returning enquirer is the same person, not a new one.
+    // Placed on the board at the moment it is created. Without this the
+    // lead is complete, correct and invisible: `pipeline.board` selects
+    // by `stageId`, so a null one means the enquiry never appears on the
+    // screen the brokerage watches.
+    const stageId = await entryStageId(tx, channel.orgId, "NEW");
+
     const lead = await tx.lead.upsert({
       where: { orgId_phone: { orgId: channel.orgId, phone: from } },
       create: {
@@ -74,6 +81,7 @@ async function inbound(db: any, channel: { id: string; orgId: string }, msg: any
         name: profileName,
         status: "NEW",
         source: "WHATSAPP_AD",
+        ...(stageId ? { stageId } : {}),
       },
       // Never overwrite a name an agent has corrected with the one from
       // the WhatsApp profile.
