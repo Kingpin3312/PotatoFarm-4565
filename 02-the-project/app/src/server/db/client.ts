@@ -31,7 +31,43 @@ const logLevels: ("query" | "warn" | "error")[] =
  * has to be one that does not own the tables and does not have
  * BYPASSRLS. Said loudly at boot rather than left to be discovered.
  */
-const scoped = new PrismaClient({ log: logLevels });
+/**
+ * Both clients are kept on `globalThis`, and that is not a style choice.
+ *
+ * Next's dev server hot-reloads a module on every edit. Without this,
+ * each reload runs `new PrismaClient()` again and the previous client's
+ * pool is never closed — unreferenced, but still holding open Postgres
+ * sessions. The count only goes up. Measured on this codebase: four
+ * connections became eight across six edits, and it does not come back
+ * down.
+ *
+ * The symptom is not gradual. Everything is fine for a day and then
+ * every query in the application fails at once with
+ *
+ *     Too many database connections opened: FATAL: remaining connection
+ *     slots are reserved for roles with the SUPERUSER attribute
+ *
+ * which is what happened here, mid-session, after a few dozen edits: the
+ * listings screen, the permit alarm and the create mutation all returned
+ * 500 together, and it looked like the feature being written was at
+ * fault. Killing the dev server dropped the count from exhausted to one,
+ * which is the whole diagnosis.
+ *
+ * `globalThis` survives the module reload, so there is one pool per
+ * process rather than one per edit. In production the branch is never
+ * taken and this is an ordinary module-scope singleton.
+ *
+ * This is separate from the pooling question in DEPLOY.md — that is many
+ * serverless instances against one Postgres, and still needs PgBouncer
+ * or Accelerate. This is one process leaking pools to itself.
+ */
+const g = globalThis as unknown as {
+  __potatoScoped?: PrismaClient;
+  __potatoPrivileged?: PrismaClient;
+};
+
+const scoped = g.__potatoScoped ?? new PrismaClient({ log: logLevels });
+if (process.env.NODE_ENV !== "production") g.__potatoScoped = scoped;
 
 const unscopedUrl = process.env.DATABASE_URL_UNSCOPED ?? process.env.DATABASE_URL;
 
@@ -45,8 +81,12 @@ if (process.env.NODE_ENV === "production" && !process.env.DATABASE_URL_UNSCOPED)
 
 const privileged =
   unscopedUrl && unscopedUrl !== process.env.DATABASE_URL
-    ? new PrismaClient({ log: logLevels, datasources: { db: { url: unscopedUrl } } })
+    ? (g.__potatoPrivileged ??
+       new PrismaClient({ log: logLevels, datasources: { db: { url: unscopedUrl } } }))
     : scoped;
+if (process.env.NODE_ENV !== "production" && privileged !== scoped) {
+  g.__potatoPrivileged = privileged;
+}
 
 const base = scoped;
 

@@ -5,6 +5,7 @@ import { audit } from "@/server/lib/audit";
 import { validateForPublish, blocking } from "@/server/lib/feeds/validate";
 import { buyersFor, pitch } from "@/server/lib/matching/buyers";
 import { can } from "@/server/auth/rbac";
+import { aedToFils } from "@/lib/money";
 
 const PORTAL_RULES = {
   PROPERTY_FINDER: { requiresPermit: true, languages: ["en", "ar"], minPhotos: 4 },
@@ -56,6 +57,174 @@ export const listingsRouter = router({
             : null,
         })),
       };
+    }),
+
+  /**
+   * Add a property.
+   *
+   * **This did not exist.** Twenty-two places read `Listing`; nothing
+   * wrote one. The list screen, the publish check, the buyer matcher,
+   * the permit alarm and the viewing diary were all complete, correct
+   * and pointed at a table a brokerage had no way to fill — the same
+   * shape as the pipeline having no stages, one model over.
+   *
+   * ## What is required, and what deliberately is not
+   *
+   * Only `reference` and `title`. Everything else — price, beds, the
+   * Trakheesi permit — can arrive later, because in this market they
+   * genuinely do: an agent takes an instruction on a phone call and the
+   * paperwork follows. A form that refuses the first ninety seconds of
+   * real work is a form people keep a spreadsheet beside.
+   *
+   * That is safe to allow *because publishing is a separate gate*.
+   * `checkPublish` and `publish` already refuse a listing with no valid
+   * permit, so an incomplete listing can exist without ever reaching a
+   * portal. Requiring the permit here instead would move the check to
+   * the wrong moment: entry, rather than advertisement.
+   */
+  create: requirePermission("listing:write")
+    .input(z.object({
+      reference: z.string().trim().min(1).max(40),
+      title: z.string().trim().min(1).max(160),
+      community: z.string().trim().max(80).optional(),
+      building: z.string().trim().max(80).optional(),
+      bedrooms: z.number().int().min(0).max(20).optional(),
+      bathrooms: z.number().int().min(0).max(20).optional(),
+      areaSqft: z.number().int().min(1).max(1_000_000).optional(),
+      /**
+       * AED, not fils, and converted on the server.
+       *
+       * The client sends what the agent typed. `aedToFils` is the only
+       * place the unit changes, which is the rule that stopped a buyer
+       * being shown a property at a hundred times their budget.
+       */
+      priceAed: z.number().min(0).max(10_000_000_000).optional(),
+      purpose: z.enum(["SALE", "RENT"]).default("SALE"),
+      status: z.enum(["DRAFT", "AVAILABLE"]).default("AVAILABLE"),
+      permitNumber: z.string().trim().max(60).optional(),
+      /** ISO date. Stored as given; the permit alarm reads it daily. */
+      permitExpiresAt: z.string().datetime().optional(),
+      reraBrokerCard: z.string().trim().max(60).optional(),
+      vendorId: z.string().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const { priceAed, permitExpiresAt, ...rest } = input;
+
+      /**
+       * The reference is unique per brokerage, and a collision is an
+       * ordinary Tuesday rather than an exception.
+       *
+       * Checked first so the agent gets "DH-101 is already used" instead
+       * of a Prisma P2002 surfacing as "Internal server error" — which
+       * is what the constraint alone would have given them.
+       */
+      const clash = await ctx.db.listing.findFirst({
+        where: { reference: input.reference, deletedAt: null },
+        select: { id: true, title: true },
+      });
+      if (clash) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: `Reference ${input.reference} is already used by "${clash.title}".`,
+        });
+      }
+
+      const listing = await ctx.db.listing.create({
+        data: {
+          ...rest,
+          orgId: ctx.orgId,
+          ...(priceAed !== undefined ? { priceFils: aedToFils(priceAed) } : {}),
+          ...(permitExpiresAt ? { permitExpiresAt: new Date(permitExpiresAt) } : {}),
+        },
+        select: { id: true, reference: true, title: true },
+      });
+
+      await audit(ctx.db, ctx.orgId, {
+        actorId: ctx.userId,
+        action: "listing.create",
+        entity: "Listing",
+        entityId: listing.id,
+        after: { reference: listing.reference, title: listing.title },
+      });
+
+      return listing;
+    }),
+
+  /**
+   * Edit one.
+   *
+   * Every field optional, because the common edit is a single one — a
+   * price reduction, or the permit number arriving a week after the
+   * instruction. `undefined` means "leave it"; a field is only written
+   * when the client sends it.
+   */
+  update: requirePermission("listing:write")
+    .input(z.object({
+      id: z.string(),
+      reference: z.string().trim().min(1).max(40).optional(),
+      title: z.string().trim().min(1).max(160).optional(),
+      community: z.string().trim().max(80).nullish(),
+      building: z.string().trim().max(80).nullish(),
+      bedrooms: z.number().int().min(0).max(20).nullish(),
+      bathrooms: z.number().int().min(0).max(20).nullish(),
+      areaSqft: z.number().int().min(1).max(1_000_000).nullish(),
+      priceAed: z.number().min(0).max(10_000_000_000).nullish(),
+      purpose: z.enum(["SALE", "RENT"]).optional(),
+      status: z.enum(["DRAFT", "AVAILABLE", "UNDER_OFFER", "SOLD", "LET", "WITHDRAWN"]).optional(),
+      permitNumber: z.string().trim().max(60).nullish(),
+      permitExpiresAt: z.string().datetime().nullish(),
+      reraBrokerCard: z.string().trim().max(60).nullish(),
+      vendorId: z.string().nullish(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const { id, priceAed, permitExpiresAt, ...rest } = input;
+
+      const before = await ctx.db.listing.findFirst({
+        where: { id, deletedAt: null },
+        select: { id: true, reference: true, priceFils: true, status: true },
+      });
+      if (!before) throw new TRPCError({ code: "NOT_FOUND" });
+
+      if (input.reference && input.reference !== before.reference) {
+        const clash = await ctx.db.listing.findFirst({
+          where: { reference: input.reference, deletedAt: null, NOT: { id } },
+          select: { title: true },
+        });
+        if (clash) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: `Reference ${input.reference} is already used by "${clash.title}".`,
+          });
+        }
+      }
+
+      const listing = await ctx.db.listing.update({
+        where: { id },
+        data: {
+          ...rest,
+          // `null` clears the price, `undefined` leaves it. Collapsing
+          // the two would make every edit of the bedroom count wipe the
+          // asking price.
+          ...(priceAed === undefined
+            ? {}
+            : { priceFils: priceAed === null ? null : aedToFils(priceAed) }),
+          ...(permitExpiresAt === undefined
+            ? {}
+            : { permitExpiresAt: permitExpiresAt === null ? null : new Date(permitExpiresAt) }),
+        },
+        select: { id: true, reference: true, title: true },
+      });
+
+      await audit(ctx.db, ctx.orgId, {
+        actorId: ctx.userId,
+        action: "listing.update",
+        entity: "Listing",
+        entityId: id,
+        before: { reference: before.reference, status: before.status },
+        after: { reference: listing.reference, changed: Object.keys(rest) },
+      });
+
+      return listing;
     }),
 
   /**

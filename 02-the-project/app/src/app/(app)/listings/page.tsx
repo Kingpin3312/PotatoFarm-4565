@@ -9,6 +9,7 @@ import { QueryError } from "@/components/ui/query-state";
 import { aedWhole } from "@/lib/money";
 import { PublishCheck } from "./publish-check";
 import { WhoWantsIt } from "./who-wants-it";
+import { AddProperty } from "./add-property";
 
 /**
  * Listings.
@@ -75,6 +76,11 @@ function Listings() {
             <Link href="/listings" className="btn-inline">Show all</Link>
           </p>
         )}
+
+        {/* `ml-auto` so it sits at the right of the header on a desktop
+            and wraps under the heading on a phone, where the flex-wrap
+            above puts it on its own line at full reach of a thumb. */}
+        <div className="ml-auto"><AddProperty /></div>
       </header>
 
       {/* The two failures that are otherwise invisible. Shown before the
@@ -103,6 +109,12 @@ function Listings() {
         {rows.map((l) => (
           <div
             key={l.id}
+            // Same handle the pipeline board uses on a card. It is what
+            // lets a check assert against *this* row rather than against
+            // the page — the browser test for adding a property passed
+            // with the price parsing deliberately broken, because it was
+            // reading a matching number off a different listing.
+            data-listing={l.reference}
             className="grid grid-cols-[1.6fr_140px_1fr_120px_auto] gap-4 items-center py-3.5 px-1 border-b border-rule hover:bg-raised max-[820px]:grid-cols-1 max-[820px]:gap-2"
           >
             <div>
@@ -162,9 +174,30 @@ function Listings() {
           </div>
         ))}
 
-        {!isLoading && rows.length === 0 && (
+        {/* This said "Import a feed or add one, and it appears here."
+            when neither was possible: nothing in the product could
+            create a listing, and portal import still cannot. An empty
+            state that names two routes a brokerage does not have reads
+            as "you have missed a setting" and sends them looking. It
+            now names the one that works. */}
+        {!isLoading && rows.length === 0 && !q && (
+          <div className="py-10 max-w-[46ch]">
+            <p className="text-[17px] font-semibold text-ink">No properties yet.</p>
+            <p className="text-sm text-ink-2 mt-2">
+              Add the first one and it appears here, ready to match against your
+              buyers. A reference and a name are enough — the permit can follow.
+            </p>
+            <div className="mt-4"><AddProperty /></div>
+          </div>
+        )}
+
+        {/* A search that matched nothing is a different sentence. The
+            shared one used to tell somebody whose "DH-9" found nothing
+            that they had no properties at all. */}
+        {!isLoading && rows.length === 0 && q && (
           <p className="py-8 text-sm text-ink-3">
-            No listings yet. Import a feed or add one, and it appears here.
+            Nothing matches &ldquo;{q}&rdquo;.{" "}
+            <Link href="/listings" className="btn-inline">Show all</Link>
           </p>
         )}
       </div>

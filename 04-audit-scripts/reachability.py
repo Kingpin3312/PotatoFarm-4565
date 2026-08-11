@@ -132,7 +132,6 @@ KNOWN_UNWRITTEN = {
     "Session": "NextAuth PrismaAdapter",
 
     # Genuine gaps. Each is a feature that can be read and not created.
-    "Listing": "no screen can add a property — 22 read sites over an empty table",
     "Channel": "WhatsApp cannot be connected; inbound messages have no channel to match",
     "KycRecord": "AML files cannot be opened from the product",
     "Screening": "sanctions screening has no row to write",
