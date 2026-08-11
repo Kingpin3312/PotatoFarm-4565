@@ -163,14 +163,18 @@ send path read it.
 
 ## Run the tests
 
-    npm test          # 78 assertions, pure functions, no database
+    npm test          # 128 assertions, pure functions, no database
     npm run verify    # tsc, the tests, 11 check suites, 13 audits
 
 `npm test` was declared from day one with no test files behind it, so it
-exited 1 and said "No test files found". There are four files now, and
+exited 1 and said "No test files found". There are six files now, and
 they cover the pure logic where being wrong is silent: the fils unit, the
-24-hour window on both sides of the boundary, Dubai sending hours, and
-the search parser's plural intents and budget bands.
+24-hour window on both sides of the boundary, Dubai sending hours, the
+search parser's plural intents and budget bands, lead scoring, and deal
+risk.
+
+Each was checked by breaking the thing it guards and confirming the suite
+goes red — a test that cannot fail is decoration.
 
 `passWithNoTests: false` is set deliberately. A run that finds nothing is
 a failure, not a pass — that is the hole that let the command sit broken.

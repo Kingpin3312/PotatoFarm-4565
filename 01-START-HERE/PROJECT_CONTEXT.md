@@ -156,11 +156,16 @@ chart; spoken requests ("Ask").
 npm run verify
 ```
 
-That is `tsc --noEmit`, then all eleven check suites, then all thirteen
-audit scripts, in one run that stops at the first failure. It exists
-because the alternative was twenty-five commands in a particular order,
-and the thing about a twenty-five-command ritual is that somebody
-eventually runs twenty-four of them.
+That is `tsc --noEmit`, then the 128 unit tests, then all eleven check
+suites, then all thirteen audit scripts — one run, and it reports every
+failure rather than stopping at the first. It exists because the
+alternative was twenty-six commands in a particular order, and the thing
+about a twenty-six-command ritual is that somebody eventually runs
+twenty-five of them, and it is never the same twenty-five.
+
+The unit tests run **before** the check suites deliberately: if the
+window arithmetic or the money formatter is wrong there is no point
+spending two minutes seeding Postgres to find out.
 
 **Seven of the eleven need Postgres, and `verify` fails without it
 rather than skipping.** That is deliberate and it is the same principle
@@ -197,7 +202,7 @@ thing it checks and confirming it fails.
 ### The unit tests
 
 ```bash
-npm test                    # 78 assertions, no database, under a second
+npm test                    # 128 assertions, no database, ~3 seconds
 ```
 
 `package.json` declared `"test": "vitest run"` from the beginning with no
@@ -205,7 +210,7 @@ test files and no config behind it, so the command exited 1 and said "No
 test files found" — a command claiming to run tests that could not, which
 is the same shape as a button that does not do what it says.
 
-Four files, and the selection is not "whatever was easy to test". Every
+Six files, and the selection is not "whatever was easy to test". Every
 case is a bug that actually happened here or a rule whose failure would
 be silent:
 
@@ -215,6 +220,13 @@ be silent:
 | `server/lib/whatsapp.window.test.ts` | The 24-hour window, including both sides of the boundary |
 | `server/lib/matching/sendable.test.ts` | Dubai hours, and the 23:38 bug |
 | `server/lib/search/parse.test.ts` | Plural intents, budget bands, people vs properties |
+| `server/lib/intelligence/score.test.ts` | Recency decay, the book-band bug, the two overriding statuses |
+| `server/lib/deals/risk.test.ts` | Blockers, silence thresholds, one action or none |
+
+**They were checked against deliberate breakage, not just run.** Setting
+a new lead's recency back to zero, moving the silence threshold from 7
+days to 70, and downgrading a recorded blocker from AT_RISK to WATCH each
+turned the suite red. A test that cannot fail is decoration.
 
 `vitest.config.ts` sets `passWithNoTests: false`, because a run that
 finds nothing is a failure and not a pass — that is the exact hole that
@@ -308,13 +320,14 @@ Ask — an agent can see what they asked for earlier and what came back.
 - **Voice recipes** `BOOK_VIEWING` and `COMPARABLES` return a follow-up
   question rather than completing in one step. Deliberate, but the second
   step is not wired to the booking screen.
-- **Unit tests cover four modules, not the codebase.** 78 assertions
-  across money, the 24-hour window, Dubai sending hours and the search
-  parser — the pure logic where being wrong is expensive and silent.
-  Everything stateful is still covered only by the eleven check suites
-  and the four browser checks, which is not the same thing as a test
-  suite. The next ones worth writing are `intelligence/score.ts` and
-  `deals/risk.ts`: both are pure, both are rules somebody will tune.
+- **Unit tests cover six modules, not the codebase.** 128 assertions
+  across money, the 24-hour window, Dubai sending hours, the search
+  parser, lead scoring and deal risk — the pure logic where being wrong
+  is expensive and silent. Everything stateful is still covered only by
+  the eleven check suites and the four browser checks, which is not the
+  same thing as a test suite. The largest untested surface is the
+  assistant: `assistant/` decides what gets said to a customer, and its
+  guardrails are exercised only through `check:autonomy`.
 - **The Expo app.** See section 3.
 
 ---
