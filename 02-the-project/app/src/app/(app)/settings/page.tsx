@@ -1,6 +1,7 @@
 "use client";
 
 import { KillSwitch } from "./kill-switch";
+import { CalendarFeed } from "./calendar";
 import { api } from "@/lib/trpc";
 import { QueryError } from "@/components/ui/query-state";
 
@@ -23,6 +24,8 @@ export default function SettingsPage() {
       </header>
 
       <div className="mt-7"><KillSwitch /></div>
+
+      <CalendarFeed />
 
       {data && (
         <>

@@ -129,7 +129,7 @@ chart; spoken requests ("Ask").
   security note in section 13. It costs little here: every page is
   behind sign-in and fetches through tRPC on the client, so what used to
   be prerendered was an empty shell.
-- Six migrations exist and apply cleanly to an empty database.
+- Seven migrations exist and apply cleanly to an empty database.
 - **Row-level security was tested with two brokerages in one database.**
   The second cannot see the first's leads. This is the whole security
   promise of the product and it is the one thing worth re-testing after
@@ -156,7 +156,7 @@ chart; spoken requests ("Ask").
 npm run verify
 ```
 
-That is `tsc --noEmit`, then the 190 unit tests, then all eleven check
+That is `tsc --noEmit`, then the 214 unit tests, then all eleven check
 suites, then all thirteen audit scripts — one run, and it reports every
 failure rather than stopping at the first. It exists because the
 alternative was twenty-six commands in a particular order, and the thing
@@ -202,7 +202,7 @@ thing it checks and confirming it fails.
 ### The unit tests
 
 ```bash
-npm test                    # 190 assertions, no database, ~3 seconds
+npm test                    # 214 assertions, no database, ~3 seconds
 ```
 
 `package.json` declared `"test": "vitest run"` from the beginning with no
@@ -223,6 +223,7 @@ be silent:
 | `server/lib/intelligence/score.test.ts` | Recency decay, the book-band bug, the two overriding statuses |
 | `server/lib/deals/risk.test.ts` | Blockers, silence thresholds, one action or none |
 | `server/assistant/guardrails.test.ts` | What reaches a customer, and what is refused |
+| `server/lib/calendar/ics.test.ts` | The feed a phone subscribes to — folding, escaping, UIDs |
 
 **They were checked against deliberate breakage, not just run.** Setting
 a new lead's recency back to zero, moving the silence threshold from 7
@@ -329,7 +330,7 @@ Ask — an agent can see what they asked for earlier and what came back.
 - **Voice recipes** `BOOK_VIEWING` and `COMPARABLES` return a follow-up
   question rather than completing in one step. Deliberate, but the second
   step is not wired to the booking screen.
-- **Unit tests cover seven modules, not the codebase.** 190 assertions
+- **Unit tests cover seven modules, not the codebase.** 214 assertions
   across money, the 24-hour window, Dubai sending hours, the search
   parser, lead scoring, deal risk and the assistant's guardrails — the
   pure logic where being wrong is expensive and silent. Everything

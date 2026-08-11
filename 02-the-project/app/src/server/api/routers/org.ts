@@ -12,6 +12,61 @@ const hash = (token: string) => createHash("sha256").update(token).digest("hex")
 
 export const orgRouter = router({
   /** Brokerages this user belongs to, for the switcher. */
+  /**
+   * The agent's own calendar feed URL.
+   *
+   * `orgProcedure`, not a permission — this is a person's own diary and
+   * every role that can see a viewing can subscribe to their own.
+   *
+   * Returns null until they ask for one. A capability URL that exists is
+   * one that can leak, so nobody gets a live secret minted for them by
+   * default; `calendarRotate` is the only thing that creates it.
+   */
+  calendarFeed: orgProcedure.query(async ({ ctx }) => {
+    const m = await ctx.db.membership.findUnique({
+      where: { orgId_userId: { orgId: ctx.orgId, userId: ctx.userId } },
+      select: { calendarToken: true, calendarTokenAt: true, calendarLastReadAt: true },
+    });
+    return {
+      url: m?.calendarToken
+        ? `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/api/calendar/${m.calendarToken}`
+        : null,
+      createdAt: m?.calendarTokenAt ?? null,
+      /** So "is it still working" has an answer other than a shrug. */
+      lastReadAt: m?.calendarLastReadAt ?? null,
+    };
+  }),
+
+  /**
+   * Mint a feed URL, or replace the one that exists.
+   *
+   * One button does both, deliberately. The moment an agent realises
+   * they have pasted the link into a group chat, the useful action is
+   * "make the old one dead", and making them find a separate revoke
+   * control first is how a live secret stays live.
+   *
+   * 32 random bytes, base64url. Rotating clears `calendarLastReadAt`,
+   * because the old feed's last read says nothing about the new one and
+   * a stale timestamp there would read as "working".
+   */
+  calendarRotate: orgProcedure.mutation(async ({ ctx }) => {
+    const token = randomBytes(32).toString("base64url");
+    await ctx.db.membership.update({
+      where: { orgId_userId: { orgId: ctx.orgId, userId: ctx.userId } },
+      data: { calendarToken: token, calendarTokenAt: new Date(), calendarLastReadAt: null },
+    });
+    await audit(ctx.db, ctx.orgId, {
+      actorId: ctx.userId,
+      action: "calendar.rotate",
+      entity: "Membership",
+      entityId: ctx.userId,
+      // The token itself is never audited. An audit row a manager can
+      // read is not where a live credential belongs.
+      after: { rotated: true },
+    });
+    return { url: `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/api/calendar/${token}` };
+  }),
+
   mine: orgProcedure.query(async ({ ctx }) => {
     const rows = await crossTenant("user-scoped").membership.findMany({
       where: { userId: ctx.userId, org: { deletedAt: null } },

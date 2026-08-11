@@ -136,6 +136,24 @@ model Membership {
   role      Role     @default(AGENT)
   createdAt DateTime @default(now())
 
+  /// The agent's calendar feed token, and it is a capability URL.
+  ///
+  /// A calendar client cannot sign in — Apple Calendar and Google both
+  /// fetch an unauthenticated URL on a schedule — so the secret has to
+  /// be in the address. That means it leaks the way addresses leak:
+  /// browser history, a screenshot in a group chat, a proxy log.
+  ///
+  /// Which is why it lives here rather than being derived from the user
+  /// id: it is **rotatable**. An agent who has shared it by accident
+  /// presses one button and the old URL is dead. Null means they have
+  /// never asked for a feed, which is the default.
+  ///
+  /// Per membership, not per user: the feed is one brokerage's viewings,
+  /// and somebody in two brokerages gets two calendars.
+  calendarToken     String?   @unique
+  calendarTokenAt   DateTime?
+  calendarLastReadAt DateTime?
+
   org  Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
   user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
