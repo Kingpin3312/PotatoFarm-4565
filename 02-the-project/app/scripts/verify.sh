@@ -113,6 +113,41 @@ for name in tenancy intake intelligence voice deals autonomy buyers search sigv4
   step "check:$name" npm run --silent "check:$name"
 done
 
+# The one check that needs the application running, not just Postgres.
+#
+# It posts a signed WhatsApp webhook at the real route and asserts a
+# lead, a conversation and a message come out the other side — the whole
+# inbound path, which is the product's reason to exist and which failed
+# silently for its entire life: `lead.upsert` was called with an invalid
+# `update` clause, the route had already answered Meta with 200, and the
+# rejection went to a console nobody reads.
+#
+# Probed rather than assumed, and named in the skip list when it does not
+# run. A gate that quietly leaves out its most important check is the
+# failure this file was written to stop.
+printf '\n%sEnd to end%s\n' "$bold" "$off"
+# `APP` is already this script's variable for the application directory
+# (line 40), so the URL cannot borrow that name — the probe reported
+# "no application at /home/user/.../app" and skipped the check on a
+# machine where the server was running perfectly.
+APP_URL="${APP_URL:-http://localhost:3000}"
+# The shell environment *or* `.env`, because the check itself is run with
+# `node --env-file-if-exists=.env`. Reading only the shell variable
+# skipped it on every developer machine, where the secret is in the file
+# — a guard that reports "not configured" about something that is.
+has_secret=0
+[ -n "${WHATSAPP_APP_SECRET:-}" ] && has_secret=1
+[ "$has_secret" -eq 0 ] && [ -f .env ] && grep -Eq '^WHATSAPP_APP_SECRET=.*[^"[:space:]]' .env && has_secret=1
+
+if [ "$has_secret" -eq 0 ]; then
+  skipped+=("check:whatsapp-inbound (WHATSAPP_APP_SECRET is not set)")
+elif ! curl -sf -o /dev/null --max-time 3 "$APP_URL/api/health" 2>/dev/null \
+     && ! curl -s -o /dev/null --max-time 3 "$APP_URL" 2>/dev/null; then
+  skipped+=("check:whatsapp-inbound (no application at $APP_URL — run npm run dev)")
+else
+  step "check:whatsapp-inbound" npm run --silent check:whatsapp-inbound
+fi
+
 printf '\n%sAudits%s\n' "$bold" "$off"
 step "13 audit scripts" bash "$ROOT/04-audit-scripts/run-all.sh"
 

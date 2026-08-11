@@ -83,9 +83,32 @@ async function inbound(db: any, channel: { id: string; orgId: string }, msg: any
         source: "WHATSAPP_AD",
         ...(stageId ? { stageId } : {}),
       },
-      // Never overwrite a name an agent has corrected with the one from
-      // the WhatsApp profile.
-      update: { name: { set: undefined } as any },
+      /**
+       * Empty, and it has to be empty.
+       *
+       * The intent — never overwrite a name an agent has corrected with
+       * the one from the WhatsApp profile — was written as
+       * `{ name: { set: undefined } as any }`. Prisma rejects that at
+       * validation:
+       *
+       *     Invalid `prisma.lead.upsert()` invocation
+       *     update: { name: { set: undefined } }
+       *                     ~~~~~~~~~~~~~~~~
+       *
+       * and it rejects the *call*, not the branch — so this threw for a
+       * first-time enquirer as well as a returning one. **Every inbound
+       * WhatsApp message failed**, on a WhatsApp-first CRM.
+       *
+       * It was invisible because the route answers Meta before it does
+       * the work and the rejection landed in a `.catch` that logged to
+       * the console, so Meta got its 200 and nobody got the message.
+       * And it could not be reached at all until a channel could be
+       * created, which is what surfaced it.
+       *
+       * The `as any` is what let it compile. That cast is the whole
+       * story: the type system had the answer and was told to be quiet.
+       */
+      update: {},
     });
 
     const conversation = await tx.conversation.upsert({

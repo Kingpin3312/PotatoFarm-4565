@@ -35,7 +35,9 @@
     "browser:palette-keys": "node scripts/palette-keys.mjs",
     "backfill:stages": "esbuild scripts/backfill-stages.ts --bundle --platform=node --format=esm --outfile=.tmp/backfill-stages.mjs --external:@prisma/client --log-level=warning && node --env-file-if-exists=.env .tmp/backfill-stages.mjs",
     "browser:optimistic-board": "node scripts/optimistic-board.mjs",
-    "browser:add-property": "node scripts/add-property.mjs"
+    "browser:add-property": "node scripts/add-property.mjs",
+    "browser:connect-channel": "node scripts/connect-channel.mjs",
+    "check:whatsapp-inbound": "node --env-file-if-exists=.env scripts/whatsapp-inbound.mjs"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.7.0",

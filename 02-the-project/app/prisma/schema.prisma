@@ -509,6 +509,27 @@ model Channel {
 
   @@unique([orgId, type, identifier])
   @@index([orgId, active])
+
+  /// **There is a second uniqueness rule on this table that Prisma
+  /// cannot express, and it is the tenancy boundary for everything
+  /// inbound.**
+  ///
+  ///     CREATE UNIQUE INDEX "Channel_type_identifier_active_key"
+  ///       ON "Channel" ("type", "identifier") WHERE "active";
+  ///
+  /// It lives in `migrations/20260811210000_channel_global_identity`
+  /// because a partial index has no schema syntax — which means
+  /// `prisma db push` against a fresh database will not create it, and
+  /// nothing here would tell you.
+  ///
+  /// Why it matters: a Meta webhook carries no organisation id, so
+  /// `lib/ingest.ts` finds the brokerage by searching every tenant for
+  /// an active channel with that phone number. The `@@unique` above is
+  /// scoped to one organisation, so without the partial index two
+  /// brokerages can claim the same number and `findFirst` picks between
+  /// them arbitrarily — one brokerage receiving another's customer
+  /// messages. Partial on `active` so a number can be released and
+  /// legitimately reconnected elsewhere.
 }
 
 enum ChannelType {

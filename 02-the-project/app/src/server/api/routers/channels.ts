@@ -1,4 +1,10 @@
+import { z } from "zod";
+import { TRPCError } from "@trpc/server";
+import { Prisma } from "@prisma/client";
+import { randomBytes } from "node:crypto";
 import { router, requirePermission } from "../trpc";
+import { audit } from "@/server/lib/audit";
+import { readSecret, invalidate } from "@/server/lib/secrets";
 
 /**
  * Channels.
@@ -9,7 +15,55 @@ import { router, requirePermission } from "../trpc";
  *
  * A channel going quiet produces no error. That is the whole problem,
  * and it is why this is a screen rather than only an alert.
+ *
+ * ---------------------------------------------------------------------
+ * **Until now this router was read-only, and nothing anywhere created a
+ * Channel.**
+ *
+ * On a WhatsApp-first CRM that is not a missing settings page. Inbound
+ * routing works by finding the channel whose `identifier` matches the
+ * phone number id on the webhook; with no channel row, every inbound
+ * message hit `log.warn("message for an unknown number")` and was
+ * dropped. The inbox, the assistant, the 24-hour window and the whole
+ * lead intake path were downstream of a table a brokerage could not
+ * write to.
+ * ---------------------------------------------------------------------
  */
+
+/**
+ * What each channel type calls its identifier, and where to find it.
+ *
+ * Written down because "identifier" is the correct column name and a
+ * useless thing to put on a form. An owner is looking at Meta's
+ * dashboard at a field with a different name on it.
+ */
+const IDENTIFIER = {
+  WHATSAPP: {
+    label: "Phone number ID",
+    hint: "Meta Business Suite → WhatsApp → API Setup. It is a long number, not the phone number itself.",
+  },
+  META_LEAD_ADS: {
+    label: "Facebook Page ID",
+    hint: "The Page the lead form runs on. Page → About → Page transparency.",
+  },
+  PROPERTY_FINDER: { label: "Account reference", hint: "From your Property Finder account manager." },
+  BAYUT:           { label: "Account reference", hint: "From your Bayut account manager." },
+  DUBIZZLE:        { label: "Account reference", hint: "From your Dubizzle account manager." },
+  WEBSITE_FORM:    { label: "Form name", hint: "Any name you will recognise. It identifies the form posting to us." },
+} as const;
+
+const TYPES = [
+  "WHATSAPP", "META_LEAD_ADS", "PROPERTY_FINDER", "BAYUT", "DUBIZZLE", "WEBSITE_FORM",
+] as const;
+
+/**
+ * Types whose deliveries arrive on a per-channel URL rather than one
+ * shared endpoint. They get a `webhookToken`; the Meta ones do not,
+ * because Meta posts everything to one address and is identified by
+ * signature.
+ */
+const TOKENED = new Set(["PROPERTY_FINDER", "BAYUT", "DUBIZZLE", "WEBSITE_FORM"]);
+
 export const channelsRouter = router({
   health: requirePermission("channel:read").query(async ({ ctx }) => {
     const channels = await ctx.db.channel.findMany({
@@ -45,7 +99,211 @@ export const channelsRouter = router({
       }),
     };
   }),
+
+  /**
+   * Everything connected, including what is switched off.
+   *
+   * `health` deliberately shows only active channels, because its job is
+   * "what has gone quiet". This one is the settings view, and a
+   * disconnected channel has to be visible or reconnecting it is
+   * impossible.
+   *
+   * **`secretRef` is returned; the secret is not.** The reference is a
+   * name like `wa_9f2c…` that an owner has to be able to read, because
+   * it is half of the environment variable they must set. It grants
+   * nothing on its own.
+   */
+  list: requirePermission("channel:read").query(async ({ ctx }) => {
+    const rows = await ctx.db.channel.findMany({
+      select: {
+        id: true, type: true, label: true, identifier: true, secretRef: true,
+        webhookToken: true, active: true, lastSyncAt: true, lastError: true, createdAt: true,
+      },
+      orderBy: [{ active: "desc" }, { createdAt: "asc" }],
+    });
+
+    // `Promise.all` over an async map, not an `await` inside a plain
+    // one — that reads fine and returns an array of promises the client
+    // renders as [object Promise].
+    return Promise.all(rows.map(async (c) => ({
+      ...c,
+      identifierLabel: IDENTIFIER[c.type as keyof typeof IDENTIFIER]?.label ?? "Identifier",
+      /**
+       * Whether outbound will work, answered without revealing anything.
+       *
+       * Inbound needs only this row to exist. Sending needs a token, and
+       * a token that has not been wired up fails at the moment an agent
+       * presses send to a real customer — the worst possible time to
+       * find out. Resolved here so the screen can say so while nobody
+       * is waiting.
+       */
+      canSend: c.type === "WHATSAPP" ? await resolves(c.secretRef) : null,
+    })));
+  }),
+
+  /**
+   * Connect one.
+   *
+   * ## The access token is not accepted here, and that is deliberate
+   *
+   * `lib/secrets.ts` states the rule: tokens never go into Postgres, so
+   * a database dump — the likeliest thing to leak — carries nothing that
+   * can message a brokerage's customers. There is no secrets provider
+   * wired up yet, so there is nowhere for this form to *put* a token.
+   *
+   * The options were to store it in the database anyway, or to accept
+   * that connecting has two halves. Storing it would quietly overturn a
+   * load-bearing security decision to save an owner one deploy, so it
+   * does not. This generates the reference name, and the screen tells
+   * the owner exactly which environment variable to set.
+   *
+   * **Inbound works the moment this row exists** — no token required,
+   * because the webhook is verified with the app-wide
+   * `WHATSAPP_APP_SECRET` and routed by phone number. So the useful half
+   * of connecting is immediate, and only sending waits on the deploy.
+   */
+  connect: requirePermission("channel:write")
+    .input(z.object({
+      type: z.enum(TYPES),
+      label: z.string().trim().min(1).max(60),
+      identifier: z.string().trim().min(1).max(120),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      /**
+       * A readable, unguessable reference. It is a *name*, not a secret
+       * — it appears on screen and in an environment variable — so the
+       * randomness is only to stop two brokerages generating the same
+       * one, not to resist an attacker.
+       */
+      const secretRef =
+        input.type === "WHATSAPP" ? `wa_${randomBytes(6).toString("hex")}` : undefined;
+
+      try {
+        const channel = await ctx.db.channel.create({
+          data: {
+            orgId: ctx.orgId,
+            type: input.type,
+            label: input.label,
+            identifier: input.identifier,
+            ...(secretRef ? { secretRef } : {}),
+            ...(TOKENED.has(input.type)
+              ? { webhookToken: randomBytes(24).toString("base64url") }
+              : {}),
+            active: true,
+          },
+          select: { id: true, label: true, type: true, identifier: true,
+                    secretRef: true, webhookToken: true },
+        });
+
+        await audit(ctx.db, ctx.orgId, {
+          actorId: ctx.userId,
+          action: "channel.connect",
+          entity: "Channel",
+          entityId: channel.id,
+          // The identifier is not a secret, but it is another party's
+          // account reference and there is no reason for it to sit in an
+          // audit row that a wider group can read.
+          after: { type: channel.type, label: channel.label },
+        });
+
+        return channel;
+      } catch (e) {
+        if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+          const target = (e.meta?.target as string[] | string | undefined) ?? "";
+          const fields = Array.isArray(target) ? target.join(",") : String(target);
+
+          /**
+           * Two different collisions, and the difference is the whole
+           * reason this branch is written out.
+           *
+           * Within the brokerage, naming the existing channel is
+           * helpful. Across brokerages it would confirm that some other
+           * customer of ours has that number connected — so the message
+           * says what to do and nothing about who. The database has
+           * already refused it either way; this only chooses the
+           * wording.
+           */
+          const crossTenantClash = fields.includes("type") && !fields.includes("orgId");
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: crossTenantClash
+              ? "That identifier is already connected and in use. If it belongs to you, " +
+                "disconnect it wherever it is currently connected and try again."
+              : "You have already connected that identifier.",
+          });
+        }
+        throw e;
+      }
+    }),
+
+  /**
+   * Switch one off, or back on.
+   *
+   * Not a delete. The conversations, enquiries and messages that arrived
+   * through a channel reference it, and removing the row would either
+   * fail or take the history with it. Deactivating also releases the
+   * identifier for another brokerage, which is what the partial unique
+   * index is for.
+   */
+  setActive: requirePermission("channel:write")
+    .input(z.object({ id: z.string(), active: z.boolean() }))
+    .mutation(async ({ ctx, input }) => {
+      const before = await ctx.db.channel.findFirst({
+        where: { id: input.id },
+        select: { id: true, label: true, type: true, active: true },
+      });
+      if (!before) throw new TRPCError({ code: "NOT_FOUND" });
+
+      try {
+        await ctx.db.channel.update({
+          where: { id: input.id },
+          data: { active: input.active },
+        });
+      } catch (e) {
+        if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: "That identifier has been connected somewhere else since you " +
+                     "switched this off. It cannot be reconnected here until it is released.",
+          });
+        }
+        throw e;
+      }
+
+      // The credential cache is keyed by channel and holds for five
+      // minutes. Without this, a channel switched off keeps sending for
+      // up to five minutes after somebody stopped it.
+      invalidate(ctx.orgId, input.id);
+
+      await audit(ctx.db, ctx.orgId, {
+        actorId: ctx.userId,
+        action: input.active ? "channel.reconnect" : "channel.disconnect",
+        entity: "Channel",
+        entityId: input.id,
+        before: { active: before.active },
+        after: { active: input.active },
+      });
+
+      return { id: input.id, active: input.active };
+    }),
 });
+
+/**
+ * Does this secret reference resolve to something?
+ *
+ * True or false, never the value, and it never throws — `readSecret`
+ * rejects when a reference is not wired up, which is the ordinary state
+ * of a channel connected ten seconds ago rather than an error worth
+ * propagating to a settings screen.
+ */
+async function resolves(ref: string | null): Promise<boolean> {
+  if (!ref) return false;
+  try {
+    return Boolean(await readSecret(ref));
+  } catch {
+    return false;
+  }
+}
 
 /** Rounded to something a person says out loud. "37 hours" is a number;
  *  "a day and a half" is an answer. */
@@ -55,3 +313,5 @@ function ago(hours: number): string {
   const d = Math.round(hours / 24);
   return d === 1 ? "a day ago" : `${d} days ago`;
 }
+
+export { IDENTIFIER };

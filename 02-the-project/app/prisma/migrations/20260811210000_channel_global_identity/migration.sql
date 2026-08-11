@@ -1,0 +1,34 @@
+-- A channel identifier is globally unique among active channels, and it
+-- has to be enforced here rather than in application code.
+--
+-- Inbound routing is the reason. `lib/ingest.ts` answers "which
+-- brokerage does this WhatsApp message belong to?" with
+--
+--     channel.findFirst({ where: { type: 'WHATSAPP',
+--                                  identifier: phoneNumberId,
+--                                  active: true } })
+--
+-- across every tenant — correctly, because a Meta webhook carries no
+-- organisation id and the phone number is the only thing that maps to
+-- one. The Meta lead-ads webhook does the same with a Page id, and the
+-- portal webhook with its own account identifier.
+--
+-- The existing constraint is `("orgId", "type", "identifier")`, which
+-- permits two organisations to claim the same identifier. Nothing
+-- created a Channel until now, so it never mattered. With a connect
+-- form it becomes the whole tenancy boundary for inbound: a brokerage
+-- that types a competitor's phone number id would start receiving that
+-- competitor's customer messages, and `findFirst` would pick between
+-- them by whatever order Postgres returned.
+--
+-- An application-level check before the insert is not enough — two
+-- requests can both pass it. This is a uniqueness rule and uniqueness
+-- rules belong to the database.
+--
+-- Partial, on `active`, so a number can be disconnected by one
+-- brokerage and legitimately connected by another later. That is a real
+-- case: an agency changes CRM, or a number moves between two companies
+-- under the same owner.
+CREATE UNIQUE INDEX "Channel_type_identifier_active_key"
+  ON "Channel" ("type", "identifier")
+  WHERE "active";
