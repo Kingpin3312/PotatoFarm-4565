@@ -250,6 +250,7 @@ npm run browser:a11y          # keyboard only, screen reader, 200% zoom, dialogs
 npm run browser:roles         # VIEWER / COMPLIANCE / MANAGER see a sentence, not a crash
 npm run browser:palette       # 21 screens: no colour outside the brand family
 npm run browser:chaos         # bad ids, triple submit, forged cookie, headers
+npm run browser:optimistic    # the row leaves early — and comes back if it fails
 ```
 
 They find a different class of problem from the eleven suites — the
@@ -258,6 +259,13 @@ has caught something the others could not: a VIEWER told "that didn't
 load" when the server had correctly refused, a dialog that ran off an
 iPhone with its Close button unreachable, and search results announced
 to nobody.
+
+**`browser:optimistic` tests the half everybody skips.** Holding the
+mutation for 2.5 seconds and asserting the row is gone in under half of
+one proves the speed; forcing the same call to 500 and asserting the row
+**comes back and something says so** proves it is safe. An optimistic
+update that silently reverts is worse than a spinner — the row reappears
+and the agent cannot tell whether the work was recorded.
 
 **`browser:palette` refuses to report a clean sweep on a page that
 redirected to sign-in.** It counts what it scanned and prints that

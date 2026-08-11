@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import Link from "next/link";
 import { api } from "@/lib/trpc";
 import { cn } from "@/lib/cn";
@@ -26,12 +28,48 @@ export default function Today() {
   const { data, isLoading, isError, refetch, error } = api.today.brief.useQuery();
   const utils = api.useUtils();
 
-  const dismiss = api.today.dismiss.useMutation({
+  /**
+   * The row leaves before the server answers.
+   *
+   * This is the screen an agent works standing in a lobby on a 4G
+   * connection, and "Done" is the action they press most in the day.
+   * Waiting for a round trip before the row moves is the difference
+   * between a product that feels instant and one that feels like a web
+   * page, and nothing about the outcome is in doubt — the row is theirs
+   * and the server is being told, not asked.
+   *
+   * **What makes it safe rather than a lie is the failure path.** An
+   * optimistic update that silently reverts is worse than a spinner: the
+   * row reappears with no explanation and the agent has no idea whether
+   * the work was recorded. So a failure puts the row back *and* says so.
+   *
+   * `cancel()` first, or an in-flight refetch that started before the
+   * press can land afterwards and put the row back on its own.
+   */
+  const [failed, setFailed] = useState<string | null>(null);
+
+  /** The snapshot passed from onMutate to onError, named so it types. */
+  type Rollback = { previous: ReturnType<typeof utils.today.brief.getData> };
+
+  const optimistic = {
+    onMutate: async ({ id }: { id: string }): Promise<Rollback> => {
+      setFailed(null);
+      await utils.today.brief.cancel();
+      const previous = utils.today.brief.getData();
+      utils.today.brief.setData(undefined, (old) =>
+        old ? { ...old, actions: old.actions.filter((a) => a.id !== id) } : old
+      );
+      return { previous };
+    },
+    onError: (err: { message: string }, _vars: { id: string }, ctx: Rollback | undefined) => {
+      if (ctx?.previous) utils.today.brief.setData(undefined, ctx.previous);
+      setFailed(err.message || "That did not save. It is back on your list.");
+    },
     onSettled: () => void utils.today.brief.invalidate(),
-  });
-  const act = api.today.act.useMutation({
-    onSettled: () => void utils.today.brief.invalidate(),
-  });
+  };
+
+  const dismiss = api.today.dismiss.useMutation(optimistic);
+  const act = api.today.act.useMutation(optimistic);
 
   return (
     <div className="mx-auto max-w-[680px] px-6 pb-28">
@@ -63,11 +101,19 @@ export default function Today() {
 
       {data && (
         <>
+          {/* The revert, said out loud.
+              role="alert" rather than status: the row has just jumped
+              back onto a list the agent thought they had cleared, and
+              that is an interruption, not an update. */}
+          {failed && (
+            <p role="alert" className="mt-6 text-sm text-danger max-w-[52ch]">
+              {failed}
+            </p>
+          )}
           <Actions
             actions={data.actions}
             onAct={(id) => act.mutate({ id })}
             onDismiss={(id) => dismiss.mutate({ id })}
-            busy={act.isPending || dismiss.isPending}
           />
           <Viewings viewings={data.viewings} />
         </>
@@ -132,7 +178,7 @@ const LABEL: Record<string, string> = {
 };
 
 function Actions({
-  actions, onAct, onDismiss, busy,
+  actions, onAct, onDismiss,
 }: {
   actions: {
     id: string; action: string; headline: string; reason: string;
@@ -140,7 +186,6 @@ function Actions({
   }[];
   onAct: (id: string) => void;
   onDismiss: (id: string) => void;
-  busy: boolean;
 }) {
   /**
    * An empty list here is good news, and has to read like it.
@@ -216,14 +261,12 @@ function Actions({
             <div className="mt-3 flex gap-2 pl-7">
               <button
                 onClick={() => onAct(a.id)}
-                disabled={busy}
                 className="btn-inline min-h-11 disabled:opacity-50"
               >
                 Done
               </button>
               <button
                 onClick={() => onDismiss(a.id)}
-                disabled={busy}
                 className={cn(
                   "min-h-11 px-2 font-mono text-[10px] uppercase tracking-[0.1em]",
                   "text-ink-3 hover:text-ink disabled:opacity-50"
