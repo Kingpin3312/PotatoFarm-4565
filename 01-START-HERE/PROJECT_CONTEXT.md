@@ -156,7 +156,7 @@ chart; spoken requests ("Ask").
 npm run verify
 ```
 
-That is `tsc --noEmit`, then the 175 unit tests, then all eleven check
+That is `tsc --noEmit`, then the 190 unit tests, then all eleven check
 suites, then all thirteen audit scripts — one run, and it reports every
 failure rather than stopping at the first. It exists because the
 alternative was twenty-six commands in a particular order, and the thing
@@ -202,7 +202,7 @@ thing it checks and confirming it fails.
 ### The unit tests
 
 ```bash
-npm test                    # 175 assertions, no database, ~3 seconds
+npm test                    # 190 assertions, no database, ~3 seconds
 ```
 
 `package.json` declared `"test": "vitest run"` from the beginning with no
@@ -321,7 +321,7 @@ Ask — an agent can see what they asked for earlier and what came back.
 - **Voice recipes** `BOOK_VIEWING` and `COMPARABLES` return a follow-up
   question rather than completing in one step. Deliberate, but the second
   step is not wired to the booking screen.
-- **Unit tests cover seven modules, not the codebase.** 175 assertions
+- **Unit tests cover seven modules, not the codebase.** 190 assertions
   across money, the 24-hour window, Dubai sending hours, the search
   parser, lead scoring, deal risk and the assistant's guardrails — the
   pure logic where being wrong is expensive and silent. Everything
@@ -386,6 +386,30 @@ seemed not to handle very much — against a product whose entire promise
 is a reply in ninety seconds. Now matched on word boundaries, with bare
 `single` removed and the discriminatory phrasings ("singles only", "no
 bachelors") listed instead.
+
+**Then the same probe found the rest of `screenInbound` doing it too.**
+Running fifteen realistic Dubai enquiries through the handover rules,
+**ten** were sent to a person:
+
+| Enquiry | Matched | Rule |
+|---|---|---|
+| "which is the lowest floor available?" | `lowest` | negotiation |
+| "the traffic on SZR is terrible" | `terrible` | complaint |
+| "do I call the concierge or the agent for access?" | `call … agent` | explicit_request |
+
+`lowest` now needs money beside it and explicitly not a floor or a unit;
+`terrible` alone is gone and the complaint words are about *us*
+("terrible service", both word orders); and the explicit-request pattern
+no longer lets `.*` span the whole message — the verb and the person have
+to sit together, with "call me" kept because a callback request is
+exactly that.
+
+**`mortgage` and `tax` were deliberately left wide.** A factual question
+about the seller's existing mortgage still goes to a person. The downside
+is asymmetric — a false handover costs ninety seconds, a wrong word about
+UAE mortgage or tax treatment from an unlicensed source costs more — so
+narrowing those two is a decision for somebody who knows the licensing
+position, not for a regex. It is pinned in a test so it reads as a choice.
 
 **Three separate 100× money errors.** `Lead.budgetMax` and
 `Listing.price` were `Decimal` AED while everything else was `BigInt`

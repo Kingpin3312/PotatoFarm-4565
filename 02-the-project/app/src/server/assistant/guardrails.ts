@@ -59,14 +59,81 @@ export function mentionsProtectedTopic(text: string) {
   return PROTECTED_RE.test(text);
 }
 
+/**
+ * Regulated advice.
+ *
+ * **Deliberately the widest net here, and it is the only one left wide.**
+ * `mortgage` and `tax` as bare words hand over factual questions too —
+ * "has the seller's mortgage been cleared" is a deal question, not
+ * advice — and narrowing them would be easy. It has not been narrowed
+ * because the downside is asymmetric: a false handover costs a person
+ * ninety seconds, and a wrong word about UAE mortgage or tax treatment
+ * from an unlicensed source costs considerably more. Somebody who knows
+ * the licensing position should make that call, not a regex.
+ */
+const REGULATED = /\b(lawyer|solicitor|tax|golden visa|mortgage|loan approval)\b/i;
+
+/**
+ * A complaint about **us**, not about the world.
+ *
+ * `terrible` used to be in this list on its own, so "the traffic on SZR
+ * is terrible, how long from Marina?" was a complaint and went to a
+ * person. Dubai buyers describe traffic, finishes and service charges as
+ * terrible constantly; almost none of it is a complaint about the
+ * brokerage.
+ */
+const COMPLAINT =
+  /\b(complain|complaint|unacceptable|scam|refund|misled|disappointed)\b/i;
+// Both orders. "terrible service" and "the service has been terrible" are
+// the same complaint, and only the first was caught.
+const COMPLAINT_PHRASE = new RegExp(
+  [
+    String.raw`\b(terrible|awful|poor|appalling|dreadful)\s+(service|experience|response|communication)\b`,
+    String.raw`\b(service|experience|response|communication)\s+(has\s+been|have\s+been|was|is|were)\s+` +
+      String.raw`(\w+\s+)?(terrible|awful|poor|appalling|dreadful)\b`,
+  ].join("|"),
+  "i",
+);
+
+/**
+ * Talking about price, not about floors.
+ *
+ * `lowest` was a bare word, and "which is the lowest floor available?" is
+ * one of the commonest questions in a market sold on views. It now needs
+ * something about money next to it.
+ */
+const NEGOTIATION = /\b(discount|best price|negotiate|offer of)\b/i;
+const NEGOTIATION_LOWEST =
+  /\b(lowest|how low)\b(?![\s-]*(floor|level|storey|story|unit|apartment|flat|villa))/i;
+
+/**
+ * Asking for a person, not merely using the word.
+ *
+ * The old pattern was `(speak|talk|call) .* (human|person|someone|agent|
+ * manager)` with `.*` spanning the whole message, so "do I call the
+ * concierge or the agent for access?" read as a request to be put
+ * through to somebody. The verb and the person have to sit together, and
+ * "call me" is kept because a callback request is exactly this.
+ */
+const EXPLICIT_REQUEST = new RegExp(
+  [
+    String.raw`\b(speak|talk|chat)(ing)?\s+(to|with)\s+(a|an|the)?\s*(real\s+)?` +
+      String.raw`(human|person|someone|somebody|agent|manager|consultant|advisor|adviser)\b`,
+    String.raw`\b(call|ring|phone)\s+me\b`,
+    String.raw`\bgive\s+me\s+a\s+(call|ring)\b`,
+    String.raw`\b(put\s+me\s+through|transfer\s+me)\b`,
+  ].join("|"),
+  "i",
+);
+
 /** Runs before the model. Returns a reason if a person should take over. */
 export function screenInbound(text: string): HandoverReason | null {
   if (looksLikeInjection(text)) return "protected_attribute";
   if (mentionsProtectedTopic(text)) return "protected_attribute";
-  if (/\b(lawyer|solicitor|tax|golden visa|mortgage|loan approval)\b/i.test(text)) return "regulated";
-  if (/\b(complain|complaint|unacceptable|terrible|scam|refund)\b/i.test(text)) return "complaint";
-  if (/\b(discount|best price|lowest|negotiate|offer of)\b/i.test(text)) return "negotiation";
-  if (/\b(speak|talk|call)\b.*\b(human|person|someone|agent|manager)\b/i.test(text)) return "explicit_request";
+  if (REGULATED.test(text)) return "regulated";
+  if (COMPLAINT.test(text) || COMPLAINT_PHRASE.test(text)) return "complaint";
+  if (NEGOTIATION.test(text) || NEGOTIATION_LOWEST.test(text)) return "negotiation";
+  if (EXPLICIT_REQUEST.test(text)) return "explicit_request";
   return null;
 }
 

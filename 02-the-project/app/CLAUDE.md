@@ -163,7 +163,7 @@ send path read it.
 
 ## Run the tests
 
-    npm test          # 175 assertions, pure functions, no database
+    npm test          # 190 assertions, pure functions, no database
     npm run verify    # tsc, the tests, 11 check suites, 13 audits
 
 `npm test` was declared from day one with no test files behind it, so it

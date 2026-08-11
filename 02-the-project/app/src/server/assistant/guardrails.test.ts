@@ -101,6 +101,37 @@ describe("prompt injection", () => {
   });
 });
 
+describe("ordinary property questions are not handovers", () => {
+  /**
+   * The same bug class as the protected-attribute one, found the same
+   * way: run realistic Dubai enquiries through the rules and read the
+   * output. Ten of fifteen were being handed to a person.
+   *
+   * Each of these was a real false positive:
+   *
+   *   "lowest floor available"     -> negotiation, on the word `lowest`
+   *   "traffic is terrible"        -> complaint, on the word `terrible`
+   *   "call the concierge or the
+   *    agent for access"           -> explicit_request, because the old
+   *                                   pattern let `.*` span the message
+   *
+   * All three are questions a buyer asks constantly in a market sold on
+   * views, traffic and building access.
+   */
+  it.each([
+    "Which is the lowest floor available?",
+    "What is the lowest floor with a sea view?",
+    "The traffic on SZR is terrible, how long from Marina?",
+    "Is the finish quality terrible in that tower?",
+    "Can I talk through the floor plan with you?",
+    "I'd like to speak about the service charge",
+    "Do I call the concierge or the agent for access?",
+    "Is the lowest unit still available?",
+  ])("reaches the model: %s", (text) => {
+    expect(screenInbound(text)).toBeNull();
+  });
+});
+
 describe("the things a person must handle", () => {
   it.each([
     ["I want to speak to a human", "explicit_request"],
@@ -114,6 +145,33 @@ describe("the things a person must handle", () => {
     ["Will this get me a golden visa?", "regulated"],
   ])("%s -> %s", (text, reason) => {
     expect(screenInbound(text)).toBe(reason);
+  });
+
+  /**
+   * The narrowed rules still have to catch the real thing. Each of these
+   * is the phrasing the false-positive fix had to keep working.
+   */
+  it.each([
+    ["What is the lowest they would accept?", "negotiation"],
+    ["How low will they go?", "negotiation"],
+    ["The service has been terrible", "complaint"],
+    ["Put me through to a manager", "explicit_request"],
+    ["Please call me back", "explicit_request"],
+    ["Give me a call tomorrow", "explicit_request"],
+  ])("still catches %s -> %s", (text, reason) => {
+    expect(screenInbound(text)).toBe(reason);
+  });
+
+  /**
+   * `mortgage` and `tax` stay wide on purpose, and this pins that it is
+   * a choice. A factual question about the seller's existing mortgage
+   * goes to a person too. The downside is asymmetric: a false handover
+   * costs somebody ninety seconds, a wrong word about UAE mortgage or
+   * tax treatment from an unlicensed source costs more than that.
+   */
+  it("hands over any mention of mortgage or tax, factual or not", () => {
+    expect(screenInbound("Has the seller's mortgage been cleared?")).toBe("regulated");
+    expect(screenInbound("Is the community tax free?")).toBe("regulated");
   });
 
   it("lets an ordinary question reach the model", () => {
