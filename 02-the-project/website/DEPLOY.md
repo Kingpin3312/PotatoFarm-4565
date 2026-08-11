@@ -55,11 +55,11 @@ those is a development tool, and uploading it publishes it:
 ```bash
 cd 02-the-project/website
 zip -r -X ../../potatofarm-site.zip . \
-  -x "DEPLOY.md" "serve.mjs" "og.mjs" "predeploy.mjs" "predeploy-links.mjs" \
+  -x "DEPLOY.md" "serve.mjs" "og.mjs" "shots.mjs" "predeploy.mjs" "predeploy-links.mjs" \
      "demo-flow.mjs" "subscribe-flow.mjs" "preview-*.html" "*.DS_Store"
 ```
 
-That is 25 files: ten HTML pages, `assets/`, `_redirects`, `_headers`,
+That is 30 files: ten HTML pages, `assets/`, `_redirects`, `_headers`,
 `robots.txt`, `sitemap.xml`, `site.webmanifest`. The zip is git-ignored
 — it is rebuilt from this folder, never edited.
 
@@ -210,6 +210,21 @@ real pages.
 posting to a hosted form service instead would work today, at the cost
 of leads not landing in the CRM. Your call — the leads matter more than
 the tidiness in the first month.
+
+**The screenshots go stale.** `assets/shot-*.webp` are real captures of
+the running application. When a screen changes they become a picture of
+software that no longer exists, which is worse than no picture at all:
+
+```bash
+npm --prefix ../app run dev
+node shots.mjs            # every shot, one run, dimensions written back
+```
+
+It refuses to photograph a page that rendered under 500 characters — a
+skeleton, or a screen that is empty in a fresh brokerage — and refuses
+to write a Today pair whose greetings disagree, which is what happens
+when the two are captured hours apart. Both caught something real on the
+first run.
 
 **Analytics.** There is none, deliberately: the CSP has no third-party
 `script-src` and the privacy page says so. Cloudflare Web Analytics is
