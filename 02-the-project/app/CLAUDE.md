@@ -129,20 +129,32 @@ not want.
 
 ## The shape that keeps recurring
 
-Four times a complete, tested, documented module has turned out to have
+Five times a complete, tested, documented module has turned out to have
 nothing that starts it:
 
 1. **Billing** could invoice a customer no code path could create.
 2. **sendFile** could send an attachment nothing could upload.
 3. **deals/** could plan a transfer no accepted offer ever began.
 4. **The vendor report** had no vendor to send to.
+5. **documents/** swept for expiring broker cards every night, and
+   nothing could file one. That one is worth reading in full, because it
+   is the shape at its most convincing: renewal lead times researched
+   per document type, warnings grouped per recipient, a README arguing
+   why the broker card is the one that catches people out — and the
+   nightly job reported success every morning for finding nothing.
 
 `architecture.py` catches a module nothing *imports*. `reachability.py`
 catches the subtler one — a module that is imported, called correctly,
 and whose entry condition never occurs. **A light switch wired to
-nothing.**
+nothing.** It now scans every model in the schema against a
+`KNOWN_UNWRITTEN` ratchet, so the remaining eight are visible and a new
+one is a build failure.
 
-The question to ask of anything new: **what writes the first row?**
+The question to ask of anything new: **what writes the first row?** And
+then the second one, which found the missing half of the register:
+**what closes it?** A row that nothing supersedes, completes or expires
+alarms for ever, and an alarm that never stops is one somebody switches
+off.
 
 ## The pattern that runs through everything
 
@@ -173,7 +185,7 @@ send path read it.
 ## Run the tests
 
     npm test          # 214 assertions, pure functions, no database
-    npm run verify    # tsc, the tests, 11 check suites, 13 audits
+    npm run verify    # tsc, the tests, 15 check suites, 13 audits
 
 `npm test` was declared from day one with no test files behind it, so it
 exited 1 and said "No test files found". There are seven files now, and
