@@ -62,6 +62,107 @@ export const assistantRouter = router({
   }),
 
   /**
+   * The script the assistant follows, and whether it has one.
+   *
+   * `run.ts` hands every conversation to a human when there is no
+   * active profile, and for the whole life of this product there was
+   * never one — so the assistant had never answered an enquiry, at any
+   * brokerage. Nothing surfaced it: a handover looks like a working
+   * inbox from the outside.
+   *
+   * So the first thing this returns is `configured`, and the screen
+   * leads with it. A number nobody can see is how the same gap survives
+   * a second time.
+   */
+  script: orgProcedure.query(async ({ ctx }) => {
+    const profile = await ctx.db.qualificationProfile.findFirst({
+      where: { active: true },
+      include: { questions: { orderBy: { order: "asc" } } },
+    });
+
+    return {
+      configured: profile !== null,
+      name: profile?.name ?? null,
+      tone: profile?.tone ?? null,
+      languages: profile?.languages ?? [],
+      questions: (profile?.questions ?? []).map((q) => ({
+        key: q.key, prompt: q.prompt, required: q.required,
+        type: q.type, options: q.options,
+      })),
+    };
+  }),
+
+  /**
+   * Change the wording, not the shape.
+   *
+   * The keys are fixed and the order is fixed; what an owner can edit is
+   * how each question is *phrased* and the tone the assistant uses.
+   * That is the boundary that matters — `key` is what `Answer` rows are
+   * written against and what the pipeline reads, so letting somebody
+   * rename `budget` to `price_range` would orphan every answer already
+   * collected while looking like a copy edit.
+   *
+   * Adding and removing questions is deliberately not here either. A
+   * five-question script that a buyer answers is worth more than a
+   * twelve-question one they abandon, and the shape is a product
+   * decision rather than a setting.
+   */
+  updateScript: requirePermission("channel:write")
+    .input(z.object({
+      tone: z.string().max(400).nullable(),
+      questions: z.array(z.object({
+        key: z.string(),
+        prompt: z.string().trim().min(8).max(240),
+      })).max(20),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const profile = await ctx.db.qualificationProfile.findFirst({
+        where: { active: true },
+        include: { questions: { select: { id: true, key: true } } },
+      });
+      if (!profile) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "This brokerage has no active script. Contact support — the assistant is not running.",
+        });
+      }
+
+      const byKey = new Map(profile.questions.map((q) => [q.key, q.id]));
+      const unknown = input.questions.filter((q) => !byKey.has(q.key));
+      if (unknown.length) {
+        // Named rather than ignored. Silently dropping an edit is how
+        // somebody rewrites a question, sees it saved, and finds the old
+        // wording still going to customers.
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `Not questions in this script: ${unknown.map((q) => q.key).join(", ")}.`,
+        });
+      }
+
+      await ctx.db.$transaction(async (tx) => {
+        await tx.qualificationProfile.update({
+          where: { id: profile.id },
+          data: { tone: input.tone?.trim() || null },
+        });
+        for (const q of input.questions) {
+          await tx.question.update({
+            where: { id: byKey.get(q.key)! },
+            data: { prompt: q.prompt },
+          });
+        }
+        await audit(tx, ctx.orgId, {
+          actorId: ctx.userId,
+          action: "assistant.script.update",
+          entity: "QualificationProfile",
+          entityId: profile.id,
+          after: { edited: input.questions.map((q) => q.key), tone: input.tone },
+        });
+      });
+
+      return { ok: true as const };
+    }),
+
+  /**
    * The kill switch. Manager and above, because an agent having a bad
    * afternoon should not be able to silence the assistant for the whole
    * brokerage — but it should not need an owner either, since the person

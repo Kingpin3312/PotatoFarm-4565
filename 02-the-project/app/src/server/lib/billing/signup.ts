@@ -4,6 +4,7 @@ import { audit } from "@/server/lib/audit";
 import { log } from "@/lib/log";
 import { seedStages } from "@/server/lib/pipeline/defaults";
 import { seedHours } from "@/server/lib/hours/defaults";
+import { seedQualification } from "@/server/lib/assistant/qualification";
 import { seedRoutingRule } from "@/server/lib/routing/apply";
 
 /**
@@ -166,6 +167,14 @@ export async function signup(input: SignupInput): Promise<SignupResult> {
     // `assignmentFor` matches nothing and every enquiry sits in the pool
     // — which is a legitimate way to work, and not one anybody chose.
     await seedRoutingRule(tx, org.id);
+
+    // And the qualification script, without which the assistant is
+    // switched off. `run.ts` reads an active profile and hands the
+    // conversation to a human when there is none — so a brokerage
+    // seeded with stages, hours and routing but no script has a
+    // beautifully organised inbox that a person answers every message
+    // in. Same transaction, for the same reason as the other three.
+    await seedQualification(tx, org.id);
 
     const sub = await tx.subscription.create({
       data: {

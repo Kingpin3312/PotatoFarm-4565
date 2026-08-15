@@ -60,6 +60,7 @@ export const SETTINGS_NAV = [
   { href: "/documents", label: "Documents" },
   { href: "/settings/privacy", label: "Privacy" },
   { href: "/settings/access", label: "Access" },
+  { href: "/settings/assistant", label: "What it asks" },
   { href: "/settings/hours", label: "Working hours" },
   { href: "/settings/routing", label: "Routing" },
   { href: "/settings/channels", label: "Channels" },

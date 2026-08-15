@@ -2,6 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import { DEFAULT_STAGES, seedStages } from "@/server/lib/pipeline/defaults";
 import { DEFAULT_HOURS, seedHours } from "@/server/lib/hours/defaults";
 import { seedRoutingRule } from "@/server/lib/routing/apply";
+import { seedQualification } from "@/server/lib/assistant/qualification";
 
 /**
  * Give every existing brokerage a pipeline and a working week, and put
@@ -45,6 +46,7 @@ let stagesMade = 0;
 let leadsPlaced = 0;
 let hoursFixed = 0;
 let rulesFixed = 0;
+let scriptsFixed = 0;
 const unmapped: string[] = [];
 
 const orgs = await db.organisation.findMany({
@@ -88,7 +90,25 @@ for (const org of orgs) {
     : await db.$transaction((tx) => seedRoutingRule(tx, org.id));
   if (ruleMade) rulesFixed++;
 
-  if (have > 0 && stranded === 0 && hoursMade === 0 && !ruleMade) {
+  /**
+   * The qualification script, and this is the one that was actually
+   * costing something.
+   *
+   * `assistant/run.ts` hands the conversation to a human when there is
+   * no active profile, and nothing ever created one — so for every
+   * brokerage that existed before this change, the assistant has never
+   * answered a single enquiry. Not "sometimes handed over": never ran.
+   *
+   * Counted separately in the summary because it is not housekeeping
+   * like a missing column. It is the product starting to do the thing
+   * it is sold as doing.
+   */
+  const scriptMade = dry
+    ? (await db.qualificationProfile.count({ where: { orgId: org.id, active: true } })) === 0
+    : (await db.$transaction((tx) => seedQualification(tx, org.id))).created;
+  if (scriptMade) scriptsFixed++;
+
+  if (have > 0 && stranded === 0 && hoursMade === 0 && !ruleMade && !scriptMade) {
     console.log(`  ·  ${org.name.padEnd(28)} ${have} stages, ${hoursHave} days, nothing stranded`);
     continue;
   }
@@ -170,6 +190,17 @@ console.log(
     `${hoursFixed} given a working week · ${rulesFixed} given a routing rule · ` +
     `${leadsPlaced} lead(s) placed`,
 );
+
+if (scriptsFixed) {
+  // On its own line and in plain words. The other counts are tidying;
+  // this one means the assistant starts replying to customers at those
+  // brokerages, which somebody should know before it happens rather
+  // than after.
+  console.log(
+    `\n${scriptsFixed} brokerage(s) had no qualification script, so the assistant had\n` +
+      `never answered an enquiry for them. It will now.`,
+  );
+}
 
 if (unmapped.length) {
   // Reported rather than guessed. A lead in a status the brokerage has
