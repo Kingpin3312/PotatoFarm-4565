@@ -4,6 +4,7 @@ import { useState } from "react";
 import { api } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { QueryError } from "@/components/ui/query-state";
+import { TeamCapacity } from "./capacity";
 
 /**
  * The team.
@@ -120,6 +121,11 @@ export default function Team() {
               </div>
             ))}
       </div>
+
+      {/* Availability is the other half of a team screen: who is here
+          is one question, and how much work each of them takes is the
+          one that decides where a lead goes. */}
+      <TeamCapacity />
     </div>
   );
 }

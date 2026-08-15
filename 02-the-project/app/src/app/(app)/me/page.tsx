@@ -4,6 +4,7 @@ import { api } from "@/lib/trpc";
 import { aed } from "@/lib/money";
 import { QueryError } from "@/components/ui/query-state";
 import { cn } from "@/lib/cn";
+import { MyAvailability } from "./availability";
 
 /**
  * My numbers.
@@ -111,6 +112,12 @@ export default function Me() {
           )}
         </>
       )}
+
+      {/* Below the figures, because it is a setting rather than a
+          number — but on this screen rather than in Settings, because
+          it is the agent's own and the agent is the one who knows they
+          are away next week. */}
+      <MyAvailability />
     </div>
   );
 }

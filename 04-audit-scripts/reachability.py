@@ -135,7 +135,6 @@ KNOWN_UNWRITTEN = {
     "Screening": "sanctions screening has no row to write",
     "QualificationProfile": "qualification answers cannot be stored",
     "CommissionSplit": "a split cannot be recorded",
-    "AgentAvailability": "the diary cannot be told when an agent is free",
     "TeamVisibility": "team scoping cannot be configured",
     "NotificationPrefs": "an agent cannot change what they are notified about",
     "Document": "no document can be filed",

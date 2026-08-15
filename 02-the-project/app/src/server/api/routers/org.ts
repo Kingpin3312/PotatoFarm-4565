@@ -392,4 +392,180 @@ export const orgRouter = router({
 
       return { days: rows.length };
     }),
+  /**
+   * My own availability.
+   *
+   * **Nothing ever wrote an `AgentAvailability` row.** Routing reads it
+   * for capacity, languages, communities and away-dates, and with no row
+   * every agent silently defaults to capacity 40 and always available —
+   * so an agent on leave kept receiving leads and a brokerage that
+   * thought it had set a limit had not.
+   *
+   * `orgProcedure`, not a permission: this is a person editing their own
+   * availability. Requiring a manager to mark somebody's holiday is how
+   * holidays stop being marked.
+   *
+   * Returns the defaults rather than null when no row exists, because
+   * the defaults are what routing actually applies — a screen showing
+   * blanks would misreport a capacity that is already in force.
+   */
+  availability: orgProcedure.query(async ({ ctx }) => {
+    const row = await ctx.db.agentAvailability.findUnique({
+      where: { orgId_userId: { orgId: ctx.orgId, userId: ctx.userId } },
+    });
+    return {
+      set: Boolean(row),
+      acceptingLeads: row?.acceptingLeads ?? true,
+      capacity: row?.capacity ?? 40,
+      awayFrom: row?.awayFrom ?? null,
+      awayTo: row?.awayTo ?? null,
+      awayNote: row?.awayNote ?? null,
+      languages: row?.languages ?? [],
+      communities: row?.communities ?? [],
+    };
+  }),
+
+  /**
+   * Set my own.
+   *
+   * Capacity, languages and communities are deliberately **not** here —
+   * they are a management decision about how work is shared out, and an
+   * agent who can raise their own capacity to 400 has a lever nobody
+   * asked them to have. What an agent owns is whether they are taking
+   * work at all, and when they are away.
+   */
+  setAvailability: orgProcedure
+    .input(z.object({
+      acceptingLeads: z.boolean(),
+      /** ISO dates, or null to clear the whole away period. */
+      awayFrom: z.string().datetime().nullish(),
+      awayTo: z.string().datetime().nullish(),
+      awayNote: z.string().trim().max(140).nullish(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const from = input.awayFrom ? new Date(input.awayFrom) : null;
+      const to = input.awayTo ? new Date(input.awayTo) : null;
+
+      /**
+       * An away period that ends before it starts is refused.
+       *
+       * `available()` skips an agent while `awayUntil > now`, so an
+       * inverted period simply never applies — the agent goes on holiday
+       * and the leads keep arriving, with nothing on any screen to
+       * explain it. The same shape as the working-hours check.
+       */
+      if (from && to && to <= from) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "The last day away is before the first. Check the dates.",
+        });
+      }
+      // Half a period is not a period: routing reads `awayTo` alone, so a
+      // start with no end would be recorded and never do anything.
+      if ((from && !to) || (!from && to)) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Give both a first and a last day away, or neither.",
+        });
+      }
+
+      const data = {
+        acceptingLeads: input.acceptingLeads,
+        awayFrom: from,
+        awayTo: to,
+        awayNote: input.awayNote ?? null,
+      };
+
+      await ctx.db.agentAvailability.upsert({
+        where: { orgId_userId: { orgId: ctx.orgId, userId: ctx.userId } },
+        create: { orgId: ctx.orgId, userId: ctx.userId, ...data },
+        update: data,
+      });
+
+      await audit(ctx.db, ctx.orgId, {
+        actorId: ctx.userId,
+        action: "availability.set",
+        entity: "AgentAvailability",
+        entityId: ctx.userId,
+        after: {
+          acceptingLeads: input.acceptingLeads,
+          away: from && to ? `${from.toISOString().slice(0, 10)} to ${to.toISOString().slice(0, 10)}` : null,
+        },
+      });
+
+      return { ok: true };
+    }),
+
+  /**
+   * Everyone's, for whoever shares the work out.
+   *
+   * Includes members with no row, showing the defaults routing applies
+   * to them — a list of only the configured half cannot show the gap,
+   * and the gap is the point.
+   */
+  teamAvailability: requirePermission("member:update").query(async ({ ctx }) => {
+    const [members, rows] = await Promise.all([
+      ctx.db.membership.findMany({
+        where: { role: "AGENT" },
+        select: { userId: true, user: { select: { name: true, email: true } } },
+        orderBy: { createdAt: "asc" },
+      }),
+      ctx.db.agentAvailability.findMany(),
+    ]);
+
+    const now = new Date();
+    return members.map((m) => {
+      const r = rows.find((x) => x.userId === m.userId);
+      return {
+        userId: m.userId,
+        name: m.user.name ?? m.user.email,
+        set: Boolean(r),
+        acceptingLeads: r?.acceptingLeads ?? true,
+        capacity: r?.capacity ?? 40,
+        languages: r?.languages ?? [],
+        communities: r?.communities ?? [],
+        // What routing is doing right now, not what was typed. An away
+        // period in the past is not "away".
+        awayNow: Boolean(r?.awayTo && r.awayTo > now && (!r.awayFrom || r.awayFrom <= now)),
+        awayTo: r?.awayTo ?? null,
+      };
+    });
+  }),
+
+  /** Capacity and specialisms, which are a management decision. */
+  setTeamAvailability: requirePermission("member:update")
+    .input(z.object({
+      userId: z.string(),
+      capacity: z.number().int().min(1).max(500),
+      languages: z.array(z.string().trim().min(1).max(20)).max(10),
+      communities: z.array(z.string().trim().min(1).max(80)).max(30),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const member = await ctx.db.membership.findFirst({
+        where: { userId: input.userId },
+        select: { userId: true },
+      });
+      if (!member) throw new TRPCError({ code: "NOT_FOUND", message: "Not a member of this brokerage." });
+
+      const data = {
+        capacity: input.capacity,
+        languages: input.languages,
+        communities: input.communities,
+      };
+      await ctx.db.agentAvailability.upsert({
+        where: { orgId_userId: { orgId: ctx.orgId, userId: input.userId } },
+        create: { orgId: ctx.orgId, userId: input.userId, ...data },
+        update: data,
+      });
+
+      await audit(ctx.db, ctx.orgId, {
+        actorId: ctx.userId,
+        action: "availability.setForMember",
+        entity: "AgentAvailability",
+        entityId: input.userId,
+        after: data,
+      });
+
+      return { ok: true };
+    }),
 });
