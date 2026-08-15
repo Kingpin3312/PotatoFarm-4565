@@ -30,7 +30,6 @@ function ok(label: string, pass: boolean, detail = "") {
   if (!pass) fails.push(label);
 }
 
-const ago = (d: number) => new Date(Date.now() - d * 86_400_000);
 const M = (aed: number) => BigInt(aed) * 100n;
 
 /**
@@ -42,6 +41,24 @@ const M = (aed: number) => BigInt(aed) * 100n;
  * coin toss — the deals check learned this the same way.
  */
 const NOW = new Date("2026-08-12T07:00:00Z");
+
+/**
+ * Relative to `NOW`, not to the wall clock. **Half this check used to
+ * run on a different clock from the other half.**
+ *
+ * `ago()` was `Date.now() - d days` while every assertion was evaluated
+ * against the frozen `NOW` above. That agrees on the day the date was
+ * written and drifts one day per day afterwards. Three days later
+ * `ago(1)` — the requirement that is supposed to have *expired* —
+ * landed two days in `NOW`'s future, the matcher correctly included it,
+ * and "an expired search does not appear at all" failed. Nothing in the
+ * product had changed; the check had simply outlived its own constant.
+ *
+ * A pinned clock is only pinned if everything reads it. This is the
+ * same lesson the comment above already states, applied to the helper
+ * sitting next to it.
+ */
+const ago = (d: number) => new Date(NOW.getTime() - d * 86_400_000);
 
 async function main() {
   console.log("\nWho wants this property\n");

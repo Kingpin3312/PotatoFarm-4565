@@ -262,6 +262,35 @@ route_src = "\n".join(
     s2 for p2, s2 in src.items()
     if p2.replace(os.sep, "/").endswith("/route.ts") and "/app/api/" in p2.replace(os.sep, "/")
 )
+# A check that pins its clock must not also read the wall clock.
+#
+# `buyers.check.ts` froze `NOW` at a written date — correctly, because
+# the send-window rules refuse to run outside working hours and an
+# unpinned check is a coin toss — and then built its fixtures with
+# `ago(d) = Date.now() - d days`. The two agree on the day it was
+# written and drift one day per day after.
+#
+# Three days later the requirement meant to have *expired* sat two days
+# in the frozen clock's future, the matcher correctly included it, and
+# the assertion "an expired search does not appear at all" failed. It
+# reads as a product regression and is a calendar.
+#
+# A pinned clock is only pinned if everything reads it.
+# Globbed here rather than read from `src`, which holds `src/**` only —
+# the first version of this rule iterated `src` looking for
+# `/scripts/` and therefore read nothing at all. It reported zero
+# failures against the exact file it was written for, which is the
+# failure shape this whole suite exists to catch, committed inside a
+# new check.
+for _p in glob.glob(os.path.join(ROOT, "scripts/*.ts")):
+    _s = read(_p)
+    if not re.search(r'const NOW = new Date\("', _s):
+        continue
+    _code = re.sub(r"/\*.*?\*/|//[^\n]*", "", _s, flags=re.S)
+    if "Date.now()" in _code or re.search(r"new Date\(\s*\)", _code):
+        fail(f"{os.path.basename(_p)} pins NOW and also reads the wall clock — "
+             f"the two drift apart one day per day")
+
 # Reachability is transitive, and the one-hop version was wrong.
 #
 # This asked whether a router, a job or a route handler mentioned
