@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import { inQuietHours } from "@/server/lib/notify/rules";
 import { releaseHeld } from "@/server/lib/notify/digest";
+import { dispatch } from "@/server/lib/notify/dispatch";
 
 /**
  * Held during quiet hours, and released afterwards.
@@ -123,6 +124,40 @@ console.log("\n=== held, then released by the real job ===");
 
   await db.notification.deleteMany({ where: { orgId: org.id, kind: "HANDOVER_WAITING" } });
   await db.notificationPrefs.deleteMany({ where: { orgId: org.id, userId: user.userId } });
+}
+
+console.log("\n=== a digest notification does not buzz, even with no quiet hours ===");
+{
+  // `Urgency` had three values and exactly one of them was read. A kind
+  // marked `digest` — "in the digest rather than nagging" — pushed the
+  // instant a sweep raised it, exactly like an urgent one.
+  await db.notification.deleteMany({ where: { orgId: org.id, kind: "PERMIT_EXPIRING" } });
+  await db.notificationPrefs.deleteMany({ where: { orgId: org.id, userId: user.userId } });
+
+  const out = await dispatch({
+    orgId: org.id, kind: "PERMIT_EXPIRING", subjectId: "quiet-check-digest",
+    title: "A broker card expires in 60 days", body: "...",
+    deeplink: "/documents", assignedToId: user.userId, since: new Date(),
+  });
+  const row = await db.notification.findFirst({
+    where: { orgId: org.id, kind: "PERMIT_EXPIRING", subjectId: "quiet-check-digest" },
+    select: { suppressed: true },
+  });
+
+  ok("it is recorded", !!row);
+  ok("held rather than pushed", row?.suppressed === "held for the digest",
+     row?.suppressed ?? "pushed immediately");
+  ok("and dispatch reports it sent nothing", out.sent === 0, `sent ${out.sent}`);
+
+  // The digest still lets it go, so holding is a delay and not a
+  // disappearance.
+  const rel = await releaseHeld();
+  const after = await db.notification.findFirst({
+    where: { orgId: org.id, subjectId: "quiet-check-digest" }, select: { suppressed: true },
+  });
+  ok("the digest releases it", after?.suppressed === null, `${rel.released} released`);
+
+  await db.notification.deleteMany({ where: { orgId: org.id, kind: "PERMIT_EXPIRING" } });
 }
 
 await db.$disconnect();

@@ -391,6 +391,45 @@ if _os.path.exists(_schema) and _os.path.exists(_rules):
                  f"dispatch() reads RULES[kind].afterMinutes and will throw")
 
 
+# ---------------------------------------------------------------------
+# A string-union member that nothing ever compares against.
+#
+# `Urgency = "urgent" | "normal" | "digest"` was declared, assigned to
+# every notification kind, and consulted in exactly one place:
+#
+#     if (quiet && !(rule.urgency === "urgent" && p.urgentOverridesQuiet))
+#
+# So "normal" and "digest" changed no behaviour anywhere. A kind marked
+# `digest` — "sent at a civilised hour" — pushed the instant it was
+# raised, exactly like an urgent one. The field looked like a policy and
+# was a comment.
+#
+# **A declared value that nothing branches on is the same shape as a
+# module nothing imports**, and it is the shape this suite exists for.
+#
+# Advisory, never a failure. A union member can legitimately be data
+# rather than a branch — rendered to a screen, stored, sent to an API —
+# and CLAUDE.md is explicit that checks phrased "this is broken" have
+# been wrong nine times here. This one says "confirm this".
+_UNION = _re.compile(r'export type (\w+) = ((?:"[a-z_-]+"\s*\|\s*)+"[a-z_-]+")\s*;')
+for _path, _body in src.items():
+    for _m in _UNION.finditer(_body):
+        _name, _members = _m.group(1), _re.findall(r'"([a-z_-]+)"', _m.group(2))
+        if len(_members) < 3:
+            continue                      # a two-value union is a boolean
+        for _v in _members:
+            # Compared against anywhere at all: ===, !==, switch case, or
+            # an inclusion test. Searched across the whole codebase,
+            # because the declaration and the branch are rarely together.
+            if _re.search(rf'(?:===|!==|case)\s*"{_re.escape(_v)}"', allsrc) \
+               or _re.search(rf'"{_re.escape(_v)}"\s*(?:===|!==)', allsrc) \
+               or _re.search(rf'\.includes\("{_re.escape(_v)}"\)', allsrc):
+                continue
+            warn(f'{_name}."{_v}" is declared and nothing branches on it — '
+                 f"confirm it is meant to be data rather than a decision "
+                 f"({_os.path.relpath(_path, ROOT)})")
+
+
 if __name__ == "__main__":
     print(f"{len(src)} source files, {len(models)} models, {len(routers)} routers\n")
     print(f"{len(FAILS)} failure(s)")

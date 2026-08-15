@@ -67,9 +67,31 @@ export async function dispatch(args: {
 
     const quiet = inQuietHours(new Date(), p, tz);
     if (quiet && !(rule.urgency === "urgent" && p.urgentOverridesQuiet)) {
-      // Held rather than dropped. It goes out with the morning digest, so
-      // nothing is lost — it just does not wake anybody.
+      // Held rather than dropped. `notify.digest` releases it once they
+      // are no longer quiet, in one message rather than eleven.
       await record(args, t, "held for quiet hours");
+      continue;
+    }
+
+    /**
+     * `digest` means digest, and until now it meant nothing.
+     *
+     * `Urgency` was declared with three values and consulted in exactly
+     * one place — the line above — so `normal` and `digest` changed no
+     * behaviour anywhere. A kind marked `digest` and described in
+     * `rules.ts` as going "in the digest rather than nagging" pushed the
+     * instant it was raised, exactly like an urgent one.
+     *
+     * Two kinds carry it, and both are explicitly not-now: a viewing
+     * whose outcome nobody recorded, and a permit with sixty days left.
+     * Neither is worth a buzz the moment a sweep notices it.
+     *
+     * Safe to hold only because `notify.digest` now exists to let it go,
+     * and `health/jobs.ts` alarms if that job stops — which is the whole
+     * reason the release was built before this line was written.
+     */
+    if (rule.urgency === "digest") {
+      await record(args, t, "held for the digest");
       continue;
     }
 
