@@ -31,6 +31,11 @@ export const light = {
   /** Labels on orange are ink. White is 3.23:1 and fails. */
   onAccent:    "#1A1A1A",
 
+  /** The word "PotatoFarm" itself. The supplied logo sets it in a deep
+   *  navy rather than the neutral ink beside it — 14.88:1 on the ground,
+   *  and it dresses the wordmark and nothing else. Mirrors
+   *  --brand-navy in tokens.css. */
+  brandNavy: "#12202E",
   /** The wordmark extension. Type, so it takes the deeper orange. */
   tld: "#FF6B35",
   /** The two eyes in the mark. Darker than the rim so they read as
@@ -73,6 +78,9 @@ export const dark = {
      any lighter than this. */
   onAccent:    "#2A2825",
 
+  /** Navy on charcoal is 1.3:1, so the wordmark reverses out here for
+   *  the same reason `ink` does. */
+  brandNavy: "#EBEAE6",
   tld: "#FF6B35",
   markEye: "#3B2416",
   markBody: "#F0A03A",

@@ -1,6 +1,10 @@
 # The palette
 
-**Two colours: `#FF6B35` and black.** Set by the owner. The orange goes
+**Three colours: `#FF6B35`, `#12202E` and black.** The orange was set
+by the owner. The navy arrived with the supplied logo artwork and
+dresses the wordmark only — it is not an interface colour, and `--ink`
+stays neutral. Originally two colours, and the note below still reads
+as if it were. The orange goes
 on **every heading, every tab, every link, every accent and the `.io`**.
 Everything that is not orange is ink. There is no third hue anywhere in
 the product.
@@ -20,6 +24,7 @@ amber gradient. The `.io` beside it does not — that is type.
 | Role | Hex | On ground `#F4F3F0` | On panel `#EBEAE6` | Where |
 |---|---|---|---|---|
 | **Brand** | **`#FF6B35`** | **2.56:1** | 2.36:1 | Headings, tabs, links, accents, `.io` |
+| **Wordmark navy** | **`#12202E`** | **14.88:1** | 13.72:1 | "PotatoFarm", and nothing else |
 | Hover / shade | `#E85A25` | 3.20:1 | 2.95:1 | Hover on a fill — never type |
 | Edge | `#CC4E1D` | 4.05:1 | **3.73:1** | The hairline on every orange fill |
 | Deep | `#A84015` | **5.55:1** | 5.12:1 | Captions and inline links **only** |

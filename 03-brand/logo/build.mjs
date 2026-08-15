@@ -7,7 +7,7 @@ import pw from "/opt/node22/lib/node_modules/playwright/index.js";
  * Every brand asset, rendered from the one definition.
  *
  * `mark.py` is where the potato is defined and `--apply` pushes it into
- * the thirty-nine places it is inlined. This does the other half: the
+ * the forty-one places it is inlined. This does the other half: the
  * files that are not markup — the icon ladder, the favicon, the Apple
  * touch icon, the maskable PWA icon and the social preview.
  *
@@ -21,7 +21,7 @@ import pw from "/opt/node22/lib/node_modules/playwright/index.js";
  * ## Why Chromium rather than an SVG library
  *
  * The mark uses `feGaussianBlur` and `feDropShadow` for the highlight
- * and the lift, and the dark treatment is two blurred passes of the
+ * and the lift, and the dark treatment is three blurred passes of the
  * silhouette. Most Python SVG rasterisers either ignore filters or
  * approximate them, which would ship a favicon that does not match the
  * logo on the website. The browser is the renderer the artwork is
@@ -45,7 +45,7 @@ const py = (args) =>
   execFileSync("python3", [path.join(LOGO, "mark.py"), ...args], { encoding: "utf8" });
 
 const MARK = py([]);                                  // <svg …>…</svg>, 64x64
-const GLOW = py(["--glow"]);                          // 96x96 on dark
+const GLOW = py(["--glow"]);                          // 128x128 on dark
 
 const GROUND = "#F4F3F0";
 const NAVY = "#12202E";
@@ -135,6 +135,88 @@ for (const [name, bg, word] of [
   );
 }
 
+// ---- the lockup masters ----------------------------------------------
+//
+// Rendered from their own SVGs rather than laid out again here, so the
+// PNG is a derivative of the vector and the two cannot say different
+// things. They were not regenerated when the wordmark went navy, which
+// left five PNG masters carrying the old neutral ink while every SVG
+// beside them carried the new colour — the exact drift `mark.py`
+// exists to prevent, in the files it does not reach.
+for (const [name, w, h, bg] of [
+  ["lockup",                  300, 64,  GROUND],
+  ["lockup-reversed",         300, 64,  "#2A2825"],
+  ["lockup-stacked",          300, 162, GROUND],
+  ["lockup-stacked-reversed", 300, 162, "#2A2825"],
+  ["lockup-stacked-onbg",     300, 162, GROUND],
+]) {
+  const f = path.join(LOGO, `${name}.svg`);
+  if (!fs.existsSync(f)) continue;
+  const svg = fs.readFileSync(f, "utf8");
+  await shot(
+    `<div style="width:${w}px;height:${h}px;background:${bg}">${svg}</div>`,
+    w, h, path.join(LOGO, `${name}.png`), false
+  );
+}
+
+// The presentation copy, at 8x, for anywhere a print or a deck needs it.
+{
+  const svg = fs.readFileSync(path.join(LOGO, "lockup-stacked.svg"), "utf8");
+  await shot(
+    `<div style="width:2400px;height:1296px;background:${GROUND};display:grid;place-items:center">
+       <div style="width:2400px">${svg.replace("<svg ", '<svg width="2400" height="1296" ')}</div></div>`,
+    2400, 1296, path.join(LOGO, "lockup-stacked-2400.png"), false
+  );
+}
+
+// ---- the contact sheet ----------------------------------------------
+//
+// The one file somebody opens to answer "what does the brand look
+// like", which makes it the one file that must never be a generation
+// behind. It was: it still showed a flat orange potato and a neutral
+// wordmark, two artworks and one colour ago.
+{
+  const stacked = fs.readFileSync(path.join(LOGO, "lockup-stacked.svg"), "utf8");
+  const rev = fs.readFileSync(path.join(LOGO, "lockup-stacked-reversed.svg"), "utf8");
+  const horiz = fs.readFileSync(path.join(LOGO, "lockup.svg"), "utf8");
+  const cell = (label, inner, bg) =>
+    `<div style="display:flex;flex-direction:column;gap:10px">
+       <div style="background:${bg};padding:18px;border-radius:10px;display:grid;
+                   place-items:center;min-height:150px">${inner}</div>
+       <div style="font-family:ui-monospace,Menlo,monospace;font-size:11px;
+                   letter-spacing:.1em;text-transform:uppercase;color:#6B6B6B">${label}</div>
+     </div>`;
+  await shot(
+    `<div style="width:1000px;height:560px;background:${GROUND};padding:36px;
+                 font-family:Inter,-apple-system,sans-serif;display:flex;
+                 flex-direction:column;gap:26px">
+       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:22px">
+         ${cell("Stacked", stacked, GROUND)}
+         ${cell("Reversed", rev, "#2A2825")}
+         ${cell("Horizontal", `<div style="width:100%;max-width:260px">${horiz.replace("<svg ", '<svg style="width:100%;height:auto" ')}</div>`, GROUND)}
+       </div>
+       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:22px">
+         ${cell("App icon", `<div style="width:96px;height:96px">${sized(MARK, 96)}</div>`, GROUND)}
+         ${cell("Maskable", `<div style="width:96px;height:96px;transform:scale(.62)">${sized(MARK, 96)}</div>`, GROUND)}
+         ${cell("Dark", `<div style="width:120px;height:120px">${sized(GLOW, 120)}</div>`, "#0A0705")}
+         ${cell("16 · 32 · 48",
+            `<div style="display:flex;align-items:flex-end;gap:14px">
+               <div style="width:16px;height:16px">${sized(MARK, 16)}</div>
+               <div style="width:32px;height:32px">${sized(MARK, 32)}</div>
+               <div style="width:48px;height:48px">${sized(MARK, 48)}</div></div>`, GROUND)}
+       </div>
+     </div>`,
+    1000, 560, path.join(LOGO, "logo-sheet.png"), false
+  );
+}
+
+// The 1024 master every app-store pipeline asks for.
+await shot(
+  `<div style="width:1024px;height:1024px;background:${GROUND};display:grid;place-items:center">
+     <div style="width:1024px;height:1024px">${sized(MARK, 1024)}</div></div>`,
+  1024, 1024, path.join(LOGO, "icon-1024.png"), false
+);
+
 await b.close();
 
 /** Force a width/height onto the standalone svg string. */
@@ -185,6 +267,11 @@ const COPY = [
   ["icon-maskable-512.png", "02-the-project/app/public/icon-maskable-512.png"],
   ["og-image.png",       "02-the-project/app/public/og-image.png"],
 
+  // The website's three OG cards are NOT copied here. `website/og.mjs`
+  // owns them: it renders one per page with that page's own headline,
+  // which beats one generic card on three URLs. Both generators were
+  // writing og-default.png for a moment, which is how a file ends up
+  // depending on which command ran last.
   ["favicon.ico",  "02-the-project/website/assets/favicon.ico"],
   ["favicon.svg",  "02-the-project/website/assets/favicon.svg"],
   ["icon-16.png",  "02-the-project/website/assets/icon-16.png"],
@@ -193,7 +280,6 @@ const COPY = [
   ["icon-192.png", "02-the-project/website/assets/icon-192.png"],
   ["icon-512.png", "02-the-project/website/assets/icon-512.png"],
   ["icon-maskable-512.png", "02-the-project/website/assets/icon-maskable-512.png"],
-  ["og-image.png", "02-the-project/website/assets/og-default.png"],
 ];
 for (const [from, to] of COPY) {
   fs.copyFileSync(path.join(LOGO, from), path.join(ROOT, to));

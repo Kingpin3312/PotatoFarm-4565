@@ -17,7 +17,13 @@ import { Logo } from "@/components/brand/logo";
 export default function PublicLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-dvh flex flex-col">
-      <header className="px-6 pt-8">
+      {/* Same measure as the pages under it.
+          Left-aligned in the viewport, the lockup sat at the far edge
+          while the form was centred, and the two read as unrelated
+          things on one page. Every public screen lays out at 42–46ch
+          centred, so the header takes the widest of those and lines up
+          with the heading below it. */}
+      <header className="mx-auto w-full max-w-[46ch] px-6 pt-8">
         {/* Home, not `/today` — somebody who is not signed in cannot go
             there, and a logo that bounces you through a redirect back to
             the page you are already on is worse than one that does

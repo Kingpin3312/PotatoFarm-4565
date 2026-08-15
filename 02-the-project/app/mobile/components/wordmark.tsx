@@ -61,7 +61,7 @@ export function Wordmark({ size = 17 }: { size?: number }) {
 const s = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center" },
   mark: { marginRight: 9 },
-  name: { color: t.ink, fontWeight: "600", letterSpacing: -0.2 },
+  name: { color: t.brandNavy, fontWeight: "600", letterSpacing: -0.2 },
   /** The .io takes the brand orange #FF6B35, same as the fill now.
    *  2.65:1 on the cream — a brand decision, made with the number
    *  known rather than in spite of it. */

@@ -82,7 +82,10 @@ const page = (c) => `<!doctype html><html><head><meta charset="utf-8">
   .edge{position:absolute;left:0;top:0;bottom:0;width:14px;background:var(--accent)}
   .top{display:flex;align-items:center;gap:16px}
   .top svg{width:56px;height:56px;display:block}
-  .word{font-size:30px;font-weight:600;letter-spacing:-0.02em;color:var(--ink);
+    /* The wordmark navy, not --ink. These three cards are the brand's
+     only appearance in a WhatsApp or LinkedIn preview, so the one place
+     it must not quietly be the old colour is here. */
+  .word{font-size:30px;font-weight:600;letter-spacing:-0.02em;color:var(--brand-navy);
         white-space:nowrap}
   .word .tld{color:var(--accent-type)}
   .eyebrow{font-family:var(--mono);font-size:15px;text-transform:uppercase;
