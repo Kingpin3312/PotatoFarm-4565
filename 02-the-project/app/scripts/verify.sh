@@ -49,6 +49,9 @@ bold=$'\033[1m'; red=$'\033[31m'; green=$'\033[32m'; yellow=$'\033[33m'; off=$'\
 # because inferring it from imports is the sort of cleverness that goes
 # quietly wrong the day somebody adds a query to a pure check.
 NEEDS_DB="tenancy intake intelligence autonomy buyers search load"
+# `routing` needs the application running as well as Postgres — it posts a
+# signed webhook — so it sits with check:whatsapp-inbound below rather
+# than in the loop.
 
 failed=(); skipped=(); ran=0
 
@@ -146,6 +149,7 @@ elif ! curl -sf -o /dev/null --max-time 3 "$APP_URL/api/health" 2>/dev/null \
   skipped+=("check:whatsapp-inbound (no application at $APP_URL — run npm run dev)")
 else
   step "check:whatsapp-inbound" npm run --silent check:whatsapp-inbound
+  step "check:routing" npm run --silent check:routing
 fi
 
 printf '\n%sAudits%s\n' "$bold" "$off"
