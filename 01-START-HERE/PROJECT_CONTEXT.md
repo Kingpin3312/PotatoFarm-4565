@@ -508,14 +508,42 @@ top.
 | Captions, small orange type | `#A84015` | 5.55:1 |
 | Muted | `#6B6B6B` | 5.86:1 |
 | Ink — button labels, figures, tables | `#1A1A1A` | 16.94:1 |
+| **Wordmark — "PotatoFarm", and nothing else** | `#12202E` | 14.88:1 |
 | Rim / border on every orange fill | `#CC4E1D` | 3.73:1 on panel |
 | Logo eyes | `#3B2416` | — |
 
-### Two colours, and what that costs
+### Two colours in the interface, three in the brand
 
 **The product is `#FF6B35` and black.** Every heading, every tab, every
 link, every accent and the `.io` take the orange; everything else is
-ink. There is no third hue — the green and the red are gone.
+ink. There is no third hue in the interface — the green and the red are
+gone.
+
+**The brand has one more, and it is confined to the logo.** The supplied
+artwork sets "PotatoFarm" in a deep navy rather than the neutral ink
+beside it — sampled at `#0E1822` off the flat interior of the thick
+strokes, with blue leading red by eleven points, which is a decision and
+not compression noise. It ships as `--brand-navy: #12202E`.
+
+It dresses the wordmark and nothing else. Repainting `--ink` navy would
+have recoloured every heading, table and caption in the product because
+a logo arrived, and moved thirty measured contrast ratios at once. On
+the dark band it remaps to the light type exactly as `--ink` does, since
+navy on charcoal is 1.3:1.
+
+### Rebuilding the brand
+
+Two commands, in this order:
+
+    python3 03-brand/logo/mark.py --apply   # the 41 inlined copies
+    node    03-brand/logo/build.mjs         # icons, favicon, OG, masters
+
+`mark.py` owns the potato's geometry *and* the wordmark colour — it used
+to own only the geometry, which is how nine SVG lockups went navy while
+the app header and the website nav stayed on neutral ink. `build.mjs`
+shells out to it, so the bitmaps always draw what the markup has just
+been given. `03-brand/logo/README.md` says which file is for what, and
+why eighteen of them are referenced by no code and should stay.
 
 Two things this document used to say are now false, and are corrected
 rather than left to send somebody looking for a bug: headings are not
