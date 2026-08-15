@@ -5,6 +5,7 @@ import { aed } from "@/lib/money";
 import { QueryError } from "@/components/ui/query-state";
 import { cn } from "@/lib/cn";
 import { MyAvailability } from "./availability";
+import { MyNotifications } from "./notifications";
 
 /**
  * My numbers.
@@ -137,6 +138,7 @@ export default function Me() {
           it is the agent's own and the agent is the one who knows they
           are away next week. */}
       <MyAvailability />
+      <MyNotifications />
     </div>
   );
 }

@@ -409,6 +409,115 @@ export const orgRouter = router({
    * the defaults are what routing actually applies — a screen showing
    * blanks would misreport a capacity that is already in force.
    */
+  /**
+   * When I do not want to be buzzed, and what happens instead.
+   *
+   * Nothing in this product ever wrote a `NotificationPrefs` row, so
+   * `inQuietHours` was evaluated against `quietFromMin: null` every time
+   * and returned false every time. Every notification of every kind
+   * pushed immediately, at any hour, on any day — including the ones
+   * `rules.ts` marks `digest` and describes as "sent at a civilised
+   * hour".
+   *
+   * `urgency` was the field that revealed it. It is consulted in exactly
+   * one place — whether an urgent notification may override quiet hours
+   * — so with quiet hours unsettable it had no effect on anything at
+   * all. A declared field that changes no behaviour is the same shape as
+   * a module nothing calls.
+   *
+   * The cost is not being woken once. It is that the only lever an agent
+   * had was switching notifications off at the phone, which takes every
+   * alarm with it: the lead waiting mid-conversation, the deal slipping
+   * its Form F date, the broker card that lapses in sixty days.
+   */
+  notifications: orgProcedure.query(async ({ ctx }) => {
+    const row = await ctx.db.notificationPrefs.findUnique({
+      where: { orgId_userId: { orgId: ctx.orgId, userId: ctx.userId } },
+    });
+    const org = await ctx.db.organisation.findUnique({
+      where: { id: ctx.orgId }, select: { timezone: true },
+    });
+    return {
+      // `set` distinguishes "chose the defaults" from "never opened
+      // this", which is the distinction the whole feature turned on.
+      set: Boolean(row),
+      push: row?.push ?? true,
+      email: row?.email ?? false,
+      quietFromMin: row?.quietFromMin ?? null,
+      quietToMin: row?.quietToMin ?? null,
+      daysOff: row?.daysOff ?? [],
+      urgentOverridesQuiet: row?.urgentOverridesQuiet ?? false,
+      // Quiet hours are evaluated in the brokerage's timezone, not the
+      // phone's. Said on the screen so 22:00 is unambiguous.
+      timezone: org?.timezone ?? "Asia/Dubai",
+    };
+  }),
+
+  setNotifications: orgProcedure
+    .input(z.object({
+      push: z.boolean(),
+      email: z.boolean(),
+      /** Minutes from midnight, or null for "always available". */
+      quietFromMin: z.number().int().min(0).max(1439).nullable(),
+      quietToMin: z.number().int().min(0).max(1439).nullable(),
+      /** 0 = Sunday. Agents here often take Monday, not Sunday. */
+      daysOff: z.array(z.number().int().min(0).max(6)).max(7),
+      urgentOverridesQuiet: z.boolean(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      /**
+       * Half a range is refused rather than stored.
+       *
+       * `inQuietHours` returns false unless **both** ends are set, so a
+       * row with a start and no end is a quiet period that silently
+       * never applies — the agent sets 22:00, believes they are covered
+       * and gets woken anyway. Exactly the shape of the inverted away
+       * period above.
+       */
+      const half = (input.quietFromMin === null) !== (input.quietToMin === null);
+      if (half) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Quiet hours need a start and an end, or neither.",
+        });
+      }
+      if (input.quietFromMin !== null && input.quietFromMin === input.quietToMin) {
+        // A zero-length range reads as "quiet from 22:00 to 22:00" and
+        // silences nothing. The wrap-around arithmetic would also make
+        // it ambiguous with a 24-hour range.
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Quiet hours cannot start and end at the same time.",
+        });
+      }
+      if (input.daysOff.length === 7 && input.push) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Every day off means nothing ever reaches you. Turn push off instead — it is the same thing, said plainly.",
+        });
+      }
+
+      const row = await ctx.db.notificationPrefs.upsert({
+        where: { orgId_userId: { orgId: ctx.orgId, userId: ctx.userId } },
+        create: { orgId: ctx.orgId, userId: ctx.userId, ...input },
+        update: { ...input },
+      });
+
+      await audit(ctx.db, ctx.orgId, {
+        actorId: ctx.userId,
+        action: "notifications.prefs",
+        entity: "NotificationPrefs",
+        entityId: row.id,
+        after: {
+          push: input.push, email: input.email,
+          quiet: input.quietFromMin === null ? null : `${input.quietFromMin}-${input.quietToMin}`,
+          daysOff: input.daysOff,
+        },
+      });
+
+      return { ok: true as const };
+    }),
+
   availability: orgProcedure.query(async ({ ctx }) => {
     const row = await ctx.db.agentAvailability.findUnique({
       where: { orgId_userId: { orgId: ctx.orgId, userId: ctx.userId } },

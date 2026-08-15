@@ -1,5 +1,6 @@
 import { run } from "./runner";
 import { sweep as notifySweep } from "@/server/lib/notify/sweep";
+import { releaseHeld } from "@/server/lib/notify/digest";
 import { sendDueReminders, expireHolds } from "@/server/lib/reminders";
 import { checkChannelSilence } from "@/server/lib/portals/health";
 import { retentionSweep } from "@/server/lib/privacy/erase";
@@ -41,6 +42,22 @@ export const JOBS = {
     await notifySweep();
     return {};
   }),
+
+  /**
+   * Everything held during somebody's quiet hours, released once they
+   * are no longer quiet. Hourly.
+   *
+   * `dispatch.ts` has always said a held notification "goes out with the
+   * morning digest". There was no morning digest — nothing read
+   * `suppressed`, and a held message sat in the table until the agent
+   * opened a screen. It had never bitten anyone only because nothing
+   * could write a `NotificationPrefs` row, so nothing was ever held.
+   *
+   * Hourly rather than at a fixed time: quiet hours are per agent, in
+   * the brokerage's timezone, so a single 07:00 sweep would be right for
+   * one person and wrong for everybody else.
+   */
+  "notify.digest": () => run("notify.digest", async () => releaseHeld()),
 
   /** Releases slots a lead never answered about. Every 10 minutes. */
   "scheduling.expire-holds": () => run("scheduling.expire-holds", async () => ({

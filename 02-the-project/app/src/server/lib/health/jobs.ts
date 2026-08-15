@@ -22,6 +22,10 @@ import { crossTenant } from "@/server/db/client";
 const EXPECTED_EVERY_MINUTES: Record<string, number> = {
   "health.evaluate": 5,
   "notify.sweep": 5,
+  // If this stops, every notification held during somebody's quiet
+  // hours stays held for ever — which looks exactly like a quiet
+  // week to the agent it is happening to.
+  "notify.digest": 60,
   "scheduling.expire-holds": 10,
   "reminders.viewings": 60,
   "portals.silence": 60,
