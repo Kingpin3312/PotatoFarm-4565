@@ -1,4 +1,5 @@
 import { crossTenant } from "@/server/db/client";
+import { fetchSecret } from "./vault";
 
 /**
  * Channel credentials.
@@ -43,10 +44,29 @@ export async function getChannelCredentials(orgId: string, channelId: string): P
  * leak one — there is one reader and everything goes through it.
  */
 export async function readSecret(ref: string): Promise<string> {
+  /**
+   * The environment first, then the store.
+   *
+   * Not the other way round, for two reasons. An existing deployment
+   * that already sets `SECRET_<ref>` keeps working untouched — this
+   * change must not disconnect a channel that was working yesterday.
+   * And it leaves an escape hatch: if the vault is misconfigured or a
+   * key is lost, a value can be put back by hand without a database
+   * write, which is the position somebody will be in at 2am one day.
+   */
   const local = process.env[`SECRET_${ref}`];
   if (local) return local;
-  throw new Error(`Secret ${ref} not resolved. Wire up the secrets provider.`);
+
+  const stored = await fetchSecret(ref);
+  if (stored) return stored;
+
+  throw new Error(
+    `Secret ${ref} not resolved. Either it was never stored, or SECRETS_KEY ` +
+    `has changed since it was — in which case it has to be reconnected.`
+  );
 }
+
+export { writeSecret, forgetSecret, vaultReady, NOT_CONFIGURED } from "./vault";
 
 /** Called when a channel is disconnected or rotated. */
 export function invalidate(orgId: string, channelId: string) {

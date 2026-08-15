@@ -4,7 +4,8 @@ import { Prisma } from "@prisma/client";
 import { randomBytes } from "node:crypto";
 import { router, requirePermission } from "../trpc";
 import { audit } from "@/server/lib/audit";
-import { readSecret, invalidate } from "@/server/lib/secrets";
+import { readSecret, invalidate, writeSecret, vaultReady, NOT_CONFIGURED }
+  from "@/server/lib/secrets";
 
 /**
  * Channels.
@@ -142,31 +143,39 @@ export const channelsRouter = router({
   }),
 
   /**
-   * Connect one.
+   * Connect one, token and all.
    *
-   * ## The access token is not accepted here, and that is deliberate
+   * ## The token used to be refused, and the reason has gone away
    *
-   * `lib/secrets.ts` states the rule: tokens never go into Postgres, so
-   * a database dump — the likeliest thing to leak — carries nothing that
-   * can message a brokerage's customers. There is no secrets provider
-   * wired up yet, so there is nowhere for this form to *put* a token.
+   * This said: `lib/secrets.ts` states that tokens never go into
+   * Postgres, there is no secrets provider wired up, so there is
+   * nowhere for this form to put one — and it made an owner set an
+   * environment variable and redeploy instead. That was the honest
+   * answer at the time, and it also meant a brokerage could not be
+   * onboarded without a deploy. Per brokerage. Per channel.
    *
-   * The options were to store it in the database anyway, or to accept
-   * that connecting has two halves. Storing it would quietly overturn a
-   * load-bearing security decision to save an owner one deploy, so it
-   * does not. This generates the reference name, and the screen tells
-   * the owner exactly which environment variable to set.
+   * `lib/secrets/vault.ts` is that provider. The rule it was protecting
+   * is intact: what reaches Postgres is ciphertext sealed with a key
+   * held only in the environment, so a database dump — still the
+   * likeliest thing to leak — carries nothing able to message a
+   * customer's clients.
    *
-   * **Inbound works the moment this row exists** — no token required,
-   * because the webhook is verified with the app-wide
-   * `WHATSAPP_APP_SECRET` and routed by phone number. So the useful half
-   * of connecting is immediate, and only sending waits on the deploy.
+   * The token stays optional. **Inbound works the moment this row
+   * exists**, because the webhook is verified with the app-wide
+   * `WHATSAPP_APP_SECRET` and routed by phone number, so somebody who
+   * has not got their token to hand can connect now and send later.
    */
   connect: requirePermission("channel:write")
     .input(z.object({
       type: z.enum(TYPES),
       label: z.string().trim().min(1).max(60),
       identifier: z.string().trim().min(1).max(120),
+      /**
+       * Optional, and never echoed back. It is written to the vault and
+       * the row keeps only the reference — nothing downstream of here,
+       * including the audit entry and the response, ever sees it again.
+       */
+      accessToken: z.string().trim().min(20).max(500).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       /**
@@ -177,6 +186,17 @@ export const channelsRouter = router({
        */
       const secretRef =
         input.type === "WHATSAPP" ? `wa_${randomBytes(6).toString("hex")}` : undefined;
+
+      /**
+       * Refused up front rather than after the row exists.
+       *
+       * Creating the channel and then failing to store the token would
+       * leave a connected-looking number that cannot send, which is the
+       * state this whole change exists to remove.
+       */
+      if (input.accessToken && !vaultReady()) {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: NOT_CONFIGURED });
+      }
 
       try {
         const channel = await ctx.db.channel.create({
@@ -195,6 +215,18 @@ export const channelsRouter = router({
                     secretRef: true, webhookToken: true },
         });
 
+        /**
+         * After the row, and outside its transaction on purpose.
+         *
+         * A secret written for a channel that then failed to create is
+         * an orphan nothing will ever read or clean up. This way the
+         * worst case is a channel with no token — which is a state the
+         * product already handles and the screen already reports.
+         */
+        if (input.accessToken && secretRef) {
+          await writeSecret({ orgId: ctx.orgId, ref: secretRef, value: input.accessToken });
+        }
+
         await audit(ctx.db, ctx.orgId, {
           actorId: ctx.userId,
           action: "channel.connect",
@@ -203,7 +235,9 @@ export const channelsRouter = router({
           // The identifier is not a secret, but it is another party's
           // account reference and there is no reason for it to sit in an
           // audit row that a wider group can read.
-          after: { type: channel.type, label: channel.label },
+          after: { type: channel.type, label: channel.label,
+                   // Whether, never what.
+                   tokenStored: Boolean(input.accessToken) },
         });
 
         return channel;

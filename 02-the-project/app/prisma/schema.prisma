@@ -471,6 +471,47 @@ enum MessageStatus {
 
 /// A connected WhatsApp number or portal feed. Credentials are never
 /// stored here in plaintext — `secretRef` points at the secrets manager.
+/// An encrypted secret, and the reason this table can exist at all.
+///
+/// `lib/secrets.ts` has always said tokens never go into Postgres,
+/// because a database dump is the likeliest thing to leak and must not
+/// carry anything able to message a brokerage's customers. That rule
+/// stands. What is stored here is **ciphertext**, sealed with a key that
+/// lives only in the environment — a dump without `SECRETS_KEY` is a
+/// column of noise.
+///
+/// The alternative was what shipped: `readSecret` reads
+/// `process.env["SECRET_" + ref]` and throws otherwise, so connecting a
+/// brokerage's WhatsApp number meant setting an environment variable and
+/// redeploying. That is not a multi-tenant product, and the honest
+/// version of "we never store tokens" was "we cannot onboard a customer".
+model Secret {
+  id    String @id @default(cuid())
+  orgId String
+
+  /// The pointer held by `Channel.secretRef`, `EmailAccount.secretRef`
+  /// and the portal feeds. Globally unique, because the reader is given
+  /// a ref and nothing else.
+  ref   String @unique
+
+  /// AES-256-GCM. The nonce and tag are stored beside the ciphertext
+  /// because they are not secret and are useless without the key.
+  ciphertext String
+  iv         String
+  tag        String
+  /// Which master key sealed it, so a rotation can re-wrap without
+  /// guessing. There is no way to tell from ciphertext alone.
+  keyVersion Int    @default(1)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  /// Set when the value was last replaced, so a screen can say how old
+  /// a token is without ever reading it.
+  rotatedAt DateTime?
+
+  @@index([orgId])
+}
+
 model Channel {
   id        String      @id @default(cuid())
   orgId     String
