@@ -17,14 +17,26 @@ import { cn } from "@/lib/cn";
  * because the history is what a vendor asks for and what an agent needs
  * when a commission is disputed six months on.
  */
-export default function OfferThread({ params }: { params: Promise<{ id: string }> }) {
+/**
+ * The route segment is a **listing** id, and the folder now says so.
+ *
+ * It was `offers/[id]`, which reads as an offer id and is not one —
+ * this screen ranks every offer on one property against each other, so
+ * the property is the thing it is keyed by. Nothing linked here at all,
+ * so nobody had ever found out the hard way.
+ *
+ * What did link somewhere was the offers list, whose rows pointed at
+ * `/listings/<id>` — a route that does not exist and returned a 404 on
+ * every click. Both were fixed by the same change: the rows point here.
+ */
+export default function OfferThread({ params }: { params: Promise<{ listingId: string }> }) {
   // Next 15 hands `params` to a page as a Promise. This component is
   // a client component, so `use()` is how it is unwrapped — reading
   // `id` straight off it yields undefined, and the query
   // below would have run against nothing.
-  const { id } = use(params);
+  const { listingId } = use(params);
   const { data, isLoading, isError, refetch, error } =
-    api.offers.onListing.useQuery({ listingId: id });
+    api.offers.onListing.useQuery({ listingId });
   const presented = api.offers.presented.useMutation({ onSuccess: () => void refetch() });
   const counter   = api.offers.counter.useMutation({ onSuccess: () => { setAmt(""); void refetch(); } });
   const accept    = api.offers.accept.useMutation({ onSuccess: () => void refetch() });
@@ -52,6 +64,18 @@ export default function OfferThread({ params }: { params: Promise<{ id: string }
           <p className="text-sm text-ink-2 mt-3 max-w-[48ch]">
             Ordered by whether the buyer can actually complete, not by the number. Cash with
             no conditions beats a higher offer subject to a mortgage nobody applied for.
+          </p>
+        )}
+
+        {/* "0 offers" and nothing else was the whole screen for a
+            property with none — twenty-one characters, which reads as a
+            page that failed to load rather than a property nobody has
+            bid on. It only became reachable when the offers list was
+            pointed here, so nobody had seen it. */}
+        {offers.length === 0 && (
+          <p className="text-sm text-ink-2 mt-3 max-w-[48ch]">
+            Nothing has been offered on this property yet. When something is, it appears
+            here ranked by whether the buyer can actually complete — not by the number.
           </p>
         )}
       </header>

@@ -151,6 +151,11 @@ else
   step "check:whatsapp-inbound" npm run --silent check:whatsapp-inbound
   step "check:routing" npm run --silent check:routing
   step "check:availability" npm run --silent check:availability
+  # Every screen opened in a real browser, and every link it renders
+  # followed. Slow — around six minutes — and it is the only check that
+  # sees what the screens actually do, which is where the two worst
+  # faults in this codebase were hiding.
+  step "browser:screens" npm run --silent browser:screens
 fi
 
 printf '\n%sAudits%s\n' "$bold" "$off"

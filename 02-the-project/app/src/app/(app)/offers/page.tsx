@@ -43,8 +43,16 @@ export default function Offers() {
         </p>
       ) : (
         <div className="border-t border-ink">
+          {/* `/offers/<listingId>`, not `/listings/<id>`.
+
+              Every row here linked at a route that does not exist and
+              returned a 404 on every click — while the screen that ranks
+              the offers on a property sat unreachable, linked from
+              nowhere. An agent clicking an offer wants the other offers
+              on that property, which is exactly what that screen is, so
+              one change fixed both. */}
           {rows.map((o) => (
-            <a key={o.id} href={`/listings/${o.listingId}`}
+            <a key={o.id} href={`/offers/${o.listingId}`}
                className="flex items-baseline gap-4 py-4 border-b border-rule no-underline">
               <span className="font-sans font-semibold text-[19px] text-ink tabular">{o.current}</span>
               <span className="text-sm text-ink-2">{o.reference}</span>
