@@ -137,14 +137,15 @@ export default function Channels() {
                 discovered rather than at the moment an agent presses
                 send to a real customer. */}
             {ch.active && ch.canSend === false && (
+              /* Still the state worth spelling out where it is
+                 discovered rather than at the moment an agent presses
+                 send to a real customer. What changed is the remedy: it
+                 used to be an environment variable and a redeploy. */
               <div className="mt-2 border border-rule rounded-[3px] p-3 bg-ground">
-                <p className="text-sm text-ink-2 leading-snug">
+                <p className="text-sm text-ink-2 leading-snug max-w-[52ch]">
                   Messages to this number arrive. Replies will not send until its access
-                  token is set where the app runs:
+                  token is added — reconnect it with the token to hand.
                 </p>
-                <pre className="mt-2 font-mono text-[12px] text-ink overflow-x-auto">
-SECRET_{ch.secretRef}=…
-                </pre>
               </div>
             )}
             {c?.lastError && (

@@ -58,7 +58,9 @@ export function ConnectChannel() {
   const utils = api.useUtils();
   const [type, setType] = useState<string>("WHATSAPP");
   const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState<{ label: string; secretRef: string | null } | null>(null);
+  const [done, setDone] = useState<
+    { label: string; secretRef: string | null; tokenStored: boolean } | null
+  >(null);
 
   const connect = api.channels.connect.useMutation({
     onSuccess: (c) => {
@@ -67,7 +69,7 @@ export function ConnectChannel() {
       // The dialog stays open on success, showing what to do next. A
       // WhatsApp channel is half-connected at this point and closing
       // would be the product implying otherwise.
-      setDone({ label: c.label, secretRef: c.secretRef ?? null });
+      setDone({ label: c.label, secretRef: c.secretRef ?? null, tokenStored: c.tokenStored });
     },
     onError: (e) => setError(e.message),
   });
@@ -84,10 +86,14 @@ export function ConnectChannel() {
     e.preventDefault();
     setError(null);
     const f = new FormData(e.currentTarget);
+    const token = String(f.get("accessToken") ?? "").trim();
     connect.mutate({
       type: type as "WHATSAPP",
       label: String(f.get("label") ?? "").trim(),
       identifier: String(f.get("identifier") ?? "").trim(),
+      // Optional. Inbound works without it, so somebody who has not got
+      // the token to hand can connect now and paste it later.
+      ...(token ? { accessToken: token } : {}),
     });
   }
 
@@ -113,23 +119,29 @@ export function ConnectChannel() {
             </p>
 
             {done.secretRef && (
-              <div className="border border-rule rounded-[3px] p-4 bg-ground">
-                <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3 mb-2">
-                  One more step, before you can reply
-                </p>
-                <p className="text-sm text-ink-2 leading-snug">
-                  Sending needs the access token, and we deliberately do not keep tokens in
-                  the database. Set this environment variable where the app runs, then
-                  redeploy:
-                </p>
-                <pre className="mt-3 p-3 bg-sunk border border-rule rounded-[3px] font-mono text-[13px] text-ink overflow-x-auto">
-SECRET_{done.secretRef}=your-whatsapp-access-token
-                </pre>
-                <p className="text-sm text-ink-3 leading-snug mt-3">
-                  Until then this number receives messages but cannot send them, and this
-                  screen will say so.
-                </p>
-              </div>
+              done.tokenStored ? (
+                <div className="border border-rule rounded-[3px] p-4 bg-ground">
+                  <p className="text-sm text-ink-2 leading-snug">
+                    The access token is stored, encrypted, so this number can send as well
+                    as receive. Nobody can read it back — including us — and replacing it
+                    is the way to change it.
+                  </p>
+                </div>
+              ) : (
+                /* Still a real state, and no longer the only one. The
+                   token can be pasted here now; leaving it out is a
+                   choice rather than the product's limitation. */
+                <div className="border border-rule rounded-[3px] p-4 bg-ground">
+                  <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3 mb-2">
+                    Receiving only, for now
+                  </p>
+                  <p className="text-sm text-ink-2 leading-snug">
+                    Messages to this number arrive. Replies will not send until its access
+                    token is added — reconnect the number with the token to hand, and this
+                    screen will stop saying so.
+                  </p>
+                </div>
+              )
             )}
 
             <div className="flex mt-7">
@@ -164,6 +176,26 @@ SECRET_{done.secretRef}=your-whatsapp-access-token
                 >
                   {TYPES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                 </select>
+              </label>
+
+              {/* The field this form used to refuse to have.
+                  There was nowhere to put a token, so connecting had two
+                  halves and the second one was a redeploy. */}
+              <label className="flex flex-col gap-1.5 order-last">
+                <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3">
+                  Access token
+                </span>
+                <input
+                  name="accessToken"
+                  type="password"
+                  autoComplete="off"
+                  placeholder="Optional — paste it now or add it later"
+                  className="min-h-11 px-3 text-[16px] bg-ground border border-rule rounded-[3px] text-ink outline-none focus:border-ink"
+                />
+                <span className="text-[13px] text-ink-3 leading-snug max-w-[46ch]">
+                  Encrypted before it is stored, and never shown again. Without it the
+                  number receives messages but cannot reply.
+                </span>
               </label>
 
               <label className="flex flex-col gap-1.5">

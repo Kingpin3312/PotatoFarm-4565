@@ -240,7 +240,9 @@ export const channelsRouter = router({
                    tokenStored: Boolean(input.accessToken) },
         });
 
-        return channel;
+        // Whether, never what. The screen needs to know if it should
+        // still be asking for a token; it must never be handed one.
+        return { ...channel, tokenStored: Boolean(input.accessToken) };
       } catch (e) {
         if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
           const target = (e.meta?.target as string[] | string | undefined) ?? "";

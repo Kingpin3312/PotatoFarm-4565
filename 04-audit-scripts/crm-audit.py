@@ -325,7 +325,18 @@ def _lib_imports(path, body):
     out = set()
     here = _mod_of(path)
     for spec in _IMPORT_RE.findall(body):
-        m = re.match(r"@/server/lib/([^/]+)/", spec)
+        # The trailing slash is optional, and that mattered.
+        #
+        # This required one, so a module written as `lib/x/index.ts` and
+        # imported as `@/server/lib/x` — no slash — registered as
+        # importing nothing. It went unnoticed while every lib module
+        # was a directory with named files inside it; the first time one
+        # was converted from `x.ts` to `x/index.ts`, the module went
+        # unreachable in the graph while every caller still imported it.
+        #
+        # A check that calls a live module dead is the same failure as
+        # one that calls a dead module live: both stop being read.
+        m = re.match(r"@/server/lib/([^/]+)(?:/|$)", spec)
         if m:
             out.add(m.group(1))
         elif spec.startswith("."):
