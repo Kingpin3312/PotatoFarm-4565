@@ -155,6 +155,9 @@ else
   # A copy of the job's filter here would pass while `documents.expiry`
   # itself found nothing, which is the state this was written to end.
   step "browser:documents" npm run --silent browser:documents
+  # Enforcement. The negative assertion is the one that matters: a
+  # brokerage with no documents recorded is not stopped from working.
+  step "check:blocking" npm run --silent check:blocking
   # Every screen opened in a real browser, and every link it renders
   # followed. Slow — around six minutes — and it is the only check that
   # sees what the screens actually do, which is where the two worst

@@ -65,6 +65,12 @@ export default function Deals() {
               <button
                 onClick={() => setOpen(open === d.id ? null : d.id)}
                 aria-expanded={open === d.id}
+                // The row shows the counterparty's name when there is
+                // one, so its reference is not always on screen and a
+                // check cannot find the deal it means by reading the
+                // label. Same reason `data-listing` exists on the
+                // listings rows.
+                data-deal={d.id}
                 className="flex w-full items-baseline gap-3 py-4 text-left"
               >
                 <Level level={d.level} />
@@ -137,6 +143,55 @@ function Detail({ id }: { id: string }) {
 
   return (
     <div className="pb-5 pl-[5.75rem] pr-1">
+      {/* A lapsed broker card or brokerage licence stops this deal
+          moving, and the server refuses `Done` while it has. Said here
+          rather than only at the click: finding out by pressing a button
+          and being told no is the worst way to learn it, because the
+          agent has already opened the deal believing they can work it. */}
+      {data.blockers.length > 0 && (
+        <div
+          data-blocked
+          className="mb-4 rounded-xl border-l-[3px] p-4"
+          style={{ background: "var(--sunk)", borderLeftColor: "var(--danger-deep)" }}
+        >
+          <p className="text-[15px] font-semibold text-ink">
+            This deal cannot be moved on.
+          </p>
+          {data.blockers.map((b, i) => (
+            <p key={i} className="mt-1.5 max-w-[48ch] text-sm leading-snug text-ink-2">
+              <span className="text-ink">
+                {b.whose}&rsquo;s {b.what} expired{" "}
+                {b.daysExpired === 0 ? "today" : `${b.daysExpired} days ago`}.
+              </span>{" "}
+              {b.consequence}
+            </p>
+          ))}
+          <p className="mt-2 text-sm">
+            <a href="/documents" className="text-accent-deep">
+              Record the renewal under Documents
+            </a>{" "}
+            <span className="text-ink-2">and this clears.</span>
+          </p>
+          {/* Recording a step as stuck stays available. That is somebody
+              telling the truth about a transaction they cannot move,
+              which is exactly what should still work while a card is
+              being renewed. */}
+          <p className="mt-2 max-w-[48ch] text-[13px] leading-snug text-ink-3">
+            You can still mark a step stuck.
+          </p>
+        </div>
+      )}
+
+      {/* Nothing showed when the mutation failed.
+          `step` had no error branch at all, so a refusal — any refusal,
+          not only the new one — looked like a button that did nothing
+          and left an agent clicking it again. */}
+      {step.isError && (
+        <p role="alert" className="mb-4 rounded-[3px] bg-ink px-3 py-2.5 text-sm text-ground">
+          {step.error.message}
+        </p>
+      )}
+
       {/* Everything that contributed, not only the headline reason. */}
       {data.risk.factors.length > 1 && (
         <ul className="mb-4 space-y-1.5 border-l-2 border-l-accent-edge pl-3">
@@ -192,7 +247,11 @@ function Detail({ id }: { id: string }) {
                 <span className="flex shrink-0 gap-1">
                   <button
                     onClick={() => step.mutate({ dealId: id, stage: s.stage, done: true })}
-                    disabled={step.isPending}
+                    // Disabled as well as refused. The server is the
+                    // control; this is so nobody presses a button that
+                    // was never going to work, with the banner above
+                    // already saying why.
+                    disabled={step.isPending || data.blockers.length > 0}
                     className="btn-inline min-h-11 disabled:opacity-50"
                   >
                     Done

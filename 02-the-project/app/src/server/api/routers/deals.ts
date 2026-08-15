@@ -4,6 +4,7 @@ import { router, requirePermission } from "../trpc";
 import { audit } from "@/server/lib/audit";
 import { assessRisk, STEP_STAGES, type RiskInput, type StepStage } from "@/server/lib/deals/risk";
 import { plan } from "@/server/lib/deals/timeline";
+import { transactionBlockers, refusalMessage } from "@/server/lib/documents/blockers";
 
 /**
  * Deals, which until now nobody could look at.
@@ -121,11 +122,29 @@ export const dealsRouter = router({
       const lead = d.leadId
         ? await ctx.db.lead.findFirst({
             where: { id: d.leadId },
-            select: { name: true, conversation: { select: { lastInboundAt: true } } },
+            select: {
+              name: true, assignedToId: true,
+              conversation: { select: { lastInboundAt: true } },
+            },
           })
         : null;
 
       const now = new Date();
+
+      /**
+       * Shown on the screen, not only enforced at the click.
+       *
+       * `step` refuses when a blocking document has lapsed. Finding that
+       * out by pressing a button and being told no is the worst way to
+       * learn it — the agent has already opened the deal believing they
+       * can work it. The same query answers it up front.
+       */
+      const blockers = await transactionBlockers(ctx.db, {
+        orgId: ctx.orgId,
+        orgName: ctx.orgName,
+        people: [ctx.userId, lead?.assignedToId ?? ""],
+        now,
+      });
       const risk = assessRisk(
         toRiskInput(d, lead?.name ?? null, lead?.conversation?.lastInboundAt ?? null, now),
         now
@@ -177,6 +196,9 @@ export const dealsRouter = router({
         agreedAt: d.agreedAt,
         risk,
         steps,
+        blockers: blockers.map((b) => ({
+          what: b.what, whose: b.whose, daysExpired: b.daysExpired, consequence: b.consequence,
+        })),
       };
     }),
 
@@ -198,9 +220,56 @@ export const dealsRouter = router({
     .mutation(async ({ ctx, input }) => {
       const deal = await ctx.db.deal.findFirst({
         where: { id: input.dealId },
-        select: { id: true, reference: true, stage: true },
+        select: { id: true, reference: true, stage: true, leadId: true },
       });
       if (!deal) throw new TRPCError({ code: "NOT_FOUND", message: "No such deal." });
+
+      /**
+       * A lapsed broker card or brokerage licence stops this.
+       *
+       * `expiry.ts` has carried `blocking: true` on three document types
+       * since it was written and nothing acted on it. A warning sixty
+       * days out that is then ignored has achieved nothing; this is the
+       * point where it cannot be.
+       *
+       * Checked on the way in and only on `done`. Recording that a step
+       * is **stuck** is never blocked — that is somebody telling the
+       * truth about a transaction they cannot move, which is exactly
+       * what should still be possible while a card is being renewed.
+       *
+       * The people checked are the one clicking and the one the deal
+       * belongs to. Both are acting on it at this moment, one by doing
+       * it and one by carrying it, and the exposure is the same either
+       * way.
+       */
+      if (input.done) {
+        const agent = deal.leadId
+          ? await ctx.db.lead.findFirst({ where: { id: deal.leadId }, select: { assignedToId: true } })
+          : null;
+
+        const blockers = await transactionBlockers(ctx.db, {
+          orgId: ctx.orgId,
+          orgName: ctx.orgName,
+          people: [ctx.userId, agent?.assignedToId ?? ""],
+        });
+
+        if (blockers.length > 0) {
+          // Audited whether or not it is overridden, because "we stopped
+          // them and they stopped" is the evidence that the control
+          // worked, and nothing else records it.
+          await audit(ctx.db, ctx.orgId, {
+            actorId: ctx.userId,
+            action: "deal.step.refused",
+            entity: "Deal",
+            entityId: deal.id,
+            after: {
+              stage: input.stage,
+              blockedBy: blockers.map((b) => `${b.type}:${b.whose}`),
+            },
+          });
+          throw new TRPCError({ code: "FORBIDDEN", message: refusalMessage(blockers) });
+        }
+      }
 
       await ctx.db.dealMilestone.upsert({
         where: { dealId_stage: { dealId: deal.id, stage: input.stage } },
