@@ -18,8 +18,27 @@ import { MyAvailability } from "./availability";
  * system buries it.
  */
 export default function Me() {
-  const from = new Date(Date.now() - 30 * 86_400_000);
+  /**
+   * Rounded to the day, and that is the difference between this screen
+   * rendering and not.
+   *
+   * These were `new Date(Date.now() - 30 days)` and `new Date()`,
+   * recomputed on every render. React Query keys by the serialised
+   * input, so a timestamp that moves by a millisecond is a new key: the
+   * query refetched, the refetch re-rendered, the re-render made new
+   * dates, and round it went. `reports.leaderboard` fired in a loop and
+   * `isLoading` never settled, so **the screen sat on its skeleton
+   * forever** — "Loading your figures", permanently, for everybody.
+   *
+   * Nothing errored and nothing in the type-check could see it. Found
+   * by watching the network while trying to add a section to the page.
+   *
+   * Midnight-to-midnight UTC also makes the window mean something
+   * steadier than "the last 720 hours from whenever you opened it".
+   */
   const to = new Date();
+  to.setUTCHours(0, 0, 0, 0);
+  const from = new Date(to.getTime() - 30 * 86_400_000);
 
   const { data: money, isLoading: l1, isError: e1, refetch: r1, error } =
     api.commission.mine.useQuery({});

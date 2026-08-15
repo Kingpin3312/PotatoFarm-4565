@@ -237,6 +237,25 @@ for rf in routers:
         keys = set(re.findall(r'(\w+)\s*:\s*z\.', m.group(2)))
         router_inputs[f"{rname}.{m.group(1)}"] = keys
 
+def _keys_only(fragment: str) -> str:
+    """
+    An argument object with its comments and strings removed.
+
+    `word:` finds object keys, and it also finds every colon inside a
+    comment or a string literal. A mutation whose argument object
+    carried the comment "Midday UTC, not midnight: ..." and the value
+    `new Date(`${d}T12:00:00.000Z`)` was reported as passing arguments
+    called `midnight` and `00`.
+
+    That is the third time in this suite a matcher has read prose as
+    code — the same fix as ux-audit.py and design-audit.py. Strings go
+    too, because a time literal is not a comment and produced half of
+    that finding on its own.
+    """
+    without_comments = re.sub(r"/\*.*?\*/|//[^\n]*", "", fragment, flags=re.S)
+    return re.sub(r"`[^`]*`|'[^']*'|\"[^\"]*\"", "''", without_comments)
+
+
 bad = 0
 for sf in ours(glob.glob(f"{ROOT}/src/app/**/*.tsx", recursive=True)):
     body = open(sf).read()
@@ -259,7 +278,7 @@ for sf in ours(glob.glob(f"{ROOT}/src/app/**/*.tsx", recursive=True)):
             # a colon without being a key, so excluding them is exact
             # rather than a guess.
             LITERALS = {"null", "undefined", "true", "false"}
-            passed = set(re.findall(r'(\w+)\s*:', call.group(1))) - LITERALS
+            passed = set(re.findall(r'(\w+)\s*:', _keys_only(call.group(1)))) - LITERALS
             unknown = passed - expected
             if unknown:
                 bad += 1

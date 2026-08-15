@@ -18,8 +18,22 @@ import { QueryError } from "@/components/ui/query-state";
  * leave the agent to decide.
  */
 export default function Viewings() {
+  /**
+   * Midnight, not now.
+   *
+   * `new Date()` here is recomputed on every render and React Query keys
+   * by the serialised input — so the key changed every millisecond, the
+   * query refetched, the refetch re-rendered, and the diary hammered the
+   * server in a loop while never leaving its skeleton. The same fault
+   * was on /me and in `settings/kill-switch.tsx`.
+   *
+   * A day query wants the day. Rounding also means the key is stable
+   * until midnight, which is exactly how long the answer is good for.
+   */
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
   const { data, isLoading, isError, refetch, error } = api.viewings.day.useQuery({
-    date: new Date(),
+    date: today,
   });
 
   if (isError) return <QueryError retry={() => void refetch()} what="today's viewings" error={error} />;

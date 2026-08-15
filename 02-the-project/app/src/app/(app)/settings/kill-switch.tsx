@@ -21,9 +21,17 @@ import { Button } from "@/components/ui/button";
 export function KillSwitch() {
   const utils = api.useUtils();
   const { data , isError, refetch } = api.assistant.status.useQuery();
+  /**
+   * Rounded to the day. See the note in viewings/page.tsx — a live
+   * timestamp in a query input is a new React Query key on every
+   * render, and this one sits in the shell's settings screen refetching
+   * a funnel report in a loop.
+   */
+  const to = new Date();
+  to.setUTCHours(0, 0, 0, 0);
   const { data: volume } = api.reports.funnel.useQuery({
-    from: new Date(Date.now() - 7 * 86_400_000),
-    to: new Date(),
+    from: new Date(to.getTime() - 7 * 86_400_000),
+    to,
   });
 
   const dialog = useRef<HTMLDialogElement>(null);

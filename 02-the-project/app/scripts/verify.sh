@@ -150,6 +150,7 @@ elif ! curl -sf -o /dev/null --max-time 3 "$APP_URL/api/health" 2>/dev/null \
 else
   step "check:whatsapp-inbound" npm run --silent check:whatsapp-inbound
   step "check:routing" npm run --silent check:routing
+  step "check:availability" npm run --silent check:availability
 fi
 
 printf '\n%sAudits%s\n' "$bold" "$off"
