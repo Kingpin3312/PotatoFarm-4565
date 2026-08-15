@@ -43,7 +43,8 @@
     "browser:kyc-file": "node --env-file-if-exists=.env scripts/kyc-file.mjs",
     "check:routing": "node --env-file-if-exists=.env scripts/routing.mjs",
     "check:availability": "node --env-file-if-exists=.env scripts/availability.mjs",
-    "browser:screens": "node --env-file-if-exists=.env scripts/screens.mjs"
+    "browser:screens": "node --env-file-if-exists=.env scripts/screens.mjs",
+    "browser:documents": "node --env-file-if-exists=.env scripts/documents.mjs"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.7.0",

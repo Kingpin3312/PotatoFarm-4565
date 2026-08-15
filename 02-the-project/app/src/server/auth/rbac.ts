@@ -19,6 +19,15 @@ export const PERMISSIONS = [
   "audit:read",
   "export:all",
 
+  // The document register — broker cards, the brokerage licence,
+  // Trakheesi permits. Read is wide because an agent needs to see that
+  // their own card is about to lapse; write is not, because a document
+  // recorded against the wrong owner alarms the wrong person. The one
+  // exception is carved out in the router rather than here: an agent may
+  // always record a document that belongs to them.
+  "document:read",
+  "document:write",
+
   // AML. Split deliberately: an agent needs to see that a file exists and
   // whether it is complete, so they know whether they can proceed. Only
   // the compliance officer sees the reports — telling a client one has
@@ -39,11 +48,16 @@ const AGENT: Permission[] = [
   // An agent can see whether the file is done and chase what is missing.
   // They cannot approve it, and they cannot see the reports.
   "kyc:read", "kyc:write",
+  // Seeing the register, including their own broker card. The card is
+  // the document most likely to lapse unnoticed because it belongs to a
+  // person rather than to a property.
+  "document:read",
 ];
 
 const MANAGER: Permission[] = [
   ...AGENT, "lead:read:all", "lead:assign", "lead:delete",
   "listing:write", "profile:write", "channel:read", "audit:read", "member:invite",
+  "document:write",
 ];
 
 const ADMIN: Permission[] = [
@@ -70,6 +84,10 @@ const COMPLIANCE: Permission[] = [
   "kyc:read", "kyc:write", "kyc:approve",
   "compliance:read", "compliance:file",
   "audit:read", "export:all",
+  // A client's passport and Emirates ID expiring is addressed to
+  // COMPLIANCE by `expiry.ts`, so the officer has to be able to both see
+  // the register and put the replacement in it.
+  "document:read", "document:write",
 ];
 
 export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {

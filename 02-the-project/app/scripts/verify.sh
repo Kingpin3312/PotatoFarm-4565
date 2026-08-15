@@ -151,6 +151,10 @@ else
   step "check:whatsapp-inbound" npm run --silent check:whatsapp-inbound
   step "check:routing" npm run --silent check:routing
   step "check:availability" npm run --silent check:availability
+  # The register, and then the real nightly job over its own cron route.
+  # A copy of the job's filter here would pass while `documents.expiry`
+  # itself found nothing, which is the state this was written to end.
+  step "browser:documents" npm run --silent browser:documents
   # Every screen opened in a real browser, and every link it renders
   # followed. Slow — around six minutes — and it is the only check that
   # sees what the screens actually do, which is where the two worst

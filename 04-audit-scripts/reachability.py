@@ -85,17 +85,57 @@ DRIVERS = [
 
 schema = open(f"{ROOT}/prisma/schema.prisma").read()
 
+
+# ---------------------------------------------------------------------
+# A row can be created without its model ever being named.
+#
+#     commission.create({ data: { splits: { create: [...] } } })
+#
+# writes `CommissionSplit` rows, and a scan for `.commissionSplit.create`
+# sees none — so this reported that a commission split "cannot be
+# recorded" while `commission.record` was recording them. A check that
+# says a working feature is broken is the failure mode this codebase has
+# hit nine times, and acting on one of those once caused the fault the
+# tool exists to prevent.
+#
+# So: for every model, find the relation fields that point at it, and
+# count a nested `create` under one of those names as a writer. Both
+# halves are required — the owning model must itself be written, and the
+# relation field must carry a nested create — because either alone
+# matches too much.
+# ---------------------------------------------------------------------
+_models = set(re.findall(r"^model (\w+)", schema, re.M))
+_owners: dict[str, set[str]] = {}
+for _blk in re.finditer(r"^model (\w+) \{(.*?)^\}", schema, re.S | re.M):
+    _owner = _blk.group(1)
+    for _line in _blk.group(2).splitlines():
+        _f = re.match(r"\s*(\w+)\s+(\w+)(\[\])?", _line)
+        if _f and _f.group(2) in _models:
+            _owners.setdefault(_f.group(2), set()).add((_owner, _f.group(1)))
+
+
+def _written(model: str) -> bool:
+    lower = model[0].lower() + model[1:]
+    if re.search(rf"\.{lower}\.(?:create|createMany|upsert)\b", allsrc):
+        return True
+    for owner, field in _owners.get(model, ()):
+        o = owner[0].lower() + owner[1:]
+        if not re.search(rf"\.{o}\.(?:create|update|upsert)\b", allsrc):
+            continue
+        if re.search(rf"\b{field}:\s*\{{\s*(?:create|createMany|connectOrCreate|upsert)\b", allsrc):
+            return True
+    return False
+
+
 for model, drives in DRIVERS:
     if f"model {model} {{" not in schema:
         continue
-    lower = model[0].lower() + model[1:]
-    # A create anywhere — router, job, webhook or library.
-    # Any receiver, not a list of them. The first version named tx, db
-    # and ctx.db and missed `crossTenant("sweep").invoice.create` —
+    # A create anywhere — router, job, webhook or library, direct or
+    # nested. Any receiver, not a list of them: the first version named
+    # tx, db and ctx.db and missed `crossTenant("sweep").invoice.create`,
     # reporting that invoicing could not start when it demonstrably can.
     # Naming the callers you happen to remember is how a check lies.
-    created = re.search(rf'\.{lower}\.(?:create|createMany|upsert)\b', allsrc)
-    if not created:
+    if not _written(model):
         FAILS.append(f"nothing creates a {model} — {drives} cannot start")
 
 # ---------------------------------------------------------------------
@@ -114,8 +154,8 @@ for model, drives in DRIVERS:
 #
 # ## Why the known ones are notes rather than failures
 #
-# Sixteen models are in this state today. Turning them all red would
-# make `npm run verify` fail every run until sixteen features exist,
+# Eight models are in this state today. Turning them all red would
+# make `npm run verify` fail every run until eight features exist,
 # and a gate that is permanently red is a gate everybody learns to
 # ignore — which is how the original list came to be missing three
 # entries in the first place.
@@ -134,10 +174,8 @@ KNOWN_UNWRITTEN = {
     # Genuine gaps. Each is a feature that can be read and not created.
     "Screening": "sanctions screening has no row to write",
     "QualificationProfile": "qualification answers cannot be stored",
-    "CommissionSplit": "a split cannot be recorded",
     "TeamVisibility": "team scoping cannot be configured",
     "NotificationPrefs": "an agent cannot change what they are notified about",
-    "Document": "no document can be filed",
     "PlanSubscription": "portal plan subscriptions cannot be created",
     "EmailAccount": "no mailbox can be connected",
     "Migration": "no import can be started",
@@ -148,8 +186,7 @@ _still_unwritten = set()
 for _m in _all_models:
     _l = _m[0].lower() + _m[1:]
     _read = re.search(rf"\.{_l}\.(?:find\w*|count|aggregate|groupBy)\b", allsrc)
-    _written = re.search(rf"\.{_l}\.(?:create|createMany|upsert)\b", allsrc)
-    if not _read or _written:
+    if not _read or _written(_m):
         continue
     _still_unwritten.add(_m)
     if _m in KNOWN_UNWRITTEN:

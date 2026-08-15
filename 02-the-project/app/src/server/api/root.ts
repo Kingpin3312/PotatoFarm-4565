@@ -25,6 +25,7 @@ import { todayRouter } from "./routers/today";
 import { dealsRouter } from "./routers/deals";
 import { activityRouter } from "./routers/activity";
 import { searchRouter } from "./routers/search";
+import { documentsRouter } from "./routers/documents";
 
 /**
  * The API surface.
@@ -70,6 +71,9 @@ export const appRouter = router({
   vendors: vendorsRouter,
   commission: commissionRouter,
   aml: amlRouter,
+  // The table a nightly job had been sweeping since the first schema
+  // with nothing able to put a row in it.
+  documents: documentsRouter,
   routing: routingRouter,
 
   privacy: privacyRouter,

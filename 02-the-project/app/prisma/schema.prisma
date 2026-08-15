@@ -1921,9 +1921,24 @@ model Document {
   ownerId   String
 
   type     DocumentType
-  fileName String
+
+  /// The number on the document — a BRN, a licence number, a permit
+  /// number. What somebody quotes when they renew it, and the field they
+  /// otherwise type into the file name.
+  reference String?
+
+  /// Null when nothing has been uploaded. The register is a list of
+  /// dates and numbers first and a filing cabinet second.
+  fileName String?
   /// Object storage. Never the file itself.
-  storageRef String
+  ///
+  /// Optional, because the thing this register is for is the **expiry
+  /// date**, and requiring a scan to record one means the alarm stays
+  /// silent until somebody has configured a bucket and found a
+  /// photocopier. A broker card number and the date it lapses is the
+  /// compliance-critical part; the image is evidence for an inspection
+  /// and can follow later.
+  storageRef String?
   sizeBytes  Int?
   mimeType   String?
 

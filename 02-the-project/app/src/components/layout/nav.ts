@@ -54,6 +54,10 @@ export const SETTINGS_NAV = [
   { href: "/listings", label: "Listings" },
   { href: "/settings", label: "General" },
   { href: "/compliance", label: "Compliance" },
+  // Not under Compliance: a broker card and a Trakheesi permit are an
+  // admin's problem, and the compliance screens are deliberately
+  // invisible to admins.
+  { href: "/documents", label: "Documents" },
   { href: "/settings/privacy", label: "Privacy" },
   { href: "/settings/access", label: "Access" },
   { href: "/settings/hours", label: "Working hours" },
@@ -77,6 +81,7 @@ export const MORE = [
   { href: "/listings", label: "Listings" },
   { href: "/commission", label: "Commission" },
   { href: "/compliance", label: "Compliance" },
+  { href: "/documents", label: "Documents" },
   { href: "/reports", label: "Reports" },
   { href: "/team", label: "Team" },
   { href: "/settings", label: "Settings" },
