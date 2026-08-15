@@ -5,6 +5,7 @@ import { api } from "@/lib/trpc";
 import { QueryError } from "@/components/ui/query-state";
 import { Message } from "@/components/ui/message";
 import { WindowState, WindowClosed } from "@/components/ui/window-state";
+import { KycPanel } from "./kyc-panel";
 import { Button } from "@/components/ui/button";
 
 /**
@@ -101,6 +102,20 @@ export function Thread({ conversationId }: { conversationId: string }) {
         {data.messages.map((m) => (
           <Message key={m.id} {...m} />
         ))}
+
+        {/* The due diligence file, at the foot of the conversation.
+
+            `KycPanel` existed, was carefully built around the
+            tipping-off rules, and **was rendered by no screen at all** —
+            a component wired to nothing, one level up from the module
+            shape `reachability.py` looks for. Here rather than in the
+            header because it is a state to notice while reading, not a
+            control to reach for: an agent scrolls to the bottom to
+            reply, and what is outstanding is the last thing they pass. */}
+        <div className="px-6 pb-2">
+          <KycPanel leadId={data.lead.id} />
+        </div>
+
         <div ref={endRef} />
       </div>
 

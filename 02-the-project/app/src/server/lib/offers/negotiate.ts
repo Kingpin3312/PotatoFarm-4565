@@ -2,6 +2,7 @@ import { forOrg } from "@/server/db/client";
 import { audit } from "@/server/lib/audit";
 import { aed } from "@/lib/money";
 import { log } from "@/lib/log";
+import { openKycFile } from "@/server/lib/aml/open";
 
 /**
  * Offers, and everything said after them.
@@ -178,6 +179,43 @@ export async function accept(args: {
         agreedAt: new Date(),
       },
     });
+
+    /**
+     * The due diligence file opens here, with the deal.
+     *
+     * UAE AML attaches the obligation to concluding the transaction, and
+     * this is the line where a lead becomes one. Opening it later means
+     * an agent chasing a passport while a Form F is already moving;
+     * opening it on a date somebody remembers means it is sometimes not
+     * opened at all.
+     *
+     * Inside the same transaction as the deal, so the two cannot come
+     * apart — a deal with no file is the state the whole module exists
+     * to prevent, and it is exactly what a crash between two writes
+     * would leave behind.
+     */
+    if (offer.leadId) {
+      await openKycFile(tx, { orgId: args.orgId, leadId: offer.leadId });
+    } else {
+      /**
+       * An offer with no lead record, and the file that cannot open.
+       *
+       * `Offer.leadId` is optional — an offer relayed by another agency
+       * arrives with a listing and a figure and no buyer of ours — while
+       * `KycRecord.leadId` is required and unique, because the file *is*
+       * about a person. So there is nowhere to hang it.
+       *
+       * The obligation does not go away with the record: a brokerage
+       * concluding that sale still owes due diligence on that buyer.
+       * Logged rather than skipped silently, because the alternative is
+       * a deal that quietly never had a file and nothing anywhere saying
+       * so. Closing it properly means a buyer record for an offer that
+       * arrived without one, which is a larger change than this.
+       */
+      log.warn("deal agreed with no lead record — no KYC file could be opened", {
+        orgId: args.orgId,
+      }, { dealId: deal.id });
+    }
 
     await audit(tx, args.orgId, {
       actorId: args.actorId,

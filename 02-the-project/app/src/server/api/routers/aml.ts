@@ -5,6 +5,7 @@ import { assessRisk, assessRear, reviewIntervalMonths, TIPPING_OFF_RULES } from 
 import { interpret, AGENT_VISIBLE_STATE } from "@/server/lib/aml/screening";
 import { requestMessage } from "@/server/lib/aml/collect";
 import { audit } from "@/server/lib/audit";
+import { openKycFile } from "@/server/lib/aml/open";
 
 export const amlRouter = router({
   /**
@@ -39,6 +40,123 @@ export const amlRouter = router({
         outstanding,
         unverified: kyc.documents.filter((d) => !d.verifiedAt).length,
       };
+    }),
+
+  /**
+   * Open a file by hand.
+   *
+   * A file opens on its own when an offer is accepted — that is when a
+   * lead becomes a transaction and the obligation attaches. This is for
+   * before that: a buyer who mentions paying cash over the reporting
+   * threshold is a file worth opening while they are still talking, not
+   * once the paperwork is moving.
+   *
+   * `kyc:write`, which an agent has. Deliberately: the check is the
+   * firm's obligation and an agent who cannot start one will carry on
+   * without it.
+   */
+  openFile: requirePermission("kyc:write")
+    .input(z.object({
+      leadId: z.string(),
+      subjectType: z.enum(["INDIVIDUAL", "COMPANY", "TRUST"]).default("INDIVIDUAL"),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const { id, created } = await openKycFile(ctx.db, {
+        orgId: ctx.orgId,
+        leadId: input.leadId,
+        subjectType: input.subjectType,
+      });
+
+      // Only when something happened. An audit trail with a row for every
+      // time a screen was opened is one nobody can read.
+      if (created) {
+        await audit(ctx.db, ctx.orgId, {
+          actorId: ctx.userId,
+          action: "aml.file_opened",
+          entity: "KycRecord",
+          entityId: id,
+          after: { leadId: input.leadId, subjectType: input.subjectType, trigger: "manual" },
+        });
+      }
+
+      return { id, created };
+    }),
+
+  /**
+   * Record what the file holds.
+   *
+   * Every field optional, because they arrive at different times — a
+   * passport number today, source of wealth after a conversation next
+   * week — and a form demanding all of it at once is a form filled in
+   * with guesses.
+   *
+   * **Source of funds and source of wealth are separate fields and the
+   * guidance requires both.** They are different questions: where this
+   * money came from, and how the person came to have money at all.
+   * Collapsing them into one box is the most common way a file looks
+   * complete and is not.
+   */
+  updateFile: requirePermission("kyc:write")
+    .input(z.object({
+      leadId: z.string(),
+      legalName: z.string().trim().min(1).max(160).optional(),
+      nationality: z.string().trim().max(80).nullish(),
+      tradeLicence: z.string().trim().max(80).nullish(),
+      idType: z.enum(["PASSPORT", "EMIRATES_ID", "GCC_ID", "TRADE_LICENCE"]).nullish(),
+      idNumber: z.string().trim().max(60).nullish(),
+      idExpiresAt: z.string().datetime().nullish(),
+      sourceOfFunds: z.string().trim().max(500).nullish(),
+      sourceOfWealth: z.string().trim().max(500).nullish(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const { leadId, idExpiresAt, ...rest } = input;
+
+      const before = await ctx.db.kycRecord.findUnique({
+        where: { leadId },
+        select: { id: true, status: true },
+      });
+      if (!before) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "No due diligence file is open for this person yet.",
+        });
+      }
+
+      /**
+       * NOT_STARTED becomes COLLECTING the moment anything is recorded,
+       * and never moves further from here.
+       *
+       * PENDING_REVIEW is set by a document arriving; APPROVED and
+       * REJECTED are a compliance decision. An agent typing a passport
+       * number must not be able to advance a file towards approved —
+       * that is the separation the appointment exists to create.
+       */
+      const touched = Object.values(rest).some((v) => v !== undefined) || idExpiresAt !== undefined;
+      const status = before.status === "NOT_STARTED" && touched ? ("COLLECTING" as const) : undefined;
+
+      await ctx.db.kycRecord.update({
+        where: { id: before.id },
+        data: {
+          ...rest,
+          ...(idExpiresAt === undefined
+            ? {}
+            : { idExpiresAt: idExpiresAt === null ? null : new Date(idExpiresAt) }),
+          ...(status ? { status } : {}),
+        },
+      });
+
+      await audit(ctx.db, ctx.orgId, {
+        actorId: ctx.userId,
+        action: "aml.file_updated",
+        entity: "KycRecord",
+        entityId: before.id,
+        // Which fields, never their values. An audit row is read by more
+        // people than the file is, and a passport number copied into it
+        // is a passport number in a second place.
+        after: { fields: Object.keys(rest).filter((k) => rest[k as keyof typeof rest] !== undefined) },
+      });
+
+      return { id: before.id };
     }),
 
   /** The wording the assistant sends. Exposed so it can be reviewed. */

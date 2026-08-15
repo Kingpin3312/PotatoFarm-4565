@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { api } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
@@ -19,6 +20,22 @@ import { cn } from "@/lib/cn";
  */
 export function KycPanel({ leadId }: { leadId: string }) {
   const { data, isLoading } = api.aml.fileStatus.useQuery({ leadId });
+  const utils = api.useUtils();
+  const [failed, setFailed] = useState<string | null>(null);
+
+  /**
+   * Opening one by hand.
+   *
+   * A file opens on its own when an offer is accepted. This is for
+   * before that — a buyer who mentions cash over the reporting
+   * threshold, or a corporate buyer whose beneficial owners will take a
+   * fortnight to establish. Starting late is the failure mode, and the
+   * only cure is making it possible to start early.
+   */
+  const open = api.aml.openFile.useMutation({
+    onSuccess: () => { setFailed(null); void utils.aml.fileStatus.invalidate({ leadId }); },
+    onError: (e) => setFailed(e.message),
+  });
 
   /**
    * Wording for the document actually outstanding.
@@ -43,9 +60,29 @@ export function KycPanel({ leadId }: { leadId: string }) {
           Identity
         </span>
         <p className="text-[15px] text-ink-2 max-w-[44ch] leading-snug">
-          Nothing needed yet. A file opens when this becomes a transaction — every brokerage
-          concluding a sale is a DNFBP and the check is the firm's obligation, not yours.
+          Nothing needed yet. A file opens on its own when an offer is accepted — every
+          brokerage concluding a sale is a DNFBP and the check is the firm&rsquo;s
+          obligation, not yours.
         </p>
+
+        {failed && (
+          <p role="alert" className="mt-3 text-sm text-danger max-w-[44ch]">{failed}</p>
+        )}
+
+        {/* The sentence above used to be the whole panel, and it
+            described something that never happened: nothing in the
+            product could create a file, so "a file opens when this
+            becomes a transaction" was a promise with nothing behind it.
+            Early is the only direction this ever needs to move. */}
+        <Button
+          size="sm"
+          variant="secondary"
+          className="mt-3"
+          loading={open.isPending}
+          onClick={() => open.mutate({ leadId })}
+        >
+          Start one now
+        </Button>
       </div>
     );
   }
