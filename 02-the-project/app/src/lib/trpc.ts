@@ -1,6 +1,7 @@
 "use client";
 
 import { createTRPCReact } from "@trpc/react-query";
+import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
 
 /**
@@ -14,3 +15,12 @@ import type { AppRouter } from "@/server/api/root";
  * which is exactly why an unused module slips through.
  */
 export const api = createTRPCReact<AppRouter>();
+
+/**
+ * What a procedure returns, for a component that takes it as a prop.
+ *
+ * Re-deriving the shape by hand in the component is how a screen and
+ * the procedure feeding it come to disagree — `reachability.py` checks
+ * for exactly that and can only see it when the field names differ.
+ */
+export type RouterOutputs = inferRouterOutputs<AppRouter>;

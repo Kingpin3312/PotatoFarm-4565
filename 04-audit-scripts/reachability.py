@@ -154,8 +154,8 @@ for model, drives in DRIVERS:
 #
 # ## Why the known ones are notes rather than failures
 #
-# Six models are in this state today. Turning them all red would
-# make `npm run verify` fail every run until six features exist,
+# Five models are in this state today. Turning them all red would
+# make `npm run verify` fail every run until five features exist,
 # and a gate that is permanently red is a gate everybody learns to
 # ignore — which is how the original list came to be missing three
 # entries in the first place.
@@ -176,7 +176,6 @@ KNOWN_UNWRITTEN = {
     "TeamVisibility": "team scoping cannot be configured",
     "PlanSubscription": "portal plan subscriptions cannot be created",
     "EmailAccount": "no mailbox can be connected",
-    "Migration": "no import can be started",
 }
 
 _all_models = re.findall(r"^model (\w+)", schema, re.M)

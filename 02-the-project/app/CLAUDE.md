@@ -161,7 +161,7 @@ nothing that starts it — and the sixth is the product itself:
 catches the subtler one — a module that is imported, called correctly,
 and whose entry condition never occurs. **A light switch wired to
 nothing.** It now scans every model in the schema against a
-`KNOWN_UNWRITTEN` ratchet, so the remaining six are visible and a new
+`KNOWN_UNWRITTEN` ratchet, so the remaining five are visible and a new
 one is a build failure.
 
 The question to ask of anything new: **what writes the first row?** And
