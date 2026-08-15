@@ -57,6 +57,16 @@ retention and it overrides a right-to-erasure request.
 store.** The audit asserts this. It is what guarantees a prompt test
 cannot message a real customer.
 
+**Tokens are encrypted, not absent.** `lib/secrets.ts` opens by saying
+tokens never go into Postgres. They still do not: what is stored is
+ciphertext sealed with `SECRETS_KEY`, which lives only in the
+environment, so a database dump carries nothing able to message a
+customer's clients. Before the vault existed the rule was enforced by
+having nowhere to put a token at all — which meant connecting a
+brokerage's WhatsApp number required setting an environment variable and
+redeploying, per brokerage, per channel. `readSecret` is still the only
+reader, and swapping in Vault or Secrets Manager touches that one file.
+
 **Never use `rootDb` directly. Use `crossTenant(reason)`.** `rootDb`
 bypasses row-level security. A review found 131 unscoped uses and every
 one was safe — but safe by argument, not by construction, and nothing
@@ -285,4 +295,12 @@ every time. Checks phrased *"this is broken"* have been wrong nine times.
 - The Expo screens. `mobile/` has push, offline policy and auth.
 - Screening provider, goAML submission, image quality checks.
 - Migration source adapters.
+- **Connecting a mailbox.** `email/sync.ts` is written and
+  `EmailAccount` has never had a row, because there is no OAuth flow
+  against Google or Microsoft — that needs an app registration with
+  each, which cannot be obtained from inside this repository. Tokens
+  now have somewhere to go (`lib/secrets/vault.ts`); the handshake that
+  produces one does not exist. The Gmail half of `normalise` is also
+  unwritten and **throws** rather than returning zero messages, because
+  a mailbox that syncs nothing is indistinguishable from a quiet one.
 - An external heartbeat — the alerting cannot report its own absence.

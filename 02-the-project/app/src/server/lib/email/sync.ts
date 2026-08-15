@@ -167,11 +167,62 @@ function normalise(provider: string, body: unknown): { messages: Raw[]; cursor: 
       cursor: String(b["@odata.deltaLink"] ?? ""),
     };
   }
-  return { messages: [], cursor: String(b.historyId ?? "") };
+  /**
+   * Google is not implemented, and it now says so.
+   *
+   * This returned `{ messages: [] }` unconditionally. With a valid Gmail
+   * token and a successful fetch, `syncAccount` would store nothing,
+   * advance the cursor, stamp `lastSyncedAt`, clear `lastError` and log
+   * "email synced … stored 0" — which is exactly what a genuinely quiet
+   * mailbox looks like. A brokerage would have seen a connected Gmail
+   * account, no errors anywhere, and no email in the product, for ever.
+   *
+   * Throwing instead means `sweepMailboxes` catches it, the account
+   * records the reason, and `health` surfaces it. The feature is no more
+   * built than it was; the difference is that it is visibly not built.
+   *
+   * Finishing it needs Gmail's two-step shape — `history.list` returns
+   * message ids and a batched `messages.get` fetches the headers — which
+   * is real work and untestable without a Google Cloud app. Microsoft's
+   * `$delta` returns the messages themselves, which is why that half
+   * exists and this one does not.
+   */
+  throw new Error(
+    "Gmail sync is not implemented. The account has been left connected and " +
+    "nothing has been imported from it — this is not a quiet mailbox."
+  );
 }
 
 /** Swept every fifteen minutes. Email is not WhatsApp — nobody expects
  *  it in seconds, and a tighter loop only burns provider quota. */
+/**
+ * ## What is and is not built
+ *
+ * `EmailAccount` has never had a row, because nothing could connect a
+ * mailbox and nothing could store a token. The vault fixes the second
+ * half; the first still needs an OAuth flow against Google and
+ * Microsoft, which means an app registration with each of them —
+ * a client id, a secret, a verified redirect — and none of that can be
+ * obtained or tested from inside this repository.
+ *
+ * So the honest state, in order:
+ *
+ *   1. **No connect flow.** There is no route that starts an OAuth
+ *      handshake and no callback that exchanges a code for a token.
+ *      Until there is, this sweep iterates an empty list — which it has
+ *      done every half hour since it was written.
+ *   2. **No refresh.** `readSecret` returns whatever was stored. Access
+ *      tokens from both providers expire in about an hour, so the
+ *      connect flow has to keep the *refresh* token and mint access
+ *      tokens from it.
+ *   3. **Microsoft only.** `normalise` handles Graph's `$delta`, which
+ *      returns messages. Gmail's `history.list` returns ids and needs a
+ *      second batched call, and that half is not written.
+ *
+ * Written down here rather than discovered later, because every one of
+ * those is invisible from the outside: a mailbox that syncs nothing
+ * looks exactly like a mailbox with no new mail.
+ */
 export async function sweepMailboxes() {
   const accts = await crossTenant("sweep").emailAccount.findMany({
     where: { active: true }, select: { id: true },
