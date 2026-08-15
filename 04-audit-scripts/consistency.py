@@ -186,7 +186,11 @@ for surf, body in css.items():
 import glob as _g
 WORDMARK = [
     (at(f"{SITE}/index.html"),                      r'PotatoFarm(\s*)<span class="tld"'),
-    (at(f"{APP}/src/components/layout/shell.tsx"),    r'PotatoFarm(\s*)<span'),
+    # The app's lockup moved out of the shell into one component, so
+    # every screen — including the five public ones that had no logo at
+    # all — renders the same markup. The shell no longer contains a
+    # wordmark, so checking it here would check nothing.
+    (at(f"{APP}/src/components/brand/logo.tsx"),      r'PotatoFarm(\s*)<span'),
     (at(f"{APP}/mobile/components/wordmark.tsx"),     r'PotatoFarm(\s*)<Text'),
     (at(f"{APP}/preview-mobile.html"),                r'PotatoFarm(\s*)<i>'),
     (at(f"{LOGO}/lockup.svg"),                        r'PotatoFarm(\s*)<tspan'),
@@ -270,7 +274,7 @@ MARK_SURFACES = [
     at(f"{DESIGN}/homepage-v4.html"),
     at(f"{DESIGN}/dashboard-v4.html"),
     at(f"{APP}/preview-mobile.html"),
-    at(f"{APP}/src/components/layout/shell.tsx"),
+    at(f"{APP}/src/components/brand/logo.tsx"),
     at(f"{APP}/mobile/components/wordmark.tsx"),
     at(f"{LOGO}/lockup.svg"),
 ]

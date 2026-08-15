@@ -54,6 +54,20 @@
   --color-accent-type: var(--accent-type);
   --color-accent-edge: var(--accent-edge);
 
+  /**
+   * The wordmark navy, and why it is not called `navy`.
+   *
+   * `--color-navy` below is a legacy alias pointing at the charcoal
+   * `--leather-deep`, which is a dark surface and not a brand colour at
+   * all. Taking that name for the logo would have silently repainted
+   * every `bg-navy` panel in the product the moment the token changed.
+   *
+   * `text-brand-navy` says what it is for: the word "PotatoFarm", and
+   * nothing else.
+   */
+  --color-brand-navy: var(--brand-navy);
+  --color-brand-navy-ink: var(--brand-navy-ink);
+
   --color-navy: var(--leather-deep);
   --color-ocean: var(--leather);
   --color-royal: var(--accent);

@@ -1,10 +1,10 @@
 """
 The mark, defined once — and this file is the only place it is defined.
 
-The mark is inlined into **33 places across 22 files**: nine logo
-masters, ten website pages, two design-system references, the app shell,
-the mobile wordmark and the preview. That is the shape this codebase has
-been bitten by repeatedly — "the potato replaced a PF chip and three
+The mark is inlined into **41 places across 25 files**: nine logo
+masters, ten website pages, two design-system references, the React
+lockup every screen in the app renders, the mobile wordmark and the
+preview. That is the shape this codebase has been bitten by repeatedly — "the potato replaced a PF chip and three
 surfaces were still on the chip a week later" is in the brand spec, and
 `consistency.py` exists because of it.
 
@@ -43,6 +43,19 @@ G_LOW  = "#E5842A"   # lower right
 RIM    = "#D9761C"   # the darker edge, all the way round
 CREASE = "#DD8A2E"   # cheek line and surface marks
 EYE    = "#3B2416"   # dark brown, not black
+
+# ---- the wordmark ---------------------------------------------------
+# The one colour the supplied artwork has that the product did not.
+# "PotatoFarm" is a deep blue-black, sampled at #0E1822 off the flat
+# interior of the thick strokes with blue leading red by eleven points
+# — a decision rather than compression noise. The shipped value is
+# lifted a little off that reading because a JPEG darkens stroke cores.
+#
+# It dresses the wordmark and nothing else. `--ink` stays neutral: a
+# logo is not a reason to recolour every heading and table in a CRM.
+NAVY     = "#12202E"   # 14.88:1 on the ground
+NAVY_REV = "#EBEAE6"   # the same word on charcoal, where navy vanishes
+TLD      = "#FF6B35"   # the ".io" — the brand orange, unchanged
 
 STOPS = (f'<stop offset="0" stop-color="{G_HIGH}"/>'
          f'<stop offset="0.5" stop-color="{G_MID}"/>'
@@ -97,6 +110,83 @@ def svg(pfx: str, extra_g: str = "", size: str = "") -> str:
 
 
 # ---------------------------------------------------------------------
+# The dark treatment.
+#
+# Supplied as a second reference: the same potato on near-black, lit
+# from inside by a wide orange bloom, with the wordmark falling away
+# into the dark so the mark carries it alone.
+#
+# It is the mark plus light, not a second mark — the body path, the
+# gradient stops and the face are the ones above, so the two cannot
+# drift apart. What is added is a blurred copy of the silhouette behind
+# it in the rim colour, which is what the glow in the reference actually
+# is: the potato's own edge, bleeding.
+#
+# The viewBox is padded to 128 rather than 64 because a bloom that wide
+# is clipped by a tight box, and a clipped glow reads as a rectangle of
+# slightly lighter black around the logo.
+GLOW_BG = "#0A0705"   # not pure black; the reference has warmth in it
+
+
+def glow(pfx: str) -> str:
+    """The mark on a dark ground, lit. 128x128 viewBox, mark inset at 32."""
+    return (
+        f'<defs>'
+        f'<linearGradient id="sh{pfx}" x1="22%" y1="10%" x2="74%" y2="90%">{STOPS}</linearGradient>'
+        # Three radii, not one. A single blur gives either a smudge with
+        # no hot edge or a hard edge with no spill; the reference has
+        # both, so it is built as three passes at 22 / 11 / 4.
+        f'<filter id="ga{pfx}" x="-150%" y="-150%" width="400%" height="400%">'
+        f'<feGaussianBlur stdDeviation="22"/></filter>'
+        f'<filter id="gb{pfx}" x="-120%" y="-120%" width="340%" height="340%">'
+        f'<feGaussianBlur stdDeviation="11"/></filter>'
+        f'<filter id="gc{pfx}" x="-60%" y="-60%" width="220%" height="220%">'
+        f'<feGaussianBlur stdDeviation="4"/></filter>'
+        f'<filter id="bl{pfx}"><feGaussianBlur stdDeviation="7"/></filter>'
+        f'<clipPath id="cp{pfx}"><path d="{BODY}"/></clipPath>'
+        f'</defs>'
+        f'<g transform="translate(32,32)">'
+        # Outermost: the room the light fills. Deep orange, because a
+        # yellow halo this wide turns the whole plate to mud.
+        f'<path d="{BODY}" fill="{RIM}" filter="url(#ga{pfx})" opacity="0.95"/>'
+        f'<path d="{BODY}" fill="{G_LOW}" filter="url(#gb{pfx})" opacity="0.95"/>'
+        # Innermost: the heat right at the edge, which is what makes the
+        # silhouette read as lit rather than as a sticker on a glow.
+        f'<path d="{BODY}" fill="{G_MID}" filter="url(#gc{pfx})" opacity="0.85"/>'
+        f'<path d="{BODY}" fill="url(#sh{pfx})" stroke="{RIM}" stroke-width="1.7" '
+        f'stroke-linejoin="round"/>'
+        f'<g clip-path="url(#cp{pfx})">'
+        f'<ellipse cx="24" cy="17" rx="17" ry="18" fill="#FFFFFF" opacity="0.20" '
+        f'filter="url(#bl{pfx})"/>'
+        f'</g>'
+        + FACE +
+        f'</g>'
+    )
+
+
+# ---- the lockup -----------------------------------------------------
+# The wordmark is live text in a font stack rather than outlined paths,
+# and that is a deliberate limitation with a boundary drawn round it.
+#
+# Outlining would freeze the letterforms into whichever font happened to
+# be installed on the machine that ran the build, which is not the same
+# guarantee it sounds like. Live text means the SVG lockups render in
+# the product's own typeface wherever that resolves, and fall back
+# gracefully where it does not.
+#
+# **Where a font cannot be assumed — email, Open Graph, app icons, the
+# favicon — the PNG masters are used, never the SVG.** That rule is what
+# makes this choice safe rather than merely convenient.
+WORD_STACK = ("Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif")
+
+
+def wordmark(x: int, y: int, size: int, fill: str, anchor: str = "start") -> str:
+    """"PotatoFarm" in navy with an orange ".io"."""
+    return (
+        f'<text x="{x}" y="{y}" font-family="{WORD_STACK}" font-size="{size}" '
+        f'font-weight="500" letter-spacing="{-size * 0.0115:.2f}" fill="{fill}" '
+        f'text-anchor="{anchor}">PotatoFarm<tspan fill="{TLD}">.io</tspan></text>'
+    )
 
 def _jsx(block):
     """SVG attributes as React and react-native-svg want them."""
@@ -124,21 +214,46 @@ def apply(root="."):
                + glob.glob(os.path.join(root, "02-the-project/website/assets/*.svg"))
                + glob.glob(os.path.join(root, "02-the-project/website/*.html"))
                + glob.glob(os.path.join(root, "03-brand/design-system/*.html"))
-               + [os.path.join(root, "02-the-project/app/src/components/layout/shell.tsx"),
+               # The React lockup. It replaced the copy that used to be
+               # inlined in shell.tsx, and it is the only React copy —
+               # every screen in the app now renders this one component.
+               + [os.path.join(root, "02-the-project/app/src/components/brand/logo.tsx"),
+                  os.path.join(root, "02-the-project/app/src/components/layout/shell.tsx"),
                   os.path.join(root, "02-the-project/app/preview-mobile.html")])
+    # The wordmark's colour, wherever it is written as SVG text.
+    #
+    # The mark has been propagated from this file since it was written
+    # and the wordmark never was — so when the artwork's navy arrived,
+    # nine lockups still said #1A1A1A and there was nothing to catch it.
+    # A brand definition that governs the potato and not the word beside
+    # it is half a definition.
+    #
+    # Reversed lockups are left alone: on charcoal the navy disappears,
+    # and their light fill is correct rather than stale.
+    word_re = re.compile(r'(<text\b[^>]*?\bfill=")(#[0-9A-Fa-f]{6})("[^>]*>PotatoFarm)')
+
+    def _reword(m):
+        return m.group(1) + (m.group(2) if _light(m.group(2)) else NAVY) + m.group(3)
+
+    def _light(hex6):
+        v = int(hex6[1:3], 16) + int(hex6[3:5], 16) + int(hex6[5:7], 16)
+        return v > 382          # already a reversed-out wordmark
+
     out = {}
     for f in sorted(set(targets)):
         if not os.path.exists(f):
             continue
         s = _io.open(f, encoding="utf-8").read()
-        n = len(block.findall(s))
+        n = len(block.findall(s)) + len(word_re.findall(s))
         if not n:
             continue
         def sub(m, _f=f):
             p = pfx_re.search(m.group(0))
             b = svg(p.group(1) if p else "m")
             return _jsx(b) if _f.endswith((".tsx", ".jsx")) else b
-        _io.open(f, "w", encoding="utf-8").write(block.sub(sub, s))
+        s = block.sub(sub, s)
+        s = word_re.sub(_reword, s)
+        _io.open(f, "w", encoding="utf-8").write(s)
         out[f] = n
     return out
 
@@ -151,6 +266,12 @@ if __name__ == "__main__":
         for f, n in sorted(r.items()):
             print("  %d  %s" % (n, f))
         print("%d files, %d instances" % (len(r), sum(r.values())))
+    elif "--glow" in sys.argv:
+        # Padded to 128 because a bloom this wide is clipped by a tight
+        # box, and a clipped glow reads as a lighter rectangle round the
+        # logo — which is worse than no glow.
+        sys.stdout.write('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">'
+                         + glow("g") + '</svg>')
     else:
         sys.stdout.write('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'
                          + svg("m") + '</svg>')

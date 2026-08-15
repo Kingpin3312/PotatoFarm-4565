@@ -17,11 +17,19 @@
  * it to precache while signed out returns a redirect to sign-in, and the
  * offline fallback becomes a cached 307.
  */
+import { Logo } from "@/components/brand/logo";
+
 export const metadata = { title: "No connection — PotatoFarm.io" };
 
 export default function Offline() {
   return (
-    <main id="main" className="mx-auto max-w-[520px] px-6 pt-24 pb-24">
+    <main id="main" className="mx-auto max-w-[520px] px-6 pt-16 pb-24">
+      {/* The offline page is served by the service worker with no shell
+          around it, so it was the one screen in the product with no
+          logo — a bare sentence on a cream page, which reads as a
+          browser error rather than as this product telling you
+          something. */}
+      <Logo className="mb-10" />
       <h1 className="font-sans text-[clamp(1.75rem,1.4rem+1.6vw,2.25rem)] font-semibold -tracking-[0.026em] leading-tight text-accent-type">
         No connection.
       </h1>

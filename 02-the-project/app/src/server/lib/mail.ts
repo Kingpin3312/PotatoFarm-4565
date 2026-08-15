@@ -44,6 +44,68 @@ export async function sendMail(msg: {
 }
 
 /**
+ * The brand, around every message that goes to a person.
+ *
+ * Four emails leave this product and all four were bare `<p>` fragments
+ * — no wordmark, no ground, no footer. A brokerage owner's first sight
+ * of PotatoFarm.io was an unstyled paragraph from an address they did
+ * not recognise, which is the one email in the sequence that most needs
+ * to look like it came from a company.
+ *
+ * ## Why the mark is an image and the word is not
+ *
+ * Most clients block remote images until the reader allows them, and a
+ * good number strip SVG entirely. So the potato is a hosted PNG that
+ * degrades to its `alt` text, and **"PotatoFarm.io" is live text in the
+ * brand navy** — which renders whether images load or not. A lockup
+ * shipped as one image is a lockup that is invisible in Outlook with
+ * remote content off, which is the default.
+ *
+ * Everything is inline-styled on tables. Email clients have no
+ * stylesheet, no custom properties and, in Outlook's case, no flexbox,
+ * so the tokens are resolved here rather than referenced.
+ */
+const NAVY = "#12202E";
+const ORANGE = "#FF6B35";
+const GROUND = "#F4F3F0";
+
+export function wrap(body: string, opts: { preheader?: string } = {}) {
+  return (
+    `<!doctype html><html lang="en-GB"><body style="margin:0;padding:0;` +
+    `background:${GROUND};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">` +
+    // The line the inbox shows beside the subject. Without one, clients
+    // pull the first words of the body, which is usually "Hello".
+    (opts.preheader
+      ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0">${escapeHtml(opts.preheader)}</div>`
+      : "") +
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" ` +
+    `style="background:${GROUND};padding:32px 16px"><tr><td align="center">` +
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" ` +
+    `style="max-width:560px;background:#FFFFFF;border-radius:14px;padding:32px">` +
+    // The lockup as a two-cell row, not an image beside a span.
+    //
+    // Inline layout put the potato on one line and the word on the
+    // next, and that is the good case — Outlook uses Word to lay out
+    // HTML and will not honour inline-block at all. Two table cells is
+    // the only construction that holds the mark and the wordmark on one
+    // line in every client, which is why every email in the world is
+    // built out of tables.
+    `<tr><td style="padding-bottom:24px">` +
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>` +
+    `<td style="padding-right:10px;line-height:0">` +
+    `<img src="${APP_URL}/icon-192.png" width="34" height="34" alt="" border="0" ` +
+    `style="display:block;border:0" /></td>` +
+    `<td style="font-size:19px;font-weight:600;letter-spacing:-.02em;color:${NAVY};` +
+    `white-space:nowrap">PotatoFarm<span style="color:${ORANGE};font-weight:500">.io</span></td>` +
+    `</tr></table></td></tr>` +
+    `<tr><td style="font-size:16px;line-height:1.55;color:#1A1A1A">${body}</td></tr>` +
+    `<tr><td style="padding-top:28px;border-top:1px solid #E2E0DA;font-size:13px;color:#6B6B6B">` +
+    `PotatoFarm.io — every property enquiry answered in seconds.` +
+    `</td></tr></table></td></tr></table></body></html>`
+  );
+}
+
+/**
  * Strip anything that could break out of a header line.
  *
  * A subject is assembled from a brokerage name somebody typed. A newline
@@ -63,11 +125,15 @@ export async function sendInvite({
   await sendMail({
     to,
     subject: `${orgName} has added you to PotatoFarm.io`,
-    html:
-      `<p>You've been added to <strong>${escapeHtml(orgName)}</strong> on PotatoFarm.io.</p>` +
-      `<p><a href="${link}">Open PotatoFarm.io</a></p>` +
-      `<p>The link works for seven days. If you weren't expecting this, ignore it — ` +
-      `nothing happens until you open it.</p>`,
+    html: wrap(
+      `<p style="margin:0 0 16px">You've been added to <strong>${escapeHtml(orgName)}</strong> on PotatoFarm.io.</p>` +
+        `<p style="margin:0 0 20px"><a href="${link}" style="display:inline-block;` +
+        `background:${ORANGE};border:1px solid #CC4E1D;color:#1A1A1A;text-decoration:none;` +
+        `font-weight:600;padding:12px 20px;border-radius:8px">Open PotatoFarm.io</a></p>` +
+        `<p style="margin:0;color:#4A4A4A">The link works for seven days. If you weren't ` +
+        `expecting this, ignore it — nothing happens until you open it.</p>`,
+      { preheader: `${orgName} has added you to their brokerage.` }
+    ),
   });
 }
 

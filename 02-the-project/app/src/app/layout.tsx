@@ -39,9 +39,38 @@ export const metadata: Metadata = {
    * There was no `public/` directory at all, so every page requested
    * `/favicon.ico` and got a 404 — a blank tab in a browser where an
    * agent has six of them open. The icons are the same mark the site
-   * and the mobile app use.
+   * and the mobile app use, all of them built by
+   * `03-brand/logo/build.mjs` from the one definition in `mark.py`.
+   *
+   * The SVG is listed first and the ICO second on purpose. A browser
+   * that understands `image/svg+xml` takes it and gets a mark that is
+   * sharp on any display; everything else falls through to the ICO,
+   * which carries 16, 32 and 48 in one file.
    */
-  icons: { icon: "/favicon.ico", apple: "/apple-touch-icon.png" },
+  icons: {
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "16x16 32x32 48x48" },
+    ],
+    apple: "/apple-touch-icon.png",
+  },
+  /**
+   * The app is `noindex`, so this is not for search engines — it is for
+   * the preview card that appears when somebody pastes an app link into
+   * WhatsApp, which for this product is how half the internal sharing
+   * happens. Without it the card is a bare URL.
+   */
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "https://app.potatofarm.io"),
+  openGraph: {
+    title: "PotatoFarm.io",
+    description: "Every property enquiry answered in seconds.",
+    siteName: "PotatoFarm.io",
+    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "PotatoFarm.io" }],
+    locale: "en_GB",
+    type: "website",
+  },
+  twitter: { card: "summary_large_image", images: ["/og-image.png"] },
+  appleWebApp: { capable: true, title: "PotatoFarm.io", statusBarStyle: "default" },
   // Installable to a home screen, which is how a phone-first product
    // should behave before there is an app in a store.
   manifest: "/site.webmanifest",

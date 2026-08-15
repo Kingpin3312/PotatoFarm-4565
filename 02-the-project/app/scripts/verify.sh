@@ -158,6 +158,10 @@ else
   # Enforcement. The negative assertion is the one that matters: a
   # brokerage with no documents recorded is not stopped from working.
   step "check:blocking" npm run --silent check:blocking
+  # The logo as a browser draws it. `consistency.py` reads the source
+  # and fingerprints the potato; it cannot see that the wordmark beside
+  # it is the wrong colour on every screen, which it was.
+  step "browser:brand" npm run --silent browser:brand
   # Every screen opened in a real browser, and every link it renders
   # followed. Slow — around six minutes — and it is the only check that
   # sees what the screens actually do, which is where the two worst

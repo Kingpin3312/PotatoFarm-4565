@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { log } from "@/lib/log";
-import { escapeHtml, headerSafe, sendMail } from "@/server/lib/mail";
+import { escapeHtml, headerSafe, sendMail, wrap } from "@/server/lib/mail";
 
 /**
  * The two public forms on the marketing site: book a call, and send me
@@ -180,7 +180,9 @@ function emailTeam(lead: Lead) {
     to: process.env.SALES_INBOX ?? "hello@potatofarm.io",
     // The subject carries the two things that decide who picks it up.
     subject: `Demo request — ${headerSafe(lead.company)} (${lead.teamSize})`,
-    html: `<h2>New demo request</h2><table>${rows}</table><p>Lead ${lead.id}</p>`,
+    html: wrap(`<h2 style="margin:0 0 16px;font-size:20px">New demo request</h2>`
+      + `<table style="border-collapse:collapse;font-size:15px">${rows}</table>`
+      + `<p style="margin:16px 0 0;color:#6B6B6B;font-size:13px">Lead ${lead.id}</p>`),
     // Reply goes straight to them rather than to the shared inbox.
     replyTo: lead.email,
   });
@@ -192,13 +194,15 @@ function emailLead(lead: Lead) {
   return sendMail({
     to: lead.email,
     subject: "We've got your request",
-    html:
-      `<p>Hello ${escapeHtml(lead.name.split(" ")[0] ?? "there")},</p>` +
-      `<p>Thanks for getting in touch. We'll message you on WhatsApp within the hour ` +
-      `during working hours, and first thing otherwise.</p>` +
-      `<p>When we speak we'll use your own leads rather than a rehearsed demo, so it ` +
-      `helps if you have last month's enquiries to hand.</p>` +
-      `<p>Speak soon.</p>`,
+    html: wrap(
+      `<p style="margin:0 0 16px">Hello ${escapeHtml(lead.name.split(" ")[0] ?? "there")},</p>` +
+        `<p style="margin:0 0 16px">Thanks for getting in touch. We'll message you on ` +
+        `WhatsApp within the hour during working hours, and first thing otherwise.</p>` +
+        `<p style="margin:0 0 16px">When we speak we'll use your own leads rather than a ` +
+        `rehearsed demo, so it helps if you have last month's enquiries to hand.</p>` +
+        `<p style="margin:0">Speak soon.</p>`,
+      { preheader: "We'll message you on WhatsApp within the hour." }
+    ),
   });
 }
 
@@ -215,7 +219,7 @@ export async function sendGuideFollowUp(email: string, from?: string) {
   await sendMail({
     to: email,
     subject: subjectFor(from),
-    html: bodyFor(from),
+    html: wrap(bodyFor(from)),
     // Every send carries it. A one-click unsubscribe is what the form
     // promised and it is what stops a mailbox provider deciding we are
     // the kind of sender who ignores that.

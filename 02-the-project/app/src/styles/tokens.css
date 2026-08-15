@@ -92,6 +92,38 @@
      not always happen. */
   --on-accent: #1A1A1A;
 
+  /**
+   * ---- The wordmark navy --------------------------------------------
+   *
+   * The one colour the supplied logo has that this product did not.
+   * "PotatoFarm" in the artwork is a deep blue-black, not the neutral
+   * `--ink` the wordmark had been rendered in; sampled off the flat
+   * interior of the thick strokes it reads #0E1822, with blue leading
+   * red by eleven points. That is a decision, not compression noise.
+   *
+   * **It is a brand colour, not an interface colour.** It dresses the
+   * wordmark and nothing else. Repainting `--ink` navy would have
+   * recoloured every heading, table and caption in the product on the
+   * strength of a logo, which is a different job from the one asked
+   * for and would have moved thirty measured contrast ratios at once.
+   *
+   * **14.88:1 on the ground, measured, not estimated.** That is a shade
+   * below the 15.68:1 of the neutral ink it replaces in that one place
+   * — navy is a colour, and a colour is never quite as dark as black —
+   * and both are so far above the 4.5:1 threshold that the difference
+   * is arithmetic rather than legibility. Stated rather than rounded up,
+   * because a palette file that flatters itself is how a real failure
+   * gets waved through later.
+   *
+   * `--brand-navy-ink` is the reversed pairing: on charcoal and on the
+   * dark lockup the navy disappears, so the wordmark goes to the light
+   * type colour and only the `.io` stays orange. Both are here rather
+   * than inline so the whole brand can be moved from one file.
+   */
+  --brand-navy:     #12202E;   /* 14.88:1 on ground — "PotatoFarm" */
+  --brand-navy-ink: #EBEAE6;   /* the same word, reversed out on dark */
+  --brand-orange:   #FF6B35;   /* the ".io", and it is `--accent` by design */
+
   /* ---- Leather -----------------------------------------------------
      The anchor. Orange without a dark warm neutral beneath it floats;
      this is the belt and the box. */
