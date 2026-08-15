@@ -3,6 +3,7 @@ import { crossTenant } from "@/server/db/client";
 import { forOrg } from "@/server/db/client";
 import { Prisma } from "@prisma/client";
 import { entryStageId } from "@/server/lib/pipeline/defaults";
+import { assignmentFor } from "@/server/lib/routing/apply";
 
 /**
  * Inbound WhatsApp.
@@ -73,6 +74,28 @@ async function inbound(db: any, channel: { id: string; orgId: string }, msg: any
     // screen the brokerage watches.
     const stageId = await entryStageId(tx, channel.orgId, "NEW");
 
+    /**
+     * Who gets it.
+     *
+     * `route()` existed and was called by nothing but the settings
+     * preview, and neither this path nor the portal feed set
+     * `assignedToId` at all — so every lead from every channel arrived
+     * unowned and stayed that way, while a screen demonstrated the
+     * rotation that never ran.
+     *
+     * Resolved before the upsert because it only applies to a lead being
+     * created: a returning enquirer already has an owner, and reassigning
+     * them on a new message would take a lead off the agent who has been
+     * working it.
+     */
+    const known = await tx.lead.findUnique({
+      where: { orgId_phone: { orgId: channel.orgId, phone: from } },
+      select: { id: true, assignedToId: true },
+    });
+    const assignment = known
+      ? null
+      : await assignmentFor(tx, { orgId: channel.orgId, source: "WHATSAPP_AD" });
+
     const lead = await tx.lead.upsert({
       where: { orgId_phone: { orgId: channel.orgId, phone: from } },
       create: {
@@ -82,6 +105,9 @@ async function inbound(db: any, channel: { id: string; orgId: string }, msg: any
         status: "NEW",
         source: "WHATSAPP_AD",
         ...(stageId ? { stageId } : {}),
+        ...(assignment?.userId
+          ? { assignedToId: assignment.userId, assignedAt: new Date() }
+          : {}),
       },
       /**
        * Empty, and it has to be empty.
@@ -110,6 +136,27 @@ async function inbound(db: any, channel: { id: string; orgId: string }, msg: any
        */
       update: {},
     });
+
+    /**
+     * The ownership record, alongside the assignment.
+     *
+     * `routing.history` answers "why did that lead not come to me",
+     * which agents ask more than anything else in this product, and it
+     * reads `LeadOwnership`. An assignment with no ownership row is an
+     * answer nobody can give — and `FIRST_ASSIGNMENT` is the reason
+     * enum written for exactly this moment.
+     */
+    if (!known && assignment?.userId) {
+      await tx.leadOwnership.create({
+        data: {
+          orgId: channel.orgId,
+          leadId: lead.id,
+          userId: assignment.userId,
+          reason: "FIRST_ASSIGNMENT",
+          note: assignment.why,
+        },
+      });
+    }
 
     const conversation = await tx.conversation.upsert({
       where: { leadId: lead.id },

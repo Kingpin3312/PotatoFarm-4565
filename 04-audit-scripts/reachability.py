@@ -136,7 +136,6 @@ KNOWN_UNWRITTEN = {
     "QualificationProfile": "qualification answers cannot be stored",
     "CommissionSplit": "a split cannot be recorded",
     "AgentAvailability": "the diary cannot be told when an agent is free",
-    "AssignmentRule": "round-robin routing cannot be set up",
     "TeamVisibility": "team scoping cannot be configured",
     "NotificationPrefs": "an agent cannot change what they are notified about",
     "Document": "no document can be filed",

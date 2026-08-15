@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import type { RawEnquiry, PortalKey } from "./types";
 import { normalisePhone, normaliseEmail, normaliseLanguage, isProxyNumber } from "./normalise";
 import { entryStageId } from "@/server/lib/pipeline/defaults";
+import { assignmentFor } from "@/server/lib/routing/apply";
 
 const SOURCE: Record<PortalKey, Prisma.LeadCreateInput["source"]> = {
   PROPERTY_FINDER: "PROPERTY_FINDER",
@@ -67,6 +68,17 @@ export async function ingestEnquiry(
     // and the error it produces names thirty unrelated fields.
     const newStageId = existing ? null : await entryStageId(tx, orgId, "NEW");
 
+    // Same as the WhatsApp path: only a lead being created is routed. A
+    // portal re-sending an enquiry for somebody an agent is already
+    // working must not move them.
+    const assignment = existing
+      ? null
+      : await assignmentFor(tx, {
+          orgId,
+          source: SOURCE[portal] ?? null,
+          language: normaliseLanguage(raw.language),
+        });
+
     const lead = existing
       ? await tx.lead.update({
           where: { id: existing.id },
@@ -84,6 +96,9 @@ export async function ingestEnquiry(
             // See ingest.ts — a lead with no stage is one the pipeline
             // board cannot show, whatever else is right about it.
             ...(newStageId ? { stageId: newStageId } : {}),
+            ...(assignment?.userId
+              ? { assignedToId: assignment.userId, assignedAt: new Date() }
+              : {}),
             phone: phone ?? `pending:${raw.externalId}`,
             name: raw.name,
             email,
@@ -98,6 +113,20 @@ export async function ingestEnquiry(
               : undefined,
           },
         });
+
+    // The record `routing.history` reads to answer "why did that lead not
+    // come to me".
+    if (!existing && assignment?.userId) {
+      await tx.leadOwnership.create({
+        data: {
+          orgId,
+          leadId: lead.id,
+          userId: assignment.userId,
+          reason: "FIRST_ASSIGNMENT",
+          note: assignment.why,
+        },
+      });
+    }
 
     await tx.enquiry.create({
       data: {

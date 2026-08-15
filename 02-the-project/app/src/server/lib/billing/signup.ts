@@ -4,6 +4,7 @@ import { audit } from "@/server/lib/audit";
 import { log } from "@/lib/log";
 import { seedStages } from "@/server/lib/pipeline/defaults";
 import { seedHours } from "@/server/lib/hours/defaults";
+import { seedRoutingRule } from "@/server/lib/routing/apply";
 
 /**
  * The organisation's URL-safe handle.
@@ -160,6 +161,11 @@ export async function signup(input: SignupInput): Promise<SignupResult> {
     // while telling the agent their week is full. Same reasoning, same
     // transaction.
     await seedHours(tx, org.id);
+
+    // And a routing rule, so a new lead has somewhere to go. With none,
+    // `assignmentFor` matches nothing and every enquiry sits in the pool
+    // — which is a legitimate way to work, and not one anybody chose.
+    await seedRoutingRule(tx, org.id);
 
     const sub = await tx.subscription.create({
       data: {

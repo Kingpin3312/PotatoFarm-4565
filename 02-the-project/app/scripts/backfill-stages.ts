@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import { DEFAULT_STAGES, seedStages } from "@/server/lib/pipeline/defaults";
 import { DEFAULT_HOURS, seedHours } from "@/server/lib/hours/defaults";
+import { seedRoutingRule } from "@/server/lib/routing/apply";
 
 /**
  * Give every existing brokerage a pipeline and a working week, and put
@@ -43,6 +44,7 @@ let orgsFixed = 0;
 let stagesMade = 0;
 let leadsPlaced = 0;
 let hoursFixed = 0;
+let rulesFixed = 0;
 const unmapped: string[] = [];
 
 const orgs = await db.organisation.findMany({
@@ -73,7 +75,20 @@ for (const org of orgs) {
     hoursFixed += hoursMade ? 1 : 0;
   }
 
-  if (have > 0 && stranded === 0 && hoursMade === 0) {
+  /**
+   * A routing rule, for the same reason again.
+   *
+   * With no rule `assignmentFor` matches nothing and every inbound lead
+   * goes to the shared pool. That is a legitimate way to run a
+   * brokerage and it is not one anybody chose — an owner should see a
+   * rule on the screen and be able to change it.
+   */
+  const ruleMade = dry
+    ? (await db.assignmentRule.count({ where: { orgId: org.id } })) === 0
+    : await db.$transaction((tx) => seedRoutingRule(tx, org.id));
+  if (ruleMade) rulesFixed++;
+
+  if (have > 0 && stranded === 0 && hoursMade === 0 && !ruleMade) {
     console.log(`  ·  ${org.name.padEnd(28)} ${have} stages, ${hoursHave} days, nothing stranded`);
     continue;
   }
@@ -145,13 +160,15 @@ for (const org of orgs) {
   console.log(
     `  ✓  ${org.name.padEnd(28)} ${made ? `+${made} stages` : `${have} stages`}` +
       (hoursMade ? `, +${hoursMade} days of hours` : "") +
+      (ruleMade ? ", +routing rule" : "") +
       (stranded ? `, ${placed}/${stranded} stranded leads placed` : ""),
   );
 }
 
 console.log(
   `\n${orgsFixed} organisation(s) given a pipeline · ${stagesMade} stage(s) · ` +
-    `${hoursFixed} given a working week · ${leadsPlaced} lead(s) placed`,
+    `${hoursFixed} given a working week · ${rulesFixed} given a routing rule · ` +
+    `${leadsPlaced} lead(s) placed`,
 );
 
 if (unmapped.length) {
