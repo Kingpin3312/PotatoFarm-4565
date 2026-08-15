@@ -129,15 +129,21 @@ not want.
 
 ## The shape that keeps recurring
 
-Five times a complete, tested, documented module has turned out to have
-nothing that starts it:
+Six times a complete, tested, documented module has turned out to have
+nothing that starts it — and the sixth is the product itself:
 
 1. **Billing** could invoice a customer no code path could create.
 2. **sendFile** could send an attachment nothing could upload.
 3. **deals/** could plan a transfer no accepted offer ever began.
 4. **The vendor report** had no vendor to send to.
 5. **documents/** swept for expiring broker cards every night, and
-   nothing could file one. That one is worth reading in full, because it
+   nothing could file one.
+6. **The assistant** read an active `QualificationProfile` and handed
+   over to a human when there was none. Nothing had ever created one, so
+   it had never answered a single enquiry, for anybody. The product's
+   one-line promise, never once executed — and invisible, because a
+   handover means a person replies and a person replying looks like a
+   working inbox. That one is worth reading in full, because it
    is the shape at its most convincing: renewal lead times researched
    per document type, warnings grouped per recipient, a README arguing
    why the broker card is the one that catches people out — and the
@@ -147,7 +153,7 @@ nothing that starts it:
 catches the subtler one — a module that is imported, called correctly,
 and whose entry condition never occurs. **A light switch wired to
 nothing.** It now scans every model in the schema against a
-`KNOWN_UNWRITTEN` ratchet, so the remaining eight are visible and a new
+`KNOWN_UNWRITTEN` ratchet, so the remaining seven are visible and a new
 one is a build failure.
 
 The question to ask of anything new: **what writes the first row?** And

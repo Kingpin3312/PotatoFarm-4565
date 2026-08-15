@@ -33,8 +33,21 @@ import { PrismaClient } from "@prisma/client";
 function cp(){const r="/opt/pw-browsers";if(fs.existsSync(`${r}/chromium`))return `${r}/chromium`;
  for(const d of fs.readdirSync(r).filter(x=>x.startsWith("chromium")).sort().reverse()){
    const p=`${r}/${d}/chrome-linux/chrome`;if(fs.existsSync(p))return p;}}
+/**
+ * Failures are repeated at the end, and that is not decoration.
+ *
+ * `verify.sh` tails 25 lines of a failed step and this prints more than
+ * that — so when this check failed inside the gate, the failing
+ * assertion had scrolled off the top and every visible line was a tick.
+ * Three hypotheses were tested against it (a second organisation, a
+ * cold route compile, the preceding end-to-end checks) and none
+ * reproduced, which is a bad place to be with a release gate.
+ *
+ * Whatever fails next time will be in the last five lines.
+ */
 let bad=0;
-const ok=(l,p,d="")=>{console.log(`  ${p?"✓":"✗"} ${l}${d?"  — "+d:""}`);if(!p)bad++;};
+const failures=[];
+const ok=(l,p,d="")=>{console.log(`  ${p?"\u2713":"\u2717"} ${l}${d?"  \u2014 "+d:""}`);if(!p){bad++;failures.push(d?`${l}  \u2014 ${d}`:l);}};
 
 const db = new PrismaClient({ datasources:{db:{url:process.env.DATABASE_URL_UNSCOPED}} });
 const org = await db.organisation.findFirst({ where:{deletedAt:null}, select:{id:true} });
@@ -179,5 +192,5 @@ console.log("\n=== a renewal supersedes rather than accumulates ===");
 
 await b.close();
 await db.$disconnect();
-console.log(bad ? `\n${bad} FAILED\n` : "\nthe register writes, the job reads, the renewal closes the old one.\n");
+console.log(bad ? "\n" + bad + " FAILED:\n  - " + failures.join("\n  - ") + "\n" : "\nthe register writes, the job reads, the renewal closes the old one.\n");
 process.exit(bad ? 1 : 0);

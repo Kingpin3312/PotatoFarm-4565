@@ -30,8 +30,21 @@ import { PrismaClient } from "@prisma/client";
  *     npm run dev
  *     npm run check:blocking
  */
-let bad = 0;
-const ok=(l,p,d="")=>{console.log(`  ${p?"✓":"✗"} ${l}${d?"  — "+d:""}`);if(!p)bad++;};
+/**
+ * Failures are repeated at the end, and that is not decoration.
+ *
+ * `verify.sh` tails 25 lines of a failed step and this prints more than
+ * that — so when this check failed inside the gate, the failing
+ * assertion had scrolled off the top and every visible line was a tick.
+ * Three hypotheses were tested against it (a second organisation, a
+ * cold route compile, the preceding end-to-end checks) and none
+ * reproduced, which is a bad place to be with a release gate.
+ *
+ * Whatever fails next time will be in the last five lines.
+ */
+let bad=0;
+const failures=[];
+const ok=(l,p,d="")=>{console.log(`  ${p?"\u2713":"\u2717"} ${l}${d?"  \u2014 "+d:""}`);if(!p){bad++;failures.push(d?`${l}  \u2014 ${d}`:l);}};
 
 const db = new PrismaClient({ datasources:{db:{url:process.env.DATABASE_URL_UNSCOPED}} });
 const org = await db.organisation.findFirst({ where:{deletedAt:null}, select:{id:true,name:true} });
@@ -192,5 +205,5 @@ console.log("\n=== recording the renewal clears it ===");
 await db.document.deleteMany({ where: { orgId: org.id } });
 await b.close();
 await db.$disconnect();
-console.log(bad ? `\n${bad} FAILED\n` : "\nnothing blocks on silence; a lapsed card blocks until it is renewed.\n");
+console.log(bad ? "\n" + bad + " FAILED:\n  - " + failures.join("\n  - ") + "\n" : "\nnothing blocks on silence; a lapsed card blocks until it is renewed.\n");
 process.exit(bad ? 1 : 0);
