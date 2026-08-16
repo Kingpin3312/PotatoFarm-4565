@@ -20,7 +20,7 @@ export function Stages() {
 
   return (
     <section>
-      <h2 className="font-sans font-semibold text-[19px] text-accent-deep -tracking-[0.02em] mb-1">
+      <h2 className="font-sans font-semibold text-body-lg text-accent-deep mb-1">
         Stages
       </h2>
       <p className="text-sm text-ink-2 mb-4 max-w-[48ch]">
@@ -35,8 +35,8 @@ export function Stages() {
             <div key={s.id} className={cn("py-3.5 border-b border-rule",
               heavy && "border-l-[3px] border-l-accent-edge pl-4 -ml-4")}>
               <div className="flex items-baseline gap-3">
-                <span className="text-[16px] text-ink">{s.name}</span>
-                <span className="ml-auto text-[15px] text-ink font-semibold tabular">
+                <span className="text-control text-ink">{s.name}</span>
+                <span className="ml-auto text-ui text-ink font-medium tabular">
                   {s.count.toLocaleString()}
                 </span>
                 {heavy && (

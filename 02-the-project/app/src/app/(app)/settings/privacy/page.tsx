@@ -45,24 +45,24 @@ export default function Privacy() {
   return (
     <div className="max-w-[620px] mx-auto px-6 pb-24">
       <header className="pt-10 pb-6">
-        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-3 block mb-3">
+        <span className="t-label text-ink-3 block mb-3">
           Privacy requests
         </span>
-        <h1 className="font-sans font-semibold text-[clamp(2rem,1.5rem+2vw,2.5rem)] text-ink -tracking-[0.026em] leading-none">
+        <h1 className="font-sans font-semibold text-page text-ink">
           Somebody asking about their data
         </h1>
       </header>
 
       <div className="border-t border-rule pt-5">
-        <label htmlFor="pphone" className="block font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3 mb-2">
+        <label htmlFor="pphone" className="block t-label text-ink-3 mb-2">
           Their WhatsApp number
         </label>
         <input id="pphone" type="tel" inputMode="tel" value={phone} placeholder="+971 50 123 4567"
           onChange={(e) => { setPhone(e.target.value); setBuilding(false); }}
-          className="w-full min-h-11 px-4 text-[16px] text-ink bg-sunk border border-rule rounded-lg focus-visible:outline-none focus-visible:shadow-[var(--ring)]" />
+          className="w-full min-h-11 px-4 text-control text-ink bg-sunk border border-rule rounded-lg focus-visible:outline-none focus-visible:shadow-[var(--ring)]" />
       </div>
 
-      <h2 className="font-sans font-semibold text-[17px] text-accent-deep mt-8 mb-2">
+      <h2 className="font-sans font-medium text-sub text-accent-deep mt-8 mb-2">
         Everything you hold on them
       </h2>
       <p className="text-sm text-ink-2 mb-3 max-w-[48ch] leading-snug">
@@ -74,7 +74,7 @@ export default function Privacy() {
         Build the file
       </Button>
 
-      <h2 className="font-sans font-semibold text-[17px] text-accent-deep mt-10 mb-2">Erase them</h2>
+      <h2 className="font-sans font-medium text-sub text-accent-deep mt-10 mb-2">Erase them</h2>
       <p className="text-sm text-ink-2 mb-3 max-w-[48ch] leading-snug">
         Personal details are scrubbed and the audit trail is kept — the log cannot be edited
         or deleted, which is enforced at the database.
@@ -92,15 +92,15 @@ export default function Privacy() {
         </Button>
       ) : (
         <div className="bg-sunk rounded-xl p-4 border-l-[3px] border-l-danger">
-          <p className="text-[15px] text-ink">This cannot be undone. Type the number again to confirm.</p>
+          <p className="text-ui text-ink">This cannot be undone. Type the number again to confirm.</p>
           <label htmlFor="pconfirm" className="sr-only">Confirm the number</label>
           <input id="pconfirm" type="tel" inputMode="tel" value={confirmPhone}
             onChange={(e) => setConfirmPhone(e.target.value)} placeholder="+971 50 123 4567"
-            className="w-full min-h-11 px-4 mt-3 text-[16px] text-ink bg-raised border border-rule rounded-lg focus-visible:outline-none focus-visible:shadow-[var(--ring)]" />
+            className="w-full min-h-11 px-4 mt-3 text-control text-ink bg-raised border border-rule rounded-lg focus-visible:outline-none focus-visible:shadow-[var(--ring)]" />
           <label htmlFor="preason" className="sr-only">Why</label>
           <input id="preason" type="text" value={reason} onChange={(e) => setReason(e.target.value)}
             placeholder="Why — they asked, in writing, on 3 March"
-            className="w-full min-h-11 px-4 mt-2 text-[16px] text-ink bg-raised border border-rule rounded-lg focus-visible:outline-none focus-visible:shadow-[var(--ring)]" />
+            className="w-full min-h-11 px-4 mt-2 text-control text-ink bg-raised border border-rule rounded-lg focus-visible:outline-none focus-visible:shadow-[var(--ring)]" />
           <div className="flex gap-2 mt-3">
             <Button variant="primary" loading={erase.isPending}
               disabled={confirmPhone !== phone || reason.trim().length < 3}

@@ -112,7 +112,7 @@ export function AddProperty({ onAdded }: { onAdded?: () => void }) {
         <form onSubmit={submit} className="p-6">
           <h2
             id="add-property-title"
-            className="font-sans font-semibold -tracking-[0.024em] text-[24px] text-ink mb-1.5"
+            className="font-sans font-semibold text-h3 text-ink mb-1.5"
           >
             Add a property
           </h2>
@@ -151,7 +151,7 @@ export function AddProperty({ onAdded }: { onAdded?: () => void }) {
               later and the layout should say so rather than making an
               agent wonder whether they have missed something required. */}
           <div className="mt-6 pt-5 border-t border-rule">
-            <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3 mb-3">
+            <p className="t-label text-ink-3 mb-3">
               Trakheesi permit — needed before it can be advertised
             </p>
             <div className="grid grid-cols-2 gap-3.5">
@@ -193,7 +193,7 @@ function Field({
 } & React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <label className="flex flex-col gap-1.5">
-      <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3">
+      <span className="t-label text-ink-3">
         {label}{required && <span className="text-accent-deep"> *</span>}
       </span>
       <input
@@ -201,7 +201,7 @@ function Field({
         type={type}
         required={required}
         autoComplete="off"
-        className="min-h-11 px-3 text-[16px] bg-ground border border-rule rounded-[3px] text-ink outline-none focus:border-ink"
+        className="min-h-11 px-3 text-control bg-ground border border-rule rounded-[3px] text-ink outline-none focus:border-ink"
         {...rest}
       />
     </label>
@@ -213,10 +213,10 @@ function Select({
 }: { name: string; label: string; options: [string, string][] }) {
   return (
     <label className="flex flex-col gap-1.5">
-      <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3">{label}</span>
+      <span className="t-label text-ink-3">{label}</span>
       <select
         name={name}
-        className="min-h-11 px-3 text-[16px] bg-ground border border-rule rounded-[3px] text-ink outline-none focus:border-ink"
+        className="min-h-11 px-3 text-control bg-ground border border-rule rounded-[3px] text-ink outline-none focus:border-ink"
       >
         {options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
       </select>

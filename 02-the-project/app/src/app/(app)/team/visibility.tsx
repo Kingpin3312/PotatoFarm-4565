@@ -83,7 +83,7 @@ export function TeamVisibility() {
 
   return (
     <section className="mt-14" data-visibility>
-      <h2 className="font-sans font-semibold -tracking-[0.024em] text-[22px] text-accent-deep mb-1">
+      <h2 className="font-sans font-semibold text-section text-accent-deep mb-1">
         What agents see about each other
       </h2>
       <p className="text-sm text-ink-2 max-w-[54ch]">
@@ -134,7 +134,7 @@ export function TeamVisibility() {
         }}
       >
         <fieldset className="border-0 p-0 m-0 flex flex-col gap-2.5" disabled={!data.canChange}>
-          <legend className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3 mb-1.5">
+          <legend className="t-label text-ink-3 mb-1.5">
             The board
           </legend>
           {MODES.map((m) => (
@@ -156,8 +156,8 @@ export function TeamVisibility() {
                 className="size-5 mt-0.5 accent-[var(--accent)] shrink-0"
               />
               <span>
-                <span className="block text-[15px] text-ink font-semibold">{m.title}</span>
-                <span className="block text-[13px] text-ink-3 max-w-[48ch] leading-snug mt-0.5">
+                <span className="block text-ui text-ink font-medium">{m.title}</span>
+                <span className="block text-note text-ink-3 max-w-[48ch] leading-snug mt-0.5">
                   {m.detail}
                 </span>
               </span>
@@ -168,7 +168,7 @@ export function TeamVisibility() {
         <div>
           <label
             htmlFor="headstart"
-            className="block font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3 mb-2"
+            className="block t-label text-ink-3 mb-2"
           >
             Head start
           </label>
@@ -181,13 +181,13 @@ export function TeamVisibility() {
               value={hours}
               disabled={!data.canChange}
               onChange={(e) => setHours(Math.max(0, Math.min(168, Number(e.target.value) || 0)))}
-              className="w-[8ch] min-h-11 px-3 text-[16px] bg-ground border border-rule rounded-[3px] text-ink outline-none focus:border-ink tabular"
+              className="w-[8ch] min-h-11 px-3 text-control bg-ground border border-rule rounded-[3px] text-ink outline-none focus:border-ink tabular"
             />
-            <span className="text-[15px] text-ink-2">hours</span>
+            <span className="text-ui text-ink-2">hours</span>
           </div>
           {/* Said in terms of the consequence, because the number on its
               own does not explain itself. */}
-          <p className="mt-2 text-[13px] text-ink-3 max-w-[52ch] leading-snug">
+          <p className="mt-2 text-note text-ink-3 max-w-[52ch] leading-snug">
             {hours === 0
               ? "No head start. Managers and agents see the same figures at the same moment."
               : `A manager's board stops ${hours} hours short, so an agent sees a bad day

@@ -57,7 +57,7 @@ export function QueryError({
   if (signedOut(error)) {
     return (
       <div role="alert" className="px-6 py-10 max-w-[46ch]">
-        <p className="text-[15px] text-ink font-semibold">You&rsquo;ve been signed out.</p>
+        <p className="text-ui text-ink font-medium">You&rsquo;ve been signed out.</p>
         <p className="text-sm text-ink-2 mt-1.5">
           Sessions don&rsquo;t last forever. Sign in again and you&rsquo;ll come straight
           back here.
@@ -77,7 +77,7 @@ export function QueryError({
   if (missing(error)) {
     return (
       <div role="alert" className="px-6 py-10 max-w-[46ch]">
-        <p className="text-[15px] text-ink font-semibold">
+        <p className="text-ui text-ink font-medium">
           We can&rsquo;t find {what}.
         </p>
         <p className="text-sm text-ink-2 mt-1.5">
@@ -92,7 +92,7 @@ export function QueryError({
   if (refused(error)) {
     return (
       <div role="alert" className="px-6 py-10 max-w-[46ch]">
-        <p className="text-[15px] text-ink font-semibold">
+        <p className="text-ui text-ink font-medium">
           You don&rsquo;t have access to {what}.
         </p>
         <p className="text-sm text-ink-2 mt-1.5">
@@ -107,7 +107,7 @@ export function QueryError({
 
   return (
     <div role="alert" className="px-6 py-10 max-w-[46ch]">
-      <p className="text-[15px] text-ink font-semibold">Couldn&rsquo;t load {what}.</p>
+      <p className="text-ui text-ink font-medium">Couldn&rsquo;t load {what}.</p>
       <p className="text-sm text-ink-2 mt-1.5">
         Nothing is lost — your data is safe. This is usually the connection.
       </p>

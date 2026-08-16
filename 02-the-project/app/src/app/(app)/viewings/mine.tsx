@@ -16,16 +16,16 @@ export function MyViewings() {
 
   return (
     <section>
-      <h2 className="font-sans font-semibold text-[17px] text-accent-deep mb-3">Next two days</h2>
+      <h2 className="font-sans font-medium text-sub text-accent-deep mb-3">Next two days</h2>
       <div className="border-t border-ink">
         {viewings.map((v) => (
           <a key={v.id} href={`/viewings#${v.id}`}
              className="flex items-baseline gap-3 py-3 border-b border-rule no-underline">
-            <span className="font-mono text-[11px] text-ink-3 tabular w-24 shrink-0">
+            <span className="font-mono text-label text-ink-3 tabular w-24 shrink-0">
               {new Date(v.scheduledAt).toLocaleString("en-GB",
                 { weekday: "short", hour: "2-digit", minute: "2-digit" })}
             </span>
-            <span className="text-[15px] text-ink flex-1">{v.building ?? "—"}</span>
+            <span className="text-ui text-ink flex-1">{v.building ?? "—"}</span>
             <span className="text-sm text-ink-2 shrink-0">{(v.lead.name ?? v.lead.phone)}</span>
           </a>
         ))}

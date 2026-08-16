@@ -39,7 +39,7 @@ export function ContactRow({
     <div className={cn("flex gap-2", compact ? "flex-wrap" : "")}>
       <a
         href={tel}
-        className="flex-[2] min-h-11 rounded-full bg-accent text-on-accent font-semibold text-[15px] grid place-items-center no-underline"
+        className="flex-[2] min-h-11 rounded-full bg-accent text-on-accent font-medium text-ui grid place-items-center no-underline"
         aria-label={name ? `Call ${name}` : "Call this lead"}
       >
         Call
@@ -49,7 +49,7 @@ export function ContactRow({
           href={wa}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex-1 min-h-11 rounded-full border border-rule text-ink font-medium text-[15px] grid place-items-center no-underline"
+          className="flex-1 min-h-11 rounded-full border border-rule text-ink font-medium text-ui grid place-items-center no-underline"
           // Opens the real WhatsApp thread. An agent who wants to send a
           // voice note will go there anyway; making it one tap from our
           // record keeps them starting here rather than in Contacts.
@@ -61,7 +61,7 @@ export function ContactRow({
       {onMessage && (
         <button
           onClick={onMessage}
-          className="flex-1 min-h-11 rounded-full border border-rule text-ink font-medium text-[15px]"
+          className="flex-1 min-h-11 rounded-full border border-rule text-ink font-medium text-ui"
         >
           Reply here
         </button>

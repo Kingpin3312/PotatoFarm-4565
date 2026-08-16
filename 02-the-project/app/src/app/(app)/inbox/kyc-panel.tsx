@@ -56,10 +56,10 @@ export function KycPanel({ leadId }: { leadId: string }) {
   if (!data.exists) {
     return (
       <div className="border-t border-rule pt-4 mt-6">
-        <span className="block font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3 mb-2">
+        <span className="block t-label text-ink-3 mb-2">
           Identity
         </span>
-        <p className="text-[15px] text-ink-2 max-w-[44ch] leading-snug">
+        <p className="text-ui text-ink-2 max-w-[44ch] leading-snug">
           Nothing needed yet. A file opens on its own when an offer is accepted — every
           brokerage concluding a sale is a DNFBP and the check is the firm&rsquo;s
           obligation, not yours.
@@ -91,7 +91,7 @@ export function KycPanel({ leadId }: { leadId: string }) {
 
   return (
     <div className="border-t border-rule pt-4 mt-6">
-      <span className="block font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3 mb-2">
+      <span className="block t-label text-ink-3 mb-2">
         Identity
       </span>
 
@@ -99,11 +99,11 @@ export function KycPanel({ leadId }: { leadId: string }) {
         // Neutral, and deliberately uninformative. The message comes
         // from the router; do not enrich it here.
         <div className="bg-sunk rounded-xl p-4 border-l-[3px] border-l-rule-strong">
-          <p className="text-[15px] text-ink">{data.message}</p>
+          <p className="text-ui text-ink">{data.message}</p>
         </div>
       ) : (
         <>
-          <p className={cn("text-[16px] font-semibold",
+          <p className={cn("text-control font-medium",
             data.outstanding.length === 0 ? "text-success" : "text-ink")}>
             {data.outstanding.length === 0
               ? "Everything's in."
@@ -121,7 +121,7 @@ export function KycPanel({ leadId }: { leadId: string }) {
               {wording?.body && (
                 <div className="mt-4">
                   <p className="text-sm text-ink-3 mb-2">Ask them like this:</p>
-                  <p className="text-[15px] text-ink bg-sunk rounded-xl p-3 leading-snug">
+                  <p className="text-ui text-ink bg-sunk rounded-xl p-3 leading-snug">
                     {wording.body}
                   </p>
                   <Button variant="secondary" className="mt-2"

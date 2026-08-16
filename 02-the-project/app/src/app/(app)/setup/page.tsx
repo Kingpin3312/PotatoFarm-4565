@@ -32,14 +32,14 @@ export default function Setup() {
   return (
     <div className="max-w-[680px] mx-auto px-6 pb-24">
       <header className="pt-10 pb-6">
-        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-3 block mb-3">
+        <span className="t-label text-ink-3 block mb-3">
           Setup · {done} of {steps.length}
         </span>
-        <h1 className="font-sans font-semibold text-[clamp(2rem,1.5rem+2vw,2.5rem)] text-ink -tracking-[0.026em] leading-none">
+        <h1 className="font-sans font-semibold text-page text-ink">
           {done === steps.length ? "You're set up." : next?.title ?? "Nearly there."}
         </h1>
         {done < steps.length && (
-          <p className="text-[17px] text-ink-2 mt-3 max-w-[46ch]">
+          <p className="text-sub text-ink-2 mt-3 max-w-[46ch]">
             {next?.why ?? "A few things left."}
           </p>
         )}
@@ -50,12 +50,12 @@ export default function Setup() {
           <div key={s.key} className={cn("py-4 border-b border-rule",
             !s.done && s.key === next?.key && "border-l-[3px] border-l-accent pl-4 -ml-4")}>
             <div className="flex items-baseline gap-3">
-              <span className={cn("font-mono text-[11px] tabular",
+              <span className={cn("font-mono text-label tabular",
                 s.done ? "text-success" : "text-ink-3")}>
                 {s.done ? "done" : String(i + 1).padStart(2, "0")}
               </span>
               <div className="flex-1">
-                <p className={cn("text-[16px] font-semibold",
+                <p className={cn("text-control font-medium",
                   s.done ? "text-ink-3 line-through decoration-1" : "text-ink")}>
                   {s.title}
                 </p>
@@ -76,7 +76,7 @@ export default function Setup() {
           left as a checkbox. */}
       {!steps.find((s) => s.key === "baseline")?.done && (
         <div className="mt-8 bg-sunk rounded-xl p-5 border-l-[3px] border-l-accent-edge">
-          <p className="text-[16px] text-ink font-semibold">
+          <p className="text-control text-ink font-medium">
             Leave the assistant off for the first week.
           </p>
           <p className="text-sm text-ink-2 mt-1.5 max-w-[48ch] leading-snug">

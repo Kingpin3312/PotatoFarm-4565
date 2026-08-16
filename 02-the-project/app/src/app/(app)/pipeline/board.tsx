@@ -153,7 +153,7 @@ export function Board() {
     return (
       <div className="grid place-items-center min-h-[60vh] px-6">
         <div className="max-w-[46ch] text-center">
-          <p className="text-[19px] font-semibold text-ink">
+          <p className="text-body-lg font-semibold text-ink">
             This brokerage has no pipeline stages.
           </p>
           <p className="text-sm text-ink-2 mt-2">
@@ -162,7 +162,7 @@ export function Board() {
             screen, and they will appear here once stages exist.
           </p>
           <p className="mt-5">
-            <a href="/settings" className="text-[15px] text-accent-deep">
+            <a href="/settings" className="text-ui text-accent-deep">
               Set up your stages
             </a>
           </p>
@@ -176,12 +176,12 @@ export function Board() {
     return (
       <div className="grid place-items-center min-h-[60vh] px-6">
         <div className="max-w-[42ch] text-center">
-          <p className="text-[19px] font-semibold text-ink">Your pipeline is empty.</p>
+          <p className="text-body-lg font-semibold text-ink">Your pipeline is empty.</p>
           <p className="text-sm text-ink-2 mt-2">
             Leads appear here the moment an enquiry arrives from a portal or a WhatsApp
             message. Nothing is wrong — there is just nothing yet.
           </p>
-          <p className="font-mono text-[11px] uppercase tracking-[0.1em] text-ink-3 mt-5">
+          <p className="t-label text-ink-3 mt-5">
             {data.columns.length} stages ready
           </p>
         </div>
@@ -253,12 +253,12 @@ export function Board() {
           >
             <div className="px-4 pt-3.5 pb-3 border-b border-ink sticky top-0 bg-ground z-10">
               <div className="flex items-baseline gap-2">
-                <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-ink">
+                <span className="t-label text-ink">
                   {col.stage.name}
                 </span>
-                <span className="ml-auto font-mono text-[11px] text-ink-3">{col.total}</span>
+                <span className="ml-auto font-mono text-label text-ink-3">{col.total}</span>
               </div>
-              <div className="font-sans font-semibold -tracking-[0.024em] text-[20px] text-ink mt-1.5 -tracking-[0.01em]">
+              <div className="font-sans font-semibold text-section text-ink mt-1.5">
                 {col.value ? aedShort(col.value) : "—"}
               </div>
             </div>
@@ -280,22 +280,22 @@ export function Board() {
                     {l.conversation && l.conversation.unreadCount > 0 && (
                       <span className="size-1.5 rounded-full bg-accent shrink-0" />
                     )}
-                    <span className="text-[15px] font-semibold text-ink">
+                    <span className="text-ui font-medium text-ink">
                       {l.name ?? l.phone}
                     </span>
                   </span>
 
-                  <span className="block font-mono text-[13px] text-ink mt-1.5">
+                  <span className="block font-mono text-note text-ink mt-1.5">
                     {l.budgetMaxFils ? aedShort(l.budgetMaxFils) : "—"}
                   </span>
 
                   <span className="flex gap-2 mt-2 items-center flex-wrap">
                     {l.source && (
-                      <span className="font-mono text-[9px] uppercase tracking-[0.1em] text-ink-3 border border-rule rounded-[2px] px-1.5">
+                      <span className="t-label text-ink-3 border border-rule rounded-[2px] px-1.5">
                         {l.source.replace(/_/g, " ").toLowerCase()}
                       </span>
                     )}
-                    <span className="ml-auto font-mono text-[9px] text-ink-3">
+                    <span className="ml-auto font-mono text-label text-ink-3">
                       {l.assignedTo?.name ?? "Unassigned"}
                     </span>
                   </span>
@@ -308,7 +308,7 @@ export function Board() {
                        this is the one label on the card somebody has to
                        read at a glance across a room. A border is not
                        text and 3.22:1 clears the 3:1 it needs. */
-                    <span className="flex items-center gap-1.5 mt-2 pl-2 border-l-2 border-accent font-mono text-[9px] uppercase tracking-[0.1em] text-accent-deep">
+                    <span className="flex items-center gap-1.5 mt-2 pl-2 border-l-2 border-accent t-label text-accent-deep">
                       Untouched {days(l.stageEnteredAt)} days
                     </span>
                   )}
@@ -316,7 +316,7 @@ export function Board() {
               ))}
 
               {col.leads.length < col.total && (
-                <p className="px-4 py-4 font-mono text-[10px] uppercase tracking-[0.1em] text-ink-3">
+                <p className="px-4 py-4 t-label text-ink-3">
                   {col.total - col.leads.length} more
                 </p>
               )}

@@ -22,7 +22,7 @@ export function ExportBlackbook() {
     const d = exportMine.data;
     return (
       <div className="border-t border-rule pt-5 mt-10">
-        <p className="text-[16px] text-ink font-semibold">
+        <p className="text-control text-ink font-medium">
           {d.entries.length} entries ready.
         </p>
         <Button variant="primary" className="mt-3"
@@ -43,7 +43,7 @@ export function ExportBlackbook() {
 
   return (
     <div className="border-t border-rule pt-5 mt-10">
-      <h2 className="font-sans font-semibold text-[17px] text-accent-deep mb-2">Export your book</h2>
+      <h2 className="font-sans font-medium text-sub text-accent-deep mb-2">Export your book</h2>
       {!asked ? (
         <>
           <p className="text-sm text-ink-2 max-w-[48ch] leading-snug">
@@ -57,11 +57,11 @@ export function ExportBlackbook() {
         <div className="bg-sunk rounded-xl p-4">
           {/* Said plainly, before the download. Somebody discovering
               this afterwards feels tricked; reading it first does not. */}
-          <p className="text-[15px] text-ink font-semibold">What you get</p>
+          <p className="text-ui text-ink font-medium">What you get</p>
           <p className="text-sm text-ink-2 mt-1 max-w-[46ch] leading-snug">
             Your notes, your nicknames, your tags — everything on this page.
           </p>
-          <p className="text-[15px] text-ink font-semibold mt-4">What stays</p>
+          <p className="text-ui text-ink font-medium mt-4">What stays</p>
           <p className="text-sm text-ink-2 mt-1 max-w-[46ch] leading-snug">
             Client records, message history and the compliance file. The brokerage is legally
             required to keep those for five years, and no version of this lets them leave.

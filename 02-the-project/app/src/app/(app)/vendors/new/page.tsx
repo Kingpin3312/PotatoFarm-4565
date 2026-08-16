@@ -22,8 +22,8 @@ export default function NewVendor() {
   if (create.isSuccess) {
     return (
       <div className="max-w-[560px] mx-auto px-6 py-20">
-        <h1 className="font-sans font-semibold text-[30px] text-ink -tracking-[0.026em]">Added.</h1>
-        <p className="text-[17px] text-ink-2 mt-3">Attach them to a listing next.</p>
+        <h1 className="font-sans font-semibold text-stat text-ink">Added.</h1>
+        <p className="text-sub text-ink-2 mt-3">Attach them to a listing next.</p>
         <a href="/listings" className="btn-inline mt-6 inline-block">Listings</a>
       </div>
     );
@@ -40,7 +40,7 @@ export default function NewVendor() {
   return (
     <div className="max-w-[560px] mx-auto px-6 pb-24">
       <header className="pt-10 pb-6">
-        <h1 className="font-sans font-semibold text-[clamp(2rem,1.5rem+2vw,2.5rem)] text-ink -tracking-[0.026em] leading-none">
+        <h1 className="font-sans font-semibold text-page text-ink">
           Add an owner
         </h1>
       </header>
@@ -54,7 +54,7 @@ export default function NewVendor() {
            placeholder="Power of attorney, family member, company rep" />
 
         <div>
-          <span className="block font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3 mb-2">
+          <span className="block t-label text-ink-3 mb-2">
             How they want to hear from you
           </span>
           <div className="space-y-2">
@@ -63,7 +63,7 @@ export default function NewVendor() {
                 aria-pressed={f.prefers === k}
                 className={`w-full text-left min-h-11 px-4 py-3 rounded-lg border ${
                   f.prefers === k ? "border-accent-edge bg-sunk" : "border-rule"}`}>
-                <span className="text-[16px] text-ink font-semibold block">{label}</span>
+                <span className="text-control text-ink font-medium block">{label}</span>
                 <span className="text-sm text-ink-2 block mt-0.5 leading-snug">{why}</span>
               </button>
             ))}
@@ -72,21 +72,21 @@ export default function NewVendor() {
 
         {f.prefers !== "OFFERS_ONLY" && (
           <div>
-            <span className="block font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3 mb-2">
+            <span className="block t-label text-ink-3 mb-2">
               Weekly report day
             </span>
             <div className="flex gap-2 flex-wrap">
               {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map((d, i) => (
                 <button key={d} onClick={() => setF({ ...f, reportDay: i + 1 })}
                   aria-pressed={f.reportDay === i + 1}
-                  className={`min-h-11 px-3 rounded-lg border text-[15px] ${
+                  className={`min-h-11 px-3 rounded-lg border text-ui ${
                     f.reportDay === i + 1
-                      ? "bg-accent text-on-accent border-accent-edge font-semibold"
+                      ? "bg-accent text-on-accent border-accent-edge font-medium"
                       : "border-rule text-ink"}`}>{d}</button>
               ))}
               <button onClick={() => setF({ ...f, reportDay: null })}
                 aria-pressed={f.reportDay === null}
-                className={`min-h-11 px-3 rounded-lg border text-[15px] ${
+                className={`min-h-11 px-3 rounded-lg border text-ui ${
                   f.reportDay === null ? "bg-sunk border-ink text-ink font-semibold" : "border-rule text-ink"}`}>
                 None
               </button>
@@ -121,12 +121,12 @@ function F({ label, v, on, type = "text", ac, placeholder }: {
   const id = label.toLowerCase().replace(/[^a-z]+/g, "-");
   return (
     <div>
-      <label htmlFor={id} className="block font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3 mb-2">
+      <label htmlFor={id} className="block t-label text-ink-3 mb-2">
         {label}
       </label>
       <input id={id} type={type} value={v} autoComplete={ac} placeholder={placeholder}
              onChange={(e) => on(e.target.value)}
-             className="w-full min-h-11 px-4 text-[16px] text-ink bg-sunk border border-rule rounded-lg focus-visible:outline-none focus-visible:shadow-[var(--ring)]" />
+             className="w-full min-h-11 px-4 text-control text-ink bg-sunk border border-rule rounded-lg focus-visible:outline-none focus-visible:shadow-[var(--ring)]" />
     </div>
   );
 }

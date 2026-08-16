@@ -87,6 +87,14 @@ inside `lib/health` until the portal ingest needed it, which closed a
 cycle. Use `log()` from there and never `console` — it scrubs personal
 data and carries the tenant.
 
+**`cn()` must know every custom `text-*` size.** `tailwind-merge`
+assumes an unrecognised `text-<word>` is a colour, so `cn("text-title",
+"text-ink-3")` put a size and a colour in one conflict group and
+returned only the colour — fourteen call sites rendered at the
+inherited 16px with the class sitting right there in the source. The
+scale's names are declared in `src/lib/cn.ts`; a new step goes in that
+list and in `globals.css`, and `browser:type` fails if the two drift.
+
 **All money is `BigInt` fils, formatted only by `lib/money.ts`.** There
 were five formatters and two assumed AED. `Lead.budgetMax` and
 `Listing.price` were `Decimal` AED while everything else was fils; the

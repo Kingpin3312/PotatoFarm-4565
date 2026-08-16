@@ -12,10 +12,10 @@ export default function SettingsPage() {
   return (
     <div className="max-w-[860px] mx-auto px-6 pb-24">
       <header className="pt-10 pb-2">
-        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-3 block mb-3">
+        <span className="t-label text-ink-3 block mb-3">
           Settings · Assistant
         </span>
-        <h1 className="font-sans text-[clamp(2rem,1.5rem+2vw,2.75rem)] text-ink -tracking-[0.01em] leading-none">
+        <h1 className="font-sans text-page text-ink">
           The assistant
         </h1>
         <p className="mt-3 max-w-[56ch] text-ink-2">
@@ -29,7 +29,7 @@ export default function SettingsPage() {
 
       {data && (
         <>
-          <h2 className="font-sans font-semibold -tracking-[0.024em] text-[22px] text-accent-deep mt-12 mb-1">This month</h2>
+          <h2 className="font-sans font-semibold text-section text-accent-deep mt-12 mb-1">This month</h2>
           <p className="text-sm text-ink-3 max-w-[60ch]">
             Every call is counted, including ones that were blocked or failed — a total
             that only reflects the successes under-reports exactly when something is
@@ -46,7 +46,7 @@ export default function SettingsPage() {
 
       {handovers && handovers.byReason.length > 0 && (
         <>
-          <h2 className="font-sans font-semibold -tracking-[0.024em] text-[22px] text-accent-deep mt-12 mb-1">Why it stepped back</h2>
+          <h2 className="font-sans font-semibold text-section text-accent-deep mt-12 mb-1">Why it stepped back</h2>
           <p className="text-sm text-ink-3 max-w-[60ch]">
             Last seven days, grouped. The useful question is what keeps happening, not
             what happened at 14:32.
@@ -66,7 +66,7 @@ export default function SettingsPage() {
                     style={{ width: `${(r.count / Math.max(1, handovers.byReason[0]?.count ?? 1)) * 100}%` }}
                   />
                 </span>
-                <span className="font-mono text-[13px] text-ink-3 min-w-[28px] text-right">{r.count}</span>
+                <span className="font-mono text-note text-ink-3 min-w-[28px] text-right">{r.count}</span>
               </div>
             ))}
           </div>
@@ -79,8 +79,8 @@ export default function SettingsPage() {
 function Fig({ n, l, highlight }: { n: string; l: string; highlight?: boolean }) {
   return (
     <div className="px-5 py-4 border-r border-b border-rule last:border-r-0">
-      <div className={`font-sans font-semibold -tracking-[0.024em] text-[26px] leading-none ${highlight ? "text-accent" : "text-ink"}`}>{n}</div>
-      <div className="font-mono text-[9px] uppercase tracking-[0.12em] text-ink-3 mt-2">{l}</div>
+      <div className={`font-sans font-semibold text-title leading-none ${highlight ? "text-accent" : "text-ink"}`}>{n}</div>
+      <div className="t-label text-ink-3 mt-2">{l}</div>
     </div>
   );
 }

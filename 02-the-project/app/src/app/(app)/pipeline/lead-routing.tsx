@@ -35,10 +35,10 @@ export function LeadRouting({ leadId }: { leadId: string }) {
 
   return (
     <div className="border-t border-rule pt-4 mt-6">
-      <span className="block font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3 mb-2">
+      <span className="block t-label text-ink-3 mb-2">
         How this came to you
       </span>
-      <p className="text-[15px] text-ink leading-snug">{data.explanation}</p>
+      <p className="text-ui text-ink leading-snug">{data.explanation}</p>
 
       {data.unclaimed ? (
         <Button variant="primary" className="mt-3" loading={claim.isPending}
@@ -50,7 +50,7 @@ export function LeadRouting({ leadId }: { leadId: string }) {
           <p className="text-sm text-ink">{dispute.data.ruleSays}</p>
           <ul className="mt-2 space-y-1">
             {dispute.data.timeline.map((line, i) => (
-              <li key={i} className="font-mono text-[11px] text-ink-3">{line}</li>
+              <li key={i} className="font-mono text-label text-ink-3">{line}</li>
             ))}
           </ul>
           <p className="text-sm text-ink-2 mt-2 max-w-[46ch] leading-snug">{dispute.data.note}</p>

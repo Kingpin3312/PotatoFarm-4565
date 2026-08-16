@@ -79,7 +79,7 @@ export function PublishCheck({
         className="border border-ink rounded-[3px] p-0 max-w-[520px] w-[calc(100%-40px)] bg-raised text-ink-2 backdrop:bg-ink/50"
       >
         <div className="p-6">
-          <h2 className="font-sans font-semibold -tracking-[0.024em] text-[24px] text-ink mb-1.5">Publish {reference}</h2>
+          <h2 className="font-sans font-semibold text-h3 text-ink mb-1.5">Publish {reference}</h2>
           <p className="text-sm text-ink-3 mb-5">
             Checked against each portal&rsquo;s rules before anything is sent.
           </p>
@@ -90,10 +90,10 @@ export function PublishCheck({
             {data?.map((c) => (
               <div key={c.channelId} className="py-3.5 border-b border-rule">
                 <div className="flex items-center gap-2.5">
-                  <span className="text-[15px] font-semibold text-ink">{c.channel}</span>
+                  <span className="text-ui font-medium text-ink">{c.channel}</span>
                   <span
                     className={cn(
-                      "ml-auto font-mono text-[9px] uppercase tracking-[0.1em]",
+                      "ml-auto t-label",
                       c.canPublish ? "text-success" : "text-accent"
                     )}
                   >
@@ -105,7 +105,7 @@ export function PublishCheck({
                   <p
                     key={i}
                     className={cn(
-                      "text-[13px] mt-2 pl-3.5 border-l-2",
+                      "text-note mt-2 pl-3.5 border-l-2",
                       // A warning and a blocker look different, because
                       // "you can fix this later" and "this will not send"
                       // are different messages.
@@ -123,7 +123,7 @@ export function PublishCheck({
 
           {/* Said before the press, not only after. An agent deciding
               whether to bother needs to know it is a note to themselves. */}
-          <p className="mt-5 text-[13px] leading-snug text-ink-2 max-w-[54ch]">
+          <p className="mt-5 text-note leading-snug text-ink-2 max-w-[54ch]">
             PotatoFarm does not upload to the portals yet. This records which
             listings passed the checks and are ready to go up, so whoever does
             the uploading is working from a list rather than from memory.
@@ -132,7 +132,7 @@ export function PublishCheck({
           {publish.isSuccess && (
             /* role="status" because nothing navigates — without it a
                screen reader user presses the button and hears nothing. */
-            <p role="status" className="mt-3 text-[15px] text-ink">
+            <p role="status" className="mt-3 text-ui text-ink">
               <strong className="font-semibold">Marked ready.</strong>{" "}
               Upload {reference} to the portal as usual — this did not send it.
             </p>

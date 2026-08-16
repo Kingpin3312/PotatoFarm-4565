@@ -74,7 +74,7 @@ export default function Today() {
   return (
     <div className="mx-auto max-w-[680px] px-6 pb-28">
       <header className="pt-10 pb-6">
-        <h1 className="font-sans text-[clamp(2rem,1.5rem+2vw,2.5rem)] font-semibold leading-none -tracking-[0.026em] text-ink">
+        <h1 className="font-sans text-page font-semibold text-ink">
           {/* "day" while it loads, not a guess at "morning". It is
               correct English at any hour, so the one-word settle when
               the query lands is a refinement rather than a correction —
@@ -144,14 +144,14 @@ function Summary({
 
   if (bits.length === 0) {
     return (
-      <p className="mt-3 max-w-[46ch] text-[15px] leading-snug text-ink-2">
+      <p className="mt-3 max-w-[46ch] text-ui leading-snug text-ink-2">
         Nothing is waiting on you and nothing is overdue.
       </p>
     );
   }
 
   return (
-    <p className="mt-3 max-w-[52ch] text-[15px] leading-snug text-ink-2">
+    <p className="mt-3 max-w-[52ch] text-ui leading-snug text-ink-2">
       {sentence(bits)}
       {pipelineFils > 0n && (
         <>
@@ -198,10 +198,10 @@ function Actions({
   if (actions.length === 0) {
     return (
       <section className="mt-10 border-t border-rule pt-6">
-        <h2 className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3">
+        <h2 className="t-label text-ink-3">
           Today
         </h2>
-        <p className="mt-3 max-w-[46ch] text-[15px] leading-snug text-ink-2">
+        <p className="mt-3 max-w-[46ch] text-ui leading-snug text-ink-2">
           Nothing needs you right now. This fills up overnight as your leads move
           — and stays empty when there is genuinely nothing worth doing, which is
           the point of it.
@@ -212,7 +212,7 @@ function Actions({
 
   return (
     <section className="mt-10 border-t border-rule pt-6">
-      <h2 className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3">
+      <h2 className="t-label text-ink-3">
         Today · {actions.length}
       </h2>
 
@@ -222,12 +222,12 @@ function Actions({
             <div className="flex items-baseline gap-3">
               {/* Ordinal, not a priority score. A number to two decimal
                   places invites an argument about the second one. */}
-              <span className="w-4 shrink-0 font-mono text-[11px] tabular text-ink-3">
+              <span className="w-4 shrink-0 font-mono text-label tabular text-ink-3">
                 {i + 1}
               </span>
 
               <div className="min-w-0 flex-1">
-                <p className="text-[16px] leading-snug text-ink">
+                <p className="text-control leading-snug text-ink">
                   {a.leadId ? (
                     <Link href={`/leads?open=${a.leadId}`} className="text-ink no-underline hover:underline">
                       {a.headline}
@@ -243,11 +243,11 @@ function Actions({
                 </p>
 
                 <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-3">
+                  <span className="t-label text-ink-3">
                     {LABEL[a.action] ?? a.action.toLowerCase().replace(/_/g, " ")}
                   </span>
                   {a.valueFils !== null && a.valueFils > 0n && (
-                    <span className="font-mono text-[10px] uppercase tracking-[0.1em] tabular text-ink-3">
+                    <span className="t-label tabular text-ink-3">
                       {aedShort(a.valueFils)}
                     </span>
                   )}
@@ -268,7 +268,7 @@ function Actions({
               <button
                 onClick={() => onDismiss(a.id)}
                 className={cn(
-                  "min-h-11 px-2 font-mono text-[10px] uppercase tracking-[0.1em]",
+                  "min-h-11 px-2 t-label",
                   "text-ink-3 hover:text-ink disabled:opacity-50"
                 )}
               >
@@ -295,18 +295,18 @@ function Viewings({
 
   return (
     <section className="mt-10 border-t border-rule pt-6">
-      <h2 className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3">
+      <h2 className="t-label text-ink-3">
         Your day
       </h2>
       <ul className="mt-2">
         {viewings.map((v) => (
           <li key={v.id} className="flex items-baseline gap-3 border-b border-rule py-3">
-            <span className="w-14 shrink-0 font-mono text-[11px] tabular text-ink">
+            <span className="w-14 shrink-0 font-mono text-label tabular text-ink">
               {new Date(v.scheduledAt).toLocaleTimeString("en-GB", {
                 hour: "2-digit", minute: "2-digit",
               })}
             </span>
-            <span className="flex-1 text-[15px] leading-snug text-ink">
+            <span className="flex-1 text-ui leading-snug text-ink">
               {v.lead?.name ?? "Someone"}
               {v.listing?.building && (
                 <span className="text-ink-2"> · {v.listing.building}</span>

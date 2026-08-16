@@ -54,10 +54,10 @@ export default function Me() {
   return (
     <div className="max-w-[760px] mx-auto px-6 pb-24">
       <header className="pt-10 pb-2">
-        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-3 block mb-3">
+        <span className="t-label text-ink-3 block mb-3">
           Last 30 days
         </span>
-        <h1 className="font-sans font-semibold text-[clamp(2rem,1.5rem+2vw,2.75rem)] text-ink -tracking-[0.026em] leading-none">
+        <h1 className="font-sans font-semibold text-page text-ink">
           Yours.
         </h1>
         {/* Stated plainly. An agent who suspects their manager is
@@ -77,7 +77,7 @@ export default function Me() {
 
       {me && (
         <>
-          <h2 className="font-sans font-semibold text-[22px] text-accent-deep -tracking-[0.02em] mt-12 mb-1">
+          <h2 className="font-sans font-semibold text-section text-accent-deep mt-12 mb-1">
             Where you are
           </h2>
           <p className="text-sm text-ink-3 max-w-[52ch]">
@@ -99,7 +99,7 @@ export default function Me() {
 
       {board && board.mode !== "PRIVATE" && (
         <>
-          <h2 className="font-sans font-semibold text-[22px] text-accent-deep -tracking-[0.02em] mt-12 mb-4">
+          <h2 className="font-sans font-semibold text-section text-accent-deep mt-12 mb-4">
             The board
           </h2>
           <div className="border-t border-ink">
@@ -111,11 +111,11 @@ export default function Me() {
                   r.isMe && "bg-sunk -mx-3 px-3"
                 )}
               >
-                <span className="font-mono text-[13px] text-ink-3 tabular w-6">{r.rank}</span>
-                <span className={cn("text-[15px]", r.isMe ? "text-ink font-semibold" : "text-ink-2")}>
+                <span className="font-mono text-note text-ink-3 tabular w-6">{r.rank}</span>
+                <span className={cn("text-ui", r.isMe ? "text-ink font-medium" : "text-ink-2")}>
                   {r.name}
                 </span>
-                <span className="ml-auto font-mono text-[13px] text-ink tabular">
+                <span className="ml-auto font-mono text-note text-ink tabular">
                   {/* -1 means the brokerage chose not to share figures.
                       Shown as a dash rather than a zero, because a zero
                       is a claim and a dash is an absence. */}
@@ -149,12 +149,12 @@ function Fig({ label, value, highlight, muted }: {
   return (
     <div className="px-5 py-5 border-r border-b border-rule last:border-r-0 max-[600px]:border-r-0">
       <div className={cn(
-        "font-sans font-semibold text-[28px] leading-none -tracking-[0.02em] tabular",
+        "font-sans font-semibold text-title leading-none tabular",
         highlight ? "text-accent" : muted ? "text-ink-3" : "text-ink"
       )}>
         {value}
       </div>
-      <div className="font-mono text-[9px] uppercase tracking-[0.12em] text-ink-3 mt-2">{label}</div>
+      <div className="t-label text-ink-3 mt-2">{label}</div>
     </div>
   );
 }

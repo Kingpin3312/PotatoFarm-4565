@@ -72,7 +72,7 @@ const GROUND = "#FFFFFF";
 export function wrap(body: string, opts: { preheader?: string } = {}) {
   return (
     `<!doctype html><html lang="en-GB"><body style="margin:0;padding:0;` +
-    `background:${GROUND};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">` +
+    `background:${GROUND};font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text','Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;">` +
     // The line the inbox shows beside the subject. Without one, clients
     // pull the first words of the body, which is usually "Hello".
     (opts.preheader

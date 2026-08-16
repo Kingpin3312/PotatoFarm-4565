@@ -33,18 +33,18 @@ export function DraftCopy({ listingId }: { listingId: string }) {
 
   return (
     <div className="border-t border-rule pt-5">
-      <h2 className="font-sans font-semibold text-[17px] text-accent-deep mb-3">Description</h2>
+      <h2 className="font-sans font-medium text-sub text-accent-deep mb-3">Description</h2>
 
       <label htmlFor="copy" className="sr-only">Listing description</label>
       {drafted && (
-        <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3 mb-1.5">
+        <p className="t-label text-ink-3 mb-1.5">
           Drafted — read it before you publish
         </p>
       )}
       <textarea id="copy" rows={6} value={text}
         data-machine={drafted ? "claim" : undefined}
         onChange={(e) => { setText(e.target.value); setDrafted(false); }}
-        className={`w-full px-4 py-2.5 text-[16px] text-ink border rounded-lg focus-visible:outline-none focus-visible:shadow-[var(--ring)] ${
+        className={`w-full px-4 py-2.5 text-control text-ink border rounded-lg focus-visible:outline-none focus-visible:shadow-[var(--ring)] ${
           drafted ? "bg-accent-soft border-accent-edge" : "bg-sunk border-rule"}`} />
 
       <div className="flex gap-2 mt-3 flex-wrap">
@@ -69,7 +69,7 @@ export function DraftCopy({ listingId }: { listingId: string }) {
               {/* `rule` is what was breached, `found` is the text that
                   breached it — which is the bit an agent needs in order
                   to go and change it. */}
-              <p className="text-[15px] text-ink font-semibold">{p.rule}</p>
+              <p className="text-ui text-ink font-medium">{p.rule}</p>
               <p className="text-sm text-ink-2 mt-1 max-w-[46ch] leading-snug">
                 Found: &ldquo;{p.found}&rdquo;
               </p>
@@ -77,7 +77,7 @@ export function DraftCopy({ listingId }: { listingId: string }) {
           ))}
         </div>
       ) : check.isSuccess ? (
-        <p className="text-[15px] text-success mt-4">Nothing that would get it rejected.</p>
+        <p className="text-ui text-success mt-4">Nothing that would get it rejected.</p>
       ) : null}
     </div>
   );

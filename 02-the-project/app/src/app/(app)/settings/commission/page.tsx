@@ -44,10 +44,10 @@ export default function CommissionPlans() {
   return (
     <div className="max-w-[680px] mx-auto px-6 pb-24">
       <header className="pt-10 pb-6">
-        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-3 block mb-3">
+        <span className="t-label text-ink-3 block mb-3">
           Commission
         </span>
-        <h1 className="font-sans font-semibold text-[clamp(2rem,1.5rem+2vw,2.5rem)] text-ink -tracking-[0.026em] leading-none">
+        <h1 className="font-sans font-semibold text-page text-ink">
           {/* The gap, not the total. A list of plans tells an owner
               nothing they cannot see by scrolling; the number of people
               on no plan at all is the thing worth a heading. */}
@@ -64,8 +64,8 @@ export default function CommissionPlans() {
         {rows.map((r) => (
           <div key={r.userId} className="py-4 border-b border-rule">
             <div className="flex items-baseline gap-3 flex-wrap">
-              <span className="text-[16px] text-ink font-semibold">{r.name}</span>
-              <span className="font-mono text-[9px] uppercase tracking-[0.1em] text-ink-3 border border-rule rounded-[2px] px-1.5">
+              <span className="text-control text-ink font-medium">{r.name}</span>
+              <span className="t-label text-ink-3 border border-rule rounded-[2px] px-1.5">
                 {r.role.toLowerCase().replace(/_/g, " ")}
               </span>
 
@@ -73,11 +73,11 @@ export default function CommissionPlans() {
                 // Not folded into "no plan". A plan nobody can read is a
                 // different problem from a plan nobody has set, and only
                 // one of them gets fixed by saying so.
-                <span className="font-mono text-[9px] uppercase tracking-[0.1em] text-danger border border-accent-edge rounded-[2px] px-1.5">
+                <span className="t-label text-danger border border-accent-edge rounded-[2px] px-1.5">
                   Unreadable
                 </span>
               ) : !r.tiers ? (
-                <span className="font-mono text-[9px] uppercase tracking-[0.1em] text-ink-3 border border-rule border-dashed rounded-[2px] px-1.5">
+                <span className="t-label text-ink-3 border border-rule border-dashed rounded-[2px] px-1.5">
                   No plan
                 </span>
               ) : null}
@@ -85,7 +85,7 @@ export default function CommissionPlans() {
               <button
                 type="button"
                 onClick={() => setEditing(editing === r.userId ? null : r.userId)}
-                className="ml-auto min-h-11 text-[14px] bg-transparent border-0 p-0 text-accent-deep underline cursor-pointer"
+                className="ml-auto min-h-11 text-note bg-transparent border-0 p-0 text-accent-deep underline cursor-pointer"
               >
                 {editing === r.userId ? "Cancel" : r.tiers ? "Change" : "Set a plan"}
               </button>
@@ -94,7 +94,7 @@ export default function CommissionPlans() {
             {r.tiers && (
               <div className="flex gap-4 flex-wrap mt-2">
                 {r.tiers.map((t, i) => (
-                  <span key={i} className="font-mono text-[12px] text-ink-2">
+                  <span key={i} className="font-mono text-label text-ink-2">
                     {t.fromFils === "0" ? "from 0" : `from ${aedShort(t.fromFils)}`}
                     {" · "}
                     <span className="text-ink font-semibold">{(t.shareBp / 100).toFixed(0)}%</span>
@@ -175,7 +175,7 @@ function PlanEditor({
 
   return (
     <form onSubmit={submit} className="mt-4 border border-rule rounded-[3px] p-4 bg-ground">
-      <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3 mb-3">
+      <p className="t-label text-ink-3 mb-3">
         {name}&rsquo;s bands
       </p>
 
@@ -189,7 +189,7 @@ function PlanEditor({
         {rows.map((r, i) => (
           <div key={i} className="flex gap-2.5 items-end flex-wrap">
             <label className="flex flex-col gap-1 flex-1 min-w-[140px]">
-              <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-3">
+              <span className="t-label text-ink-3">
                 {i === 0 ? "From (start at 0)" : "From (AED, cumulative)"}
               </span>
               <input
@@ -197,17 +197,17 @@ function PlanEditor({
                 onChange={(e) => set(i, "fromAed", e.target.value)}
                 inputMode="decimal"
                 aria-label={`Band ${i + 1} threshold in dirhams`}
-                className="min-h-11 px-3 text-[16px] bg-raised border border-rule rounded-[3px] text-ink outline-none focus:border-ink"
+                className="min-h-11 px-3 text-control bg-raised border border-rule rounded-[3px] text-ink outline-none focus:border-ink"
               />
             </label>
             <label className="flex flex-col gap-1 w-[110px]">
-              <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-3">Share %</span>
+              <span className="t-label text-ink-3">Share %</span>
               <input
                 value={r.sharePc}
                 onChange={(e) => set(i, "sharePc", e.target.value)}
                 inputMode="decimal"
                 aria-label={`Band ${i + 1} share percentage`}
-                className="min-h-11 px-3 text-[16px] bg-raised border border-rule rounded-[3px] text-ink outline-none focus:border-ink"
+                className="min-h-11 px-3 text-control bg-raised border border-rule rounded-[3px] text-ink outline-none focus:border-ink"
               />
             </label>
             {rows.length > 1 && (
@@ -215,7 +215,7 @@ function PlanEditor({
                 type="button"
                 onClick={() => setRows((old) => old.filter((_, j) => j !== i))}
                 aria-label={`Remove band ${i + 1}`}
-                className="min-h-11 px-2 bg-transparent border-0 text-ink-3 hover:text-ink cursor-pointer text-[14px]"
+                className="min-h-11 px-2 bg-transparent border-0 text-ink-3 hover:text-ink cursor-pointer text-note"
               >
                 Remove
               </button>

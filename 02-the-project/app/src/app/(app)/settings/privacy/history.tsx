@@ -15,13 +15,13 @@ export function ErasureHistory() {
 
   return (
     <section className="mt-12">
-      <h2 className="font-sans font-semibold text-[17px] text-accent-deep mb-3">Past requests</h2>
+      <h2 className="font-sans font-medium text-sub text-accent-deep mb-3">Past requests</h2>
       <div className="border-t border-ink">
         {data.requests.map((r) => (
           <div key={r.id} className="py-3 border-b border-rule">
             <div className="flex items-baseline gap-3">
-              <span className="text-[15px] text-ink">{r.subject}</span>
-              <span className="ml-auto font-mono text-[11px] text-ink-3">
+              <span className="text-ui text-ink">{r.subject}</span>
+              <span className="ml-auto font-mono text-label text-ink-3">
                 {new Date(r.requestedAt).toLocaleDateString("en-GB")}
               </span>
             </div>

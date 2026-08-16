@@ -44,26 +44,26 @@ export function ViewingCard({
   return (
     <article className="border-b border-rule py-4">
       <div className="flex items-baseline gap-3">
-        <span className="font-mono text-[15px] font-semibold text-ink tabular">
+        <span className="font-mono text-ui font-medium text-ink tabular">
           {time(viewing.scheduledAt)}
         </span>
-        <span className="text-[15px] text-ink font-semibold">
+        <span className="text-ui text-ink font-medium">
           {viewing.leadName ?? viewing.leadPhone ?? "Viewing"}
         </span>
-        <span className="ml-auto font-mono text-[11px] text-ink-3">
+        <span className="ml-auto font-mono text-label text-ink-3">
           {viewing.durationMins}m
         </span>
       </div>
 
       {/* Building first. It is the thing an agent reads while driving. */}
       {viewing.building && (
-        <p className="text-[15px] text-ink mt-1.5 font-medium">{viewing.building}</p>
+        <p className="text-ui text-ink mt-1.5 font-medium">{viewing.building}</p>
       )}
       {viewing.address && (
         <p className="text-sm text-ink-2">{viewing.address}</p>
       )}
       {viewing.reference && (
-        <p className="font-mono text-[11px] text-ink-3 mt-1">{viewing.reference}</p>
+        <p className="font-mono text-label text-ink-3 mt-1">{viewing.reference}</p>
       )}
 
       {viewing.accessNote && (
@@ -85,7 +85,7 @@ export function ViewingCard({
             href={map}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex-1 min-h-11 rounded-full bg-accent text-on-accent font-semibold text-[15px] grid place-items-center no-underline"
+            className="flex-1 min-h-11 rounded-full bg-accent text-on-accent font-medium text-ui grid place-items-center no-underline"
           >
             Directions
           </a>
@@ -93,7 +93,7 @@ export function ViewingCard({
         {tel && (
           <a
             href={tel}
-            className="flex-1 min-h-11 rounded-full border border-rule text-ink font-medium text-[15px] grid place-items-center no-underline"
+            className="flex-1 min-h-11 rounded-full border border-rule text-ink font-medium text-ui grid place-items-center no-underline"
             aria-label={`Call ${viewing.leadName ?? "the buyer"}`}
           >
             Call

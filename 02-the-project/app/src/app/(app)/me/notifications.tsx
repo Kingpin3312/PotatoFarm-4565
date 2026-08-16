@@ -72,7 +72,7 @@ export function MyNotifications() {
 
   return (
     <section className="mt-12">
-      <h2 className="font-sans font-semibold -tracking-[0.024em] text-[22px] text-accent-deep mb-1">
+      <h2 className="font-sans font-semibold text-section text-accent-deep mb-1">
         When not to buzz you
       </h2>
       <p className="text-sm text-ink-2 max-w-[52ch]">
@@ -116,8 +116,8 @@ export function MyNotifications() {
           <input type="checkbox" checked={push} onChange={(e) => setPush(e.target.checked)}
                  className="size-5 mt-0.5 accent-[var(--accent)]" />
           <span>
-            <span className="block text-[15px] text-ink">Push to my phone</span>
-            <span className="block text-[13px] text-ink-3 max-w-[46ch] leading-snug">
+            <span className="block text-ui text-ink">Push to my phone</span>
+            <span className="block text-note text-ink-3 max-w-[46ch] leading-snug">
               Off means nothing reaches you at all. Quiet hours are the gentler version.
             </span>
           </span>
@@ -126,42 +126,42 @@ export function MyNotifications() {
         <label className="flex items-start gap-3">
           <input type="checkbox" checked={email} onChange={(e) => setEmail(e.target.checked)}
                  className="size-5 mt-0.5 accent-[var(--accent)]" />
-          <span className="block text-[15px] text-ink">Email me as well</span>
+          <span className="block text-ui text-ink">Email me as well</span>
         </label>
 
         <div>
-          <span className="block font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3 mb-2">
+          <span className="block t-label text-ink-3 mb-2">
             Quiet hours
           </span>
           <div className="flex gap-3 flex-wrap items-end">
             <label className="flex flex-col gap-1">
-              <span className="text-[13px] text-ink-3">From</span>
+              <span className="text-note text-ink-3">From</span>
               <input type="time" value={from} onChange={(e) => setFrom(e.target.value)}
                      aria-label="Quiet hours start"
-                     className="min-h-11 px-3 text-[16px] bg-ground border border-rule rounded-[3px] text-ink outline-none focus:border-ink" />
+                     className="min-h-11 px-3 text-control bg-ground border border-rule rounded-[3px] text-ink outline-none focus:border-ink" />
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-[13px] text-ink-3">Until</span>
+              <span className="text-note text-ink-3">Until</span>
               <input type="time" value={to} onChange={(e) => setTo(e.target.value)}
                      aria-label="Quiet hours end"
-                     className="min-h-11 px-3 text-[16px] bg-ground border border-rule rounded-[3px] text-ink outline-none focus:border-ink" />
+                     className="min-h-11 px-3 text-control bg-ground border border-rule rounded-[3px] text-ink outline-none focus:border-ink" />
             </label>
             {(from || to) && (
               <button type="button" onClick={() => { setFrom(""); setTo(""); }}
-                      className="min-h-11 px-2 bg-transparent border-0 text-[14px] text-accent-deep underline cursor-pointer">
+                      className="min-h-11 px-2 bg-transparent border-0 text-note text-accent-deep underline cursor-pointer">
                 Clear
               </button>
             )}
           </div>
           {/* The timezone is the brokerage's, not the phone's. Without
               saying so, 22:00 is ambiguous for anyone travelling. */}
-          <p className="mt-2 text-[13px] text-ink-3 max-w-[46ch] leading-snug">
+          <p className="mt-2 text-note text-ink-3 max-w-[46ch] leading-snug">
             {data.timezone.replace("_", " ")} time, so it does not move when you travel.
           </p>
         </div>
 
         <div>
-          <span className="block font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3 mb-2">
+          <span className="block t-label text-ink-3 mb-2">
             Days off
           </span>
           <div className="flex gap-2 flex-wrap">
@@ -172,9 +172,9 @@ export function MyNotifications() {
                 aria-pressed={daysOff.includes(i)}
                 onClick={() => setDaysOff((o) => o.includes(i) ? o.filter((x) => x !== i) : [...o, i])}
                 className={cn(
-                  "min-h-11 px-3 rounded-lg border text-[15px]",
+                  "min-h-11 px-3 rounded-lg border text-ui",
                   daysOff.includes(i)
-                    ? "bg-accent text-on-accent border-accent-edge font-semibold"
+                    ? "bg-accent text-on-accent border-accent-edge font-medium"
                     : "border-rule text-ink",
                 )}
               >
@@ -185,7 +185,7 @@ export function MyNotifications() {
           {/* Friday and Saturday is the UAE weekend, and plenty of
               agents work it and take Monday instead. No default is
               offered for that reason. */}
-          <p className="mt-2 text-[13px] text-ink-3 max-w-[46ch] leading-snug">
+          <p className="mt-2 text-note text-ink-3 max-w-[46ch] leading-snug">
             Whichever days you actually take. Plenty of agents here work Saturday.
           </p>
         </div>
@@ -194,8 +194,8 @@ export function MyNotifications() {
           <input type="checkbox" checked={urgent} onChange={(e) => setUrgent(e.target.checked)}
                  className="size-5 mt-0.5 accent-[var(--accent)]" />
           <span>
-            <span className="block text-[15px] text-ink">Let urgent things through anyway</span>
-            <span className="block text-[13px] text-ink-3 max-w-[46ch] leading-snug">
+            <span className="block text-ui text-ink">Let urgent things through anyway</span>
+            <span className="block text-note text-ink-3 max-w-[46ch] leading-snug">
               A buyer waiting mid-conversation, or a viewing in an hour. Off by default,
               because a setting that wakes you should be one you chose.
             </span>

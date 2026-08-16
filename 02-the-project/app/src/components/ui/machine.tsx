@@ -62,7 +62,7 @@ export function Machine({
         className,
       )}
     >
-      <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3 mb-2">
+      <p className="t-label text-ink-3 mb-2">
         {label}
       </p>
       {children}

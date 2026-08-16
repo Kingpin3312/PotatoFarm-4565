@@ -50,7 +50,7 @@ export default function Channels() {
   return (
     <div className="max-w-[680px] mx-auto px-6 pb-24">
       <header className="pt-10 pb-6">
-        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-3 block mb-3">
+        <span className="t-label text-ink-3 block mb-3">
           Channels
         </span>
         {/* "All connected" is true of zero channels only in the way
@@ -59,7 +59,7 @@ export default function Channels() {
             nothing could create a channel — this screen reported
             everything was fine while inbound WhatsApp was being dropped
             as coming from an unknown number. Three states, not two. */}
-        <h1 className="font-sans font-semibold text-[clamp(2rem,1.5rem+2vw,2.5rem)] text-ink -tracking-[0.026em] leading-none">
+        <h1 className="font-sans font-semibold text-page text-ink">
           {all && all.length === 0
             ? "Nothing connected."
             : quiet.length > 0
@@ -90,7 +90,7 @@ export default function Channels() {
           was being dropped as coming from an unknown number. */}
       {all && all.length === 0 && (
         <div className="border-t border-ink py-10 max-w-[48ch]">
-          <p className="text-[17px] font-semibold text-ink">Nothing is connected yet.</p>
+          <p className="text-sub font-medium text-ink">Nothing is connected yet.</p>
           <p className="text-sm text-ink-2 mt-2">
             Until a WhatsApp number is connected here, messages sent to it do not reach
             this brokerage at all — there is nothing to match them against. Connect the
@@ -111,7 +111,7 @@ export default function Channels() {
             quiet && "border-l-[3px] border-l-accent-edge pl-4 -ml-4",
             !ch.active && "opacity-60")}>
             <div className="flex items-baseline gap-3 flex-wrap">
-              <span className="text-[16px] text-ink font-semibold">{ch.label}</span>
+              <span className="text-control text-ink font-medium">{ch.label}</span>
 
               {/* The state in words, not only in colour — a rule
                   ux-audit.py checks and one that matters most here,
@@ -123,13 +123,13 @@ export default function Channels() {
                 <Tag warn>Receives only</Tag>
               ) : null}
 
-              <span className="ml-auto font-mono text-[11px] uppercase tracking-[0.1em]"
+              <span className="ml-auto t-label"
                     style={{ color: quiet ? "var(--accent-type)" : "var(--ink-3)" }}>
                 {c?.lastAt ? c.lastAgo : "never"}
               </span>
             </div>
 
-            <p className="font-mono text-[11px] text-ink-3 mt-1">
+            <p className="font-mono text-label text-ink-3 mt-1">
               {ch.identifierLabel}: {ch.identifier}
             </p>
 
@@ -165,7 +165,7 @@ export default function Channels() {
                   setActionError(null);
                   setActive.mutate({ id: ch.id, active: !ch.active });
                 }}
-                className="min-h-11 text-[14px] bg-transparent border-0 p-0 text-accent-deep underline cursor-pointer"
+                className="min-h-11 text-note bg-transparent border-0 p-0 text-accent-deep underline cursor-pointer"
               >
                 {ch.active ? "Disconnect" : "Reconnect"}
               </button>
@@ -182,7 +182,7 @@ export default function Channels() {
 function Tag({ children, warn }: { children: React.ReactNode; warn?: boolean }) {
   return (
     <span className={cn(
-      "font-mono text-[9px] uppercase tracking-[0.1em] border rounded-[2px] px-1.5 py-0.5",
+      "t-label border rounded-[2px] px-1.5 py-0.5",
       warn ? "text-accent-deep border-accent-edge" : "text-ink-3 border-rule",
     )}>
       {children}

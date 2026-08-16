@@ -247,9 +247,21 @@ for (const w of [375, 390, 430, 768, 1024, 1280, 1440, 1920]) {
   await open("/today");
   const r = await p.evaluate(() => {
     const d = document.documentElement;
+    /* Elements inside something that is meant to scroll sideways are
+       not overflowing — the kanban board is built that way. This
+       counted them until `browser:type` ran the same logic over
+       `/pipeline` and reported 123 offenders that were all correct. */
     const over = [...document.querySelectorAll("body *")].filter((el) => {
       const b = el.getBoundingClientRect();
-      return b.width > 2 && b.right > d.clientWidth + 2;
+      if (b.width <= 2 || b.right <= d.clientWidth + 2) return false;
+      let n = el.parentElement;
+      while (n && n !== document.body) {
+        const c = getComputedStyle(n);
+        if ((c.overflowX === "auto" || c.overflowX === "scroll")
+            && n.scrollWidth > n.clientWidth + 1) return false;
+        n = n.parentElement;
+      }
+      return true;
     });
     // Touch targets. 44px is the floor the design system claims.
     const small = [...document.querySelectorAll("button, a[href], input, select")]

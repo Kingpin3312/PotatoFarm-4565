@@ -47,7 +47,7 @@ export function Inbox({ selectedId }: { selectedId?: string }) {
           <>
             <button
               onClick={() => router.replace("/inbox")}
-              className="md:hidden px-5 py-3 font-mono text-[11px] uppercase tracking-[0.1em] text-ink-3 border-b border-rule w-full text-left"
+              className="md:hidden px-5 py-3 t-label text-ink-3 border-b border-rule w-full text-left"
             >
               ← All conversations
             </button>

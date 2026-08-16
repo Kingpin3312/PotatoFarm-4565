@@ -30,11 +30,11 @@ export default function Deals() {
   return (
     <div className="mx-auto max-w-[760px] px-6 pb-28">
       <header className="pt-10 pb-6">
-        <h1 className="font-sans text-[clamp(2rem,1.5rem+2vw,2.5rem)] font-semibold leading-none -tracking-[0.026em] text-ink">
+        <h1 className="font-sans text-page font-semibold text-ink">
           Deals
         </h1>
         {data && data.counts.total > 0 && (
-          <p className="mt-3 max-w-[52ch] text-[15px] leading-snug text-ink-2">
+          <p className="mt-3 max-w-[52ch] text-ui leading-snug text-ink-2">
             {summary(data.counts)}{" "}
             <span className="text-ink">{aedShort(data.valueFils)}</span> in play.
           </p>
@@ -52,7 +52,7 @@ export default function Deals() {
       {/* Empty is the normal state for a new brokerage, and it should say
           where a deal comes from rather than that there are none. */}
       {data && data.counts.total === 0 && (
-        <p className="max-w-[46ch] text-[15px] leading-snug text-ink-2">
+        <p className="max-w-[46ch] text-ui leading-snug text-ink-2">
           Nothing in progress. A deal appears here the moment an offer is accepted,
           with the whole transfer planned backwards from the completion date.
         </p>
@@ -76,7 +76,7 @@ export default function Deals() {
                 <Level level={d.level} />
 
                 <span className="min-w-0 flex-1">
-                  <span className="block text-[16px] leading-snug text-ink">
+                  <span className="block text-control leading-snug text-ink">
                     {d.counterparty ?? d.reference}
                     {d.where && <span className="text-ink-2"> · {d.where}</span>}
                   </span>
@@ -87,9 +87,9 @@ export default function Deals() {
                   </span>
                 </span>
 
-                <span className="tabular shrink-0 text-right text-[15px] font-semibold text-ink">
+                <span className="tabular shrink-0 text-right text-ui font-medium text-ink">
                   {aedShort(d.valueFils)}
-                  <span className="mt-0.5 block font-mono text-[10px] font-normal uppercase tracking-[0.1em] text-ink-3">
+                  <span className="mt-0.5 block font-mono text-label font-normal uppercase tracking-[0.1em] text-ink-3">
                     {STAGE[d.stage] ?? d.stage.toLowerCase().replace(/_/g, " ")}
                   </span>
                 </span>
@@ -116,7 +116,7 @@ function Level({ level }: { level: "HEALTHY" | "WATCH" | "AT_RISK" }) {
   return (
     <span
       className={cn(
-        "w-20 shrink-0 font-mono text-[10px] uppercase tracking-[0.1em]",
+        "w-20 shrink-0 t-label",
         level === "AT_RISK" ? "text-accent-deep" : level === "WATCH" ? "text-ink" : "text-ink-3"
       )}
     >
@@ -154,7 +154,7 @@ function Detail({ id }: { id: string }) {
           className="mb-4 rounded-xl border-l-[3px] p-4"
           style={{ background: "var(--sunk)", borderLeftColor: "var(--danger-deep)" }}
         >
-          <p className="text-[15px] font-semibold text-ink">
+          <p className="text-ui font-medium text-ink">
             This deal cannot be moved on.
           </p>
           {data.blockers.map((b, i) => (
@@ -176,7 +176,7 @@ function Detail({ id }: { id: string }) {
               telling the truth about a transaction they cannot move,
               which is exactly what should still work while a card is
               being renewed. */}
-          <p className="mt-2 max-w-[48ch] text-[13px] leading-snug text-ink-3">
+          <p className="mt-2 max-w-[48ch] text-note leading-snug text-ink-3">
             You can still mark a step stuck.
           </p>
         </div>
@@ -202,8 +202,8 @@ function Detail({ id }: { id: string }) {
       )}
 
       {data.risk.action && (
-        <p className="mb-4 text-[15px] text-ink">
-          <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-3">
+        <p className="mb-4 text-ui text-ink">
+          <span className="t-label text-ink-3">
             Do this
           </span>
           <br />
@@ -220,19 +220,19 @@ function Detail({ id }: { id: string }) {
         <ol className="border-t border-rule">
           {data.steps.map((s) => (
             <li key={s.stage} className="flex items-baseline gap-3 border-b border-rule py-2.5">
-              <span className="w-12 shrink-0 font-mono text-[10px] uppercase tracking-[0.1em] text-ink-3">
+              <span className="w-12 shrink-0 t-label text-ink-3">
                 {s.completedAt ? "done" : s.overdue ? "late" : ""}
               </span>
               <span className="min-w-0 flex-1">
                 <span
                   className={cn(
-                    "block text-[15px] leading-snug",
+                    "block text-ui leading-snug",
                     s.completedAt ? "text-ink-3 line-through" : "text-ink"
                   )}
                 >
                   {s.title}
                 </span>
-                <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-3">
+                <span className="t-label text-ink-3">
                   {s.owner.toLowerCase()} · {s.dueAt.toLocaleDateString("en-GB",
                     { day: "numeric", month: "short" })}
                 </span>
@@ -258,7 +258,7 @@ function Detail({ id }: { id: string }) {
                   </button>
                   <button
                     onClick={() => { setBlocking(s.stage); setReason(s.blockedReason ?? ""); }}
-                    className="min-h-11 px-2 font-mono text-[10px] uppercase tracking-[0.1em] text-ink-3 hover:text-ink"
+                    className="min-h-11 px-2 t-label text-ink-3 hover:text-ink"
                   >
                     Stuck
                   </button>
@@ -274,7 +274,7 @@ function Detail({ id }: { id: string }) {
           separation is how `blockedReason` stayed empty for so long. */}
       {blocking && (
         <div className="mt-4">
-          <label htmlFor="stuck" className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-3">
+          <label htmlFor="stuck" className="t-label text-ink-3">
             What is holding it up?
           </label>
           <input
@@ -282,7 +282,7 @@ function Detail({ id }: { id: string }) {
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             placeholder="Bank waiting on the liability letter"
-            className="mt-1 w-full rounded-lg border border-rule bg-sunk px-3 py-2 text-[16px] text-ink focus-visible:shadow-[var(--ring)] focus-visible:outline-none"
+            className="mt-1 w-full rounded-lg border border-rule bg-sunk px-3 py-2 text-control text-ink focus-visible:shadow-[var(--ring)] focus-visible:outline-none"
           />
           <div className="mt-2 flex gap-2">
             <button
@@ -302,7 +302,7 @@ function Detail({ id }: { id: string }) {
             </button>
             <button
               onClick={() => setBlocking(null)}
-              className="min-h-11 px-2 font-mono text-[10px] uppercase tracking-[0.1em] text-ink-3 hover:text-ink"
+              className="min-h-11 px-2 t-label text-ink-3 hover:text-ink"
             >
               Cancel
             </button>

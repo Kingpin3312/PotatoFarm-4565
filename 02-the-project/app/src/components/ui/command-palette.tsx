@@ -92,7 +92,7 @@ export function PaletteButton({ className }: { className?: string }) {
       aria-keyshortcuts="Meta+K Control+K"
       className={cn(
         "min-h-11 flex items-center gap-2 pl-3 pr-2 rounded-lg cursor-pointer",
-        "bg-sunk border border-rule text-ink-3 hover:text-ink text-[14px]",
+        "bg-sunk border border-rule text-ink-3 hover:text-ink text-note",
         className,
       )}
     >
@@ -101,7 +101,7 @@ export function PaletteButton({ className }: { className?: string }) {
         <circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" />
       </svg>
       <span>Search</span>
-      <kbd className="font-mono text-[11px] px-1.5 py-0.5 rounded border border-rule min-w-11 text-center">
+      <kbd className="font-mono text-label px-1.5 py-0.5 rounded border border-rule min-w-11 text-center">
         {keys}
       </kbd>
     </button>
@@ -244,7 +244,7 @@ export function CommandPalette() {
             role="combobox"
             aria-expanded
             autoComplete="off"
-            className="w-full min-h-14 px-4 text-[17px] bg-transparent border-0 border-b border-rule outline-none text-ink placeholder:text-ink-3"
+            className="w-full min-h-14 px-4 text-sub bg-transparent border-0 border-b border-rule outline-none text-ink placeholder:text-ink-3"
           />
 
           {/* The count, announced. Results change with no navigation, so
@@ -255,7 +255,7 @@ export function CommandPalette() {
 
           <ul id="palette-list" role="listbox" aria-label="Results" className="max-h-[52vh] overflow-y-auto overscroll-contain py-1 m-0 list-none">
             {items.length === 0 && (
-              <li className="px-4 py-4 text-[15px] text-ink-3">
+              <li className="px-4 py-4 text-ui text-ink-3">
                 {q.trim().length < 3 ? "Keep typing to search." : "Nothing matched."}
               </li>
             )}
@@ -265,7 +265,7 @@ export function CommandPalette() {
               return (
                 <li key={item.id}>
                   {head && (
-                    <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3 px-4 pt-3 pb-1">
+                    <p className="t-label text-ink-3 px-4 pt-3 pb-1">
                       {head}
                     </p>
                   )}
@@ -282,9 +282,9 @@ export function CommandPalette() {
                       i === active ? "bg-sunk" : "bg-transparent",
                     )}
                   >
-                    <span className="text-[15px] text-ink leading-snug">{item.label}</span>
+                    <span className="text-ui text-ink leading-snug">{item.label}</span>
                     {item.hint && (
-                      <span className="text-[13px] text-ink-3 leading-snug">{item.hint}</span>
+                      <span className="text-note text-ink-3 leading-snug">{item.hint}</span>
                     )}
                   </button>
                 </li>
@@ -292,7 +292,7 @@ export function CommandPalette() {
             })}
           </ul>
 
-          <p className="px-4 py-2.5 border-t border-rule text-[11px] font-mono uppercase tracking-[0.1em] text-ink-3">
+          <p className="px-4 py-2.5 border-t border-rule text-label font-mono uppercase tracking-[0.1em] text-ink-3">
             ↑↓ move · ⏎ open · esc close
           </p>
         </div>

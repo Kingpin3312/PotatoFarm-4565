@@ -42,16 +42,16 @@ export function Message({
     >
       <div
         className={cn(
-          "font-mono text-[9px] uppercase tracking-[0.14em] mb-1.5",
+          "t-label mb-1.5",
           outbound ? "text-accent" : "text-ink-3"
         )}
       >
         {LABEL[author]}
       </div>
 
-      <p className={cn("text-[15px]", author === "SYSTEM" ? "text-ink-2" : "text-ink")}>{body}</p>
+      <p className={cn("text-ui", author === "SYSTEM" ? "text-ink-2" : "text-ink")}>{body}</p>
 
-      <div className="font-mono text-[9px] uppercase tracking-[0.1em] text-ink-3 mt-2 tabular">
+      <div className="t-label text-ink-3 mt-2 tabular">
         {new Intl.DateTimeFormat("en-GB", {
           hour: "2-digit", minute: "2-digit", timeZone: "Asia/Dubai",
         }).format(sentAt)}

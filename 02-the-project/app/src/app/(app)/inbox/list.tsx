@@ -49,7 +49,7 @@ export function InboxList({
               // are the most-tapped controls on the screen an agent lives
               // in. The underline still sits under the label; the target
               // is the whole chip.
-              "font-mono text-[11px] uppercase tracking-[0.1em] min-h-11 inline-flex items-center border-b whitespace-nowrap",
+              "t-label min-h-11 inline-flex items-center border-b whitespace-nowrap",
               filter === f.id ? "text-accent-deep border-accent" : "text-ink-3 border-transparent hover:text-ink"
             )}
           >
@@ -63,7 +63,7 @@ export function InboxList({
 
         {isError && (
           <div role="alert" className="px-5 py-8">
-            <p className="text-[15px] text-ink font-semibold">Couldn&rsquo;t load your conversations.</p>
+            <p className="text-ui text-ink font-medium">Couldn&rsquo;t load your conversations.</p>
             <p className="text-sm text-ink-2 mt-1.5">Nothing is lost — this is a fetching problem.</p>
             <Button variant="secondary" className="mt-3.5" onClick={() => void refetch()}>Try again</Button>
           </div>
@@ -91,10 +91,10 @@ export function InboxList({
               {c.unreadCount > 0 && (
                 <span aria-label="unread" className="size-[7px] rounded-full bg-accent shrink-0" />
               )}
-              <span className="text-[15px] font-semibold text-ink">
+              <span className="text-ui font-medium text-ink">
                 {c.lead.name ?? c.lead.phone}
               </span>
-              <span className="ml-auto font-mono text-[9px] tracking-[0.08em] text-ink-3 whitespace-nowrap">
+              <span className="ml-auto font-mono text-label tracking-[0.08em] text-ink-3 whitespace-nowrap">
                 {time(c.updatedAt)}
               </span>
             </span>
@@ -116,7 +116,7 @@ export function InboxList({
         {hasNextPage && (
           <button
             onClick={() => fetchNextPage()}
-            className="w-full px-5 py-4 font-mono text-[10px] uppercase tracking-[0.1em] text-ink-3 hover:text-ink"
+            className="w-full px-5 py-4 t-label text-ink-3 hover:text-ink"
           >
             Load more
           </button>
@@ -130,7 +130,7 @@ function Tag({ children, highlight, dashed }: { children: React.ReactNode; highl
   return (
     <span
       className={cn(
-        "font-mono text-[9px] uppercase tracking-[0.1em] border rounded-[2px] px-1.5 py-0.5",
+        "t-label border rounded-[2px] px-1.5 py-0.5",
         highlight ? "text-accent-deep border-accent" : "text-ink-3 border-rule",
         dashed && "border-dashed"
       )}

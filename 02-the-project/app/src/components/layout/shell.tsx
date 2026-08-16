@@ -66,7 +66,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
                   // 3.22:1 is measured against the 3:1 that WCAG 1.4.11
                   // actually asks of it — and a 15px orange label would
                   // be measured against 4.5:1 and fail.
-                  "inline-flex min-h-11 items-center text-[15px] no-underline border-b-2 whitespace-nowrap",
+                  "inline-flex min-h-11 items-center text-ui no-underline border-b-2 whitespace-nowrap",
                   pathname.startsWith(n.href)
                     ? "text-ink border-accent font-medium"
                     : "text-ink-3 border-transparent hover:text-ink"
@@ -95,12 +95,12 @@ export function Shell({ children }: { children: React.ReactNode }) {
             {/* Only shown when it is off. A green "everything is fine"
                 badge is noise; its absence is the normal state. */}
             {assistant && !assistant.enabled && (
-              <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-accent-deep">
+              <span className="t-label text-accent-deep">
                 Assistant stopped
               </span>
             )}
             {active && (
-              <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-3">
+              <span className="t-label text-ink-3">
                 {active.name}
               </span>
             )}
@@ -198,7 +198,7 @@ function MobileTabs({ pathname }: { pathname: string }) {
                 href={m.href}
                 onClick={() => setMore(false)}
                 className={cn(
-                  "flex min-h-12 items-center rounded-lg px-4 text-[16px] no-underline",
+                  "flex min-h-12 items-center rounded-lg px-4 text-control no-underline",
                   // Selected state is the soft orange the direction
                   // reserves for exactly this. `bg-sunk` is the same
                   // warm grey every inactive panel uses, so a selected
@@ -240,7 +240,7 @@ function MobileTabs({ pathname }: { pathname: string }) {
                    strokeLinecap="round" strokeLinejoin="round">
                 <path d={t.icon} />
               </svg>
-              <span className="font-mono text-[9px] uppercase tracking-[0.08em]">{t.label}</span>
+              <span className="t-label">{t.label}</span>
             </Link>
           );
         })}
@@ -258,7 +258,7 @@ function MobileTabs({ pathname }: { pathname: string }) {
                fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
             <path d="M4 7h16M4 12h16M4 17h16" />
           </svg>
-          <span className="font-mono text-[9px] uppercase tracking-[0.08em]">More</span>
+          <span className="t-label">More</span>
         </button>
       </nav>
     </>

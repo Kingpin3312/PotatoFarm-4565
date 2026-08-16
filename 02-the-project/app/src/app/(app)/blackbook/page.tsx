@@ -29,10 +29,10 @@ export default function Blackbook() {
   return (
     <div className="max-w-[680px] mx-auto px-6 pb-24">
       <header className="pt-10 pb-6">
-        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-3 block mb-3">
+        <span className="t-label text-ink-3 block mb-3">
           Yours
         </span>
-        <h1 className="font-sans font-semibold text-[clamp(2rem,1.5rem+2vw,2.5rem)] text-ink -tracking-[0.026em] leading-none tabular">
+        <h1 className="font-sans font-semibold text-page text-ink tabular">
           {rows.length} {rows.length === 1 ? "person" : "people"}
         </h1>
         <p className="text-sm text-ink-2 mt-3 max-w-[48ch]">
@@ -44,14 +44,14 @@ export default function Blackbook() {
       {tags.length > 0 && (
         <div className="flex gap-2 flex-wrap mb-6">
           <button onClick={() => setTag(undefined)} aria-pressed={!tag}
-            className={cn("min-h-11 px-3 rounded-lg border text-[15px]",
-              !tag ? "bg-accent text-on-accent border-accent-edge font-semibold" : "border-rule text-ink")}>
+            className={cn("min-h-11 px-3 rounded-lg border text-ui",
+              !tag ? "bg-accent text-on-accent border-accent-edge font-medium" : "border-rule text-ink")}>
             Everyone
           </button>
           {tags.map((t) => (
             <button key={t} onClick={() => setTag(t)} aria-pressed={tag === t}
-              className={cn("min-h-11 px-3 rounded-lg border text-[15px]",
-                tag === t ? "bg-accent text-on-accent border-accent-edge font-semibold" : "border-rule text-ink")}>
+              className={cn("min-h-11 px-3 rounded-lg border text-ui",
+                tag === t ? "bg-accent text-on-accent border-accent-edge font-medium" : "border-rule text-ink")}>
               {t}
             </button>
           ))}
@@ -61,7 +61,7 @@ export default function Blackbook() {
       {isLoading ? (
         <div className="h-64 bg-sunk rounded-sm" aria-busy />
       ) : rows.length === 0 ? (
-        <p className="text-[17px] text-ink-2 border-t border-rule pt-5 max-w-[44ch]">
+        <p className="text-sub text-ink-2 border-t border-rule pt-5 max-w-[44ch]">
           Nobody yet. Add the people you actually deal with — including the ones who will
           never be a lead.
         </p>
@@ -72,15 +72,15 @@ export default function Blackbook() {
                href={r.leadId ? `/blackbook/${r.leadId}` : `/blackbook/v/${r.vendorId ?? r.id}`}
                className="flex items-baseline gap-3 py-3.5 border-b border-rule no-underline">
               {r.starred && <span aria-label="starred" className="text-accent-deep">★</span>}
-              <span className="text-[16px] text-ink">
+              <span className="text-control text-ink">
                 {r.nickname ?? r.standaloneName ?? "—"}
               </span>
               {r.tags.slice(0, 2).map((t) => (
-                <span key={t} className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-3 border border-rule rounded-[3px] px-1.5 py-0.5">
+                <span key={t} className="t-label text-ink-3 border border-rule rounded-[3px] px-1.5 py-0.5">
                   {t}
                 </span>
               ))}
-              <span className="ml-auto font-mono text-[11px] text-ink-3">
+              <span className="ml-auto font-mono text-label text-ink-3">
                 {r.lastTouched ? rel(r.lastTouched) : ""}
               </span>
             </a>

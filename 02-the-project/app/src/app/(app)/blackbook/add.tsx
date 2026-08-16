@@ -18,7 +18,7 @@ export function AddToBlackbook({ onDone }: { onDone?: () => void }) {
 
   return (
     <div className="bg-sunk rounded-xl p-5">
-      <h2 className="font-sans font-semibold text-[17px] text-accent-deep mb-3">Add somebody</h2>
+      <h2 className="font-sans font-medium text-sub text-accent-deep mb-3">Add somebody</h2>
       <div className="space-y-4">
         <F label="Name" v={f.standaloneName} on={(v) => setF({ ...f, standaloneName: v })} />
         <F label="Phone" v={f.standalonePhone} on={(v) => setF({ ...f, standalonePhone: v })} type="tel" />
@@ -51,12 +51,12 @@ function F({ label, v, on, type = "text", hint, placeholder }: {
   const id = "bb-" + label.toLowerCase().replace(/[^a-z]+/g, "-");
   return (
     <div>
-      <label htmlFor={id} className="block font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3 mb-2">
+      <label htmlFor={id} className="block t-label text-ink-3 mb-2">
         {label}
       </label>
       <input id={id} type={type} value={v} placeholder={placeholder}
         onChange={(e) => on(e.target.value)}
-        className="w-full min-h-11 px-4 text-[16px] text-ink bg-raised border border-rule rounded-lg focus-visible:outline-none focus-visible:shadow-[var(--ring)]" />
+        className="w-full min-h-11 px-4 text-control text-ink bg-raised border border-rule rounded-lg focus-visible:outline-none focus-visible:shadow-[var(--ring)]" />
       {hint && <p className="text-sm text-ink-2 mt-1.5 max-w-[42ch] leading-snug">{hint}</p>}
     </div>
   );

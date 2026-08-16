@@ -56,10 +56,10 @@ export default function AssistantScript() {
   return (
     <div className="max-w-[620px] mx-auto px-6 pb-24">
       <header className="pt-10 pb-6">
-        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-3 block mb-3">
+        <span className="t-label text-ink-3 block mb-3">
           The assistant
         </span>
-        <h1 className="font-sans font-semibold text-[clamp(2rem,1.5rem+2vw,2.5rem)] text-ink -tracking-[0.026em] leading-none">
+        <h1 className="font-sans font-semibold text-page text-ink">
           {script.configured ? "What it asks." : "It has no script."}
         </h1>
         {script.configured ? (
@@ -71,7 +71,7 @@ export default function AssistantScript() {
         ) : (
           /* The state that was true for every brokerage until this
              screen existed, said in the words an owner would use. */
-          <p className="text-[17px] text-ink mt-3 max-w-[50ch]">
+          <p className="text-sub text-ink mt-3 max-w-[50ch]">
             Without one the assistant cannot reply to anything — every enquiry goes straight
             to whoever is on the inbox. That is not an outage and nothing will alarm about
             it, because a person answering an enquiry looks exactly like a working inbox.
@@ -113,11 +113,11 @@ export default function AssistantScript() {
             {script.questions.map((q, i) => (
               <li key={q.key} data-question={q.key}>
                 <label htmlFor={`q-${q.key}`} className="flex items-baseline gap-2 mb-1.5">
-                  <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3">
+                  <span className="t-label text-ink-3">
                     {i + 1} · {q.key}
                   </span>
                   {!q.required && (
-                    <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-3">
+                    <span className="t-label text-ink-3">
                       optional
                     </span>
                   )}
@@ -126,10 +126,10 @@ export default function AssistantScript() {
                   id={`q-${q.key}`}
                   value={prompts[q.key] ?? ""}
                   onChange={(e) => setPrompts((p) => ({ ...p, [q.key]: e.target.value }))}
-                  className="w-full min-h-11 px-3 text-[16px] bg-ground border border-rule rounded-[3px] text-ink outline-none focus:border-ink"
+                  className="w-full min-h-11 px-3 text-control bg-ground border border-rule rounded-[3px] text-ink outline-none focus:border-ink"
                 />
                 {q.options.length > 0 && (
-                  <p className="mt-1.5 text-[13px] text-ink-3 leading-snug">
+                  <p className="mt-1.5 text-note text-ink-3 leading-snug">
                     Answers are matched to: {q.options.join(" · ")}
                   </p>
                 )}
@@ -138,7 +138,7 @@ export default function AssistantScript() {
           </ol>
 
           <div className="border-t border-rule pt-5">
-            <label htmlFor="tone" className="block font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3 mb-2">
+            <label htmlFor="tone" className="block t-label text-ink-3 mb-2">
               Tone
             </label>
             <textarea
@@ -146,9 +146,9 @@ export default function AssistantScript() {
               value={tone}
               onChange={(e) => setTone(e.target.value)}
               rows={3}
-              className="w-full px-3 py-2.5 text-[16px] bg-ground border border-rule rounded-[3px] text-ink outline-none focus:border-ink"
+              className="w-full px-3 py-2.5 text-control bg-ground border border-rule rounded-[3px] text-ink outline-none focus:border-ink"
             />
-            <p className="mt-1.5 text-[13px] text-ink-3 max-w-[48ch] leading-snug">
+            <p className="mt-1.5 text-note text-ink-3 max-w-[48ch] leading-snug">
               How it should sound, in your words. It cannot override the rules that stop it
               quoting a price nobody gave it or negotiating on your behalf.
             </p>

@@ -64,7 +64,7 @@ export function WhoWantsIt({ listingId, reference }: { listingId: string; refere
         className="border border-ink rounded-[3px] p-0 max-w-[560px] w-[calc(100%-40px)] max-h-[85dvh] overflow-y-auto overscroll-contain bg-raised text-ink-2 backdrop:bg-ink/50"
       >
         <div className="p-6">
-          <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-3">
+          <span className="t-label text-ink-3">
             {reference}
           </span>
 
@@ -72,7 +72,7 @@ export function WhoWantsIt({ listingId, reference }: { listingId: string; refere
               describes, so the two can never disagree. */}
           <h2
             id="buyers-title"
-            className="font-sans font-semibold -tracking-[0.024em] text-[22px] leading-tight text-accent-deep mt-2 max-w-[36ch]"
+            className="font-sans font-semibold text-section leading-tight text-accent-deep mt-2 max-w-[36ch]"
           >
             {isLoading ? "Looking through your book…" : (data?.pitch ?? "Who wants it")}
           </h2>
@@ -102,7 +102,7 @@ export function WhoWantsIt({ listingId, reference }: { listingId: string; refere
                 <li key={m.key} className="border-b border-rule py-3.5">
                   <div className="flex items-baseline gap-3">
                     <div className="min-w-0 flex-1">
-                      <p className="text-[15px] font-semibold text-ink">
+                      <p className="text-ui font-medium text-ink">
                         {m.leadId ? (
                           <Link href={`/blackbook/${m.leadId}`} className="hover:underline">
                             {m.name ?? "Unnamed"}
@@ -128,11 +128,11 @@ export function WhoWantsIt({ listingId, reference }: { listingId: string; refere
                     </div>
 
                     <div className="shrink-0 text-right">
-                      <div className="font-mono text-[13px] text-ink tabular-nums">
+                      <div className="font-mono text-note text-ink tabular-nums">
                         {Math.round(m.score * 100)}%
                       </div>
                       {m.budgetMaxFils !== null && (
-                        <div className="font-mono text-[10px] text-ink-3 tabular-nums">
+                        <div className="font-mono text-label text-ink-3 tabular-nums">
                           up to {aedShort(m.budgetMaxFils)}
                         </div>
                       )}
@@ -143,7 +143,7 @@ export function WhoWantsIt({ listingId, reference }: { listingId: string; refere
                       the words an agent can repeat out loud. */}
                   <p
                     className={cn(
-                      "mt-1.5 font-mono text-[9px] uppercase tracking-[0.1em]",
+                      "mt-1.5 t-label",
                       m.contactable.ok ? "text-success" : "text-ink-3"
                     )}
                   >

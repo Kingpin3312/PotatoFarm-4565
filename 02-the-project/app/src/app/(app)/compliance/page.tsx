@@ -33,10 +33,10 @@ export default function Compliance() {
   return (
     <div className="max-w-[760px] mx-auto px-6 pb-24">
       <header className="pt-10 pb-6">
-        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-3 block mb-3">
+        <span className="t-label text-ink-3 block mb-3">
           Compliance
         </span>
-        <h1 className="font-sans font-semibold text-[clamp(2rem,1.5rem+2vw,2.5rem)] text-ink -tracking-[0.026em] leading-none">
+        <h1 className="font-sans font-semibold text-page text-ink">
           {pending.length === 0 && due.length === 0
             ? "Nothing waiting on you."
             : `${pending.length + due.length} need a decision.`}
@@ -71,7 +71,7 @@ export default function Compliance() {
         with payments from the screening flow.
       */}
 
-      <h2 className="font-sans font-semibold text-[19px] text-accent-deep -tracking-[0.02em] mb-3">
+      <h2 className="font-sans font-semibold text-body-lg text-accent-deep mb-3">
         Waiting on a decision
       </h2>
       {pending.length === 0 ? (
@@ -84,14 +84,14 @@ export default function Compliance() {
             <a key={p.id} href={`/compliance/${p.id}`}
                className="block py-4 border-b border-rule no-underline">
               <div className="flex items-baseline gap-3">
-                <span className="text-[16px] text-ink font-semibold">{p.name}</span>
-                <span className={cn("font-mono text-[10px] uppercase tracking-[0.1em] px-2 py-0.5 rounded-[3px] border",
+                <span className="text-control text-ink font-medium">{p.name}</span>
+                <span className={cn("t-label px-2 py-0.5 rounded-[3px] border",
                   p.result === "CONFIRMED_MATCH"
                     ? "border-danger text-danger font-semibold"
                     : "border-accent-edge text-accent-deep")}>
                   {p.result === "CONFIRMED_MATCH" ? "confirmed" : "possible match"}
                 </span>
-                <span className="ml-auto font-mono text-[11px] text-ink-3">{p.heldFor}</span>
+                <span className="ml-auto font-mono text-label text-ink-3">{p.heldFor}</span>
               </div>
               <p className="text-sm text-ink-2 mt-1.5 max-w-[52ch] leading-snug">
                 {p.listName} · matched on {p.matchedOn}
@@ -101,7 +101,7 @@ export default function Compliance() {
         </div>
       )}
 
-      <h2 className="font-sans font-semibold text-[19px] text-accent-deep -tracking-[0.02em] mt-12 mb-3">
+      <h2 className="font-sans font-semibold text-body-lg text-accent-deep mt-12 mb-3">
         Reviews due
       </h2>
       {due.length === 0 ? (
@@ -110,11 +110,11 @@ export default function Compliance() {
         <div className="border-t border-ink">
           {due.map((d) => (
             <div key={d.id} className="flex items-baseline gap-3 py-3.5 border-b border-rule">
-              <span className="text-[15px] text-ink">{d.name}</span>
-              <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-3">
+              <span className="text-ui text-ink">{d.name}</span>
+              <span className="t-label text-ink-3">
                 {d.rating.toLowerCase()} risk
               </span>
-              <span className="ml-auto font-mono text-[11px] text-ink-3">{d.dueIn}</span>
+              <span className="ml-auto font-mono text-label text-ink-3">{d.dueIn}</span>
             </div>
           ))}
         </div>

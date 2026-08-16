@@ -53,7 +53,7 @@ export function MyAvailability() {
 
   return (
     <section className="mt-12">
-      <h2 className="font-sans font-semibold -tracking-[0.024em] text-[22px] text-accent-deep mb-1">
+      <h2 className="font-sans font-semibold text-section text-accent-deep mb-1">
         Your availability
       </h2>
       <p className="text-sm text-ink-2 max-w-[52ch]">
@@ -97,8 +97,8 @@ export function MyAvailability() {
             className="size-5 mt-0.5 accent-[var(--accent)]"
           />
           <span>
-            <span className="block text-[15px] text-ink">Send me new leads</span>
-            <span className="block text-[13px] text-ink-3 max-w-[46ch] leading-snug">
+            <span className="block text-ui text-ink">Send me new leads</span>
+            <span className="block text-note text-ink-3 max-w-[46ch] leading-snug">
               Off means routing skips you entirely. Leads you already have are unaffected —
               nobody takes work off you for this.
             </span>
@@ -106,43 +106,43 @@ export function MyAvailability() {
         </label>
 
         <div>
-          <span className="block font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3 mb-2">
+          <span className="block t-label text-ink-3 mb-2">
             Away
           </span>
           <div className="flex gap-3 flex-wrap items-end">
             <label className="flex flex-col gap-1">
-              <span className="text-[13px] text-ink-3">First day</span>
+              <span className="text-note text-ink-3">First day</span>
               <input
                 type="date" value={from} onChange={(e) => setFrom(e.target.value)}
                 aria-label="First day away"
-                className="min-h-11 px-3 text-[16px] bg-ground border border-rule rounded-[3px] text-ink outline-none focus:border-ink"
+                className="min-h-11 px-3 text-control bg-ground border border-rule rounded-[3px] text-ink outline-none focus:border-ink"
               />
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-[13px] text-ink-3">Last day</span>
+              <span className="text-note text-ink-3">Last day</span>
               <input
                 type="date" value={to} onChange={(e) => setTo(e.target.value)}
                 aria-label="Last day away"
-                className="min-h-11 px-3 text-[16px] bg-ground border border-rule rounded-[3px] text-ink outline-none focus:border-ink"
+                className="min-h-11 px-3 text-control bg-ground border border-rule rounded-[3px] text-ink outline-none focus:border-ink"
               />
             </label>
             {(from || to) && (
               <button
                 type="button"
                 onClick={() => { setFrom(""); setTo(""); setNote(""); }}
-                className="min-h-11 px-2 bg-transparent border-0 text-[14px] text-accent-deep underline cursor-pointer"
+                className="min-h-11 px-2 bg-transparent border-0 text-note text-accent-deep underline cursor-pointer"
               >
                 Clear
               </button>
             )}
           </div>
           <label className="flex flex-col gap-1 mt-3 max-w-[36ch]">
-            <span className="text-[13px] text-ink-3">Note (optional)</span>
+            <span className="text-note text-ink-3">Note (optional)</span>
             <input
               value={note} onChange={(e) => setNote(e.target.value)}
               placeholder="Back Monday"
               aria-label="Away note"
-              className="min-h-11 px-3 text-[16px] bg-ground border border-rule rounded-[3px] text-ink outline-none focus:border-ink"
+              className="min-h-11 px-3 text-control bg-ground border border-rule rounded-[3px] text-ink outline-none focus:border-ink"
             />
           </label>
         </div>

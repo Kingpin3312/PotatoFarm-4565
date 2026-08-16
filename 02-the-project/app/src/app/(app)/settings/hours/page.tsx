@@ -76,10 +76,10 @@ export default function WorkingHoursPage() {
   return (
     <div className="max-w-[600px] mx-auto px-6 pb-24">
       <header className="pt-10 pb-6">
-        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-3 block mb-3">
+        <span className="t-label text-ink-3 block mb-3">
           Working hours
         </span>
-        <h1 className="font-sans font-semibold text-[clamp(2rem,1.5rem+2vw,2.5rem)] text-ink -tracking-[0.026em] leading-none">
+        <h1 className="font-sans font-semibold text-page text-ink">
           {/* A day with no row is skipped by the scheduler exactly as if
               it were closed, so "unset" is the state worth a headline —
               it is the one nobody chose. */}
@@ -119,7 +119,7 @@ export default function WorkingHoursPage() {
                 d.closed && "opacity-60",
               )}
             >
-              <span className="text-[15px] text-ink font-semibold w-[92px]">{d.name}</span>
+              <span className="text-ui text-ink font-medium w-[92px]">{d.name}</span>
 
               <label className="flex items-center gap-2 order-last w-full min-[560px]:order-none min-[560px]:w-auto min-[560px]:ml-auto">
                 <input
@@ -128,7 +128,7 @@ export default function WorkingHoursPage() {
                   onChange={(e) => set(i, { closed: e.target.checked })}
                   className="size-5 accent-[var(--accent)]"
                 />
-                <span className="text-[14px] text-ink-2">Closed</span>
+                <span className="text-note text-ink-2">Closed</span>
               </label>
 
               {/* Disabled rather than hidden. A closed day that loses its
@@ -140,16 +140,16 @@ export default function WorkingHoursPage() {
                 disabled={d.closed}
                 onChange={(e) => set(i, { start: e.target.value })}
                 aria-label={`${d.name} opening time`}
-                className="min-h-11 px-3 text-[16px] bg-ground border border-rule rounded-[3px] text-ink outline-none focus:border-ink disabled:opacity-50"
+                className="min-h-11 px-3 text-control bg-ground border border-rule rounded-[3px] text-ink outline-none focus:border-ink disabled:opacity-50"
               />
-              <span className="text-ink-3 text-[14px]">to</span>
+              <span className="text-ink-3 text-note">to</span>
               <input
                 type="time"
                 value={d.end}
                 disabled={d.closed}
                 onChange={(e) => set(i, { end: e.target.value })}
                 aria-label={`${d.name} closing time`}
-                className="min-h-11 px-3 text-[16px] bg-ground border border-rule rounded-[3px] text-ink outline-none focus:border-ink disabled:opacity-50"
+                className="min-h-11 px-3 text-control bg-ground border border-rule rounded-[3px] text-ink outline-none focus:border-ink disabled:opacity-50"
               />
             </div>
           ))}

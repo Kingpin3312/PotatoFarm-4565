@@ -32,7 +32,7 @@ export function TeamCapacity() {
 
   return (
     <section className="mt-14">
-      <h2 className="font-sans font-semibold -tracking-[0.024em] text-[22px] text-accent-deep mb-1">
+      <h2 className="font-sans font-semibold text-section text-accent-deep mb-1">
         Who gets what
       </h2>
       <p className="text-sm text-ink-2 max-w-[54ch]">
@@ -46,7 +46,7 @@ export function TeamCapacity() {
         {data.map((a) => (
           <div key={a.userId} className="py-4 border-b border-rule">
             <div className="flex items-baseline gap-3 flex-wrap">
-              <span className="text-[16px] text-ink font-semibold">{a.name}</span>
+              <span className="text-control text-ink font-medium">{a.name}</span>
 
               {/* State in words, never colour alone. */}
               {a.awayNow ? (
@@ -57,19 +57,19 @@ export function TeamCapacity() {
                 <Tag>Default</Tag>
               ) : null}
 
-              <span className="ml-auto font-mono text-[12px] text-ink-3">
+              <span className="ml-auto font-mono text-label text-ink-3">
                 capacity {a.capacity}
               </span>
               <button
                 type="button"
                 onClick={() => setEditing(editing === a.userId ? null : a.userId)}
-                className="min-h-11 text-[14px] bg-transparent border-0 p-0 text-accent-deep underline cursor-pointer"
+                className="min-h-11 text-note bg-transparent border-0 p-0 text-accent-deep underline cursor-pointer"
               >
                 {editing === a.userId ? "Cancel" : "Change"}
               </button>
             </div>
 
-            <p className="font-mono text-[11px] text-ink-3 mt-1">
+            <p className="font-mono text-label text-ink-3 mt-1">
               {a.languages.length ? a.languages.join(", ") : "any language"}
               {" · "}
               {a.communities.length ? a.communities.join(", ") : "any community"}
@@ -132,7 +132,7 @@ function Editor({
         save.mutate({ userId, capacity: n, languages: list(langs), communities: list(comms) });
       }}
     >
-      <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3 mb-3">{name}</p>
+      <p className="t-label text-ink-3 mb-3">{name}</p>
 
       {failed && (
         <p role="alert" className="mb-3 px-3 py-2.5 bg-ink text-ground text-sm rounded-[3px]">
@@ -142,40 +142,40 @@ function Editor({
 
       <div className="flex flex-col gap-3">
         <label className="flex flex-col gap-1 max-w-[14ch]">
-          <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-3">Capacity</span>
+          <span className="t-label text-ink-3">Capacity</span>
           <input
             value={cap} onChange={(e) => setCap(e.target.value)} inputMode="numeric"
             aria-label={`${name} capacity, in open leads`}
-            className="min-h-11 px-3 text-[16px] bg-raised border border-rule rounded-[3px] text-ink outline-none focus:border-ink"
+            className="min-h-11 px-3 text-control bg-raised border border-rule rounded-[3px] text-ink outline-none focus:border-ink"
           />
-          <span className="text-[12px] text-ink-3 leading-snug">
+          <span className="text-label text-ink-3 leading-snug">
             Open leads. Past it, routing skips them.
           </span>
         </label>
 
         <label className="flex flex-col gap-1">
-          <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-3">Languages</span>
+          <span className="t-label text-ink-3">Languages</span>
           <input
             value={langs} onChange={(e) => setLangs(e.target.value)} placeholder="en, ar"
             aria-label={`${name} languages`}
-            className="min-h-11 px-3 text-[16px] bg-raised border border-rule rounded-[3px] text-ink outline-none focus:border-ink"
+            className="min-h-11 px-3 text-control bg-raised border border-rule rounded-[3px] text-ink outline-none focus:border-ink"
           />
           {/* Empty is the permissive answer, not the restrictive one, and
               that is worth saying on the form: an empty list means every
               language, so somebody "clearing" it widens their intake. */}
-          <span className="text-[12px] text-ink-3 leading-snug">
+          <span className="text-label text-ink-3 leading-snug">
             Leave empty for any language.
           </span>
         </label>
 
         <label className="flex flex-col gap-1">
-          <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-3">Communities</span>
+          <span className="t-label text-ink-3">Communities</span>
           <input
             value={comms} onChange={(e) => setComms(e.target.value)} placeholder="Dubai Marina, JBR"
             aria-label={`${name} communities`}
-            className="min-h-11 px-3 text-[16px] bg-raised border border-rule rounded-[3px] text-ink outline-none focus:border-ink"
+            className="min-h-11 px-3 text-control bg-raised border border-rule rounded-[3px] text-ink outline-none focus:border-ink"
           />
-          <span className="text-[12px] text-ink-3 leading-snug">
+          <span className="text-label text-ink-3 leading-snug">
             Leave empty for any community.
           </span>
         </label>
@@ -193,7 +193,7 @@ function Editor({
 function Tag({ children, warn }: { children: React.ReactNode; warn?: boolean }) {
   return (
     <span className={cn(
-      "font-mono text-[9px] uppercase tracking-[0.1em] border rounded-[2px] px-1.5 py-0.5",
+      "t-label border rounded-[2px] px-1.5 py-0.5",
       warn ? "text-accent-deep border-accent-edge" : "text-ink-3 border-rule border-dashed",
     )}>
       {children}

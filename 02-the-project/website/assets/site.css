@@ -118,32 +118,134 @@
      value on purpose. */
   --warning:      #A0431B;   /* 5.23:1 on ground */
 
-  /* ---- Type --------------------------------------------------------
-     Same stack. Warm palettes tempt people toward a serif and it is
-     usually a mistake at interface sizes — Hermes' own wordmark is a
-     serif and its signage is not. */
-  --sans: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI",
-          Roboto, Helvetica, Arial, sans-serif;
+  /* ---- Type ---------------------------------------------------------
+     One scale, Apple's proportions, two registers.
+
+     ## The stack, and the one name that left it
+
+     `Inter` was third in the list and it is the change that matters.
+     On a Mac it never won — `-apple-system` matched first — so nobody
+     working on this saw it. On Windows and Linux with Inter installed
+     it won every time, and Inter is a different voice: a larger
+     x-height, flatter terminals, more geometric. Half the users were
+     reading a different product from the other half and no screenshot
+     ever showed it.
+
+     `-apple-system` and `BlinkMacSystemFont` resolve to San Francisco,
+     which is an optical-size family: the browser picks SF Pro Display
+     above roughly 20px and SF Pro Text below it, adjusting aperture and
+     spacing as it goes. That switch is most of what "Apple typography"
+     actually is, and it is free — it needs no webfont, no download and
+     no licence. The two quoted SF names after them are for the handful
+     of environments that have the fonts installed but not the keyword.
+
+     `"Segoe UI", Roboto` are kept, and this is a deliberate departure
+     from the brief's literal stack, which goes from Helvetica Neue
+     straight to Helvetica and Arial. On Windows that resolves to Arial
+     — a 1982 face with no optical sizing — for the entire product. The
+     brief's own principle is to "prioritise the native system
+     rendering"; Segoe UI *is* that on Windows and Roboto is on Android.
+     On Apple hardware this stack is byte-identical to the brief's.
+
+     No webfont is loaded anywhere. Nothing here is Apple's property. */
+  --sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
+          "Segoe UI", Roboto, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  /* Kept for one thing: figures in a column that must not jitter. It is
+     no longer a *label* face — see `--t-label` below. */
   --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
 
-  --display: clamp(2.5rem, 1.6rem + 4.2vw, 4.25rem);
-  --h1:      clamp(2rem, 1.5rem + 2.4vw, 3rem);
-  --h2:      clamp(1.5rem, 1.2rem + 1.6vw, 2.125rem);
-  --h3:      1.25rem;
-  --body-lg: 1.1875rem;
-  --body:    1rem;
-  --small:   0.9375rem;
-  --caption: 0.8125rem;
-  --micro:   0.6875rem;
-  --stat:    1.875rem;
-  /* The interface needs a heading step between h2 and h3 that the
-     marketing scale did not — a dashboard section title is smaller than
-     a landing-page one. Named rather than typed inline. */
-  --h2-sm:   1.625rem;
+  /* ---- Weight -------------------------------------------------------
+     Three, and 700 is not one of them.
 
-  --track-display: -0.03em;
-  --track-h1:      -0.026em;
-  --track-h2:      -0.022em;
+     The product had 184 `font-semibold`, 11 `font-medium` and one
+     `font-normal` — effectively a binary, 600 or 400, with nothing in
+     between doing the work that 500 does on every Apple surface. A
+     button, a nav item and a table header are all "a bit heavier than
+     body", and reaching for 600 in all three is what makes an interface
+     look shouted. */
+  --w-regular:  400;
+  --w-medium:   500;
+  --w-semibold: 600;
+
+  /* ---- Tracking -----------------------------------------------------
+     The brief's three anchors. Each step below carries its own value
+     derived from them, because tracking is a function of size: type
+     tightens as it grows and needs air as it shrinks. Applying one
+     number at every size is the thing that reads as templated. */
+  --track-tight:  -0.02em;
+  --track-normal: 0;
+  --track-wide:   0.01em;
+
+  /* ---- The editorial register: the marketing site -------------------
+     Apple's own site proportions. Display sizes are fluid so a hero
+     never overflows a phone and never looks stranded at 1920. */
+  --display: clamp(2.75rem, 1.9rem + 4.2vw, 5rem);      /* 44 → 80 */
+  --h1:      clamp(2rem, 1.5rem + 2.4vw, 3rem);         /* 32 → 48 */
+  --h2:      clamp(1.625rem, 1.35rem + 1.4vw, 2rem);    /* 26 → 32 */
+  --h3:      1.5rem;                                    /* 24 */
+  --lead:    1.3125rem;                                 /* 21 */
+  --body-lg: 1.1875rem;                                 /* 19 */
+  --body:    1.0625rem;                                 /* 17 — Apple's */
+
+  /* ---- The interface register: the CRM ------------------------------
+     Deliberately not the same numbers, and this is the decision most
+     worth arguing with.
+
+     Apple does not use one scale for apple.com and for a working tool.
+     Their own guidance puts 17pt body on an iOS screen and 13pt on a
+     macOS window, because a marketing page is read once and a pipeline
+     is scanned four hundred times a day. Setting a CRM table at the
+     site's 17px body would push perhaps two rows below the fold on a
+     laptop and force a horizontal scroll on the wider tables.
+
+     So the interface keeps its density and takes everything else —
+     the face, the weights, the optical tracking, the line heights. */
+  /* The screen title. Fluid, because a fixed 40px headline on a 375px
+     phone is the single most common way a CRM overflows. There were
+     four different clamps in the app for this one thing — 32→40,
+     32→44, 28→36 and 30→40 — picked per screen. */
+  --t-page:    clamp(2rem, 1.5rem + 2vw, 2.5rem);   /* 32 → 40 */
+  --t-title:   1.75rem;      /* 28 — a card or panel heading */
+  --t-section: 1.3125rem;    /* 21 — a section heading (was 22) */
+  --t-sub:     1.0625rem;    /* 17 — a card or row title */
+  --t-ui:      0.9375rem;    /* 15 — body, list rows */
+  --t-control: 1rem;         /* 16 — inputs. Below this iOS zooms the
+                                page on focus, which is a layout bug
+                                that presents as a typography choice. */
+  --t-note:    0.8125rem;    /* 13 — secondary and helper text */
+  --t-label:   0.75rem;      /* 12 — the floor. Nothing renders under it. */
+
+  /* Figures that head a screen. Between title and h2 on purpose: a
+     number is read as a shape, not as words, and carries at a size
+     where a sentence would shout. */
+  --stat:      1.875rem;     /* 30 */
+
+  /* ---- Line height --------------------------------------------------
+     Tight for display, generous for anything read in sentences. */
+  --lh-display: 1.05;
+  --lh-heading: 1.12;
+  --lh-title:   1.2;
+  --lh-body:    1.5;
+  --lh-ui:      1.45;
+  --lh-tight:   1.3;
+
+  /* ---- Per-step tracking --------------------------------------------
+     Measured off the same curve rather than picked. The product had
+     three different values — 0.10em, 0.12em and 0.14em — on what was
+     visually one label, which is the sort of drift a scale exists to
+     stop. */
+  --track-display: -0.022em;
+  --track-h1:      -0.02em;
+  --track-h2:      -0.018em;
+  --track-h3:      -0.014em;
+  --track-title:   -0.018em;
+  --track-section: -0.012em;
+  --track-sub:     -0.01em;
+  --track-ui:      -0.006em;
+  --track-note:    -0.004em;
+  /* The one positive value in the system. Uppercase at 12px genuinely
+     needs air between the letters; everything else does not. */
+  --track-label:   0.06em;
 
   --section: clamp(72px, 9vw, 128px);
   --measure: 34rem;
@@ -193,7 +295,8 @@
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
 body{background:var(--ground);color:var(--ink-2);font-family:var(--sans);
-  font-size:var(--body);line-height:1.6;-webkit-font-smoothing:antialiased;
+  font-size:var(--body);line-height:var(--lh-body);letter-spacing:var(--track-sub);
+  -webkit-font-smoothing:antialiased;
   font-feature-settings:"cv11","ss01"}
 section{background:var(--ground);color:var(--ink-2);padding:var(--section) 0}
 .wrap{max-width:1120px;margin:0 auto;padding:0 clamp(20px,4vw,32px)}
@@ -219,14 +322,20 @@ section{background:var(--ground);color:var(--ink-2);padding:var(--section) 0}
 
    Charcoal is 17.93:1 and the exception is retired rather than
    narrowed. */
-h1,h2,h3{color:var(--ink);font-weight:600}
-.display{font-size:var(--display);line-height:1.04;letter-spacing:var(--track-display);
-  color:var(--ink);font-weight:600;max-width:15ch}
-h2{font-size:var(--h2);line-height:1.1;letter-spacing:var(--track-h2)}
-h3{font-size:var(--h3);line-height:1.25;letter-spacing:-.01em;font-weight:500}
-.lead{font-size:var(--body-lg);line-height:1.5;max-width:var(--measure);margin-top:var(--r)}
-.eyebrow{font-size:var(--caption);color:var(--accent-deep);display:block;margin-bottom:12px;font-weight:500}
-.cap{font-size:var(--caption);color:var(--ink-3)}
+h1,h2,h3{color:var(--ink);font-weight:var(--w-semibold)}
+.display{font-size:var(--display);line-height:var(--lh-display);
+  letter-spacing:var(--track-display);color:var(--ink);
+  font-weight:var(--w-semibold);max-width:15ch}
+h1{font-size:var(--h1);line-height:var(--lh-display);letter-spacing:var(--track-h1)}
+h2{font-size:var(--h2);line-height:var(--lh-heading);letter-spacing:var(--track-h2)}
+/* 600, not 500. It was the only heading in the system at a different
+   weight, which read as an accident rather than a decision. */
+h3{font-size:var(--h3);line-height:var(--lh-title);letter-spacing:var(--track-h3);
+  font-weight:var(--w-semibold)}
+.lead{font-size:var(--lead);line-height:var(--lh-body);letter-spacing:var(--track-sub);
+  max-width:var(--measure);margin-top:var(--r)}
+.eyebrow{font-size:var(--t-note);color:var(--accent-deep);display:block;margin-bottom:12px;font-weight:var(--w-medium)}
+.cap{font-size:var(--t-note);color:var(--ink-3)}
 
 /* Hero gradient: two adjacent blues, 160deg. Restrained on purpose —
    the difference between premium and generic here is amplitude. */
@@ -254,7 +363,8 @@ nav .wrap{display:flex;align-items:center;gap:30px;width:100%}
    markup had no whitespace in it, so a byte-for-byte check passed while
    the browser drew a gap. The space was made by layout, not markup. */
 .brand{color:var(--brand-navy);text-decoration:none;display:flex;align-items:center;gap:0}
-.brand .word{font-weight:600;font-size:1.0625rem;letter-spacing:-.01em;white-space:nowrap}
+.brand .word{font-weight:var(--w-semibold);font-size:var(--t-sub);
+  letter-spacing:var(--track-sub);white-space:nowrap}
 /* The extension in the wordmark.
    Lighter and slightly smaller than the name, because an .io at full
    weight competes with the word it is attached to — the eye should read
@@ -265,7 +375,7 @@ nav .wrap{display:flex;align-items:center;gap:30px;width:100%}
    as the fill. At 2.65:1 that is a brand decision, not a measurement. The
    token resolves per ground, so the footer and the sidebar get the
    lighter leather step automatically. */
-.brand .tld{color:var(--accent-type);font-weight:500;letter-spacing:inherit}
+.brand .tld{color:var(--accent-type);font-weight:var(--w-medium);letter-spacing:inherit}
 
 /* Not --tertiary here. That token is 4.2:1 on white, which is fine for a
    caption and not fine for part of the company name — the wordmark is
@@ -298,7 +408,8 @@ nav a.keep{}
 @media(max-width:760px){nav a.link:not(.keep){display:none}}
 
 .btn{display:inline-flex;align-items:center;justify-content:center;min-height:48px;
-  padding:0 22px;border-radius:980px;font-size:.9375rem;font-weight:600;text-decoration:none;
+  padding:0 22px;border-radius:980px;font-size:var(--t-ui);
+  font-weight:var(--w-medium);letter-spacing:var(--track-ui);text-decoration:none;
   border:1px solid transparent;transition:background .24s var(--ease),box-shadow .24s}
 /* Teal button, navy label. White on teal is 3.36:1 and unreadable in
    sunlight — this is measured, not preference. */
@@ -328,18 +439,18 @@ nav a.keep{}
 .m.out .b{background:var(--accent);color:var(--on-accent);border:1px solid var(--accent-edge)}
 .m .t{font-size:.6875rem;color:var(--ink-3);margin:0 8px 3px}
 .thread .foot{margin-top:18px;padding-top:16px;border-top:1px solid var(--rule);
-  font-size:var(--caption);color:var(--ink-3)}
+  font-size:var(--t-note);color:var(--ink-3)}
 
 .mid{text-align:center}
 .mid h2{max-width:20ch;margin:0 auto}
 .mid p{max-width:var(--measure);margin:var(--r) auto 0}
 .figure{font-size:clamp(3.25rem,2.6rem + 4vw,5.5rem);line-height:1;letter-spacing:-.04em;
-  color:var(--ink);font-weight:600}
+  color:var(--ink);font-weight:var(--w-semibold)}
 
 .steps{display:grid;gap:44px;margin-top:clamp(52px,8vw,80px)}
 @media(min-width:760px){.steps{grid-template-columns:repeat(3,1fr);gap:36px}}
 .step{border-top:1px solid var(--rule);padding-top:22px}
-.step .n{font-size:var(--caption);color:var(--ink);font-variant-numeric:tabular-nums;font-weight:600}
+.step .n{font-size:var(--t-note);color:var(--ink);font-variant-numeric:tabular-nums;font-weight:var(--w-semibold)}
 .step h3{margin:10px 0 8px}
 .step p{font-size:1rem}
 
@@ -350,15 +461,15 @@ nav a.keep{}
   border-bottom:1px solid var(--rule)}
 .row:last-of-type{border-bottom:0}
 .row .k{font-size:.9375rem}
-.row .v{color:var(--ink);font-weight:500;font-variant-numeric:tabular-nums}
-.row .v.up{color:var(--ink);font-weight:600}
+.row .v{color:var(--ink);font-weight:var(--w-medium);font-variant-numeric:tabular-nums}
+.row .v.up{color:var(--ink);font-weight:var(--w-semibold)}
 
 footer{padding:var(--section) 0 56px;border-top:1px solid var(--rule)}
 .fgrid{display:grid;gap:32px}
 @media(min-width:700px){.fgrid{grid-template-columns:2fr 1fr 1fr}}
 footer a{color:var(--ink-2);text-decoration:none;font-size:.9375rem;display:block;padding:5px 0}
 footer a:hover{color:var(--ink)}
-.fh{font-size:var(--caption);color:var(--ink-3);font-weight:500;margin-bottom:8px}
+.fh{font-size:var(--t-note);color:var(--ink-3);font-weight:var(--w-medium);margin-bottom:8px}
 
 .reveal-ready [data-reveal]{opacity:0;transform:translateY(24px)}
 .reveal-ready [data-reveal].is-in{opacity:1;transform:none;
@@ -390,10 +501,11 @@ section h1.display{margin-bottom:0}
 .prow{display:grid;grid-template-columns:1.1fr 1fr 1.2fr 1fr;gap:10px;align-items:baseline;
   padding:14px 4px;border-bottom:1px solid var(--rule);
   font-variant-numeric:tabular-nums}
-.phead{font-size:.6875rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);
+.phead{font-size:var(--t-label);font-weight:var(--w-medium);letter-spacing:var(--track-label);
+  text-transform:uppercase;color:var(--ink-3);
   border-bottom-color:var(--ink);padding-bottom:10px}
-.pk{color:var(--ink);font-weight:500;font-size:.9375rem}
-.pv{color:var(--ink);font-weight:600;font-size:1.0625rem}
+.pk{color:var(--ink);font-weight:var(--w-medium);font-size:.9375rem}
+.pv{color:var(--ink);font-weight:var(--w-semibold);font-size:1.0625rem}
 .pa{color:var(--ink-2);font-size:.9375rem}
 /* Not --tertiary. That token is 4.2:1 on white — correct for a caption
    and wrong for a price figure, which is what this is. Same borrow I
@@ -422,7 +534,7 @@ section h1.display{margin-bottom:0}
 .nextup-in{display:grid;gap:28px;max-width:720px;margin:0 auto}
 @media(min-width:820px){.nextup-in{grid-template-columns:1.15fr 1fr;gap:56px;align-items:start;max-width:900px}}
 .nextup h2{font-size:clamp(1.375rem,1.15rem + 1vw,1.75rem);line-height:1.2;
-  letter-spacing:-.02em;color:var(--ink);font-weight:600}
+  letter-spacing:-.02em;color:var(--ink);font-weight:var(--w-semibold)}
 .nextup p{font-size:.9375rem;color:var(--ink-2);margin-top:10px;max-width:44ch}
 
 /* The copy side of the subscribe block. Was styled only via its
@@ -439,20 +551,21 @@ section h1.display{margin-bottom:0}
 .nextup-form input[type=email]{
   /* 16px exactly. Below that iOS zooms the page on focus and the layout
      jumps under somebody's thumb while they type. */
-  min-height:48px;padding:0 16px;font-size:16px;font-family:var(--body);
+  min-height:48px;padding:0 16px;font-size:16px;font-family:var(--sans);
   color:var(--ink);background:var(--raised);border:1px solid var(--rule);border-radius:10px;width:100%}
 .nextup-form input[type=email]::placeholder{color:var(--ink-3)}
 .nextup-form input[type=email]:focus-visible{outline:none;border-color:var(--accent);
   box-shadow:var(--ring)}
 .nextup-form button{min-height:48px;padding:0 22px;border:1px solid var(--accent-edge);border-radius:980px;
-  background:var(--accent);color:var(--on-accent);font-family:var(--body);font-weight:600;
+  background:var(--accent);color:var(--on-accent);font-family:var(--sans);
+  font-weight:var(--w-medium);
   font-size:.9375rem;cursor:pointer;white-space:nowrap;
   transition:background 240ms var(--ease)}
 .nextup-form button:hover{background:var(--accent-hover)}
 .nextup-form button:focus-visible{outline:none;box-shadow:var(--ring)}
 .nextup-note{font-size:.8125rem;color:var(--ink-3);margin:2px 0 0}
-.nextup-note[data-state=done]{color:var(--success);font-weight:500}
-.nextup-note[data-state=error]{color:var(--danger);font-weight:500}
+.nextup-note[data-state=done]{color:var(--success);font-weight:var(--w-medium)}
+.nextup-note[data-state=error]{color:var(--danger);font-weight:var(--w-medium)}
 
 /* The honeypot. Off-screen rather than display:none — some bots skip
    hidden fields and fill everything else. */
@@ -497,7 +610,7 @@ main p a:not([class]):hover{text-decoration-thickness:2px}
 @media(min-width:560px){.dform-row{grid-template-columns:1fr 1fr}}
 
 .dform-field{display:grid;gap:6px;min-width:0}
-.dform-field>label{font-size:var(--caption);color:var(--ink-2);font-weight:500}
+.dform-field>label{font-size:var(--t-note);color:var(--ink-2);font-weight:var(--w-medium)}
 
 /* One selector for every control, so a new field cannot be added in a
    style nothing else uses. */
@@ -522,7 +635,7 @@ main p a:not([class]):hover{text-decoration-thickness:2px}
 .dform-field[data-invalid] input,
 .dform-field[data-invalid] select,
 .dform-field[data-invalid] textarea{border-color:var(--danger)}
-.dform-err{font-size:.8125rem;color:var(--danger);font-weight:500}
+.dform-err{font-size:.8125rem;color:var(--danger);font-weight:var(--w-medium)}
 .dform-err:empty{display:none}
 
 /* Consent. The box is 20px and the whole label is the target, so it is
@@ -535,7 +648,8 @@ main p a:not([class]):hover{text-decoration-thickness:2px}
 
 .dform button[type=submit]{
   min-height:48px;padding:0 26px;border:1px solid var(--accent-edge);border-radius:980px;
-  background:var(--accent);color:var(--on-accent);font-family:var(--sans);font-weight:600;
+  background:var(--accent);color:var(--on-accent);font-family:var(--sans);
+  font-weight:var(--w-medium);
   font-size:.9375rem;cursor:pointer;justify-self:start;
   transition:background 240ms var(--ease)}
 .dform button[type=submit]:hover{background:var(--accent-hover)}
@@ -543,10 +657,10 @@ main p a:not([class]):hover{text-decoration-thickness:2px}
 .dform button[type=submit][disabled]{opacity:.55;cursor:default}
 
 .dform-note{font-size:.8125rem;color:var(--ink-3);margin:0}
-.dform-note[data-state=error]{color:var(--danger);font-weight:500}
+.dform-note[data-state=error]{color:var(--danger);font-weight:var(--w-medium)}
 
 /* What replaces the form once it has gone. */
-.dform-done{font-size:1.0625rem;color:var(--ink);font-weight:600;max-width:40ch}
+.dform-done{font-size:1.0625rem;color:var(--ink);font-weight:var(--w-semibold);max-width:40ch}
 .dform-done+p{font-size:.9375rem;color:var(--ink-2);margin-top:10px;max-width:44ch}
 
 
@@ -702,20 +816,20 @@ section.on-ocean{background:var(--leather)}
   -webkit-overflow-scrolling:touch;padding-bottom:4px}
 .diagram-scroll>svg{display:block;min-width:600px;width:100%;height:auto}
 
-.diagram figcaption{font-size:var(--caption);color:var(--ink-3);
+.diagram figcaption{font-size:var(--t-note);color:var(--ink-3);
   margin-top:14px;max-width:var(--measure)}
 
 /* Text inside a diagram. Set here rather than as attributes on forty
    elements, which is where a font-family goes stale. */
 .diagram svg text{font-family:var(--sans);fill:var(--ink)}
-.diagram svg .d-lbl{font-size:13px;font-weight:600}
-.diagram svg .d-sub{font-size:12px;fill:var(--ink-3);font-weight:400}
+.diagram svg .d-lbl{font-size:13px;font-weight:var(--w-semibold)}
+.diagram svg .d-sub{font-size:12px;fill:var(--ink-3);font-weight:var(--w-regular)}
 .diagram svg .d-tick{font-family:var(--mono);font-size:11px;fill:var(--ink-3)}
 /* --accent-deep, not the brand orange: this is small text, and
    contrast.py exempts headings, not diagram labels. Learned on the
    guide cards one section up. */
-.diagram svg .d-warn{fill:var(--danger);font-weight:600}
-.diagram svg .d-ok{fill:var(--accent-deep);font-weight:600}
+.diagram svg .d-warn{fill:var(--danger);font-weight:var(--w-semibold)}
+.diagram svg .d-ok{fill:var(--accent-deep);font-weight:var(--w-semibold)}
 
 /* Shapes. Classes rather than presentation attributes carrying var(),
    because a `fill="var(--x)"` attribute is a property value in a place
@@ -754,8 +868,8 @@ section.on-ocean{background:var(--leather)}
    needs JavaScript and this must be right for a reader who has it
    blocked. The breakpoint is the SVG's own min-width plus the wrap
    padding, so the hint appears exactly when the diagram cannot fit. */
-.diagram-hint{display:none;font-size:var(--caption);color:var(--accent-deep);
-  font-weight:600;margin-top:10px}
+.diagram-hint{display:none;font-size:var(--t-note);color:var(--accent-deep);
+  font-weight:var(--w-semibold);margin-top:10px}
 @media(max-width:664px){
   .diagram-hint{display:block}
   /* A soft right edge, so the cut looks deliberate rather than broken. */

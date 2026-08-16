@@ -22,8 +22,8 @@ export function AttachOwner({ listingId, current }: {
   if (current && !attach.isSuccess) {
     return (
       <div className="flex items-baseline gap-3 py-3 border-t border-rule">
-        <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3">Owner</span>
-        <span className="text-[15px] text-ink">{current.name}</span>
+        <span className="t-label text-ink-3">Owner</span>
+        <span className="text-ui text-ink">{current.name}</span>
         <a href={`/vendors/${current.id}`} className="btn-inline ml-auto">Brief</a>
       </div>
     );
@@ -31,7 +31,7 @@ export function AttachOwner({ listingId, current }: {
 
   return (
     <div className="py-4 border-t border-rule">
-      <span className="block font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3 mb-2">
+      <span className="block t-label text-ink-3 mb-2">
         No owner on file
       </span>
       <p className="text-sm text-ink-2 mb-3 max-w-[46ch] leading-snug">
@@ -42,7 +42,7 @@ export function AttachOwner({ listingId, current }: {
         <label htmlFor="vsel" className="sr-only">Choose an owner</label>
         <input id="vsel" value={picked} onChange={(e) => setPicked(e.target.value)}
           placeholder="Owner ID"
-          className="flex-1 min-w-[200px] min-h-11 px-4 text-[16px] text-ink bg-sunk border border-rule rounded-lg focus-visible:outline-none focus-visible:shadow-[var(--ring)]" />
+          className="flex-1 min-w-[200px] min-h-11 px-4 text-control text-ink bg-sunk border border-rule rounded-lg focus-visible:outline-none focus-visible:shadow-[var(--ring)]" />
         <Button variant="primary" loading={attach.isPending} disabled={!picked}
           onClick={() => attach.mutate({ listingId, vendorId: picked })}>
           Attach

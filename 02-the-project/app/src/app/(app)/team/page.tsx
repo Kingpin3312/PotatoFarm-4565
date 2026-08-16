@@ -30,10 +30,10 @@ export default function Team() {
   return (
     <div className="max-w-[680px] mx-auto px-6 pb-24">
       <header className="pt-10 pb-6">
-        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-3 block mb-3">
+        <span className="t-label text-ink-3 block mb-3">
           Team
         </span>
-        <h1 className="font-sans font-semibold text-[clamp(2rem,1.5rem+2vw,2.5rem)] text-ink -tracking-[0.026em] leading-none tabular">
+        <h1 className="font-sans font-semibold text-page text-ink tabular">
           {seats} {seats === 1 ? "person" : "people"}
         </h1>
         {/* Billing consequence stated at the point of the decision, not
@@ -46,7 +46,7 @@ export default function Team() {
 
       <div className="border-t border-rule pt-5">
         <label htmlFor="invite-email"
-               className="block font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3 mb-2">
+               className="block t-label text-ink-3 mb-2">
           Invite by email
         </label>
         <div className="flex gap-2 flex-wrap">
@@ -58,7 +58,7 @@ export default function Team() {
             placeholder="agent@brokerage.ae"
             autoComplete="off"
             // 16px. Below that iOS zooms and the layout jumps mid-typing.
-            className="flex-1 min-w-[220px] min-h-11 px-4 text-[16px] text-ink bg-sunk border border-rule rounded-lg focus-visible:outline-none focus-visible:shadow-[var(--ring)]"
+            className="flex-1 min-w-[220px] min-h-11 px-4 text-control text-ink bg-sunk border border-rule rounded-lg focus-visible:outline-none focus-visible:shadow-[var(--ring)]"
           />
           <select
             value={role}
@@ -67,7 +67,7 @@ export default function Team() {
             // 16px for the same reason as the input above, which said so
             // and then this line directly beneath it used 15. Anything
             // under 16 makes iOS zoom the page on focus.
-            className="min-h-11 px-3 text-[16px] text-ink bg-sunk border border-rule rounded-lg"
+            className="min-h-11 px-3 text-control text-ink bg-sunk border border-rule rounded-lg"
           >
             <option value="AGENT">Agent</option>
             <option value="MANAGER">Manager</option>
@@ -96,8 +96,8 @@ export default function Team() {
           ? [...Array(3)].map((_, i) => <div key={i} className="h-14 bg-sunk" aria-busy />)
           : members.map((m) => (
               <div key={m.id} className="flex items-baseline gap-3 py-3.5 border-b border-rule">
-                <span className="text-[15px] text-ink">{m.user.name ?? m.user.email}</span>
-                <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-3">
+                <span className="text-ui text-ink">{m.user.name ?? m.user.email}</span>
+                <span className="t-label text-ink-3">
                   {m.role.toLowerCase()}
                 </span>
                 {/* Every Membership row is an accepted one — an
@@ -105,7 +105,7 @@ export default function Team() {
                     `data.pending` and has no membership yet, so
                     `m.acceptedAt` was a field that could not exist.
                     Last seen is the useful thing to show instead. */}
-                <span className="ml-auto font-mono text-[11px] text-ink-3">
+                <span className="ml-auto font-mono text-label text-ink-3">
                   {m.user.lastSeenAt
                     ? `seen ${new Date(m.user.lastSeenAt).toLocaleDateString("en-GB")}`
                     : "not signed in yet"}

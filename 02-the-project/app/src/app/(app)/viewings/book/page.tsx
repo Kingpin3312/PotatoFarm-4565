@@ -42,8 +42,8 @@ export default function Book({ searchParams }: {
   if (confirm.isSuccess) {
     return (
       <div className="max-w-[560px] mx-auto px-6 py-20">
-        <h1 className="font-sans font-semibold text-[30px] text-ink -tracking-[0.026em]">Booked.</h1>
-        <p className="text-[17px] text-ink-2 mt-3 max-w-[42ch]">
+        <h1 className="font-sans font-semibold text-stat text-ink">Booked.</h1>
+        <p className="text-sub text-ink-2 mt-3 max-w-[42ch]">
           It's on your day. The buyer gets the address and a route, not just a time.
         </p>
         <a href="/viewings" className="btn-inline mt-6 inline-block">Today</a>
@@ -66,7 +66,7 @@ export default function Book({ searchParams }: {
   return (
     <div className="max-w-[620px] mx-auto px-6 pb-24">
       <header className="pt-10 pb-6">
-        <h1 className="font-sans font-semibold text-[clamp(2rem,1.5rem+2vw,2.5rem)] text-ink -tracking-[0.026em] leading-none">
+        <h1 className="font-sans font-semibold text-page text-ink">
           Pick a time
         </h1>
         <p className="text-sm text-ink-2 mt-3 max-w-[46ch]">
@@ -88,25 +88,25 @@ export default function Book({ searchParams }: {
          * it needs to name the screen that fixes it.
          */
         <div className="border-t border-rule pt-5 max-w-[46ch]">
-          <p className="text-[17px] text-ink">No working hours are set.</p>
+          <p className="text-sub text-ink">No working hours are set.</p>
           <p className="text-sm text-ink-2 mt-2">
             Nothing can be booked until the brokerage says which days and times it
             works — the diary is not full, it is unset.
           </p>
           <p className="mt-4">
-            <Link href="/settings/hours" className="text-[15px] text-accent-deep">
+            <Link href="/settings/hours" className="text-ui text-accent-deep">
               Set the working week
             </Link>
           </p>
         </div>
       ) : slots.length === 0 ? (
-        <p className="text-[17px] text-ink-2 border-t border-rule pt-5 max-w-[44ch]">
+        <p className="text-sub text-ink-2 border-t border-rule pt-5 max-w-[44ch]">
           Nothing free in the next week. Widen the range or move something.
         </p>
       ) : (
         Object.entries(byDay).map(([day, list]) => (
           <section key={day} className="mb-7">
-            <h2 className="font-mono text-[11px] uppercase tracking-[0.12em] text-ink-3 pb-2 border-b border-rule">
+            <h2 className="t-label text-ink-3 pb-2 border-b border-rule">
               {day}
             </h2>
             <div className="flex gap-2 flex-wrap mt-3">
@@ -114,9 +114,9 @@ export default function Book({ searchParams }: {
                 const iso = new Date(s.start).toISOString();
                 return (
                   <button key={iso} onClick={() => setPicked(iso)} aria-pressed={picked === iso}
-                    className={cn("min-h-11 px-4 rounded-lg border text-[15px] tabular",
+                    className={cn("min-h-11 px-4 rounded-lg border text-ui tabular",
                       picked === iso
-                        ? "bg-accent text-on-accent border-accent-edge font-semibold"
+                        ? "bg-accent text-on-accent border-accent-edge font-medium"
                         : "border-rule text-ink")}>
                     {new Date(s.start).toLocaleTimeString("en-GB",
                       { hour: "2-digit", minute: "2-digit" })}

@@ -22,10 +22,10 @@ export default function Offers() {
   return (
     <div className="max-w-[760px] mx-auto px-6 pb-24">
       <header className="pt-10 pb-6">
-        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-3 block mb-3">
+        <span className="t-label text-ink-3 block mb-3">
           Live
         </span>
-        <h1 className="font-sans font-semibold text-[clamp(2rem,1.5rem+2vw,2.75rem)] text-ink -tracking-[0.026em] leading-none">
+        <h1 className="font-sans font-semibold text-page text-ink">
           {rows.length === 0 ? "No live offers." : `${rows.length} on the table.`}
         </h1>
         {rows.length > 0 && (
@@ -37,7 +37,7 @@ export default function Offers() {
       </header>
 
       {rows.length === 0 ? (
-        <p className="text-[17px] text-ink-2 max-w-[44ch]">
+        <p className="text-sub text-ink-2 max-w-[44ch]">
           When one comes in, record it here rather than in a message. The vendor will ask what
           has been on the table, and so will a manager in six months.
         </p>
@@ -54,9 +54,9 @@ export default function Offers() {
           {rows.map((o) => (
             <a key={o.id} href={`/offers/${o.listingId}`}
                className="flex items-baseline gap-4 py-4 border-b border-rule no-underline">
-              <span className="font-sans font-semibold text-[19px] text-ink tabular">{o.current}</span>
+              <span className="font-sans font-semibold text-body-lg text-ink tabular">{o.current}</span>
               <span className="text-sm text-ink-2">{o.reference}</span>
-              <span className="ml-auto font-mono text-[11px] uppercase tracking-[0.1em]"
+              <span className="ml-auto t-label"
                     style={{ color: o.hoursLeft != null && o.hoursLeft <= 24 ? "var(--danger-deep)" : "var(--tertiary)" }}>
                 {o.hoursLeft == null ? "no expiry" : o.hoursLeft <= 0 ? "expired" : `${o.hoursLeft}h`}
               </span>

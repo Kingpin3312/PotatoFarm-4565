@@ -37,7 +37,7 @@ export function AssistantSettings() {
 
   return (
     <section>
-      <h2 className="font-sans font-semibold text-[19px] text-accent-deep -tracking-[0.02em] mb-1">
+      <h2 className="font-sans font-semibold text-body-lg text-accent-deep mb-1">
         The assistant
       </h2>
       <p className="text-sm text-ink-2 mb-4 max-w-[48ch]">
@@ -60,12 +60,12 @@ export function AssistantSettings() {
       </div>
 
       <div className="border-t border-ink pt-5">
-        <label htmlFor="budget" className="block font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3 mb-2">
+        <label htmlFor="budget" className="block t-label text-ink-3 mb-2">
           Monthly ceiling, in dirhams
         </label>
         <input id="budget" type="number" inputMode="decimal" value={currentBudget}
           onChange={(e) => setBudget(Number(e.target.value) || 0)}
-          className="w-40 min-h-11 px-4 text-[16px] text-ink bg-sunk border border-rule rounded-lg focus-visible:outline-none focus-visible:shadow-[var(--ring)] tabular" />
+          className="w-40 min-h-11 px-4 text-control text-ink bg-sunk border border-rule rounded-lg focus-visible:outline-none focus-visible:shadow-[var(--ring)] tabular" />
         <p className="text-sm text-ink-2 mt-1.5 max-w-[46ch] leading-snug">
           A hard stop, not a target. Reaching it hands conversations to your agents rather
           than dropping them — nobody is left unanswered because of a budget.
@@ -73,14 +73,14 @@ export function AssistantSettings() {
       </div>
 
       <div className="mt-6">
-        <label htmlFor="warn" className="block font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3 mb-2">
+        <label htmlFor="warn" className="block t-label text-ink-3 mb-2">
           Warn me at
         </label>
         <div className="flex gap-2 items-center">
           <input id="warn" type="number" min={50} max={95} value={currentWarn}
             onChange={(e) => setWarnAt(Number(e.target.value) || 80)}
-            className="w-24 min-h-11 px-4 text-[16px] text-ink bg-sunk border border-rule rounded-lg focus-visible:outline-none focus-visible:shadow-[var(--ring)] tabular" />
-          <span className="text-[15px] text-ink-2">per cent</span>
+            className="w-24 min-h-11 px-4 text-control text-ink bg-sunk border border-rule rounded-lg focus-visible:outline-none focus-visible:shadow-[var(--ring)] tabular" />
+          <span className="text-ui text-ink-2">per cent</span>
         </div>
         <p className="text-sm text-ink-2 mt-1.5 max-w-[46ch] leading-snug">
           Early enough to do something about. A warning at a hundred is a notification about

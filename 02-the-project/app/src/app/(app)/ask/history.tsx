@@ -50,8 +50,8 @@ export function History() {
   if (!data || data.length === 0) {
     return (
       <section className="mt-12 border-t border-rule pt-6">
-        <h2 className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3">Earlier</h2>
-        <p className="text-[15px] text-ink-2 mt-3 max-w-[46ch] leading-snug">
+        <h2 className="t-label text-ink-3">Earlier</h2>
+        <p className="text-ui text-ink-2 mt-3 max-w-[46ch] leading-snug">
           Nothing yet. Anything you ask above is kept here, so you can find that
           valuation again on Thursday without asking for it twice.
         </p>
@@ -61,7 +61,7 @@ export function History() {
 
   return (
     <section className="mt-12 border-t border-rule pt-6">
-      <h2 className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3">
+      <h2 className="t-label text-ink-3">
         Earlier · {data.length}
       </h2>
 
@@ -76,20 +76,20 @@ export function History() {
                 className="flex w-full min-h-12 items-baseline gap-3 py-3 text-left"
               >
                 <State state={r.state} />
-                <span className="flex-1 text-[15px] text-ink leading-snug">
+                <span className="flex-1 text-ui text-ink leading-snug">
                   {/* Verbatim, and truncated by CSS rather than by
                       slicing — a transcript cut mid-word in the markup
                       is also cut in the expanded view. */}
                   <span className={cn(!expanded && "line-clamp-1")}>{r.transcript}</span>
                 </span>
-                <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-3 shrink-0 tabular">
+                <span className="t-label text-ink-3 shrink-0 tabular">
                   {when(r.createdAt)}
                 </span>
               </button>
 
               {expanded && (
                 <div className="pb-4 pl-[4.5rem] pr-1">
-                  <p className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-3">
+                  <p className="t-label text-ink-3">
                     {RECIPE[r.recipe] ?? r.recipe.toLowerCase().replace(/_/g, " ")}
                   </p>
 
@@ -147,7 +147,7 @@ function State({ state }: { state: string }) {
   return (
     <span
       className={cn(
-        "font-mono text-[10px] uppercase tracking-[0.1em] w-14 shrink-0",
+        "t-label w-14 shrink-0",
         state === "DONE" ? "text-ink" : state === "REFUSED" ? "text-accent-deep" : "text-ink-3"
       )}
     >

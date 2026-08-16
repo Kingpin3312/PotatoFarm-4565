@@ -24,7 +24,7 @@ export function Reschedule({ viewingId, agentId, listingId, onDone }: {
 
   return (
     <div className="bg-sunk rounded-xl p-4">
-      <span className="block font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3 mb-2">
+      <span className="block t-label text-ink-3 mb-2">
         Move it to
       </span>
       {unconfigured ? (
@@ -44,8 +44,8 @@ export function Reschedule({ viewingId, agentId, listingId, onDone }: {
             const iso = new Date(s.start).toISOString();
             return (
               <button key={iso} onClick={() => setPicked(iso)} aria-pressed={picked === iso}
-                className={`min-h-11 px-3 rounded-lg border text-[15px] tabular ${
-                  picked === iso ? "bg-accent text-on-accent border-accent-edge font-semibold"
+                className={`min-h-11 px-3 rounded-lg border text-ui tabular ${
+                  picked === iso ? "bg-accent text-on-accent border-accent-edge font-medium"
                                  : "border-rule text-ink"}`}>
                 {new Date(s.start).toLocaleString("en-GB",
                   { weekday: "short", hour: "2-digit", minute: "2-digit" })}

@@ -54,10 +54,10 @@ export default function OfferThread({ params }: { params: Promise<{ listingId: s
   return (
     <div className="max-w-[680px] mx-auto px-6 pb-24">
       <header className="pt-10 pb-6">
-        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-3 block mb-3">
+        <span className="t-label text-ink-3 block mb-3">
           On the table
         </span>
-        <h1 className="font-sans font-semibold text-[clamp(2rem,1.5rem+2vw,2.5rem)] text-ink -tracking-[0.026em] leading-none">
+        <h1 className="font-sans font-semibold text-page text-ink">
           {offers.length} offer{offers.length === 1 ? "" : "s"}
         </h1>
         {offers.length > 1 && (
@@ -84,7 +84,7 @@ export default function OfferThread({ params }: { params: Promise<{ listingId: s
         // Returned rather than auto-notified. A buyer whose offer just
         // lost hears it from their agent, not a push notification.
         <div className="bg-sunk rounded-xl p-5 border-l-[3px] border-l-accent-edge mb-8">
-          <p className="text-[16px] text-ink font-semibold">
+          <p className="text-control text-ink font-medium">
             {accept.data.toTell.length} {accept.data.toTell.length === 1 ? "buyer needs" : "buyers need"} a call
           </p>
           <p className="text-sm text-ink-2 mt-1.5 max-w-[46ch] leading-snug">
@@ -98,16 +98,16 @@ export default function OfferThread({ params }: { params: Promise<{ listingId: s
         {offers.map((o, i) => (
           <article key={o.id} className="py-5 border-b border-rule">
             <div className="flex items-baseline gap-3 flex-wrap">
-              <span className="font-sans font-semibold text-[26px] text-ink -tracking-[0.02em] tabular">
+              <span className="font-sans font-semibold text-title text-ink tabular">
                 {o.current}
               </span>
               {o.current !== o.opened && (
-                <span className="font-mono text-[11px] text-ink-3">
+                <span className="font-mono text-label text-ink-3">
                   opened {o.opened} · moved {o.moves}×
                 </span>
               )}
               {i === 0 && offers.length > 1 && (
-                <span className="ml-auto font-mono text-[10px] uppercase tracking-[0.12em] text-accent-deep font-semibold">
+                <span className="ml-auto t-label text-accent-deep font-semibold">
                   Strongest, not highest
                 </span>
               )}
@@ -126,7 +126,7 @@ export default function OfferThread({ params }: { params: Promise<{ listingId: s
               <ol className="mt-3 space-y-1.5">
                 {o.history.map((h, j) => (
                   <li key={j} className="text-sm text-ink-2">
-                    <span className="font-mono text-[11px] text-ink-3 uppercase mr-2">
+                    <span className="font-mono text-label text-ink-3 uppercase mr-2">
                       {h.by.toLowerCase()}
                     </span>
                     {h.amount ?? h.kind.toLowerCase()}
@@ -151,8 +151,8 @@ export default function OfferThread({ params }: { params: Promise<{ listingId: s
                 <div className="flex gap-2 mb-3 flex-wrap">
                   {(["VENDOR","BUYER","AGENT"] as const).map((k) => (
                     <button key={k} onClick={() => setBy(k)} aria-pressed={by === k}
-                      className={cn("min-h-11 px-3 rounded-lg border text-[15px]",
-                        by === k ? "bg-accent text-on-accent border-accent-edge font-semibold"
+                      className={cn("min-h-11 px-3 rounded-lg border text-ui",
+                        by === k ? "bg-accent text-on-accent border-accent-edge font-medium"
                                  : "border-rule text-ink")}>
                       {k.toLowerCase()} came back
                     </button>
@@ -161,7 +161,7 @@ export default function OfferThread({ params }: { params: Promise<{ listingId: s
                 <label htmlFor={`c-${o.id}`} className="sr-only">Counter amount in dirhams</label>
                 <input id={`c-${o.id}`} type="number" inputMode="decimal" value={amt}
                   onChange={(e) => setAmt(e.target.value)} placeholder="Amount in dirhams"
-                  className="w-full min-h-11 px-4 text-[16px] text-ink bg-raised border border-rule rounded-lg focus-visible:outline-none focus-visible:shadow-[var(--ring)]" />
+                  className="w-full min-h-11 px-4 text-control text-ink bg-raised border border-rule rounded-lg focus-visible:outline-none focus-visible:shadow-[var(--ring)]" />
                 <Button variant="primary" className="mt-3" loading={counter.isPending}
                   disabled={!Number(amt)}
                   onClick={() => counter.mutate({ offerId: o.id, by, amountAed: Number(amt) })}>
@@ -175,7 +175,7 @@ export default function OfferThread({ params }: { params: Promise<{ listingId: s
                 yes/no dialog nobody reads. */}
             {confirming === o.id && (
               <div className="mt-4 bg-sunk rounded-xl p-4 border-l-[3px] border-l-accent-edge">
-                <p className="text-[15px] text-ink">
+                <p className="text-ui text-ink">
                   Accepting {o.current} closes {offers.length - 1} other
                   {offers.length === 2 ? " offer" : " offers"} on this listing and starts the
                   deal.
@@ -198,7 +198,7 @@ export default function OfferThread({ params }: { params: Promise<{ listingId: s
 
 function Tag({ children, good }: { children: React.ReactNode; good?: boolean }) {
   return (
-    <span className={cn("font-mono text-[10px] uppercase tracking-[0.1em] px-2 py-0.5 border rounded-[3px]",
+    <span className={cn("t-label px-2 py-0.5 border rounded-[3px]",
       good ? "border-accent-edge text-accent-deep font-semibold" : "border-rule text-ink-3")}>
       {children}
     </span>
@@ -208,7 +208,7 @@ function Tag({ children, good }: { children: React.ReactNode; good?: boolean }) 
 function Expiry({ at }: { at: Date | string }) {
   const h = Math.round((new Date(at).getTime() - Date.now()) / 3_600_000);
   return (
-    <span className={cn("font-mono text-[10px] uppercase tracking-[0.1em] px-2 py-0.5 border rounded-[3px]",
+    <span className={cn("t-label px-2 py-0.5 border rounded-[3px]",
       h <= 24 ? "border-danger text-danger font-semibold" : "border-rule text-ink-3")}>
       {h <= 0 ? "expired" : `${h}h left`}
     </span>

@@ -28,7 +28,7 @@ export default function Billing() {
   if (!data?.subscribed) {
     return (
       <div className="max-w-[680px] mx-auto px-6 pt-12">
-        <p className="text-[17px] text-ink">No subscription on this brokerage.</p>
+        <p className="text-sub text-ink">No subscription on this brokerage.</p>
         <p className="text-sm text-ink-2 mt-2">Email hello@potatofarm.io and we&rsquo;ll sort it.</p>
       </div>
     );
@@ -40,10 +40,10 @@ export default function Billing() {
   return (
     <div className="max-w-[680px] mx-auto px-6 pb-24">
       <header className="pt-10 pb-6">
-        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-3 block mb-3">
+        <span className="t-label text-ink-3 block mb-3">
           This month so far
         </span>
-        <h1 className="font-sans font-semibold text-[clamp(2rem,1.5rem+2vw,2.5rem)] text-ink -tracking-[0.026em] leading-none tabular">
+        <h1 className="font-sans font-semibold text-page text-ink tabular">
           {data.runningTotal.usd}
         </h1>
         <p className="text-sm text-ink-2 mt-2 tabular">
@@ -71,7 +71,7 @@ export default function Billing() {
           "mt-5 rounded-xl p-4 border-l-[3px]",
           overAllowance ? "bg-sunk border-l-accent" : "bg-sunk border-l-warning"
         )}>
-          <p className="text-[15px] text-ink font-semibold">
+          <p className="text-ui text-ink font-medium">
             {overAllowance
               ? `You're ${(b.answered - b.included).toLocaleString()} conversations past the allowance.`
               : `${b.usedPct}% of this month's allowance used.`}
@@ -84,22 +84,22 @@ export default function Billing() {
         </div>
       )}
 
-      <h2 className="font-sans font-semibold text-[19px] text-accent-deep -tracking-[0.02em] mt-12 mb-3">
+      <h2 className="font-sans font-semibold text-body-lg text-accent-deep mt-12 mb-3">
         Payment
       </h2>
 
       {data.card.hasCard ? (
         <div className="flex items-baseline gap-3 py-3 border-t border-rule">
-          <span className="text-[15px] text-ink capitalize">
+          <span className="text-ui text-ink capitalize">
             {data.card.brand ?? "Card"} ending {data.card.last4 ?? "••••"}
           </span>
-          <span className="ml-auto font-mono text-[11px] text-ink-3 uppercase tracking-[0.1em]">
+          <span className="ml-auto font-mono text-label text-ink-3 uppercase tracking-[0.1em]">
             expires {data.card.expires ?? "—"}
           </span>
         </div>
       ) : (
         <div className="border-t border-rule pt-4">
-          <p className="text-[15px] text-ink">
+          <p className="text-ui text-ink">
             {data.status === "TRIALING"
               ? `No card yet. Your trial runs to ${fmt(data.trialEndsAt)} — add one before then and nothing interrupts.`
               : "No card on file."}
@@ -132,7 +132,7 @@ export default function Billing() {
         </div>
       )}
 
-      <h2 className="font-sans font-semibold text-[19px] text-accent-deep -tracking-[0.02em] mt-12 mb-3">
+      <h2 className="font-sans font-semibold text-body-lg text-accent-deep mt-12 mb-3">
         Invoices
       </h2>
       {!invoices?.length ? (
@@ -144,11 +144,11 @@ export default function Billing() {
           {invoices.map((i) => (
             <details key={i.number} className="border-b border-rule">
               <summary className="flex items-baseline gap-3 py-3.5 cursor-pointer min-h-11">
-                <span className="font-mono text-[13px] text-ink-3">{i.number}</span>
+                <span className="font-mono text-note text-ink-3">{i.number}</span>
                 <span className="text-sm text-ink-2">{i.period}</span>
-                <span className="ml-auto text-[15px] text-ink font-semibold tabular">{i.total}</span>
+                <span className="ml-auto text-ui text-ink font-medium tabular">{i.total}</span>
                 <span className={cn(
-                  "font-mono text-[10px] uppercase tracking-[0.1em]",
+                  "t-label",
                   i.status === "PAID" ? "text-success" : "text-ink-3"
                 )}>{i.status.toLowerCase()}</span>
               </summary>
@@ -171,10 +171,10 @@ function Row({ k, sub, v, quiet }: { k: string; sub?: string; v: string; quiet?:
   return (
     <div className="flex items-baseline gap-3 py-3.5 border-b border-rule">
       <div>
-        <span className="text-[15px] text-ink">{k}</span>
-        {sub && <span className="block text-[13px] text-ink-3">{sub}</span>}
+        <span className="text-ui text-ink">{k}</span>
+        {sub && <span className="block text-note text-ink-3">{sub}</span>}
       </div>
-      <span className={cn("ml-auto text-[15px] tabular",
+      <span className={cn("ml-auto text-ui tabular",
         quiet ? "text-ink-3" : "text-ink font-semibold")}>{v}</span>
     </div>
   );

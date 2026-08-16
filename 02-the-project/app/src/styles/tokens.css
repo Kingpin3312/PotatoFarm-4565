@@ -197,32 +197,134 @@
   --danger:       #A0431B;   /* the accent, dark enough to read at 13px */
   --warning:      #A0431B;
 
-  /* ---- Type --------------------------------------------------------
-     Same stack. Warm palettes tempt people toward a serif and it is
-     usually a mistake at interface sizes — Hermes' own wordmark is a
-     serif and its signage is not. */
-  --sans: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI",
-          Roboto, Helvetica, Arial, sans-serif;
+  /* ---- Type ---------------------------------------------------------
+     One scale, Apple's proportions, two registers.
+
+     ## The stack, and the one name that left it
+
+     `Inter` was third in the list and it is the change that matters.
+     On a Mac it never won — `-apple-system` matched first — so nobody
+     working on this saw it. On Windows and Linux with Inter installed
+     it won every time, and Inter is a different voice: a larger
+     x-height, flatter terminals, more geometric. Half the users were
+     reading a different product from the other half and no screenshot
+     ever showed it.
+
+     `-apple-system` and `BlinkMacSystemFont` resolve to San Francisco,
+     which is an optical-size family: the browser picks SF Pro Display
+     above roughly 20px and SF Pro Text below it, adjusting aperture and
+     spacing as it goes. That switch is most of what "Apple typography"
+     actually is, and it is free — it needs no webfont, no download and
+     no licence. The two quoted SF names after them are for the handful
+     of environments that have the fonts installed but not the keyword.
+
+     `"Segoe UI", Roboto` are kept, and this is a deliberate departure
+     from the brief's literal stack, which goes from Helvetica Neue
+     straight to Helvetica and Arial. On Windows that resolves to Arial
+     — a 1982 face with no optical sizing — for the entire product. The
+     brief's own principle is to "prioritise the native system
+     rendering"; Segoe UI *is* that on Windows and Roboto is on Android.
+     On Apple hardware this stack is byte-identical to the brief's.
+
+     No webfont is loaded anywhere. Nothing here is Apple's property. */
+  --sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
+          "Segoe UI", Roboto, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  /* Kept for one thing: figures in a column that must not jitter. It is
+     no longer a *label* face — see `--t-label` below. */
   --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
 
-  --display: clamp(2.5rem, 1.6rem + 4.2vw, 4.25rem);
-  --h1:      clamp(2rem, 1.5rem + 2.4vw, 3rem);
-  --h2:      clamp(1.5rem, 1.2rem + 1.6vw, 2.125rem);
-  --h3:      1.25rem;
-  --body-lg: 1.1875rem;
-  --body:    1rem;
-  --small:   0.9375rem;
-  --caption: 0.8125rem;
-  --micro:   0.6875rem;
-  --stat:    1.875rem;
-  /* The interface needs a heading step between h2 and h3 that the
-     marketing scale did not — a dashboard section title is smaller than
-     a landing-page one. Named rather than typed inline. */
-  --h2-sm:   1.625rem;
+  /* ---- Weight -------------------------------------------------------
+     Three, and 700 is not one of them.
 
-  --track-display: -0.03em;
-  --track-h1:      -0.026em;
-  --track-h2:      -0.022em;
+     The product had 184 `font-semibold`, 11 `font-medium` and one
+     `font-normal` — effectively a binary, 600 or 400, with nothing in
+     between doing the work that 500 does on every Apple surface. A
+     button, a nav item and a table header are all "a bit heavier than
+     body", and reaching for 600 in all three is what makes an interface
+     look shouted. */
+  --w-regular:  400;
+  --w-medium:   500;
+  --w-semibold: 600;
+
+  /* ---- Tracking -----------------------------------------------------
+     The brief's three anchors. Each step below carries its own value
+     derived from them, because tracking is a function of size: type
+     tightens as it grows and needs air as it shrinks. Applying one
+     number at every size is the thing that reads as templated. */
+  --track-tight:  -0.02em;
+  --track-normal: 0;
+  --track-wide:   0.01em;
+
+  /* ---- The editorial register: the marketing site -------------------
+     Apple's own site proportions. Display sizes are fluid so a hero
+     never overflows a phone and never looks stranded at 1920. */
+  --display: clamp(2.75rem, 1.9rem + 4.2vw, 5rem);      /* 44 → 80 */
+  --h1:      clamp(2rem, 1.5rem + 2.4vw, 3rem);         /* 32 → 48 */
+  --h2:      clamp(1.625rem, 1.35rem + 1.4vw, 2rem);    /* 26 → 32 */
+  --h3:      1.5rem;                                    /* 24 */
+  --lead:    1.3125rem;                                 /* 21 */
+  --body-lg: 1.1875rem;                                 /* 19 */
+  --body:    1.0625rem;                                 /* 17 — Apple's */
+
+  /* ---- The interface register: the CRM ------------------------------
+     Deliberately not the same numbers, and this is the decision most
+     worth arguing with.
+
+     Apple does not use one scale for apple.com and for a working tool.
+     Their own guidance puts 17pt body on an iOS screen and 13pt on a
+     macOS window, because a marketing page is read once and a pipeline
+     is scanned four hundred times a day. Setting a CRM table at the
+     site's 17px body would push perhaps two rows below the fold on a
+     laptop and force a horizontal scroll on the wider tables.
+
+     So the interface keeps its density and takes everything else —
+     the face, the weights, the optical tracking, the line heights. */
+  /* The screen title. Fluid, because a fixed 40px headline on a 375px
+     phone is the single most common way a CRM overflows. There were
+     four different clamps in the app for this one thing — 32→40,
+     32→44, 28→36 and 30→40 — picked per screen. */
+  --t-page:    clamp(2rem, 1.5rem + 2vw, 2.5rem);   /* 32 → 40 */
+  --t-title:   1.75rem;      /* 28 — a card or panel heading */
+  --t-section: 1.3125rem;    /* 21 — a section heading (was 22) */
+  --t-sub:     1.0625rem;    /* 17 — a card or row title */
+  --t-ui:      0.9375rem;    /* 15 — body, list rows */
+  --t-control: 1rem;         /* 16 — inputs. Below this iOS zooms the
+                                page on focus, which is a layout bug
+                                that presents as a typography choice. */
+  --t-note:    0.8125rem;    /* 13 — secondary and helper text */
+  --t-label:   0.75rem;      /* 12 — the floor. Nothing renders under it. */
+
+  /* Figures that head a screen. Between title and h2 on purpose: a
+     number is read as a shape, not as words, and carries at a size
+     where a sentence would shout. */
+  --stat:      1.875rem;     /* 30 */
+
+  /* ---- Line height --------------------------------------------------
+     Tight for display, generous for anything read in sentences. */
+  --lh-display: 1.05;
+  --lh-heading: 1.12;
+  --lh-title:   1.2;
+  --lh-body:    1.5;
+  --lh-ui:      1.45;
+  --lh-tight:   1.3;
+
+  /* ---- Per-step tracking --------------------------------------------
+     Measured off the same curve rather than picked. The product had
+     three different values — 0.10em, 0.12em and 0.14em — on what was
+     visually one label, which is the sort of drift a scale exists to
+     stop. */
+  --track-display: -0.022em;
+  --track-h1:      -0.02em;
+  --track-h2:      -0.018em;
+  --track-h3:      -0.014em;
+  --track-title:   -0.018em;
+  --track-section: -0.012em;
+  --track-sub:     -0.01em;
+  --track-ui:      -0.006em;
+  --track-note:    -0.004em;
+  /* The one positive value in the system. Uppercase at 12px genuinely
+     needs air between the letters; everything else does not. */
+  --track-label:   0.06em;
 
   --section: clamp(72px, 9vw, 128px);
   --measure: 34rem;

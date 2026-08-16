@@ -52,23 +52,23 @@ function ErrorBody() {
 
   return (
     <main id="main" className="max-w-[46ch] mx-auto px-6 py-24">
-      <h1 className="font-sans font-semibold text-[32px] text-ink -tracking-[0.026em] leading-tight">
+      <h1 className="font-sans font-semibold text-h2 text-ink leading-tight">
         {m.title}
       </h1>
-      <p className="text-[17px] text-ink-2 mt-4 leading-snug">{m.detail}</p>
+      <p className="text-sub text-ink-2 mt-4 leading-snug">{m.detail}</p>
 
       <div className="mt-10 flex gap-3 flex-wrap">
         {m.retry && (
           <a
             href="/sign-in"
-            className="inline-flex items-center justify-center min-h-12 px-6 rounded-full bg-accent text-on-accent border border-[color:var(--accent-edge)] font-semibold text-[15px] no-underline"
+            className="inline-flex items-center justify-center min-h-12 px-6 rounded-full bg-accent text-on-accent border border-[color:var(--accent-edge)] font-medium text-ui no-underline"
           >
             Send another link
           </a>
         )}
         <a
           href="mailto:hello@potatofarm.io?subject=Can%27t%20sign%20in"
-          className="inline-flex items-center justify-center min-h-12 px-6 rounded-full border border-rule text-ink font-medium text-[15px] no-underline"
+          className="inline-flex items-center justify-center min-h-12 px-6 rounded-full border border-rule text-ink font-medium text-ui no-underline"
         >
           hello@potatofarm.io
         </a>
@@ -76,7 +76,7 @@ function ErrorBody() {
 
       {/* The code, small and last. Useless to the reader and the first
           thing we will ask for. */}
-      <p className="font-mono text-[11px] text-ink-3 mt-10">Reference: {code}</p>
+      <p className="font-mono text-label text-ink-3 mt-10">Reference: {code}</p>
     </main>
   );
 }

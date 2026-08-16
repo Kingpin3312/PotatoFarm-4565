@@ -111,7 +111,7 @@ export function ConnectChannel() {
       >
         {done ? (
           <div className="p-6">
-            <h2 id="connect-title" className="font-sans font-semibold -tracking-[0.024em] text-[24px] text-ink mb-1.5">
+            <h2 id="connect-title" className="font-sans font-semibold text-h3 text-ink mb-1.5">
               {done.label} is connected
             </h2>
             <p className="text-sm text-ink-2 mb-5 max-w-[52ch]">
@@ -132,7 +132,7 @@ export function ConnectChannel() {
                    token can be pasted here now; leaving it out is a
                    choice rather than the product's limitation. */
                 <div className="border border-rule rounded-[3px] p-4 bg-ground">
-                  <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3 mb-2">
+                  <p className="t-label text-ink-3 mb-2">
                     Receiving only, for now
                   </p>
                   <p className="text-sm text-ink-2 leading-snug">
@@ -152,7 +152,7 @@ export function ConnectChannel() {
           </div>
         ) : (
           <form onSubmit={submit} className="p-6">
-            <h2 id="connect-title" className="font-sans font-semibold -tracking-[0.024em] text-[24px] text-ink mb-1.5">
+            <h2 id="connect-title" className="font-sans font-semibold text-h3 text-ink mb-1.5">
               Connect a channel
             </h2>
             <p className="text-sm text-ink-3 mb-5">
@@ -167,12 +167,12 @@ export function ConnectChannel() {
 
             <div className="flex flex-col gap-3.5">
               <label className="flex flex-col gap-1.5">
-                <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3">Type</span>
+                <span className="t-label text-ink-3">Type</span>
                 <select
                   name="type"
                   value={type}
                   onChange={(e) => setType(e.target.value)}
-                  className="min-h-11 px-3 text-[16px] bg-ground border border-rule rounded-[3px] text-ink outline-none focus:border-ink"
+                  className="min-h-11 px-3 text-control bg-ground border border-rule rounded-[3px] text-ink outline-none focus:border-ink"
                 >
                   {TYPES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                 </select>
@@ -182,7 +182,7 @@ export function ConnectChannel() {
                   There was nowhere to put a token, so connecting had two
                   halves and the second one was a redeploy. */}
               <label className="flex flex-col gap-1.5 order-last">
-                <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3">
+                <span className="t-label text-ink-3">
                   Access token
                 </span>
                 <input
@@ -190,16 +190,16 @@ export function ConnectChannel() {
                   type="password"
                   autoComplete="off"
                   placeholder="Optional — paste it now or add it later"
-                  className="min-h-11 px-3 text-[16px] bg-ground border border-rule rounded-[3px] text-ink outline-none focus:border-ink"
+                  className="min-h-11 px-3 text-control bg-ground border border-rule rounded-[3px] text-ink outline-none focus:border-ink"
                 />
-                <span className="text-[13px] text-ink-3 leading-snug max-w-[46ch]">
+                <span className="text-note text-ink-3 leading-snug max-w-[46ch]">
                   Encrypted before it is stored, and never shown again. Without it the
                   number receives messages but cannot reply.
                 </span>
               </label>
 
               <label className="flex flex-col gap-1.5">
-                <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3">
+                <span className="t-label text-ink-3">
                   Name <span className="text-accent-deep">*</span>
                 </span>
                 <input
@@ -208,26 +208,26 @@ export function ConnectChannel() {
                   autoFocus
                   placeholder="Main sales number"
                   autoComplete="off"
-                  className="min-h-11 px-3 text-[16px] bg-ground border border-rule rounded-[3px] text-ink outline-none focus:border-ink"
+                  className="min-h-11 px-3 text-control bg-ground border border-rule rounded-[3px] text-ink outline-none focus:border-ink"
                 />
-                <span className="text-[13px] text-ink-3">What you will call it. Yours, not Meta&rsquo;s.</span>
+                <span className="text-note text-ink-3">What you will call it. Yours, not Meta&rsquo;s.</span>
               </label>
 
               <label className="flex flex-col gap-1.5">
-                <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3">
+                <span className="t-label text-ink-3">
                   {meta.label} <span className="text-accent-deep">*</span>
                 </span>
                 <input
                   name="identifier"
                   required
                   autoComplete="off"
-                  className="min-h-11 px-3 text-[16px] bg-ground border border-rule rounded-[3px] text-ink outline-none focus:border-ink"
+                  className="min-h-11 px-3 text-control bg-ground border border-rule rounded-[3px] text-ink outline-none focus:border-ink"
                 />
                 {/* The hint changes with the type, because "identifier"
                     is the right column name and useless on a form — the
                     owner is looking at a dashboard where it is called
                     something else. */}
-                <span className="text-[13px] text-ink-3 leading-snug">{meta.hint}</span>
+                <span className="text-note text-ink-3 leading-snug">{meta.hint}</span>
               </label>
             </div>
 

@@ -32,7 +32,7 @@ export function SendFile({ conversationId, listingId, windowOpen }: {
   if (!windowOpen) {
     return (
       <div className="bg-sunk rounded-xl p-4 border-l-[3px] border-l-accent-edge">
-        <p className="text-[15px] text-ink font-semibold">Can't send a file right now</p>
+        <p className="text-ui text-ink font-medium">Can't send a file right now</p>
         <p className="text-sm text-ink-2 mt-1 max-w-[44ch] leading-snug">
           The reply window has closed. WhatsApp accepts documents and quietly drops them —
           send a template first, and once they answer you can send anything.
@@ -65,7 +65,7 @@ export function SendFile({ conversationId, listingId, windowOpen }: {
     <div>
       {files?.length ? (
         <>
-          <span className="block font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3 mb-2">
+          <span className="block t-label text-ink-3 mb-2">
             Already on this listing
           </span>
           <div className="flex gap-2 flex-wrap mb-4">
@@ -79,12 +79,12 @@ export function SendFile({ conversationId, listingId, windowOpen }: {
         </>
       ) : null}
 
-      <label htmlFor="upl" className="block font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3 mb-2">
+      <label htmlFor="upl" className="block t-label text-ink-3 mb-2">
         Or send something new
       </label>
       <input id="upl" type="file" accept="image/jpeg,image/png,application/pdf"
         onChange={(e) => { const f = e.target.files?.[0]; if (f) void upload(f); }}
-        className="text-[16px] text-ink" />
+        className="text-control text-ink" />
 
       {/* Every refusal says what to do instead. "Unsupported file type"
           leaves an agent standing in a lobby with nothing. */}

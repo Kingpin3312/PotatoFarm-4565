@@ -41,10 +41,10 @@ export default function Leads() {
   return (
     <div className="max-w-[760px] mx-auto px-6 pb-24">
       <header className="pt-10 pb-5">
-        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-3 block mb-3">
+        <span className="t-label text-ink-3 block mb-3">
           Leads
         </span>
-        <h1 className="font-sans font-semibold text-[clamp(2rem,1.5rem+2vw,2.5rem)] text-ink -tracking-[0.026em] leading-none tabular">
+        <h1 className="font-sans font-semibold text-page text-ink tabular">
           {rows.length.toLocaleString()}
         </h1>
       </header>
@@ -62,8 +62,8 @@ export default function Leads() {
            ["hot","Waiting on us"],["cold","Gone quiet"]] as const)
           .map(([k, label]) => (
             <button key={k} onClick={() => setFilter(k)} aria-pressed={filter === k}
-              className={cn("min-h-11 px-4 rounded-lg border text-[15px]",
-                filter === k ? "bg-accent text-on-accent border-accent-edge font-semibold"
+              className={cn("min-h-11 px-4 rounded-lg border text-ui",
+                filter === k ? "bg-accent text-on-accent border-accent-edge font-medium"
                              : "border-rule text-ink")}>
               {label}
             </button>
@@ -74,14 +74,14 @@ export default function Leads() {
           sits there as permanent clutter. */}
       {picked.size > 0 && (
         <div className="bg-sunk rounded-xl p-4 mb-5 flex items-center gap-3 flex-wrap">
-          <span className="text-[15px] text-ink font-semibold tabular">
+          <span className="text-ui text-ink font-medium tabular">
             {picked.size} selected
           </span>
           <label htmlFor="assign-to" className="sr-only">Assign to</label>
           <select id="assign-to"
             onChange={(e) => e.target.value &&
               assign.mutate({ leadIds: [...picked], agentId: e.target.value })}
-            className="min-h-11 px-3 text-[16px] text-ink bg-raised border border-rule rounded-lg">
+            className="min-h-11 px-3 text-control text-ink bg-raised border border-rule rounded-lg">
             <option value="">Assign to…</option>
             {(team?.members ?? []).map((m) => (
               // `m.id` is the membership id; assignment wants the user.
@@ -97,7 +97,7 @@ export default function Leads() {
       {isLoading ? (
         <div className="h-64 bg-sunk rounded-sm" aria-busy />
       ) : rows.length === 0 ? (
-        <p className="text-[17px] text-ink-2 border-t border-rule pt-5 max-w-[42ch]">
+        <p className="text-sub text-ink-2 border-t border-rule pt-5 max-w-[42ch]">
           Nothing here. {filter === "unassigned" ? "Every lead has somebody on it." : ""}
         </p>
       ) : (
@@ -111,7 +111,7 @@ export default function Leads() {
                   className="w-5 h-5 accent-[var(--accent)]" />
               </label>
               <a href={`/inbox/${l.conversation?.id ?? l.id}`}
-                 className="flex min-h-11 items-center text-[15px] text-ink no-underline flex-1 min-w-0">
+                 className="flex min-h-11 items-center text-ui text-ink no-underline flex-1 min-w-0">
                 <span className="truncate">{l.name ?? l.phone}</span>
               </a>
               {/* The band, and the number it came from. Both, because
@@ -121,17 +121,17 @@ export default function Leads() {
               {l.band && (
                 <span data-band={l.band.band} title={l.band.blurb}
                       className={cn(
-                        "font-mono text-[10px] uppercase tracking-[0.12em] px-1.5 py-0.5 rounded-[2px] border",
+                        "t-label px-1.5 py-0.5 rounded-[2px] border",
                         l.band.band === "GOLDEN" || l.band.band === "HOT"
                           ? "text-accent-deep border-accent-edge bg-accent-soft"
                           : "text-ink-3 border-rule")}>
                   {l.band.label} <span className="tabular">{l.score}</span>
                 </span>
               )}
-              <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-3">
+              <span className="t-label text-ink-3">
                 {l.source}
               </span>
-              <span className="font-mono text-[11px] text-ink-3 w-20 text-right tabular">
+              <span className="font-mono text-label text-ink-3 w-20 text-right tabular">
                 {l.assignedTo?.name ?? "unassigned"}
               </span>
               {/* Why it is that warm, in the sweep's own words. An
@@ -139,7 +139,7 @@ export default function Leads() {
                   ignore, and the reason is also how they catch it being
                   wrong — the same argument as the Today list. */}
               {l.drivers.length > 0 && (
-                <p className="basis-full pl-8 text-[13px] leading-snug text-ink-3">
+                <p className="basis-full pl-8 text-note leading-snug text-ink-3">
                   {l.drivers.join(" · ")}
                 </p>
               )}

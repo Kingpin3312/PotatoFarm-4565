@@ -33,10 +33,10 @@ export default function Activity() {
   return (
     <div className="mx-auto max-w-[680px] px-6 pb-28">
       <header className="pt-10 pb-6">
-        <h1 className="font-sans text-[clamp(2rem,1.5rem+2vw,2.5rem)] font-semibold leading-none -tracking-[0.026em] text-ink">
+        <h1 className="font-sans text-page font-semibold text-ink">
           What it did
         </h1>
-        <p className="mt-3 max-w-[48ch] text-[15px] leading-snug text-ink-2">
+        <p className="mt-3 max-w-[48ch] text-ui leading-snug text-ink-2">
           Everything the assistant has done on your behalf, why it did it, and how to
           take it back.
         </p>
@@ -44,7 +44,7 @@ export default function Activity() {
 
       {settings && (
         <section className="border-t border-rule pt-6">
-          <h2 className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3">
+          <h2 className="t-label text-ink-3">
             How much it may do
           </h2>
 
@@ -63,10 +63,10 @@ export default function Activity() {
                   )}
                 >
                   <span className="flex items-baseline gap-2">
-                    <span className="text-[16px] font-semibold text-ink">{o.label}</span>
+                    <span className="text-control font-medium text-ink">{o.label}</span>
                     {/* In words. The border alone is not a signal. */}
                     {on && (
-                      <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-accent-deep">
+                      <span className="t-label text-accent-deep">
                         On
                       </span>
                     )}
@@ -102,7 +102,7 @@ export default function Activity() {
       )}
 
       <section className="mt-10 border-t border-rule pt-6">
-        <h2 className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3">
+        <h2 className="t-label text-ink-3">
           Recently
         </h2>
 
@@ -115,7 +115,7 @@ export default function Activity() {
         )}
 
         {actions?.length === 0 && (
-          <p className="mt-3 max-w-[46ch] text-[15px] leading-snug text-ink-2">
+          <p className="mt-3 max-w-[46ch] text-ui leading-snug text-ink-2">
             Nothing yet. This fills up as the assistant does things — and on Copilot it
             does very little, which is the point of starting there.
           </p>
@@ -128,7 +128,7 @@ export default function Activity() {
                 <div className="flex items-baseline gap-3">
                   <span
                     className={cn(
-                      "w-24 shrink-0 font-mono text-[10px] uppercase tracking-[0.1em]",
+                      "w-24 shrink-0 t-label",
                       a.undoneAt ? "text-ink-3"
                         : a.outcome === "DONE" ? "text-ink"
                         : a.outcome === "REFUSED" ? "text-accent-deep" : "text-ink-3"
@@ -140,7 +140,7 @@ export default function Activity() {
                   <div className="min-w-0 flex-1">
                     <p
                       className={cn(
-                        "text-[15px] leading-snug",
+                        "text-ui leading-snug",
                         a.undoneAt ? "text-ink-3 line-through" : "text-ink"
                       )}
                     >
@@ -158,7 +158,7 @@ export default function Activity() {
                         {a.error}
                       </p>
                     )}
-                    <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.1em] text-ink-3">
+                    <p className="mt-1 t-label text-ink-3">
                       {a.origin} · {when(a.createdAt)}
                     </p>
                   </div>

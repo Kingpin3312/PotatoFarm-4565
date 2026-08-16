@@ -34,10 +34,10 @@ export function Register({ filter }: { filter: "all" | "expiring" }) {
   return (
     <div className="max-w-[760px] mx-auto px-6 pb-24">
       <header className="pt-10 pb-6">
-        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-3 block mb-3">
+        <span className="t-label text-ink-3 block mb-3">
           Documents
         </span>
-        <h1 className="font-sans font-semibold text-[clamp(2rem,1.5rem+2vw,2.75rem)] text-ink -tracking-[0.026em] leading-none">
+        <h1 className="font-sans font-semibold text-page text-ink">
           {total === 0
             ? "Nothing recorded yet."
             : needingAttention === 0
@@ -51,7 +51,7 @@ export function Register({ filter }: { filter: "all" | "expiring" }) {
           </p>
         )}
         {total === 0 && (
-          <p className="text-[17px] text-ink-2 mt-3 max-w-[48ch]">
+          <p className="text-sub text-ink-2 mt-3 max-w-[48ch]">
             Broker cards, the brokerage licence and Trakheesi permits all expire, and none of
             them warn you. Record the dates here and you get told sixty days out, which is how
             long a card actually takes to renew.
@@ -66,9 +66,9 @@ export function Register({ filter }: { filter: "all" | "expiring" }) {
             onClick={() => setShowing(f)}
             aria-pressed={showing === f}
             className={cn(
-              "min-h-11 px-3 rounded-lg border text-[15px]",
+              "min-h-11 px-3 rounded-lg border text-ui",
               showing === f
-                ? "bg-accent text-on-accent border-accent-edge font-semibold"
+                ? "bg-accent text-on-accent border-accent-edge font-medium"
                 : "border-rule text-ink",
             )}
           >
@@ -88,7 +88,7 @@ export function Register({ filter }: { filter: "all" | "expiring" }) {
       {adding && <RecordForm canWrite={canWrite} onDone={() => { setAdding(false); void refetch(); }} />}
 
       {rows.length === 0 && total > 0 && (
-        <p className="text-[17px] text-ink-2 max-w-[44ch]">
+        <p className="text-sub text-ink-2 max-w-[44ch]">
           Nothing in this list. Everything recorded is current.
         </p>
       )}
@@ -98,10 +98,10 @@ export function Register({ filter }: { filter: "all" | "expiring" }) {
           {rows.map((d) => (
             <article key={d.id} data-document={d.id} className="py-4 border-b border-rule">
               <div className="flex items-baseline gap-3 flex-wrap">
-                <span className="font-sans font-semibold text-[17px] text-ink">{d.typeLabel}</span>
+                <span className="font-sans font-medium text-sub text-ink">{d.typeLabel}</span>
                 <span className="text-sm text-ink-2">{d.ownerName}</span>
                 <span
-                  className="ml-auto font-mono text-[11px] uppercase tracking-[0.1em]"
+                  className="ml-auto t-label"
                   style={{
                     color:
                       d.state === "expired" ? "var(--danger-deep)"
@@ -128,17 +128,17 @@ export function Register({ filter }: { filter: "all" | "expiring" }) {
 
               <div className="flex gap-2 mt-2 flex-wrap items-center">
                 {d.reference && (
-                  <span className="font-mono text-[10px] uppercase tracking-[0.1em] px-2 py-0.5 border border-rule rounded-[3px] text-ink-3">
+                  <span className="t-label px-2 py-0.5 border border-rule rounded-[3px] text-ink-3">
                     {d.reference}
                   </span>
                 )}
                 {!d.hasFile && (
-                  <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-3">
+                  <span className="t-label text-ink-3">
                     no scan on file
                   </span>
                 )}
                 {d.verifiedAt ? (
-                  <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-3">checked</span>
+                  <span className="t-label text-ink-3">checked</span>
                 ) : canWrite ? (
                   <Verify id={d.id} onDone={() => void refetch()} />
                 ) : null}
@@ -218,7 +218,7 @@ function RecordForm({ canWrite, onDone }: { canWrite: boolean; onDone: () => voi
       )}
 
       <label className="flex flex-col gap-1">
-        <span className="text-[13px] text-ink-3">Belongs to</span>
+        <span className="text-note text-ink-3">Belongs to</span>
         <select
           value={ownerType}
           onChange={(e) => {
@@ -226,7 +226,7 @@ function RecordForm({ canWrite, onDone }: { canWrite: boolean; onDone: () => voi
             setOwnerId("");
             setType("");
           }}
-          className="min-h-11 px-3 text-[16px] bg-ground border border-rule rounded-[3px] text-ink"
+          className="min-h-11 px-3 text-control bg-ground border border-rule rounded-[3px] text-ink"
         >
           <option value="USER">An agent</option>
           <option value="ORGANISATION">The brokerage</option>
@@ -238,11 +238,11 @@ function RecordForm({ canWrite, onDone }: { canWrite: boolean; onDone: () => voi
 
       {needsOwnerId && choices.length > 0 && (
         <label className="flex flex-col gap-1">
-          <span className="text-[13px] text-ink-3">Which one</span>
+          <span className="text-note text-ink-3">Which one</span>
           <select
             value={ownerId}
             onChange={(e) => setOwnerId(e.target.value)}
-            className="min-h-11 px-3 text-[16px] bg-ground border border-rule rounded-[3px] text-ink"
+            className="min-h-11 px-3 text-control bg-ground border border-rule rounded-[3px] text-ink"
           >
             <option value="">Pick one</option>
             {choices.map((c) => (
@@ -257,21 +257,21 @@ function RecordForm({ canWrite, onDone }: { canWrite: boolean; onDone: () => voi
 
       {needsOwnerId && choices.length === 0 && (
         <label className="flex flex-col gap-1">
-          <span className="text-[13px] text-ink-3">Reference of the record it belongs to</span>
+          <span className="text-note text-ink-3">Reference of the record it belongs to</span>
           <input
             value={ownerId}
             onChange={(e) => setOwnerId(e.target.value)}
-            className="min-h-11 px-3 text-[16px] bg-ground border border-rule rounded-[3px] text-ink"
+            className="min-h-11 px-3 text-control bg-ground border border-rule rounded-[3px] text-ink"
           />
         </label>
       )}
 
       <label className="flex flex-col gap-1">
-        <span className="text-[13px] text-ink-3">Document</span>
+        <span className="text-note text-ink-3">Document</span>
         <select
           value={type}
           onChange={(e) => setType(e.target.value)}
-          className="min-h-11 px-3 text-[16px] bg-ground border border-rule rounded-[3px] text-ink"
+          className="min-h-11 px-3 text-control bg-ground border border-rule rounded-[3px] text-ink"
         >
           <option value="">Pick one</option>
           {owner?.types.map((t) => (
@@ -282,22 +282,22 @@ function RecordForm({ canWrite, onDone }: { canWrite: boolean; onDone: () => voi
 
       <div className="flex gap-3 flex-wrap">
         <label className="flex flex-col gap-1">
-          <span className="text-[13px] text-ink-3">Number (optional)</span>
+          <span className="text-note text-ink-3">Number (optional)</span>
           <input
             value={reference}
             onChange={(e) => setReference(e.target.value)}
             placeholder="BRN 12345"
-            className="min-h-11 px-3 text-[16px] bg-ground border border-rule rounded-[3px] text-ink"
+            className="min-h-11 px-3 text-control bg-ground border border-rule rounded-[3px] text-ink"
           />
         </label>
         <label className="flex flex-col gap-1">
-          <span className="text-[13px] text-ink-3">Expires{rule ? "" : " (optional)"}</span>
+          <span className="text-note text-ink-3">Expires{rule ? "" : " (optional)"}</span>
           <input
             type="date"
             value={expires}
             onChange={(e) => setExpires(e.target.value)}
             aria-label="Expiry date"
-            className="min-h-11 px-3 text-[16px] bg-ground border border-rule rounded-[3px] text-ink"
+            className="min-h-11 px-3 text-control bg-ground border border-rule rounded-[3px] text-ink"
           />
         </label>
       </div>
@@ -306,7 +306,7 @@ function RecordForm({ canWrite, onDone }: { canWrite: boolean; onDone: () => voi
           Saying so here is what stops somebody reading a 14-day warning
           on a permit as stingy next to 90 on a licence. */}
       {rule && (
-        <p className="text-[13px] text-ink-3 max-w-[52ch] leading-snug">
+        <p className="text-note text-ink-3 max-w-[52ch] leading-snug">
           You will be warned {rule.warnDays} days out — that is how long this one takes to renew.
           {rule.blocking ? " Work stops when it lapses." : ""}
         </p>

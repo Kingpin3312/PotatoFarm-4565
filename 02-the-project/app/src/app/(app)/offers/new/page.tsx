@@ -32,15 +32,15 @@ export default function NewOffer({ searchParams }: {
   if (create.isSuccess) {
     return (
       <div className="max-w-[560px] mx-auto px-6 py-20">
-        <h1 className="font-sans font-semibold text-[30px] text-ink -tracking-[0.026em]">
+        <h1 className="font-sans font-semibold text-stat text-ink">
           Recorded.
         </h1>
-        <p className="text-[17px] text-ink-2 mt-3 tabular">{create.data.amount} on the table.</p>
+        <p className="text-sub text-ink-2 mt-3 tabular">{create.data.amount} on the table.</p>
         {create.data.vendorMissing && (
           // Flagged, not blocked. An offer often arrives before the
           // paperwork, and refusing to record it sends the agent back to
           // a WhatsApp group.
-          <p className="text-[15px] text-ink-2 mt-4 pl-3 border-l-2 border-l-accent-edge">
+          <p className="text-ui text-ink-2 mt-4 pl-3 border-l-2 border-l-accent-edge">
             This listing has no owner on file yet. Add one before you present the offer —
             the weekly report and the Form F both need them.
           </p>
@@ -53,7 +53,7 @@ export default function NewOffer({ searchParams }: {
   return (
     <div className="max-w-[560px] mx-auto px-6 pb-24">
       <header className="pt-10 pb-6">
-        <h1 className="font-sans font-semibold text-[clamp(2rem,1.5rem+2vw,2.5rem)] text-ink -tracking-[0.026em] leading-none">
+        <h1 className="font-sans font-semibold text-page text-ink">
           Record an offer
         </h1>
       </header>
@@ -63,16 +63,16 @@ export default function NewOffer({ searchParams }: {
                onChange={(v) => setF({ ...f, amountAed: v })} />
 
         <div>
-          <span className="block font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3 mb-2">
+          <span className="block t-label text-ink-3 mb-2">
             How they're paying
           </span>
           <div className="flex gap-2 flex-wrap">
             {(["CASH", "MORTGAGE", "UNKNOWN"] as const).map((k) => (
               <button key={k} onClick={() => setF({ ...f, financing: k })}
                 aria-pressed={f.financing === k}
-                className={`min-h-11 px-4 rounded-lg border text-[15px] ${
+                className={`min-h-11 px-4 rounded-lg border text-ui ${
                   f.financing === k
-                    ? "bg-accent text-on-accent border-accent-edge font-semibold"
+                    ? "bg-accent text-on-accent border-accent-edge font-medium"
                     : "border-rule text-ink"}`}>
                 {k === "UNKNOWN" ? "Not said" : k.toLowerCase()}
               </button>
@@ -134,10 +134,10 @@ function Field({ label, value, onChange, type = "text", multiline, placeholder, 
   type?: string; multiline?: boolean; placeholder?: string; inputMode?: "decimal";
 }) {
   const id = label.toLowerCase().replace(/[^a-z]+/g, "-");
-  const cls = "w-full min-h-11 px-4 py-2.5 text-[16px] text-ink bg-sunk border border-rule rounded-lg focus-visible:outline-none focus-visible:shadow-[var(--ring)]";
+  const cls = "w-full min-h-11 px-4 py-2.5 text-control text-ink bg-sunk border border-rule rounded-lg focus-visible:outline-none focus-visible:shadow-[var(--ring)]";
   return (
     <div>
-      <label htmlFor={id} className="block font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3 mb-2">
+      <label htmlFor={id} className="block t-label text-ink-3 mb-2">
         {label}
       </label>
       {multiline
@@ -160,7 +160,7 @@ function Check({ label, hint, checked, onChange }: {
                onChange={(e) => onChange(e.target.checked)}
                className="mt-1 w-5 h-5 accent-[var(--accent)]" />
         <span>
-          <span className="text-[16px] text-ink">{label}</span>
+          <span className="text-control text-ink">{label}</span>
           <span className="block text-sm text-ink-2 mt-0.5 max-w-[44ch] leading-snug">{hint}</span>
         </span>
       </label>

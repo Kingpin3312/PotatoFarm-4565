@@ -34,7 +34,7 @@ export default function Person({ params }: { params: Promise<{ leadId: string }>
   return (
     <div className="max-w-[680px] mx-auto px-6 pb-24">
       <header className="pt-10 pb-5">
-        <a href="/blackbook" className="font-mono text-[11px] uppercase tracking-[0.12em] text-ink-3 no-underline">
+        <a href="/blackbook" className="t-label text-ink-3 no-underline">
           ← Blackbook
         </a>
       </header>
@@ -45,7 +45,7 @@ export default function Person({ params }: { params: Promise<{ leadId: string }>
           message does not arrive and nothing says so. */}
       {w && !w.open && (
         <div className="bg-sunk rounded-xl p-4 border-l-[3px] border-l-accent-edge mb-6">
-          <p className="text-[15px] text-ink font-semibold">The reply window has closed</p>
+          <p className="text-ui text-ink font-medium">The reply window has closed</p>
           <p className="text-sm text-ink-2 mt-1 max-w-[46ch] leading-snug">
             A normal message won't arrive — WhatsApp accepts it and never delivers it. Use an
             approved template, or ring them.
@@ -54,19 +54,19 @@ export default function Person({ params }: { params: Promise<{ leadId: string }>
       )}
       {w?.open && w.hoursLeft <= 4 && (
         <div className="bg-sunk rounded-xl p-4 border-l-[3px] border-l-accent-edge mb-6">
-          <p className="text-[15px] text-ink">
+          <p className="text-ui text-ink">
             <strong>{w.hoursLeft}h left</strong> to reply normally.
           </p>
         </div>
       )}
 
-      <h2 className="font-sans font-semibold text-[17px] text-accent-deep mb-1">Your note</h2>
+      <h2 className="font-sans font-medium text-sub text-accent-deep mb-1">Your note</h2>
       <p className="text-sm text-ink-3 mb-3">Yours alone. No manager sees this.</p>
       {editing ? (
         <>
           <label htmlFor="pnote" className="sr-only">Your private note</label>
           <textarea id="pnote" rows={4} value={draft} onChange={(e) => setDraft(e.target.value)}
-            className="w-full px-4 py-2.5 text-[16px] text-ink bg-sunk border border-rule rounded-lg focus-visible:outline-none focus-visible:shadow-[var(--ring)]" />
+            className="w-full px-4 py-2.5 text-control text-ink bg-sunk border border-rule rounded-lg focus-visible:outline-none focus-visible:shadow-[var(--ring)]" />
           <Button variant="primary" className="mt-3" loading={note.isPending}
             onClick={() => note.mutate({ id: leadId, privateNote: draft },
                                        { onSuccess: () => setEditing(false) })}>
@@ -77,27 +77,27 @@ export default function Person({ params }: { params: Promise<{ leadId: string }>
         <button className="btn-inline" onClick={() => setEditing(true)}>Write a note</button>
       )}
 
-      <h2 className="font-sans font-semibold text-[17px] text-accent-deep mt-10 mb-3">Everything</h2>
+      <h2 className="font-sans font-medium text-sub text-accent-deep mt-10 mb-3">Everything</h2>
       <div className="border-t border-ink">
         {(data?.entries ?? []).map((e, i) => (
           <div key={i} className="flex items-baseline gap-3 py-3 border-b border-rule">
-            <span className={cn("font-mono text-[10px] uppercase tracking-[0.1em] w-16 shrink-0",
+            <span className={cn("t-label w-16 shrink-0",
               e.channel === "email" ? "text-ink-3"
               : e.channel === "whatsapp" ? "text-ink-3"
               : "text-accent-deep")}>
               {e.channel === "whatsapp" ? "wa" : e.channel}
             </span>
-            <span className="text-[15px] text-ink flex-1 leading-snug">
+            <span className="text-ui text-ink flex-1 leading-snug">
               {e.direction === "out" && <span className="text-ink-3 mr-1.5">you</span>}
               {e.summary}
             </span>
             {e.link && (
               <a href={e.link} target="_blank" rel="noreferrer"
-                 className="font-mono text-[10px] uppercase tracking-[0.1em] text-accent-deep no-underline shrink-0">
+                 className="t-label text-accent-deep no-underline shrink-0">
                 open
               </a>
             )}
-            <span className="font-mono text-[11px] text-ink-3 shrink-0 tabular">
+            <span className="font-mono text-label text-ink-3 shrink-0 tabular">
               {new Date(e.at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
             </span>
           </div>

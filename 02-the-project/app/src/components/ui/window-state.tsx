@@ -20,7 +20,7 @@ export function WindowState({ open, hoursLeft }: { open: boolean; hoursLeft: num
   return (
     <div
       className={cn(
-        "flex items-center gap-2.5 font-mono text-[11px] uppercase tracking-[0.1em]",
+        "flex items-center gap-2.5 t-label",
         open ? "text-ink-3" : "text-danger-deep"
       )}
     >

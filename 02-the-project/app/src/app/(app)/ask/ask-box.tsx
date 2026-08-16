@@ -161,7 +161,7 @@ export function Ask({ compact = false }: { compact?: boolean }) {
         onChange={(e) => setText(e.target.value)}
         onFocus={() => setFocused(true)}
         placeholder={compact ? "Tell me what happened, or what you need…" : "Speak or type…"}
-        className="w-full rounded-xl border border-rule bg-sunk px-4 py-3 text-[16px] text-ink focus-visible:shadow-[var(--ring)] focus-visible:outline-none"
+        className="w-full rounded-xl border border-rule bg-sunk px-4 py-3 text-control text-ink focus-visible:shadow-[var(--ring)] focus-visible:outline-none"
       />
 
       {showExamples && (
@@ -183,13 +183,13 @@ export function Ask({ compact = false }: { compact?: boolean }) {
             </Button>
             <button
               onClick={cancelVoice}
-              className="min-h-11 px-2 font-mono text-[10px] uppercase tracking-[0.1em] text-ink-3 hover:text-ink"
+              className="min-h-11 px-2 t-label text-ink-3 hover:text-ink"
             >
               Discard
             </button>
             <span
               role="status"
-              className="font-mono text-[10px] uppercase tracking-[0.1em] text-accent-deep"
+              className="t-label text-accent-deep"
             >
               {/* Words, not only the pulsing button. Colour is never the
                   only signal in this product.
@@ -233,13 +233,13 @@ export function Ask({ compact = false }: { compact?: boolean }) {
           An agent in a car answers one thing. */}
       {c?.recipe === "UNCLEAR" && (
         <Machine className="mt-6" label="Understood as">
-          <p className="text-[16px] text-ink">{c.question}</p>
+          <p className="text-control text-ink">{c.question}</p>
         </Machine>
       )}
 
       {c && c.recipe === "COMPARABLES" && !comps.data && (
         <Machine className="mt-6" label="Understood as">
-          <p className="mb-3 text-[15px] text-ink-2">
+          <p className="mb-3 text-ui text-ink-2">
             Comparables for <strong className="text-ink">{c.entities.building ?? "—"}</strong>.
             How many bedrooms?
           </p>
@@ -267,7 +267,7 @@ export function Ask({ compact = false }: { compact?: boolean }) {
         >
           {c.outcome.kind === "DONE" && (
             <>
-              <p className="text-[16px] text-ink">{c.outcome.summary}</p>
+              <p className="text-control text-ink">{c.outcome.summary}</p>
               {c.outcome.caveats?.map((x, i) => (
                 <p key={i} className="mt-2 max-w-[44ch] text-sm leading-snug text-ink-2">{x}</p>
               ))}
@@ -277,10 +277,10 @@ export function Ask({ compact = false }: { compact?: boolean }) {
             </>
           )}
           {c.outcome.kind === "NEEDS" && (
-            <p className="text-[16px] text-ink">{c.outcome.question}</p>
+            <p className="text-control text-ink">{c.outcome.question}</p>
           )}
           {c.outcome.kind === "REFUSED" && (
-            <p className="max-w-[44ch] text-[16px] leading-snug text-ink">{c.outcome.reason}</p>
+            <p className="max-w-[44ch] text-control leading-snug text-ink">{c.outcome.reason}</p>
           )}
         </Machine>
       )}
@@ -291,7 +291,7 @@ export function Ask({ compact = false }: { compact?: boolean }) {
 function Report({ r }: { r: NonNullable<ReturnType<typeof api.requests.comparables.useMutation>["data"]> }) {
   return (
     <section className="mt-8">
-      <h2 className="font-sans text-[19px] font-semibold -tracking-[0.02em] text-accent-deep">
+      <h2 className="font-sans text-body-lg font-semibold text-accent-deep">
         {r.subject.building} · {r.subject.beds} bed
       </h2>
 
@@ -299,7 +299,7 @@ function Report({ r }: { r: NonNullable<ReturnType<typeof api.requests.comparabl
           the evidence for — an agent quotes this to a seller. */}
       {r.range ? (
         <>
-          <p className="tabular mt-2 font-sans text-[30px] font-semibold -tracking-[0.026em] text-ink">
+          <p className="tabular mt-2 font-sans text-stat font-semibold text-ink">
             {aedWhole(r.range.lowFils)} – {aedWhole(r.range.highFils)}
           </p>
           {r.range.perSqft && (
@@ -307,7 +307,7 @@ function Report({ r }: { r: NonNullable<ReturnType<typeof api.requests.comparabl
           )}
         </>
       ) : (
-        <p className="mt-2 max-w-[44ch] text-[17px] text-ink">
+        <p className="mt-2 max-w-[44ch] text-sub text-ink">
           Not enough to put a range on this.
         </p>
       )}
@@ -315,7 +315,7 @@ function Report({ r }: { r: NonNullable<ReturnType<typeof api.requests.comparabl
       {r.caveats.length > 0 && (
         <div className="mt-4 space-y-2 border-l-2 border-l-accent-edge pl-3">
           {r.caveats.map((c, i) => (
-            <p key={i} className="max-w-[46ch] text-[15px] leading-snug text-ink-2">{c}</p>
+            <p key={i} className="max-w-[46ch] text-ui leading-snug text-ink-2">{c}</p>
           ))}
         </div>
       )}
@@ -323,14 +323,14 @@ function Report({ r }: { r: NonNullable<ReturnType<typeof api.requests.comparabl
       <div className="mt-6 border-t border-ink">
         {r.comparables.map((c, i) => (
           <div key={i} className="flex items-baseline gap-3 border-b border-rule py-3">
-            <span className={cn("w-16 shrink-0 font-mono text-[10px] uppercase tracking-[0.1em]",
+            <span className={cn("w-16 shrink-0 t-label",
               c.source === "OWN_DEAL" ? "text-ink" : "text-ink-3")}>
               {c.source === "OWN_DEAL" ? "sold" : "asking"}
             </span>
-            <span className="flex-1 text-[15px] text-ink">
+            <span className="flex-1 text-ui text-ink">
               {c.beds} bed{c.sqft ? ` · ${c.sqft.toLocaleString()} sqft` : ""}
             </span>
-            <span className="tabular text-[15px] font-semibold text-ink">{aedWhole(c.priceFils)}</span>
+            <span className="tabular text-ui font-medium text-ink">{aedWhole(c.priceFils)}</span>
           </div>
         ))}
       </div>

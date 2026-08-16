@@ -62,10 +62,10 @@ export default function Import() {
   return (
     <div className="max-w-[680px] mx-auto px-6 pb-24">
       <header className="pt-10 pb-6">
-        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-3 block mb-3">
+        <span className="t-label text-ink-3 block mb-3">
           Import
         </span>
-        <h1 className="font-sans font-semibold text-[clamp(2rem,1.5rem+2vw,2.5rem)] text-ink -tracking-[0.026em] leading-none">
+        <h1 className="font-sans font-semibold text-page text-ink">
           Bring your history across
         </h1>
         {/* Says what it does, not what we wish it did. */}
@@ -80,7 +80,7 @@ export default function Import() {
         <Underway status={status} />
       ) : (
         <>
-          <label htmlFor="imp" className="block font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3 mb-2">
+          <label htmlFor="imp" className="block t-label text-ink-3 mb-2">
             Your export file
           </label>
           <input id="imp" type="file" accept=".csv"
@@ -94,7 +94,7 @@ export default function Import() {
                 inspect.mutate({ contacts: parsed, deals: [] });
               });
             }}
-            className="text-[16px] text-ink" />
+            className="text-control text-ink" />
 
           {rows.length > 0 && (
             <p className="text-sm text-ink-2 mt-3 tabular">
@@ -105,7 +105,7 @@ export default function Import() {
 
           {inspect.data && (
             <>
-              <h2 className="font-sans font-semibold text-[19px] text-accent-deep -tracking-[0.02em] mt-8 mb-1">
+              <h2 className="font-sans font-semibold text-body-lg text-accent-deep mt-8 mb-1">
                 {inspect.data.blockers > 0
                   ? `${inspect.data.blockers} record${inspect.data.blockers === 1 ? "" : "s"} cannot come across`
                   : "Nothing blocking"}
@@ -122,11 +122,11 @@ export default function Import() {
                        className={cn("py-4 border-b border-rule",
                          g.severity === "BLOCKER" && "border-l-[3px] border-l-danger pl-4 -ml-4")}>
                     <div className="flex items-baseline gap-3">
-                      <span className="text-[16px] text-ink font-semibold">
+                      <span className="text-control text-ink font-medium">
                         {g.kind.toLowerCase().replace(/_/g, " ")}
                       </span>
-                      <span className="ml-auto text-[15px] text-ink tabular">{g.count}</span>
-                      <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-3 w-16 text-right">
+                      <span className="ml-auto text-ui text-ink tabular">{g.count}</span>
+                      <span className="t-label text-ink-3 w-16 text-right">
                         {g.severity.toLowerCase()}
                       </span>
                     </div>
@@ -134,7 +134,7 @@ export default function Import() {
                       {g.suggestion}
                     </p>
                     {g.examples.length > 0 && (
-                      <p className="font-mono text-[11px] text-ink-3 mt-1.5">
+                      <p className="font-mono text-label text-ink-3 mt-1.5">
                         e.g. {g.examples.join(", ")}
                       </p>
                     )}
@@ -182,11 +182,11 @@ export default function Import() {
                     onChange={(e) => setSource(e.target.value)}
                     placeholder="PropSpace"
                     aria-label="Which system this export came from"
-                    className="min-h-11 px-3 text-[16px] bg-ground border border-rule rounded-[3px] text-ink outline-none focus:border-ink w-[16ch]"
+                    className="min-h-11 px-3 text-control bg-ground border border-rule rounded-[3px] text-ink outline-none focus:border-ink w-[16ch]"
                   />
                 </label>
               </div>
-              <p className="text-[13px] text-ink-3 mt-2 max-w-[48ch] leading-snug">
+              <p className="text-note text-ink-3 mt-2 max-w-[48ch] leading-snug">
                 This records the migration and every issue above against it. Nothing is
                 written into your leads yet — that is the next stage, and it has its own
                 sign-off.
@@ -237,10 +237,10 @@ function Underway({ status }: { status: NonNullable<RouterOutputs["migration"]["
   return (
     <div>
       <div className="bg-sunk rounded-xl p-5">
-        <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3">
+        <p className="t-label text-ink-3">
           {status.source}
         </p>
-        <p className="text-[19px] text-ink font-semibold mt-1">
+        <p className="text-body-lg text-ink font-semibold mt-1">
           {stage?.title ?? status.state.toLowerCase()}
         </p>
         {stage && stage.exitCriteria.length > 0 && (
@@ -257,7 +257,7 @@ function Underway({ status }: { status: NonNullable<RouterOutputs["migration"]["
 
       {undecided.length > 0 && (
         <>
-          <h2 className="font-sans font-semibold text-[19px] text-accent-deep -tracking-[0.02em] mt-8 mb-1">
+          <h2 className="font-sans font-semibold text-body-lg text-accent-deep mt-8 mb-1">
             {undecided.length} waiting on you
           </h2>
           {/* Blockers first and named as such. A blocker is a record
@@ -272,8 +272,8 @@ function Underway({ status }: { status: NonNullable<RouterOutputs["migration"]["
             {undecided.map((i) => (
               <div key={i.id} data-issue={i.id} className="py-4 border-b border-rule">
                 <div className="flex items-baseline gap-3">
-                  <span className="text-[16px] text-ink">{i.kind.replace(/_/g, " ")}</span>
-                  <span className="ml-auto font-mono text-[10px] uppercase tracking-[0.1em] text-ink-3">
+                  <span className="text-control text-ink">{i.kind.replace(/_/g, " ")}</span>
+                  <span className="ml-auto t-label text-ink-3">
                     {i.severity.toLowerCase()}
                   </span>
                 </div>
@@ -289,7 +289,7 @@ function Underway({ status }: { status: NonNullable<RouterOutputs["migration"]["
                     onChange={(e) => setDrafts((d) => ({ ...d, [i.id]: e.target.value }))}
                     placeholder={i.suggestion ?? "What should happen to it?"}
                     aria-label={`Decision for ${i.kind}`}
-                    className="flex-1 min-w-[18ch] min-h-11 px-3 text-[16px] bg-ground border border-rule rounded-[3px] text-ink outline-none focus:border-ink"
+                    className="flex-1 min-w-[18ch] min-h-11 px-3 text-control bg-ground border border-rule rounded-[3px] text-ink outline-none focus:border-ink"
                   />
                   <Button
                     variant="secondary"

@@ -177,7 +177,12 @@ def glow(pfx: str) -> str:
 # **Where a font cannot be assumed — email, Open Graph, app icons, the
 # favicon — the PNG masters are used, never the SVG.** That rule is what
 # makes this choice safe rather than merely convenient.
-WORD_STACK = ("Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif")
+# The same stack as `tokens.css`, and it must stay that way: the
+# wordmark is set in live text inside the SVG, so a different
+# first name here means the logo renders in a different face from
+# the product it sits on. It led with Inter, which the interface
+# no longer uses anywhere.
+WORD_STACK = ("-apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text','Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif")
 
 
 def wordmark(x: int, y: int, size: int, fill: str, anchor: str = "start") -> str:

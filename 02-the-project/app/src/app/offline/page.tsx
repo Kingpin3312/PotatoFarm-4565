@@ -30,7 +30,7 @@ export default function Offline() {
           browser error rather than as this product telling you
           something. */}
       <Logo className="mb-10" />
-      <h1 className="font-sans text-[clamp(1.75rem,1.4rem+1.6vw,2.25rem)] font-semibold -tracking-[0.026em] leading-tight text-ink">
+      <h1 className="font-sans text-page font-semibold text-ink">
         No connection.
       </h1>
       <p className="mt-4 text-ink-2 leading-snug">
@@ -41,7 +41,7 @@ export default function Offline() {
         Anything you send while offline is not saved. Try again once you have a
         bar or two.
       </p>
-      <p className="mt-6 text-[13px] text-ink-3 leading-snug">
+      <p className="mt-6 text-note text-ink-3 leading-snug">
         If you are in a basement car park, one floor up is usually enough.
       </p>
     </main>

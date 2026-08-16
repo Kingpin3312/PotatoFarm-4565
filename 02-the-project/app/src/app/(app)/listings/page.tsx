@@ -60,10 +60,10 @@ function Listings() {
     <div className="max-w-[1080px] mx-auto px-6 pb-24">
       <header className="pt-8 pb-1 flex items-end gap-5 flex-wrap">
         <div>
-          <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-3 block mb-3">
+          <span className="t-label text-ink-3 block mb-3">
             Listings
           </span>
-          <h1 className="font-sans text-[clamp(1.875rem,1.5rem+1.6vw,2.5rem)] text-ink -tracking-[0.01em] leading-none">
+          <h1 className="font-sans text-page text-ink">
             {isLoading ? "—" : `${rows.length} live`}
           </h1>
         </div>
@@ -100,7 +100,7 @@ function Listings() {
       </div>
 
       <div className="border-t border-ink mt-9">
-        <div className="grid grid-cols-[1.6fr_140px_1fr_120px_auto] gap-4 py-3.5 px-1 border-b border-ink font-mono text-[9px] uppercase tracking-[0.14em] text-ink-3 max-[820px]:hidden">
+        <div className="grid grid-cols-[1.6fr_140px_1fr_120px_auto] gap-4 py-3.5 px-1 border-b border-ink t-label text-ink-3 max-[820px]:hidden">
           <span>Property</span><span>Price</span><span>Portals</span><span>Permit</span><span />
         </div>
 
@@ -118,11 +118,11 @@ function Listings() {
             className="grid grid-cols-[1.6fr_140px_1fr_120px_auto] gap-4 items-center py-3.5 px-1 border-b border-rule hover:bg-raised max-[820px]:grid-cols-1 max-[820px]:gap-2"
           >
             <div>
-              <div className="font-mono text-[11px] text-ink-3">{l.reference}</div>
-              <div className="text-[15px] font-semibold text-ink mt-0.5">{l.title}</div>
+              <div className="font-mono text-label text-ink-3">{l.reference}</div>
+              <div className="text-ui font-medium text-ink mt-0.5">{l.title}</div>
             </div>
 
-            <div className="font-mono text-[13px] text-ink">
+            <div className="font-mono text-note text-ink">
               {/* Whole dirhams. `money.ts` says so in as many words —
                   "nobody says the fils on a flat, and `.00` on the end
                   of a seven-figure number reads as a system that has
@@ -139,7 +139,7 @@ function Listings() {
                   key={p.channelId}
                   title={p.rejection ?? undefined}
                   className={cn(
-                    "font-mono text-[9px] uppercase tracking-[0.08em] border rounded-[2px] px-1.5 py-0.5",
+                    "t-label border rounded-[2px] px-1.5 py-0.5",
                     p.state === "PUBLISHED" && "text-success border-success",
                     p.state === "REJECTED" && "text-accent border-accent",
                     p.state === "PENDING" && "text-ink-3 border-rule border-dashed",
@@ -153,7 +153,7 @@ function Listings() {
 
             <div
               className={cn(
-                "font-mono text-[11px]",
+                "font-mono text-label",
                 l.permitDaysLeft === null && "text-ink-3",
                 l.permitDaysLeft !== null && l.permitDaysLeft < 0 && "text-accent font-medium",
                 l.permitDaysLeft !== null && l.permitDaysLeft >= 0 && l.permitDaysLeft <= 14 && "text-accent",
@@ -182,7 +182,7 @@ function Listings() {
             now names the one that works. */}
         {!isLoading && rows.length === 0 && !q && (
           <div className="py-10 max-w-[46ch]">
-            <p className="text-[17px] font-semibold text-ink">No properties yet.</p>
+            <p className="text-sub font-medium text-ink">No properties yet.</p>
             <p className="text-sm text-ink-2 mt-2">
               Add the first one and it appears here, ready to match against your
               buyers. A reference and a name are enough — the permit can follow.
@@ -208,10 +208,10 @@ function Listings() {
 function Alert({ count, title, detail, last }: { count: number; title: string; detail: string; last?: boolean }) {
   return (
     <div className={cn("px-5 py-5 border-b border-rule", !last && "border-r border-rule max-[720px]:border-r-0")}>
-      <div className={cn("font-sans font-semibold -tracking-[0.024em] text-[32px] leading-none", count ? "text-accent" : "text-ink-3")}>
+      <div className={cn("font-sans font-semibold text-h2 leading-none", count ? "text-accent" : "text-ink-3")}>
         {count}
       </div>
-      <div className="text-[15px] font-semibold text-ink mt-2">{title}</div>
+      <div className="text-ui font-medium text-ink mt-2">{title}</div>
       <p className="text-sm text-ink-2 mt-1 max-w-[44ch]">{detail}</p>
     </div>
   );

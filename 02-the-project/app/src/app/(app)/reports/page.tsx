@@ -32,10 +32,10 @@ export default function Reports() {
   return (
     <div className="max-w-[760px] mx-auto px-6 pb-24">
       <header className="pt-10 pb-6">
-        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-3 block mb-3">
+        <span className="t-label text-ink-3 block mb-3">
           Response time
         </span>
-        <h1 className="font-sans font-semibold text-[clamp(2rem,1.5rem+2vw,2.5rem)] text-ink -tracking-[0.026em] leading-none">
+        <h1 className="font-sans font-semibold text-page text-ink">
           {data?.baseline
             ? `${fmt(data.baseline.medianMins)} → ${fmt(data.current.medianMins)}`
             : fmt(data?.current.medianMins ?? 0)}
@@ -49,7 +49,7 @@ export default function Reports() {
 
       {!data?.baseline && (
         <div className="bg-sunk rounded-xl p-5 border-l-[3px] border-l-accent-edge mb-10">
-          <p className="text-[16px] text-ink font-semibold">Capture this week as your baseline</p>
+          <p className="text-control text-ink font-medium">Capture this week as your baseline</p>
           <p className="text-sm text-ink-2 mt-1.5 max-w-[48ch] leading-snug">
             Freezes the current numbers so the difference afterwards is measurable rather than
             a feeling. Do it before the assistant starts replying.
@@ -57,7 +57,7 @@ export default function Reports() {
           <div className="flex gap-2 mt-3 flex-wrap">
             <label htmlFor="blabel" className="sr-only">Label</label>
             <input id="blabel" value={label} onChange={(e) => setLabel(e.target.value)}
-              className="flex-1 min-w-[180px] min-h-11 px-4 text-[16px] text-ink bg-raised border border-rule rounded-lg focus-visible:outline-none focus-visible:shadow-[var(--ring)]" />
+              className="flex-1 min-w-[180px] min-h-11 px-4 text-control text-ink bg-raised border border-rule rounded-lg focus-visible:outline-none focus-visible:shadow-[var(--ring)]" />
             <Button variant="primary" loading={capture.isPending}
               onClick={() => {
                 const to = new Date();
@@ -73,7 +73,7 @@ export default function Reports() {
       {/* Hour by hour. The point of this chart is the shape after six in
           the evening, which is where most brokerages discover their
           problem. */}
-      <h2 className="font-sans font-semibold text-[19px] text-accent-deep -tracking-[0.02em] mb-1">
+      <h2 className="font-sans font-semibold text-body-lg text-accent-deep mb-1">
         By hour of day
       </h2>
       <p className="text-sm text-ink-2 mb-4 max-w-[48ch]">
@@ -100,23 +100,23 @@ export default function Reports() {
       </div>
       <div className="flex justify-between mt-2">
         {[0, 6, 12, 18, 23].map((h) => (
-          <span key={h} className="font-mono text-[10px] text-ink-3 tabular">
+          <span key={h} className="font-mono text-label text-ink-3 tabular">
             {String(h).padStart(2, "0")}:00
           </span>
         ))}
       </div>
 
-      <h2 className="font-sans font-semibold text-[19px] text-accent-deep -tracking-[0.02em] mt-12 mb-3">
+      <h2 className="font-sans font-semibold text-body-lg text-accent-deep mt-12 mb-3">
         Where they come from
       </h2>
       <div className="border-t border-ink">
         {(byChannel?.channels ?? []).map((c) => (
           <div key={c.label} className="flex items-baseline gap-3 py-3.5 border-b border-rule">
-            <span className="text-[15px] text-ink">{c.label}</span>
-            <span className="ml-auto text-[15px] text-ink font-semibold tabular">
+            <span className="text-ui text-ink">{c.label}</span>
+            <span className="ml-auto text-ui text-ink font-medium tabular">
               {c.count.toLocaleString()}
             </span>
-            <span className="font-mono text-[11px] text-ink-3 tabular w-16 text-right">
+            <span className="font-mono text-label text-ink-3 tabular w-16 text-right">
               {fmt(c.medianMins)}
             </span>
           </div>

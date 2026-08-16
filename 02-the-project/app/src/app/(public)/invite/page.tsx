@@ -50,7 +50,7 @@ export default function Invite({ searchParams }: {
   if (!token) {
     return (
       <Shell title="That link is incomplete.">
-        <p className="text-[17px] text-ink-2 max-w-[42ch]">
+        <p className="text-sub text-ink-2 max-w-[42ch]">
           It may have been cut short by an email client. Ask whoever invited you to send it
           again — the link only works once and expires after seven days.
         </p>
@@ -61,7 +61,7 @@ export default function Invite({ searchParams }: {
   if (accept.isSuccess) {
     return (
       <Shell title={`You're in.`}>
-        <p className="text-[17px] text-ink-2 max-w-[42ch]">
+        <p className="text-sub text-ink-2 max-w-[42ch]">
           You've joined {accept.data.orgName}. Your leads will start arriving here.
         </p>
         <a href="/inbox" className="btn-inline mt-6 inline-block">Open the inbox</a>
@@ -73,7 +73,7 @@ export default function Invite({ searchParams }: {
     const expired = /expire|used|invalid/i.test(accept.error.message);
     return (
       <Shell title={expired ? "That link has been used." : "That didn't work."}>
-        <p className="text-[17px] text-ink-2 max-w-[44ch]">
+        <p className="text-sub text-ink-2 max-w-[44ch]">
           {expired
             ? "An invitation works once and lasts seven days. Ask for a new one — it takes them a few seconds."
             : accept.error.message}
@@ -90,7 +90,7 @@ export default function Invite({ searchParams }: {
   // land back here rather than on an inbox that is not theirs yet.
   return (
     <Shell title="Sign in to join.">
-      <p className="text-[17px] text-ink-2 max-w-[44ch]">
+      <p className="text-sub text-ink-2 max-w-[44ch]">
         We'll email you a link — there's no password to choose. You'll come straight back
         here and the invitation will be waiting.
       </p>
@@ -108,7 +108,7 @@ export default function Invite({ searchParams }: {
 function Shell({ title, children }: { title: string; children?: React.ReactNode }) {
   return (
     <main className="max-w-[46ch] mx-auto px-6 py-24">
-      <h1 className="font-sans font-semibold text-[32px] text-ink -tracking-[0.026em] leading-tight">
+      <h1 className="font-sans font-semibold text-h2 text-ink leading-tight">
         {title}
       </h1>
       <div className="mt-4">{children}</div>

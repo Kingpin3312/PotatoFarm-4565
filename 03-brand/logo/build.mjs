@@ -123,7 +123,7 @@ for (const [name, bg, word] of [
   await shot(
     `<div style="width:1200px;height:630px;background:${bg};display:flex;
                  flex-direction:column;align-items:center;justify-content:center;gap:34px;
-                 font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+                 font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text','Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif">
        <div style="width:${dark ? 330 : 260}px;height:${dark ? 330 : 260}px">
          ${sized(dark ? GLOW : MARK, dark ? 330 : 260)}</div>
        <div style="font-size:76px;font-weight:600;letter-spacing:-.028em;color:${word}">
@@ -188,7 +188,7 @@ for (const [name, w, h, bg] of [
      </div>`;
   await shot(
     `<div style="width:1000px;height:560px;background:${GROUND};padding:36px;
-                 font-family:Inter,-apple-system,sans-serif;display:flex;
+                 font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text','Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;display:flex;
                  flex-direction:column;gap:26px">
        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:22px">
          ${cell("Stacked", stacked, GROUND)}

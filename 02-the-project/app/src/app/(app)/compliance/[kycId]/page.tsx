@@ -38,10 +38,10 @@ export default function Screening({ params }: { params: Promise<{ kycId: string 
   if (file.isSuccess) {
     return (
       <div className="max-w-[560px] mx-auto px-6 py-20">
-        <h1 className="font-sans font-semibold text-[30px] text-ink -tracking-[0.026em]">
+        <h1 className="font-sans font-semibold text-stat text-ink">
           Recorded.
         </h1>
-        <p className="text-[17px] text-ink-2 mt-3 max-w-[44ch]">
+        <p className="text-sub text-ink-2 mt-3 max-w-[44ch]">
           {noFiling
             ? "The decision not to file is on the record, with your name and the reason against it."
             : "Prepared. File it on goAML — we don't submit on your behalf."}
@@ -54,41 +54,41 @@ export default function Screening({ params }: { params: Promise<{ kycId: string 
   return (
     <div className="max-w-[680px] mx-auto px-6 pb-24">
       <header className="pt-10 pb-6">
-        <a href="/compliance" className="font-mono text-[11px] uppercase tracking-[0.12em] text-ink-3 no-underline">
+        <a href="/compliance" className="t-label text-ink-3 no-underline">
           ← Compliance
         </a>
-        <h1 className="font-sans font-semibold text-[clamp(1.75rem,1.4rem+1.6vw,2.25rem)] text-ink -tracking-[0.026em] leading-tight mt-3">
+        <h1 className="font-sans font-semibold text-page text-ink mt-3">
           {latest?.result === "CONFIRMED_MATCH" ? "Confirmed match" : "Possible match"}
         </h1>
       </header>
 
       {latest?.guidance && (
         <div className="bg-sunk rounded-xl p-5 mb-8">
-          <p className="text-[15px] text-ink leading-snug">{latest.guidance}</p>
+          <p className="text-ui text-ink leading-snug">{latest.guidance}</p>
         </div>
       )}
 
-      <h2 className="font-sans font-semibold text-[17px] text-accent-deep mb-3">Screening history</h2>
+      <h2 className="font-sans font-medium text-sub text-accent-deep mb-3">Screening history</h2>
       <div className="border-t border-ink mb-10">
         {(data ?? []).map((s) => (
           <div key={s.id} className="flex items-baseline gap-3 py-3 border-b border-rule">
-            <span className="font-mono text-[11px] text-ink-3">
+            <span className="font-mono text-label text-ink-3">
               {new Date(s.screenedAt).toLocaleDateString("en-GB")}
             </span>
-            <span className="text-[15px] text-ink">{s.lists[0] ?? "—"}</span>
-            <span className="ml-auto font-mono text-[10px] uppercase tracking-[0.1em] text-ink-3">
+            <span className="text-ui text-ink">{s.lists[0] ?? "—"}</span>
+            <span className="ml-auto t-label text-ink-3">
               {String(s.result).toLowerCase().replace(/_/g, " ")}
             </span>
           </div>
         ))}
       </div>
 
-      <h2 className="font-sans font-semibold text-[17px] text-accent-deep mb-3">Your decision</h2>
+      <h2 className="font-sans font-medium text-sub text-accent-deep mb-3">Your decision</h2>
       <div className="flex gap-2 flex-wrap mb-5">
         {(["NO_FILING","STR","SAR","REAR","CNMR","FFR"] as const).map((t) => (
           <button key={t} onClick={() => setType(t)} aria-pressed={type === t}
-            className={`min-h-11 px-4 rounded-lg border text-[15px] ${
-              type === t ? "bg-accent text-on-accent border-accent-edge font-semibold"
+            className={`min-h-11 px-4 rounded-lg border text-ui ${
+              type === t ? "bg-accent text-on-accent border-accent-edge font-medium"
                          : "border-rule text-ink"}`}>
             {t === "NO_FILING" ? "No filing" : t}
           </button>
@@ -103,11 +103,11 @@ export default function Screening({ params }: { params: Promise<{ kycId: string 
               hint="A decision not to report is still a decision. Without a reason recorded against it, there is nothing to show." />
       ) : (
         <div className="mt-5">
-          <label htmlFor="goaml" className="block font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3 mb-2">
+          <label htmlFor="goaml" className="block t-label text-ink-3 mb-2">
             goAML reference (once filed)
           </label>
           <input id="goaml" value={goamlRef} onChange={(e) => setRef(e.target.value)}
-                 className="w-full min-h-11 px-4 text-[16px] text-ink bg-sunk border border-rule rounded-lg focus-visible:outline-none focus-visible:shadow-[var(--ring)]" />
+                 className="w-full min-h-11 px-4 text-control text-ink bg-sunk border border-rule rounded-lg focus-visible:outline-none focus-visible:shadow-[var(--ring)]" />
           <p className="text-sm text-ink-2 mt-1.5 max-w-[46ch] leading-snug">
             Add it after you submit. We prepare the report; the filing is yours.
           </p>
@@ -139,11 +139,11 @@ function Area({ label, value, onChange, hint }: {
   const id = label.toLowerCase().replace(/[^a-z]+/g, "-");
   return (
     <div className="mt-5">
-      <label htmlFor={id} className="block font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3 mb-2">
+      <label htmlFor={id} className="block t-label text-ink-3 mb-2">
         {label}
       </label>
       <textarea id={id} rows={3} value={value} onChange={(e) => onChange(e.target.value)}
-        className="w-full px-4 py-2.5 text-[16px] text-ink bg-sunk border border-rule rounded-lg focus-visible:outline-none focus-visible:shadow-[var(--ring)]" />
+        className="w-full px-4 py-2.5 text-control text-ink bg-sunk border border-rule rounded-lg focus-visible:outline-none focus-visible:shadow-[var(--ring)]" />
       <p className="text-sm text-ink-2 mt-1.5 max-w-[46ch] leading-snug">{hint}</p>
     </div>
   );

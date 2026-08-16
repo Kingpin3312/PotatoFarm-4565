@@ -25,7 +25,7 @@ export function OfferBoard({ listingId }: { listingId: string }) {
   if (!data?.length) {
     return (
       <div className="border-t border-rule py-8">
-        <p className="text-[17px] text-ink">No offers yet.</p>
+        <p className="text-sub text-ink">No offers yet.</p>
         <p className="text-sm text-ink-2 mt-1 max-w-[44ch]">
           When one comes in, record it here rather than in a message — the vendor will ask
           what has been on the table, and so will a manager in six months.
@@ -41,19 +41,19 @@ export function OfferBoard({ listingId }: { listingId: string }) {
       {ranked.map((o, i) => (
         <article key={o.id} className="py-5 border-b border-rule">
           <div className="flex items-baseline gap-3 flex-wrap">
-            <span className="font-sans font-semibold text-[26px] text-ink -tracking-[0.02em] tabular">
+            <span className="font-sans font-semibold text-title text-ink tabular">
               {o.current}
             </span>
             {o.current !== o.opened && (
               // Movement matters more than the current figure. A buyer
               // who has come up twice has room; one who opened and stood
               // still does not.
-              <span className="font-mono text-[11px] text-ink-3">
+              <span className="font-mono text-label text-ink-3">
                 opened {o.opened} · moved {o.moves}×
               </span>
             )}
             {i === 0 && ranked.length > 1 && (
-              <span className="ml-auto font-mono text-[10px] uppercase tracking-[0.12em] text-accent-deep font-semibold">
+              <span className="ml-auto t-label text-accent-deep font-semibold">
                 Strongest, not highest
               </span>
             )}
@@ -78,13 +78,13 @@ export function OfferBoard({ listingId }: { listingId: string }) {
 
           {o.history.length > 0 && (
             <details className="mt-3">
-              <summary className="font-mono text-[11px] uppercase tracking-[0.1em] text-ink-3 cursor-pointer min-h-11 flex items-center">
+              <summary className="t-label text-ink-3 cursor-pointer min-h-11 flex items-center">
                 {o.history.length} exchange{o.history.length === 1 ? "" : "s"}
               </summary>
               <ol className="mt-2 space-y-1.5">
                 {o.history.map((h, j) => (
                   <li key={j} className="text-sm text-ink-2">
-                    <span className="font-mono text-[11px] text-ink-3 uppercase mr-2">
+                    <span className="font-mono text-label text-ink-3 uppercase mr-2">
                       {h.by.toLowerCase()}
                     </span>
                     {h.amount ?? h.kind.toLowerCase()}
@@ -108,7 +108,7 @@ export function OfferBoard({ listingId }: { listingId: string }) {
 function Tag({ children, good }: { children: React.ReactNode; good?: boolean }) {
   return (
     <span className={cn(
-      "font-mono text-[10px] uppercase tracking-[0.1em] px-2 py-0.5 border rounded-[3px]",
+      "t-label px-2 py-0.5 border rounded-[3px]",
       good ? "border-accent text-accent font-semibold" : "border-rule text-ink-3"
     )}>
       {children}
@@ -121,7 +121,7 @@ function Expiry({ at }: { at: Date | string }) {
   const soon = hours <= 24;
   return (
     <span className={cn(
-      "font-mono text-[10px] uppercase tracking-[0.1em] px-2 py-0.5 border rounded-[3px]",
+      "t-label px-2 py-0.5 border rounded-[3px]",
       soon ? "border-danger-deep text-danger-deep font-semibold" : "border-rule text-ink-3"
     )}>
       {hours <= 0 ? "expired" : `${hours}h left`}

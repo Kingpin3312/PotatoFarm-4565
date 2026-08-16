@@ -18,7 +18,11 @@ import { cn } from "@/lib/cn";
 const button = cva(
   [
     "inline-flex items-center justify-center gap-2 min-h-11 rounded-full",
-    "font-sans font-semibold whitespace-nowrap border",
+    // Medium, not semibold. The direction asks for "medium/semibold"
+    // and "never excessively bold"; at 15px on a filled button, 600
+    // is the weight that reads as shouting and 500 is the one every
+    // Apple control uses.
+    "font-sans font-medium whitespace-nowrap border",
     "transition-[background-color,border-color,color] duration-200 ease-out",
     "focus-visible:outline-none focus-visible:shadow-[var(--glow-focus)]",
     /**
@@ -54,8 +58,8 @@ const button = cva(
         // 44px even on the compact size. The visual weight comes from
         // type size and padding, not from a smaller hit area — a button
         // an agent has to aim at in a moving car is a button they miss.
-        sm: "text-[13px] px-4 py-2 min-h-11",
-        md: "text-[15px] px-5 py-3",
+        sm: "text-note px-4 py-2 min-h-11",
+        md: "text-ui px-5 py-3",
       },
       full: { true: "w-full", false: "" },
     },

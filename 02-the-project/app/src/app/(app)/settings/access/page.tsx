@@ -34,10 +34,10 @@ export default function Access() {
   return (
     <div className="max-w-[640px] mx-auto px-6 pb-24">
       <header className="pt-10 pb-6">
-        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-3 block mb-3">
+        <span className="t-label text-ink-3 block mb-3">
           Support access
         </span>
-        <h1 className="font-sans font-semibold text-[clamp(2rem,1.5rem+2vw,2.5rem)] text-ink -tracking-[0.026em] leading-none">
+        <h1 className="font-sans font-semibold text-page text-ink">
           {live.length === 0 ? "Nobody has access." : `${live.length} active`}
         </h1>
         <p className="text-sm text-ink-2 mt-3 max-w-[50ch]">
@@ -52,8 +52,8 @@ export default function Access() {
           {live.map((g) => (
             <div key={g.id} className="py-4 border-b border-rule">
               <div className="flex items-baseline gap-3 flex-wrap">
-                <span className="text-[16px] text-ink font-semibold">{g.staffEmail}</span>
-                <span className="font-mono text-[11px] text-accent-deep uppercase tracking-[0.1em]">
+                <span className="text-control text-ink font-medium">{g.staffEmail}</span>
+                <span className="font-mono text-label text-accent-deep uppercase tracking-[0.1em]">
                   {g.hoursLeft}h left
                 </span>
                 <Button variant="secondary" className="ml-auto"
@@ -63,7 +63,7 @@ export default function Access() {
                 </Button>
               </div>
               <p className="text-sm text-ink-2 mt-1.5 max-w-[46ch] leading-snug">{g.reason}</p>
-              <p className="font-mono text-[11px] text-ink-3 mt-1">
+              <p className="font-mono text-label text-ink-3 mt-1">
                 granted by {g.grantedBy} · {new Date(g.grantedAt).toLocaleString("en-GB")}
               </p>
             </div>
@@ -71,26 +71,26 @@ export default function Access() {
         </div>
       )}
 
-      <h2 className="font-sans font-semibold text-[17px] text-accent-deep mb-3">Grant access</h2>
+      <h2 className="font-sans font-medium text-sub text-accent-deep mb-3">Grant access</h2>
       <div className="space-y-4">
         <div>
-          <label htmlFor="semail" className="block font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3 mb-2">
+          <label htmlFor="semail" className="block t-label text-ink-3 mb-2">
             Who — one named person
           </label>
           <input id="semail" type="email" value={email} onChange={(e) => setEmail(e.target.value)}
             placeholder="name@potatofarm.io"
-            className="w-full min-h-11 px-4 text-[16px] text-ink bg-sunk border border-rule rounded-lg focus-visible:outline-none focus-visible:shadow-[var(--ring)]" />
+            className="w-full min-h-11 px-4 text-control text-ink bg-sunk border border-rule rounded-lg focus-visible:outline-none focus-visible:shadow-[var(--ring)]" />
           <p className="text-sm text-ink-2 mt-1.5 max-w-[46ch] leading-snug">
             Not a team, not a role. If you cannot name the person, do not grant it.
           </p>
         </div>
         <div>
-          <label htmlFor="sreason" className="block font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3 mb-2">
+          <label htmlFor="sreason" className="block t-label text-ink-3 mb-2">
             Why
           </label>
           <textarea id="sreason" rows={2} value={reason} onChange={(e) => setReason(e.target.value)}
             placeholder="Investigating why the Bayut feed stopped on Tuesday"
-            className="w-full px-4 py-2.5 text-[16px] text-ink bg-sunk border border-rule rounded-lg focus-visible:outline-none focus-visible:shadow-[var(--ring)]" />
+            className="w-full px-4 py-2.5 text-control text-ink bg-sunk border border-rule rounded-lg focus-visible:outline-none focus-visible:shadow-[var(--ring)]" />
           <p className="text-sm text-ink-2 mt-1.5 max-w-[46ch] leading-snug">
             Goes on the permanent record next to their name. If it ever needs explaining, this
             is the explanation.
@@ -108,12 +108,12 @@ export default function Access() {
 
       {grants.filter((g) => !g.active).length > 0 && (
         <>
-          <h2 className="font-sans font-semibold text-[17px] text-accent-deep mt-12 mb-3">Past grants</h2>
+          <h2 className="font-sans font-medium text-sub text-accent-deep mt-12 mb-3">Past grants</h2>
           <div className="border-t border-rule">
             {grants.filter((g) => !g.active).slice(0, 10).map((g) => (
               <div key={g.id} className="flex items-baseline gap-3 py-3 border-b border-rule">
-                <span className="text-[15px] text-ink-2">{g.staffEmail}</span>
-                <span className="ml-auto font-mono text-[11px] text-ink-3">
+                <span className="text-ui text-ink-2">{g.staffEmail}</span>
+                <span className="ml-auto font-mono text-label text-ink-3">
                   {g.revokedAt ? "revoked early" : "expired"}
                 </span>
               </div>

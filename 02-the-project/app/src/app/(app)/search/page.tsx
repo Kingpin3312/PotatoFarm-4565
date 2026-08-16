@@ -31,10 +31,10 @@ export default function SearchPage() {
   return (
     <div className="mx-auto max-w-[680px] px-6 pb-28">
       <header className="pt-10 pb-5">
-        <h1 className="font-sans text-[clamp(2rem,1.5rem+2vw,2.5rem)] font-semibold leading-none -tracking-[0.026em] text-ink">
+        <h1 className="font-sans text-page font-semibold text-ink">
           Find anyone
         </h1>
-        <p className="mt-3 max-w-[48ch] text-[15px] leading-snug text-ink-2">
+        <p className="mt-3 max-w-[48ch] text-ui leading-snug text-ink-2">
           Ask the way you&rsquo;d ask a colleague. People, owners and properties, all
           in one place.
         </p>
@@ -65,12 +65,12 @@ export default function SearchPage() {
           maxLength={200}
           aria-label="What are you looking for?"
           placeholder="Emirati investor in Downtown around 4 million"
-          className="min-h-11 flex-1 rounded-lg border border-rule bg-raised px-3.5 text-[16px] text-ink placeholder:text-ink-3 focus:border-ink focus:outline-none"
+          className="min-h-11 flex-1 rounded-lg border border-rule bg-raised px-3.5 text-control text-ink placeholder:text-ink-3 focus:border-ink focus:outline-none"
         />
         <button
           type="submit"
           disabled={!text.trim()}
-          className="min-h-11 shrink-0 rounded-lg border border-ink bg-ink px-4 text-[15px] font-semibold text-ground disabled:opacity-40"
+          className="min-h-11 shrink-0 rounded-lg border border-ink bg-ink px-4 text-ui font-medium text-ground disabled:opacity-40"
         >
           Find
         </button>
@@ -80,7 +80,7 @@ export default function SearchPage() {
           empty box with no examples teaches nothing and gets used once. */}
       {!asked && (
         <div className="mt-6">
-          <h2 className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3">
+          <h2 className="t-label text-ink-3">
             Try
           </h2>
           <ul className="mt-2 flex flex-wrap gap-2">
@@ -92,7 +92,7 @@ export default function SearchPage() {
                   // system says 44 and the sweep caught these at 34 —
                   // a chip is exactly the sort of small control that
                   // gets an approximate tap and does nothing.
-                  className="inline-flex min-h-11 items-center rounded-full border border-rule px-4 text-[13px] text-ink-2 hover:border-rule-strong hover:text-ink"
+                  className="inline-flex min-h-11 items-center rounded-full border border-rule px-4 text-note text-ink-2 hover:border-rule-strong hover:text-ink"
                 >
                   {e}
                 </button>
@@ -121,7 +121,7 @@ export default function SearchPage() {
                 nothing — "nothing structured" is itself the explanation
                 for a disappointing result. */}
             {data && (
-              <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3">
+              <p className="t-label text-ink-3">
                 {data.reading.length ? `Read as: ${data.reading.join(" · ")}` : "Searched as words"}
               </p>
             )}
@@ -129,7 +129,7 @@ export default function SearchPage() {
             {isFetching && <p className="mt-3 text-sm text-ink-3">Looking…</p>}
 
             {data && !isFetching && data.hits.length > 0 && (
-              <p className="mt-2 text-[15px] text-ink">{summary(data.counts)}</p>
+              <p className="mt-2 text-ui text-ink">{summary(data.counts)}</p>
             )}
           </div>
 
@@ -140,14 +140,14 @@ export default function SearchPage() {
           )}
 
           {data?.nothingToSearch && (
-            <p className="mt-3 max-w-[46ch] text-[15px] leading-snug text-ink-2">
+            <p className="mt-3 max-w-[46ch] text-ui leading-snug text-ink-2">
               There isn&rsquo;t anything in that to search on. Add a name, an area, a
               budget or something you remember about them.
             </p>
           )}
 
           {data && !data.nothingToSearch && data.empty && !isFetching && (
-            <p className="mt-3 max-w-[46ch] text-[15px] leading-snug text-ink-2">
+            <p className="mt-3 max-w-[46ch] text-ui leading-snug text-ink-2">
               Nothing matched. If you were expecting somebody, it may be that what
               you remember about them was never written down.
             </p>
@@ -159,12 +159,12 @@ export default function SearchPage() {
                 {data.hits.map((h) => (
                   <li key={`${h.kind}:${h.id}`} className="border-b border-rule py-3.5">
                     <div className="flex items-baseline gap-3">
-                      <span className="w-[68px] shrink-0 font-mono text-[9px] uppercase tracking-[0.1em] text-ink-3">
+                      <span className="w-[68px] shrink-0 t-label text-ink-3">
                         {LABEL[h.kind]}
                       </span>
 
                       <div className="min-w-0 flex-1">
-                        <p className="text-[15px] font-semibold text-ink">
+                        <p className="text-ui font-medium text-ink">
                           {h.href ? (
                             <Link href={h.href} className="hover:underline">{h.title}</Link>
                           ) : (
@@ -173,7 +173,7 @@ export default function SearchPage() {
                         </p>
 
                         {h.subtitle && (
-                          <p className="mt-0.5 font-mono text-[11px] text-ink-3">{h.subtitle}</p>
+                          <p className="mt-0.5 font-mono text-label text-ink-3">{h.subtitle}</p>
                         )}
 
                         {/* Why it came back. The agent is about to ring

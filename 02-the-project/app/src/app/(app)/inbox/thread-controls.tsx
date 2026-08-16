@@ -56,7 +56,7 @@ export function ThreadControls({ conversationId, muted, windowOpen, handover }: 
             </>
           ) : (
             <div className="bg-sunk rounded-xl p-4">
-              <span className="block font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3 mb-2">
+              <span className="block t-label text-ink-3 mb-2">
                 Approved templates
               </span>
               <div className="flex gap-2 flex-wrap">

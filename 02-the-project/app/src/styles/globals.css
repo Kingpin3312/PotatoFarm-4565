@@ -86,6 +86,81 @@
   --font-sans: var(--sans);
   --font-mono: var(--mono);
   --ease-out: var(--ease);
+
+  /**
+   * The type scale, exposed to Tailwind.
+   *
+   * `--text-*` is the namespace Tailwind reads for `text-<name>`, so
+   * these give `text-title`, `text-ui`, `text-label` and so on. Each
+   * carries its line height and letter spacing with it, which is the
+   * whole point: a size chosen without them is the reason there were
+   * three tracking values on one visual label.
+   *
+   * The screens had 18 different `text-[Npx]` values and no scale.
+   * Anything still writing a raw pixel size after this is either a
+   * genuine one-off, and should say so, or a step nobody named.
+   */
+  --text-display: var(--display);
+  --text-display--line-height: var(--lh-display);
+  --text-display--letter-spacing: var(--track-display);
+
+  --text-h1: var(--h1);
+  --text-h1--line-height: var(--lh-display);
+  --text-h1--letter-spacing: var(--track-h1);
+
+  --text-h2: var(--h2);
+  --text-h2--line-height: var(--lh-heading);
+  --text-h2--letter-spacing: var(--track-h2);
+
+  --text-page: var(--t-page);
+  --text-page--line-height: var(--lh-display);
+  --text-page--letter-spacing: var(--track-h1);
+
+  --text-title: var(--t-title);
+  --text-title--line-height: var(--lh-heading);
+  --text-title--letter-spacing: var(--track-title);
+
+  --text-stat: var(--stat);
+  --text-stat--line-height: var(--lh-display);
+  --text-stat--letter-spacing: var(--track-title);
+
+  --text-h3: var(--h3);
+  --text-h3--line-height: var(--lh-title);
+  --text-h3--letter-spacing: var(--track-h3);
+
+  --text-body-lg: var(--body-lg);
+  --text-body-lg--line-height: var(--lh-body);
+  --text-body-lg--letter-spacing: var(--track-sub);
+
+  --text-section: var(--t-section);
+  --text-section--line-height: var(--lh-title);
+  --text-section--letter-spacing: var(--track-section);
+
+  --text-sub: var(--t-sub);
+  --text-sub--line-height: var(--lh-title);
+  --text-sub--letter-spacing: var(--track-sub);
+
+  --text-ui: var(--t-ui);
+  --text-ui--line-height: var(--lh-ui);
+  --text-ui--letter-spacing: var(--track-ui);
+
+  --text-control: var(--t-control);
+  --text-control--line-height: var(--lh-ui);
+  --text-control--letter-spacing: var(--track-ui);
+
+  --text-note: var(--t-note);
+  --text-note--line-height: var(--lh-tight);
+  --text-note--letter-spacing: var(--track-note);
+
+  --text-label: var(--t-label);
+  --text-label--line-height: var(--lh-tight);
+  --text-label--letter-spacing: var(--track-label);
+
+  /* Weights, so `font-medium` is a token rather than a magic number
+     and 700 has no name to be reached for by. */
+  --font-weight-regular: var(--w-regular);
+  --font-weight-medium: var(--w-medium);
+  --font-weight-semibold: var(--w-semibold);
 }
 
 html { color-scheme: light; }
@@ -98,6 +173,76 @@ body {
   -webkit-font-smoothing: antialiased;
   font-feature-settings: "cv11", "ss01";
 }
+
+/**
+ * The small label above a field, a section or a figure.
+ *
+ * ## What this replaces
+ *
+ * Roughly 150 elements carrying, verbatim:
+ *
+ *     font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3
+ *
+ * — and the same thing again at `tracking-[0.1em]`, and again at
+ * `tracking-[0.14em]`, and at 9px and 11px. Three letter-spacings and
+ * three sizes on what is visually one component, because there was
+ * never a name for it and each new screen copied whichever neighbour
+ * was nearest.
+ *
+ * ## Why it is no longer monospace
+ *
+ * A monospace face on a label is a terminal convention, and it was
+ * doing real damage here: it put a second, unrelated typeface on nearly
+ * every screen in the product, at 10px, where its wider letterforms and
+ * fixed advance are least legible. Apple uses one family and varies
+ * weight; that is most of why their interfaces read as calm.
+ *
+ * Monospace stays for figures in a column, which is what it is actually
+ * for — see `.tabular`.
+ *
+ * ## Why it is 12px and not 10px
+ *
+ * 10px is below the floor for anything a person is expected to read,
+ * and 9px — which three of these were — is not a font size, it is a
+ * texture. 12px at weight 500 in the secondary grey is quieter on the
+ * page than 10px uppercase monospace was, while being legible.
+ *
+ * ## What was deliberately not changed
+ *
+ * The words. These labels are uppercase and they stay uppercase: Apple
+ * would set most of them in sentence case, but the capitals here are
+ * the product's field-label convention across every screen, and
+ * rewriting 150 labels is a content decision rather than a typographic
+ * one. Now that it is one class it is a one-line change if wanted.
+ */
+.t-label {
+  font-family: var(--sans);
+  font-size: var(--t-label);
+  line-height: var(--lh-tight);
+  font-weight: var(--w-medium);
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  /* No colour. This class sits outside `@layer utilities`, so it beats
+     every Tailwind utility regardless of source order — setting a
+     colour here would silently override the `text-accent-deep` on the
+     handful of these that are deliberately not grey, and the override
+     would look like a design choice rather than a cascade collision.
+     Colour is not typography; the call site keeps it. */
+}
+
+/**
+ * Emphasis inside a sentence is 500, not the browser's 700.
+ *
+ * `<strong>` and `<b>` default to `bold`, which every browser resolves
+ * to 700 — the one weight this system does not have. It showed up as a
+ * 14px 700 fragment in the middle of a paragraph on the settings
+ * screen: heavier than the page's own headings, inside body copy.
+ *
+ * 500 is enough to lift a phrase out of a sentence and is what Apple
+ * uses for it. Semantics are untouched — a screen reader still
+ * announces the emphasis.
+ */
+strong, b { font-weight: var(--w-medium); }
 
 /* Tabular numerals everywhere a figure appears. A pipeline column whose
    values jitter as digits change is the sort of thing nobody reports and

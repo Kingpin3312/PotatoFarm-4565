@@ -82,17 +82,17 @@ export function Thread({ conversationId }: { conversationId: string }) {
     <div className="flex flex-col min-h-0 h-full">
       <header className="px-6 py-3.5 border-b border-ink flex items-center gap-3.5 flex-wrap">
         <div>
-          <div className="font-sans font-semibold -tracking-[0.024em] text-[22px] text-ink -tracking-[0.01em]">
+          <div className="font-sans font-semibold text-section text-ink">
             {data.lead.name ?? data.lead.phone}
           </div>
-          <div className="font-mono text-[11px] text-ink-3">
+          <div className="font-mono text-label text-ink-3">
             {data.lead.phone} · {data.lead.language}
           </div>
         </div>
         {data.humanHandover && (
           // Says why the assistant stopped. Silence with no explanation
           // reads as a fault, and the agent rings support.
-          <div className="ml-auto font-mono text-[10px] uppercase tracking-[0.1em] text-accent-deep">
+          <div className="ml-auto t-label text-accent-deep">
             You have this · {data.handoverReason}
           </div>
         )}
@@ -124,7 +124,7 @@ export function Thread({ conversationId }: { conversationId: string }) {
           <>
             <WindowState open hoursLeft={w.hoursLeft} />
             {failed && (
-              <p role="alert" className="text-[13px] text-accent-deep mt-2">
+              <p role="alert" className="text-note text-accent-deep mt-2">
                 {failed}
               </p>
             )}
@@ -144,7 +144,7 @@ export function Thread({ conversationId }: { conversationId: string }) {
                   }
                 }}
                 placeholder="Write a reply…"
-                className="flex-1 bg-transparent border-0 border-b border-rule py-2.5 text-[15px] text-ink resize-none focus:outline-none focus:border-accent focus:border-b-2"
+                className="flex-1 bg-transparent border-0 border-b border-rule py-2.5 text-ui text-ink resize-none focus:outline-none focus:border-accent focus:border-b-2"
               />
               <Button
                 variant="primary"

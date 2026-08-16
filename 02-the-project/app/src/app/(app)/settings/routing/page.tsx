@@ -41,10 +41,10 @@ export default function Routing() {
   return (
     <div className="max-w-[680px] mx-auto px-6 pb-24">
       <header className="pt-10 pb-6">
-        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-3 block mb-3">
+        <span className="t-label text-ink-3 block mb-3">
           Lead routing
         </span>
-        <h1 className="font-sans font-semibold text-[clamp(2rem,1.5rem+2vw,2.5rem)] text-ink -tracking-[0.026em] leading-none">
+        <h1 className="font-sans font-semibold text-page text-ink">
           {data?.current ? label(data.current) : "Not set"}
         </h1>
         <p className="text-sm text-ink-2 mt-3 max-w-[50ch]">
@@ -58,7 +58,7 @@ export default function Routing() {
           <button key={k} onClick={() => setStrategy(k)} aria-pressed={strategy === k}
             className={cn("w-full text-left min-h-11 px-4 py-3 rounded-lg border",
               strategy === k ? "border-accent-edge bg-sunk" : "border-rule")}>
-            <span className="text-[16px] text-ink font-semibold block">{name}</span>
+            <span className="text-control text-ink font-medium block">{name}</span>
             <span className="text-sm text-ink-2 block mt-0.5 leading-snug">{why}</span>
           </button>
         ))}
@@ -68,7 +68,7 @@ export default function Routing() {
           strategy without this finds out from four complaints. */}
       {preview.data && (
         <>
-          <h2 className="font-sans font-semibold text-[17px] text-accent-deep mt-10 mb-1">
+          <h2 className="font-sans font-medium text-sub text-accent-deep mt-10 mb-1">
             Who would get the next one
           </h2>
           {/* `pool`, not `agents` — and every field here comes from what
@@ -88,16 +88,16 @@ export default function Routing() {
                    className={cn("py-3 border-b border-rule",
                      !a.eligible && "opacity-60")}>
                 <div className="flex items-baseline gap-3">
-                  <span className="text-[15px] text-ink">{a.name}</span>
+                  <span className="text-ui text-ink">{a.name}</span>
                   {a.away && (
-                    <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-3">
+                    <span className="t-label text-ink-3">
                       away
                     </span>
                   )}
-                  <span className="ml-auto text-[15px] text-ink tabular">
+                  <span className="ml-auto text-ui text-ink tabular">
                     {a.openLeads} / {a.capacity}
                   </span>
-                  <span className="font-mono text-[11px] text-ink-3 w-20 text-right">
+                  <span className="font-mono text-label text-ink-3 w-20 text-right">
                     {a.lastAssignedAt
                       ? new Date(a.lastAssignedAt).toLocaleDateString("en-GB",
                           { day: "numeric", month: "short" })

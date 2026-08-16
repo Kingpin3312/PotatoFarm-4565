@@ -30,14 +30,14 @@ export default function Signup() {
   if (signup.isSuccess) {
     return (
       <main className="max-w-[46ch] mx-auto px-6 py-24">
-        <h1 className="font-sans font-semibold text-[32px] text-ink -tracking-[0.026em] leading-tight">
+        <h1 className="font-sans font-semibold text-h2 text-ink leading-tight">
           Check your email.
         </h1>
-        <p className="text-[17px] text-ink-2 mt-4">
+        <p className="text-sub text-ink-2 mt-4">
           We&rsquo;ve sent a link to <strong className="text-ink">{form.ownerEmail}</strong>.
           It signs you in — there&rsquo;s no password to choose or forget.
         </p>
-        <p className="text-[15px] text-ink-2 mt-4">
+        <p className="text-ui text-ink-2 mt-4">
           Your {terms?.trialDays ?? 14} days start when you first switch the assistant on,
           not today. Have a look around first.
         </p>
@@ -47,10 +47,10 @@ export default function Signup() {
 
   return (
     <main className="max-w-[46ch] mx-auto px-6 py-16">
-      <h1 className="font-sans font-semibold text-[32px] text-ink -tracking-[0.026em] leading-tight">
+      <h1 className="font-sans font-semibold text-h2 text-ink leading-tight">
         Start the trial.
       </h1>
-      <p className="text-[17px] text-ink-2 mt-3">
+      <p className="text-sub text-ink-2 mt-3">
         {terms?.trialDays ?? 14} days, no card. The first week we measure your response times
         with the assistant switched off, so the difference afterwards is yours to check.
       </p>
@@ -70,12 +70,12 @@ export default function Signup() {
             // Said here rather than after they press the button. Being
             // told you are too small at the last step is worse than
             // being told before you filled anything in.
-            <p className="text-[15px] text-ink-2 mt-2 leading-snug">
+            <p className="text-ui text-ink-2 mt-2 leading-snug">
               Below {minSeats} agents this isn&rsquo;t worth it for you. You can answer that
               volume by hand, and you should — email us in a year.
             </p>
           ) : terms?.seatPrice && (
-            <p className="text-[15px] text-ink-2 mt-2 tabular">
+            <p className="text-ui text-ink-2 mt-2 tabular">
               {terms.seatPrice.usd} per agent after the trial &mdash;{" "}
               <span className="text-ink-3">{terms.seatPrice.aed}, invoiced in dirhams</span>
             </p>
@@ -84,7 +84,7 @@ export default function Signup() {
       </div>
 
       {signup.error && (
-        <p role="alert" className="text-[15px] text-danger-deep mt-6 leading-snug">
+        <p role="alert" className="text-ui text-danger-deep mt-6 leading-snug">
           {signup.error.message}
         </p>
       )}
@@ -100,7 +100,7 @@ export default function Signup() {
         Start the trial
       </Button>
 
-      <p className="text-[13px] text-ink-3 mt-5 leading-relaxed">
+      <p className="text-note text-ink-3 mt-5 leading-relaxed">
         No card now. We&rsquo;ll ask for one before the trial ends, and tell you before we do.
       </p>
     </main>
@@ -114,7 +114,7 @@ function Field({ label, value, onChange, type = "text", autoComplete }: {
   const id = label.toLowerCase().replace(/\s+/g, "-");
   return (
     <div>
-      <label htmlFor={id} className="block font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3 mb-2">
+      <label htmlFor={id} className="block t-label text-ink-3 mb-2">
         {label}
       </label>
       <input
@@ -125,7 +125,7 @@ function Field({ label, value, onChange, type = "text", autoComplete }: {
         onChange={(e) => onChange(e.target.value)}
         // 16px. Below that iOS zooms the page on focus and the layout
         // jumps while somebody is typing their company name.
-        className="w-full min-h-11 px-4 text-[16px] text-ink bg-sunk border border-rule rounded-lg focus-visible:outline-none focus-visible:shadow-[var(--glow-focus)]"
+        className="w-full min-h-11 px-4 text-control text-ink bg-sunk border border-rule rounded-lg focus-visible:outline-none focus-visible:shadow-[var(--glow-focus)]"
       />
     </div>
   );

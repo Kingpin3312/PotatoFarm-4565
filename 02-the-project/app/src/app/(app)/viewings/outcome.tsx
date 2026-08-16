@@ -21,15 +21,15 @@ export function Outcome({ viewingId, onDone }: { viewingId: string; onDone?: () 
 
   return (
     <div className="border-t border-rule pt-4">
-      <span className="block font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3 mb-2">
+      <span className="block t-label text-ink-3 mb-2">
         How did it go?
       </span>
       <div className="flex gap-2 flex-wrap">
         {([["COMPLETED","They came"],["NO_SHOW","No show"],["CANCELLED","Cancelled"]] as const)
           .map(([k, label]) => (
             <button key={k} onClick={() => setStatus(k)} aria-pressed={status === k}
-              className={`min-h-11 px-4 rounded-lg border text-[15px] ${
-                status === k ? "bg-accent text-on-accent border-accent-edge font-semibold"
+              className={`min-h-11 px-4 rounded-lg border text-ui ${
+                status === k ? "bg-accent text-on-accent border-accent-edge font-medium"
                              : "border-rule text-ink"}`}>
               {label}
             </button>
@@ -38,12 +38,12 @@ export function Outcome({ viewingId, onDone }: { viewingId: string; onDone?: () 
 
       {status === "COMPLETED" && (
         <div className="mt-4">
-          <label htmlFor="vnote" className="block font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3 mb-2">
+          <label htmlFor="vnote" className="block t-label text-ink-3 mb-2">
             What did they say
           </label>
           <textarea id="vnote" rows={2} value={note} onChange={(e) => setNote(e.target.value)}
             placeholder="Too dark, wants a higher floor, second viewing with wife…"
-            className="w-full px-4 py-2.5 text-[16px] text-ink bg-sunk border border-rule rounded-lg focus-visible:outline-none focus-visible:shadow-[var(--ring)]" />
+            className="w-full px-4 py-2.5 text-control text-ink bg-sunk border border-rule rounded-lg focus-visible:outline-none focus-visible:shadow-[var(--ring)]" />
           <p className="text-sm text-ink-2 mt-1.5 max-w-[44ch] leading-snug">
             This is what goes in the owner's weekly report. Something specific beats "it went
             well" — an owner who reads that three weeks running stops believing it.

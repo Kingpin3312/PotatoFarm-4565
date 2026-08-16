@@ -168,6 +168,13 @@ else
   # move shipped `text-accent-type` to 42 call sites that generated no
   # CSS at all, and every source-reading check passed.
   step "browser:option1" npm run --silent browser:option1
+  # The typography as a browser resolves it. A scale is exactly as easy
+  # to get wrong silently as a palette was: `cn()` was deleting the new
+  # size classes wherever a colour class followed, because tailwind-merge
+  # assumes an unrecognised `text-<word>` is a colour. Fourteen call
+  # sites rendered at the inherited 16px and every source-reading check
+  # passed.
+  step "browser:type" npm run --silent browser:type
   # Every screen opened in a real browser, and every link it renders
   # followed. Slow — around six minutes — and it is the only check that
   # sees what the screens actually do, which is where the two worst

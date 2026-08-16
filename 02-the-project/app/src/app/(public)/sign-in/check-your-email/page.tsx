@@ -15,19 +15,19 @@
 export default function CheckYourEmail() {
   return (
     <main id="main" className="max-w-[46ch] mx-auto px-6 py-24">
-      <h1 className="font-sans font-semibold text-[32px] text-ink -tracking-[0.026em] leading-tight">
+      <h1 className="font-sans font-semibold text-h2 text-ink leading-tight">
         Check your email.
       </h1>
-      <p className="text-[17px] text-ink-2 mt-4">
+      <p className="text-sub text-ink-2 mt-4">
         The link signs you straight in. It works once and it lasts ten minutes.
       </p>
-      <p className="text-[15px] text-ink-2 mt-4 leading-snug">
+      <p className="text-ui text-ink-2 mt-4 leading-snug">
         Nothing after a minute or two? Look in Junk or Other — it is the first message we
         have sent you, so it has no history to be judged on.
       </p>
 
       <div className="mt-10 pt-6 border-t border-rule">
-        <p className="text-[15px] text-ink-2 leading-snug">
+        <p className="text-ui text-ink-2 leading-snug">
           Wrong address, or it never arrives?{" "}
           <a href="/sign-in" className="text-accent-deep underline">
             Try again

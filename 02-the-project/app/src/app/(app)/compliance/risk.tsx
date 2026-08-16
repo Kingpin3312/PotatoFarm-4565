@@ -43,7 +43,7 @@ export function AssessRisk({ kycId, dealValueFils }: {
   if (assess.isSuccess) {
     return (
       <div className="border-t border-rule pt-5">
-        <p className="text-[17px] text-ink font-semibold">
+        <p className="text-sub text-ink font-medium">
           {assess.data.rating} risk
         </p>
         <ul className="mt-2 space-y-1">
@@ -60,7 +60,7 @@ export function AssessRisk({ kycId, dealValueFils }: {
 
   return (
     <div className="border-t border-rule pt-5">
-      <h2 className="font-sans font-semibold text-[17px] text-accent-deep mb-1">Risk factors</h2>
+      <h2 className="font-sans font-medium text-sub text-accent-deep mb-1">Risk factors</h2>
       <p className="text-sm text-ink-2 mb-4 max-w-[46ch] leading-snug">
         Questions of fact, not judgement. The rating and the review interval come out of
         these — which is what an inspector asks about.
@@ -79,12 +79,12 @@ export function AssessRisk({ kycId, dealValueFils }: {
 
       {f.isCompany && (
         <div className="py-4 border-b border-rule">
-          <label htmlFor="ubo" className="block font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3 mb-2">
+          <label htmlFor="ubo" className="block t-label text-ink-3 mb-2">
             Beneficial owners identified
           </label>
           <input id="ubo" type="number" min={0} value={f.uboCount}
             onChange={(e) => setF({ ...f, uboCount: Number(e.target.value) || 0 })}
-            className="w-24 min-h-11 px-4 text-[16px] text-ink bg-sunk border border-rule rounded-lg focus-visible:outline-none focus-visible:shadow-[var(--ring)] tabular" />
+            className="w-24 min-h-11 px-4 text-control text-ink bg-sunk border border-rule rounded-lg focus-visible:outline-none focus-visible:shadow-[var(--ring)] tabular" />
           <p className="text-sm text-ink-2 mt-1.5 max-w-[44ch] leading-snug">
             Anyone holding 25% or more. Zero identified on a company purchase is itself a
             risk factor.
@@ -110,7 +110,7 @@ function Check({ label, hint, on, set }: {
         <input id={id} type="checkbox" checked={on} onChange={(e) => set(e.target.checked)}
           className="mt-1 w-5 h-5 accent-[var(--accent)]" />
         <span>
-          <span className="text-[16px] text-ink">{label}</span>
+          <span className="text-control text-ink">{label}</span>
           {hint && <span className="block text-sm text-ink-2 mt-0.5 max-w-[44ch] leading-snug">{hint}</span>}
         </span>
       </label>

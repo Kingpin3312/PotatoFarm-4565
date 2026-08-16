@@ -44,18 +44,18 @@ export default function Viewings() {
   return (
     <div className="max-w-[680px] mx-auto px-6 pb-24">
       <header className="pt-10 pb-6">
-        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-3 block mb-3">
+        <span className="t-label text-ink-3 block mb-3">
           {new Intl.DateTimeFormat("en-GB", {
             weekday: "long", day: "numeric", month: "long", timeZone: "Asia/Dubai",
           }).format(new Date())}
         </span>
-        <h1 className="font-sans font-semibold text-[clamp(2rem,1.5rem+2vw,2.75rem)] text-ink -tracking-[0.026em] leading-none">
+        <h1 className="font-sans font-semibold text-page text-ink">
           {list.length === 0 ? "Nothing today." : `${list.length} viewing${list.length === 1 ? "" : "s"}.`}
         </h1>
       </header>
 
       {list.length === 0 ? (
-        <p className="text-[17px] text-ink-2 max-w-[42ch]">
+        <p className="text-sub text-ink-2 max-w-[42ch]">
           Nothing booked. When the assistant books one it appears here with the address and
           a route, so you can leave without opening anything else.
         </p>
