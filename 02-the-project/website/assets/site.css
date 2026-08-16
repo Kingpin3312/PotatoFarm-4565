@@ -11,89 +11,102 @@
    ============================================================ */
 
 :root{
-  /* ---- The ground -----------------------------------------------
-     Warm white, not pure white. This is the whole effect and it is
-     worth defending: **Hermes does not put orange on #FFFFFF.** It puts
-     it on a warm cream, anchored by deep brown leather.
+  /* ============================================================
+     The palette. Option 1: white, deep charcoal, a controlled orange.
 
-     Pure white plus orange reads as a budget airline. Cream plus orange
-     plus brown reads as the reference. The difference is about 2%
-     warmth, and it is the difference. */
+     Every ratio here was re-measured against the shipped tokens. The
+     block this replaces was the cream palette's — it argued at length
+     for warm white while `--ground` had already been set to #FFFFFF,
+     and quoted the brand orange at 2.65:1 when on white it is 3.22:1.
+     `repalette.py` moves hex values and cannot move prose, so the
+     numbers and the argument drifted a generation behind the colours
+     they described.
+
+     `app/src/styles/tokens.css` is the source of truth and carries the
+     reasoning; `consistency.py` fails the build if the four surfaces
+     disagree on a hex.
+     ============================================================ */
+
+  /* ---- The ground ---------------------------------------------------
+     White, and the warm grey does the separating. Roughly 70% white,
+     20% warm neutral, 8% charcoal and 2% orange.
+
+     The cream this replaced had a real argument behind it — Hermès does
+     not put orange on #FFFFFF — and it lost to a decision. The warmth
+     lives in `--panel` now rather than in the ground. */
   --ground: #FFFFFF;
-  --panel:  #F5F3F0;
-  --raised: #FFFFFF;   /* cards lift by being *whiter* than the ground */
+  --panel:  #F5F3F0;   /* Warm Grey — secondary sections, inputs */
+  --raised: #FFFFFF;   /* a card is its border and its spacing, not a tint */
 
-  /* ---- Ink, with brown in it --------------------------------------
-     A neutral grey against orange looks like a spreadsheet. Warming the
-     near-black by a few points is what makes the orange belong. */
-  --ink:   #171717;   /* 16.94:1 */
-  --ink-2: #4A4A4A;   /*  8.34:1 */
-  --ink-3: #6B6B6B;   /*  5.86:1 on ground, 5.43:1 on panel */
-  --rule:  #E7E5E2;
-  --rule-strong: #918A82;
+  /* ---- Ink ----------------------------------------------------------
+     Deep charcoal rather than pure black. */
+  --ink:   #171717;   /* 17.93:1 on white, 16.19:1 on panel */
+  --ink-2: #4A4A4A;   /*  8.86:1 on white */
+  --ink-3: #6B6B6B;   /*  5.33:1 on white, 4.81:1 on panel */
 
-  /* ---- The wordmark navy -------------------------------------------
+  /* Two rules, because they do different jobs. `--rule` is a hairline
+     between table rows; WCAG 1.4.11 wants a form control's boundary at
+     3:1, which is what the second one is for. */
+  --rule:        #E7E5E2;   /* 1.26:1 — separators, decorative only */
+  --rule-strong: #918A82;   /* 3.41:1 on white, 3.08:1 on panel */
+
+  /* ---- The wordmark navy --------------------------------------------
      The one colour the supplied logo has that this palette did not.
      "PotatoFarm" in the artwork is a deep blue-black rather than the
      neutral ink beside it — sampled at #0E1822, blue leading red by
      eleven points, which is a decision and not compression noise.
 
-     It dresses the wordmark and nothing else. Repainting --ink navy
+     It dresses the wordmark and nothing else. Repainting `--ink` navy
      would have recoloured every heading and paragraph on the site
      because a logo arrived, which is a different job.
 
-     14.88:1 on the cream, measured. It is remapped on .on-leather
-     below, exactly like --ink, so the wordmark reverses out of the
-     dark band instead of disappearing into it. */
+     **16.51:1 on the ground.** It read 14.88:1 here, which was correct
+     against the cream and was never re-measured when the ground went
+     white. */
   --brand-navy: #12202E;
 
-  /* ---- Orange ------------------------------------------------------
-     Two, and they are not interchangeable.
+  /* ---- Orange, and the discipline it needs ---------------------------
+     **#E86A2C is 3.22:1 on white.** That clears the 3:1 a border, an
+     icon or a focus ring needs, and falls short of the 4.5:1 text
+     needs. So the orange is a *surface* colour — fills, focus, the
+     active state, selected rows, the `.io` — and orange type steps down
+     the same hue until it is readable.
 
-     One orange: #E86A2C. Measured on the cream ground: 2.65:1 —
-     below the 4.5:1 AA floor for text, so orange type is a brand
-     decision taken with the number known. Ink on the orange fill is
-     5.93:1; white on it is 2.94:1 and is never used.
-
-     Getting this backwards is the mistake, and it is the fifth time in
-     this project a warm colour has looked right and measured wrong. */
-  --accent:      #E86A2C;   /* the brand orange. 2.65:1 on ground */
-  --accent-type: #E86A2C;   /* headings, buttons and .io */
-  --accent-hover:#CF5A22;
+     It used to dress every heading too. A 68px headline is not 2% of a
+     page, and an h3 at 20px/500 is not large text, so that was both an
+     imbalance and a genuine AA failure. Headings are `--ink` now. */
+  --accent:      #E86A2C;   /* 3.22:1 on white, 2.90:1 on panel */
+  --accent-type: #E86A2C;   /* the `.io`, and nothing else */
+  --accent-hover:#CF5A22;   /* 4.09:1 — the hover on a fill */
 
   /**
-   * The legible orange, for small type only.
+   * The legible orange, and it is not a second brand colour.
    *
-   * The brand orange is #E86A2C and it goes on headings, buttons and the
-   * .io by decision. It measures 2.65:1, which is fine for a 40px
-   * heading somebody is not reading word by word and wrong for a caption
-   * or a link in a paragraph. Those keep a darker step at 5.23:1.
-   *
-   * This is not a second brand colour. It is the same instruction
-   * applied honestly: what was asked for is orange, and what was not
-   * asked for stays readable.
+   * Orange type at any size takes this. Not "small orange type" — every
+   * size. That distinction used to carve out headings, and carving out
+   * headings is what let a 20px h3 through at 3.22:1.
    */
-  --accent-deep: #A0431B;   /* 5.23:1 on ground — captions, body links */
-
+  --accent-deep: #A0431B;   /* 6.34:1 on white, 5.72:1 on panel */
 
   /**
    * The border on every orange fill, and it is not decoration.
    *
-   * The brand orange measures 2.65:1 on the ground and **2.44:1 on the
-   * cream panel** — the same button passes on one surface and fails on
-   * the other. Rather than forbid orange on panels, or lighten the
-   * panel until it works, the fill carries a darker hairline. The edge
-   * is then defined by the border regardless of what is behind it.
-   *
-   * Same fix as the saffron button two palettes ago, same reason.
+   * The fill is 3.22:1 on white and **2.90:1 on the panel** — the same
+   * button passes on one surface and fails on the other. Rather than
+   * forbid orange on panels, the fill carries a darker hairline, so the
+   * edge is defined regardless of what is behind it. WCAG 1.4.11 asks
+   * 3:1 of a control boundary; this is 4.54:1 there.
    */
-  --accent-edge: #B94E1F;   /* 3.65:1 on panel — defines the boundary */
+  --accent-edge: #B94E1F;   /* 5.03:1 on white, 4.54:1 on panel */
+
+  /* Soft Orange. Selected rows and machine-written text — see
+     `components/ui/machine.tsx`. Charcoal on it is 16.22:1. */
+  --accent-soft: #FFF1E8;
 
   /* **Labels on the orange fill are ink, never white.**
-     White on the brand orange is 2.94:1 and fails. Ink is 5.93:1 and
-     passes — and an orange button with near-black type is also the more
-     Hermes answer. The measurement and the reference agreed, which does
-     not always happen. */
+     White on the brand orange is 3.22:1 and fails — a 16px semibold
+     button label is not "large text", which starts at 18.66px bold.
+     Ink is 5.57:1 and passes. */
   --on-accent: #171717;
 
   /* ---- Leather -----------------------------------------------------
@@ -109,14 +122,16 @@
   --leather-ink-2: #B5B5B5;   /*  7.17:1 */
   --leather-ink-3: #9A9A96;   /*  5.21:1 on charcoal — #8A8A8A fell to 4.03 */
 
+  /* ---- State, and why it is no longer a colour ---------------------
+     The product is two colours by brand decision, so state cannot be
+     carried by hue. Every place that used green or red already said the
+     thing in words beside it; the hue was reinforcement, not the
+     message. Danger keeps the accent in its readable step because an
+     error still has to pull the eye; success drops to ink, because a
+     confirmation that has already happened does not need to shout. */
   --success:      #171717;
-  --danger:       #A0431B;
-  /* **Not** the accent step any more, and this is the second time it has
-     been overwritten by a global find-and-replace. It was #A0431B when
-     the accent-type was too; the accent is now #E86A2C at 2.65:1, and a
-     warning nobody can read is not a warning. Kept at the measured
-     value on purpose. */
-  --warning:      #A0431B;   /* 5.23:1 on ground */
+  --danger:       #A0431B;   /* 6.34:1 — dark enough to read at 13px */
+  --warning:      #A0431B;
 
   /* ---- Type ---------------------------------------------------------
      One scale, Apple's proportions, two registers.
@@ -371,16 +386,19 @@ nav .wrap{display:flex;align-items:center;gap:30px;width:100%}
    "PotatoFarm" first and the extension second. Same trick every domain
    wordmark that works uses. */
 /* The extension in orange.
-   It is TYPE and it takes --accent-type, which is now the same #E86A2C
-   as the fill. At 2.65:1 that is a brand decision, not a measurement. The
-   token resolves per ground, so the footer and the sidebar get the
-   lighter leather step automatically. */
+   It is TYPE and it takes --accent-type, which is the same #E86A2C as
+   the fill. At 3.22:1 that is below the 4.5:1 text needs, and it is the
+   one place that is allowed: WCAG 1.4.1 exempts a wordmark, which is
+   the actual grounds rather than a preference. `contrast.py` keeps it
+   as its single recorded exception. The token resolves per ground, so
+   the footer and the sidebar get the lighter leather step
+   automatically. */
 .brand .tld{color:var(--accent-type);font-weight:var(--w-medium);letter-spacing:inherit}
 
 /* Not --tertiary here. That token is 4.2:1 on white, which is fine for a
    caption and not fine for part of the company name — the wordmark is
    the one piece of text on the page that must be legible to everybody.
-   var(--ink-3) is 5.69:1 on white and 4.87:1 on the grey panels, so it passes
+   var(--ink-3) is 5.33:1 on white and 4.81:1 on the grey panels, so it passes
    on both grounds the footer and light sections use. */
 .theme-light .brand .tld,section.theme-light .brand .tld,
 
@@ -509,7 +527,7 @@ section h1.display{margin-bottom:0}
 .pa{color:var(--ink-2);font-size:.9375rem}
 /* Not --tertiary. That token is 4.2:1 on white — correct for a caption
    and wrong for a price figure, which is what this is. Same borrow I
-   made on the wordmark extension and the same fix: var(--ink-3), 5.69:1. */
+   made on the wordmark extension and the same fix: var(--ink-3), 5.33:1. */
 .py{color:var(--ink-3);font-size:.875rem}
 @media(max-width:560px){
   /* Four columns at 375px is four columns nobody can read. The yearly
