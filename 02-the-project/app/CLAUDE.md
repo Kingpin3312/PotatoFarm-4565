@@ -147,7 +147,7 @@ not want.
 
 ## The shape that keeps recurring
 
-Eight times a complete, tested, documented module has turned out to have
+Ten times a complete, tested, documented module has turned out to have
 nothing that starts it — and the sixth is the product itself:
 
 1. **Billing** could invoice a customer no code path could create.
@@ -188,6 +188,26 @@ nothing that starts it — and the sixth is the product itself:
    So the third diagnostic question below has a fourth beside it: **who
    reads it?** A column with a writer and no reader costs a query per
    lead per night to produce a number nobody has ever seen.
+
+9. **The rate limit on the front door.** `ratelimit.ts` carried a rule
+   named `auth.magicLink` — five attempts in fifteen minutes — from the
+   day it was written, and **nothing ever invoked it**. Five other
+   actions called `limitAll`; the one guarding sign-in did not. The
+   endpoint accepted unlimited requests and sent a real email through
+   Resend for every one, from the verified sending domain. Worse than
+   the eight above it, because a reviewer reading `ratelimit.ts` sees
+   the rule and concludes the door is locked.
+10. **The alerting.** Severity routing, runbooks, deduplication, closing
+   an alert when its condition clears — all of it correct, and
+   `notify()` ended in `log.warn` beneath a comment reading "PagerDuty,
+   Opsgenie or a Slack channel goes here". A stopped cron raised a PAGE
+   into a log file nothing was shipping. **Nobody was ever paged.**
+
+   These two produced the fifth diagnostic question: **what invokes
+   it?** `check:limits` asks it of every rate-limit rule, in both
+   directions — because `limit()` returns *allowed* for an unknown
+   action, so a typo'd name reads as a wired limit and enforces
+   nothing.
 
 `architecture.py` catches a module nothing *imports*. `reachability.py`
 catches the subtler one — a module that is imported, called correctly,

@@ -115,7 +115,11 @@ PATTERNS = {
     "enums":         r"(\d+)\s+enums\b",
     "routers":       r"(\d+)\s+(?:API\s+)?routers\b",
     "procedures":    r"(\d+)\s+procedures\b",
-    "jobs":          r"(\d+)\s+scheduled\s+jobs\b",
+    # "scheduled jobs" *and* "cron jobs" — two documents said "24 cron
+    # jobs" against a real 25 and this pattern did not see them, which
+    # is the same failure the file exists to prevent, in the file
+    # itself.
+    "jobs":          r"(\d+)\s+(?:scheduled|cron)\s+jobs\b",
     "audit scripts": r"(\d+)\s+audit\s+scripts\b",
     "check suites":  r"(\d+)\s+check\s+suites\b",
 }

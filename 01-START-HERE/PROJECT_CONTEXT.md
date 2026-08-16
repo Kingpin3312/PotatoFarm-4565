@@ -166,29 +166,37 @@ chart; spoken requests ("Ask").
 npm run verify
 ```
 
-That is `tsc --noEmit`, then the 214 unit tests, then all eleven check
-suites, then all thirteen audit scripts — one run, and it reports every
-failure rather than stopping at the first. It exists because the
-alternative was twenty-six commands in a particular order, and the thing
-about a twenty-six-command ritual is that somebody eventually runs
-twenty-five of them, and it is never the same twenty-five.
+That is `tsc --noEmit`, then the 233 unit tests, then the check suites,
+then every audit script — one run, and it reports every failure rather
+than stopping at the first. It exists because the alternative was a
+long ritual in a particular order, and the thing about a long ritual is
+that somebody eventually runs all but one of the steps, and it is never
+the same one.
+
+**A machine runs it now.** `.github/workflows/verify.yml` runs the whole
+gate on every push and weekly, with Postgres as a service container and
+a second job that installs Chromium and drives the browser suites
+against a real server. Until the board audit nothing ran any of this
+automatically, and the entire quality argument rested on a person
+remembering — which is exactly the condition under which two suites were
+found to have been passing while measuring nothing at all.
 
 The unit tests run **before** the check suites deliberately: if the
 window arithmetic or the money formatter is wrong there is no point
 spending two minutes seeding Postgres to find out.
 
-**Seven of the eleven need Postgres, and `verify` fails without it
-rather than skipping.** That is deliberate and it is the same principle
+**Twelve of them need Postgres, and `verify` fails without it rather
+than skipping.** That is deliberate and it is the same principle
 as everything else here: one of those seven is the tenant-isolation
 check, and a green result that silently did not test tenancy is worse
 than no command, because somebody deploys on the strength of it. **A
 check that reads nothing must not be able to look like a pass.**
 
 For the laptop case there is `VERIFY_ALLOW_NO_DB=1 npm run verify`,
-which runs the four that need nothing and prints — in the summary, not
-just at the top — exactly which seven did not run.
+which runs the ones that need nothing and prints — in the summary, not
+just at the top — exactly which did not run.
 
-### The eleven things you can re-run
+### The twenty-four things you can re-run
 
 ```bash
 npm run check:tenancy       # two brokerages, one database, no leakage
@@ -199,9 +207,24 @@ npm run check:deals         # deal risk, and the reason it gives
 npm run check:autonomy      # the ceiling holds at every mode
 npm run check:buyers        # who wants this property, and who may be told
 npm run check:search        # one sentence → people and properties
+npm run check:qualification # the assistant has a script, and follows it
+npm run check:quiet         # quiet hours actually hold anything back
+npm run check:migration     # an import can be started, not just inspected
+npm run check:vault         # a credential can be written and read back
+npm run check:visibility    # what a manager may see, and when
+npm run check:bands         # where Hot begins, in one place only
 npm run check:sigv4         # request signing vs AWS's published vector
 npm run check:storage       # upload, read back byte-for-byte, delete
 npm run check:load          # 5,000 leads, and where it gets slow
+
+# Added by the board audit, and each exists because something was wrong
+npm run check:limits        # every rate-limit rule is invoked, every call has a rule
+npm run check:preflight     # alerting wired; pooler, secrets and plan present
+npm run check:billing       # signup → invoice → signed webhook, over real HTTP
+npm run check:whatsapp-inbound  # an inbound message becomes a lead
+npm run check:routing       # who a new enquiry goes to
+npm run check:availability  # and whether they are actually available
+npm run check:blocking      # nothing holds a request open that should not
 ```
 
 These are not unit tests and are not trying to be. They need a real
@@ -250,10 +273,16 @@ never lands on a whole number, so the product's own price — round-tripped
 through `usdToFils(70)` — came back as 70.00136… and printed "$70.00" on
 a page whose headline says $70.
 
-### The four browser checks
+### The browser checks
 
-`verify` cannot run these — they need a browser and a running server, so
-they are a separate step rather than a silent skip inside the gate.
+Eighteen of them. They need a browser and a running server, so most are
+a separate step rather than a silent skip inside the gate — `verify`
+runs `browser:type` and `browser:screens` and names the rest.
+
+**Until the board audit they could only run on one machine.** Every one
+imported Playwright from `/opt/node22/lib/node_modules/playwright/index.js`,
+an absolute path, and Playwright was not a declared dependency. That is
+much of why they were never in CI. They are ordinary imports now.
 
 ```bash
 npm run dev &                 # they drive the real thing, not a mock
@@ -318,11 +347,26 @@ your name on them:
    one-time link to a work email, so **email delivery is the only way
    into the product**. An unverified sender puts every sign-in link in a
    junk folder and the failure looks like the application being broken.
-3. **Vercel Pro, about $20/month.** 24 cron jobs and `maxDuration = 300`
+3. **Vercel Pro, about $20/month.** 25 cron jobs and `maxDuration = 300`
    both require it; Hobby allows 2 crons once a day at 60 seconds.
 4. Anthropic, WhatsApp Business, Meta and Stripe credentials, as and when
    each feature is wanted. The application boots without them and says in
    the log exactly what stops working — see `src/instrumentation.ts`.
+5. **Somewhere for alerts to arrive** (`ALERT_WEBHOOK_URL`) and **a
+   dead-man's-switch monitor** (`HEARTBEAT_URL`). Added by the board
+   audit and not optional: every health check in this product runs
+   inside the application, so if the deployment is down the code that
+   would notice is down too. Healthchecks.io or Better Stack, free tier,
+   five minutes.
+6. **Point-in-time recovery on the database.** The retention window must
+   exceed **five years for KYC files** — UAE AML law requires it, and it
+   is why erasure defers when one exists. Most providers default to 7–35
+   days, which is not enough for the documents that matter.
+
+`PREFLIGHT_ENV=1 npm run check:preflight` refuses to pass until these
+are real, and names the one that is missing. It also refuses a
+`DATABASE_URL` that is not pooled, a `SECRETS_KEY` that is not 32 bytes,
+and any secret still carrying a development placeholder.
 
 ### Five procedures have no screen, all deliberately
 
@@ -353,8 +397,8 @@ Ask — an agent can see what they asked for earlier and what came back.
   across money, the 24-hour window, Dubai sending hours, the search
   parser, lead scoring, deal risk and the assistant's guardrails — the
   pure logic where being wrong is expensive and silent. Everything
-  stateful is still covered only by the eleven check suites and the four
-  browser checks, which is not the same thing as a test suite. What is
+  stateful is still covered only by the twenty-four check suites and the
+  eighteen browser checks, which is not the same thing as a test suite. What is
   left untested in `assistant/` is everything that needs a model:
   `run.ts`, `prompt.ts` and `extract.ts` are exercised only through
   `check:autonomy` and by replaying real transcripts.
@@ -397,6 +441,42 @@ read a key that was not set and returned true every time.
 The three the previous version of this document listed as fixed were
 fixed. These are the ones found since, kept because the *pattern* is what
 generalises.
+
+**The front door had no lock.** `ratelimit.ts` carried a rule called
+`auth.magicLink` — five attempts in fifteen minutes — from the day it
+was written, and **nothing ever invoked it**. Five other actions called
+`limitAll`; the one guarding sign-in did not. So the endpoint accepted
+unlimited requests and sent a real email through Resend for every one,
+from the verified sending domain: anyone could fill a competitor's inbox
+with our sign-in links, at our cost, until the domain was blocklisted —
+at which point invoices and vendor reports stop arriving too. Six POSTs,
+six successes, verified against a running server.
+
+**And the obvious fix was an outage.** Keying one tight rule on both the
+address and the caller IP locked a brokerage out of its own product: an
+office shares one NAT address, so five sign-ins in fifteen minutes
+spends the window for everybody. Two budgets now — tight on the address,
+six times looser on the caller. `check:limits` asserts every rule is
+invoked and every invocation has a rule, because `limit()` returns
+*allowed* for an unknown action, so a single typo would read as a wired
+limit and enforce nothing.
+
+**Nobody was ever paged.** The alerting system was complete —
+classifying every incident PAGE / TICKET / LOG, attaching runbooks,
+deduplicating, closing alerts when their condition cleared — and its
+last step was `log.warn`, under a comment reading "PagerDuty, Opsgenie
+or a Slack channel goes here". A stopped cron raised a PAGE into a log
+file nothing was shipping. Alerts leave the process now, and a
+dead-man's-switch heartbeat closes the loop the audit named: *the
+alerting cannot report its own absence*.
+
+**Two checks were decoration.** `browser:roles` reported PASS with the
+dev server switched off — navigation errors swallowed, a blank-page
+threshold shorter than Chrome's error page, and no permission asserted
+anywhere. The typography suite had been measuring *empty pages*, waiting
+on a heading that paints before data arrives. Both repaired, and both
+proved red before being trusted green. **A passing check is not evidence
+until it has been shown capable of failing.**
 
 **The assistant refused to discuss Arabian Ranches.** `PROTECTED_TOPICS`
 was matched with `includes()`, and substrings of those words are
@@ -747,6 +827,22 @@ differently:
   been. Dead configuration invites somebody to provision services the
   product does not use, and hides the handful that matter.
 
+**The board audit found three of the first kind**, read in production
+code and documented nowhere: `S3_FORCE_PATH_STYLE` (needed by MinIO and
+Backblaze, not by AWS or R2), `TRANSCRIBE_BASE_URL` and
+`TRANSCRIBE_MODEL`. All three are in `.env.example` now, with the
+alerting pair added beside them:
+
+    ALERT_WEBHOOK_URL   where PAGE and TICKET incidents are posted
+    HEARTBEAT_URL       pinged after each successful health sweep
+
+`WHATSAPP_APP_SECRET` deserves its own note. In development it may be
+any string — `check:whatsapp-inbound` signs its own fake delivery with
+it, so both ends agree whatever it is. Leaving it empty does not fail
+that check, it **skips** it, which is how the one end-to-end proof that
+an inbound message becomes a lead went unrun for the life of the
+project. Set it locally even with nothing connected.
+
 ```
 DATABASE_URL              DATABASE_URL_UNSCOPED   DATABASE_URL_DIRECT
 AUTH_SECRET               NEXT_PUBLIC_APP_URL
@@ -777,8 +873,8 @@ and refusing to boot over it would be worse than saying so.
 
 ## 12. Deployment
 
-**The application → Vercel.** `app/vercel.json` defines **24 cron jobs**
-matching the 24 in `src/server/jobs/index.ts`; a check enforces that they
+**The application → Vercel.** `app/vercel.json` defines **25 cron jobs**
+matching those in `src/server/jobs/index.ts`; a check enforces that they
 stay in step. `prisma generate` is in the build script — without it,
 Vercel's cached `node_modules` gives you a stale client and a guaranteed
 first-deploy failure.
@@ -792,6 +888,25 @@ Deploy the application first or the site goes live with two dead forms.
 `02-the-project/website/DEPLOY.md` is the checklist, and every command
 in it was run against the site served over real HTTP by `serve.mjs`
 rather than written from memory.
+
+**A machine runs the gate now.** `.github/workflows/verify.yml` runs
+`verify`, the audits and a production build on every push, plus the
+browser suites against a real server. Nothing ran automatically before
+the board audit.
+
+**`PREFLIGHT_ENV=1 npm run check:preflight` before every deploy.** It
+refuses a deployment whose database is not pooled, whose alerting is not
+configured, whose `SECRETS_KEY` is the wrong length, which still carries
+a development placeholder, or which has not declared a plan capable of
+25 crons and a 300-second function.
+
+**`app/OPERATIONS.md` is the two-in-the-morning document** — how a
+failure is noticed, and how the database is brought back. It includes
+`npm run db:restore-drill`, which restores a dump into a scratch
+database and asserts that **row-level security came back with it**. A
+restore can return every table and every row and drop the policies: a
+perfect-looking recovery that is a cross-tenant breach the first time
+anyone signs in.
 
 **Put a pooler in front of Postgres before real traffic.** Every
 serverless instance opens its own Prisma pool and 24 crons can fire in
@@ -958,14 +1073,25 @@ in the logo SVG.
 
 ## 15. The next five things
 
-1. **Provision the four items in section 5.** Nothing else can happen
-   first.
-2. **Deploy the application**, then the website. Verify `/api/health` and
-   that every cron fires.
-3. **Send one real WhatsApp message** to your own number, end to end.
-   That is the moment this product exists.
-4. **Ring brokerage owners.** The website is finished and the demo form
+The board audit closed the engineering half of the launch conditions.
+What is left is almost entirely accounts, not code.
+
+1. **Open three accounts and buy one plan.** Managed Postgres with
+   point-in-time recovery; somewhere for alerts to arrive; a
+   dead-man's-switch monitor; Vercel Pro. Then
+   `PREFLIGHT_ENV=1 npm run check:preflight` — it refuses to pass until
+   all four are real, and it names which one is missing.
+2. **Deploy the application**, then the website. Confirm `/api/health`
+   returns 200, that every cron has fired at least once, and that the
+   heartbeat monitor has received a ping. **A cron that was never
+   scheduled looks exactly like a cron with nothing to do.**
+3. **Run the restore drill against the real backup**
+   (`npm run db:restore-drill`). It asserts that row-level security
+   survived the restore, which is the difference between a recovery and
+   a cross-tenant breach.
+4. **Send one real WhatsApp message** to your own number, end to end,
+   and take one Stripe test payment. That is the moment this product
+   exists commercially.
+5. **Ring brokerage owners.** The website is finished and the demo form
    works. Every review of this project has ended in the same place:
    there is no customer, and no amount of building changes that.
-5. Then, and only then: `requests.mine`, vendor conversations, object
-   storage, and a connection pooler.
