@@ -111,6 +111,7 @@ export default function Reports() {
           compared by looking. The reply time stays a number, because
           "which is slowest" is not a question about size. */}
       <Funnel
+        caption="Enquiries by channel"
         rows={(byChannel?.channels ?? []).map((c) => ({
           label: c.label,
           value: c.count,

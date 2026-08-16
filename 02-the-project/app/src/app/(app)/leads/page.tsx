@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { QueryError } from "@/components/ui/query-state";
 import { cn } from "@/lib/cn";
 import { sentence } from "@/lib/sentence";
+import { Funnel } from "@/components/ui/chart";
 
 /**
  * Every lead, as a list.
@@ -21,6 +22,17 @@ export default function Leads() {
   const [filter, setFilter] = useState<"all"|"unassigned"|"cold"|"hot">("all");
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const { data, isLoading, isError, refetch, error } = api.leads.list.useQuery({ filter });
+  /**
+   * The same filter, deliberately.
+   *
+   * The strip describes the list underneath it, so switching to
+   * "Nobody's" has to re-shape both — a summary that keeps describing
+   * the whole book over a filtered list is worse than no summary,
+   * because it is confidently wrong. `leads.distribution` takes the
+   * same filter object and shares the `where` clause with `list`, so
+   * the two cannot drift.
+   */
+  const { data: shape } = api.leads.distribution.useQuery({ filter });
   // pipeline.bulkAssign, not leads.assign — the latter takes ONE leadId
   // and this screen selects many. Passing an array to it would have
   // failed at runtime with a validation error nobody could read.
@@ -45,8 +57,18 @@ export default function Leads() {
         <span className="t-label text-ink-3 block mb-3">
           Leads
         </span>
+        {/**
+          * `shape.total`, not `rows.length`.
+          *
+          * `leads.list` takes twenty-five rows at a time, so this — the
+          * largest number on the page, under the word "Leads" — was
+          * never the number of leads. Below twenty-six it was right by
+          * coincidence; above it, it would have read 25 and stayed
+          * there while the book grew. A count query is the fix, and the
+          * distribution below already runs one.
+          */}
         <h1 className="font-sans font-semibold text-page text-ink tabular">
-          {rows.length.toLocaleString()}
+          {(shape?.total ?? rows.length).toLocaleString()}
         </h1>
       </header>
 
@@ -70,6 +92,45 @@ export default function Leads() {
             </button>
           ))}
       </div>
+
+      {/**
+        * What the book looks like.
+        *
+        * Every row already carries its band, which answers "how good is
+        * this lead" one lead at a time. It never answered the question
+        * an owner actually opens this screen with — *is my book any
+        * good* — because that is not something you get by reading
+        * twenty-five chips and holding a tally.
+        *
+        * Ordered best to worst, so the eye lands on Golden first and
+        * the shape of a healthy book is a wedge leaning up.
+        *
+        * **Orange for Golden and Hot, grey for the rest**, which is the
+        * same two-tone split the chips on every row below already use.
+        * A five-step orange ramp was the obvious thing and does not
+        * exist: measured, adjacent steps land 0.037–0.067 apart in
+        * OKLCH lightness against a 0.06 floor, and any spacing wide
+        * enough to pass puts the palest band at 1.4:1 on white, which
+        * is not a colour, it is a rumour. Two validated tokens that
+        * mean "ring them" and "not today" say more anyway.
+        */}
+      {shape && shape.total > 0 && (
+        <div className="mb-6">
+          <Funnel
+            caption="Leads by score"
+            rows={shape.bands.map((b) => ({
+              label: b.label,
+              value: b.count,
+              // The share, because "3" means nothing without the book
+              // size and this is the number an owner repeats out loud.
+              note: b.count === 0 ? undefined
+                : `${Math.round((b.count / shape.total) * 100)}%`,
+              muted: b.band !== "GOLDEN" && b.band !== "HOT",
+            }))}
+            empty="No leads to score yet."
+          />
+        </div>
+      )}
 
       {/* The bar appears only when something is selected, so it never
           sits there as permanent clutter. */}

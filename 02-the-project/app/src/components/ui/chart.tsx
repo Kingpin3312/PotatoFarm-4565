@@ -69,23 +69,38 @@ function Empty({ children }: { children: React.ReactNode }) {
 
 /* ------------------------------------------------------------------ */
 
-export type FunnelRow = { label: string; value: number; note?: string };
+export type FunnelRow = { label: string; value: number; note?: string; muted?: boolean };
 
 /**
- * The pipeline, as a shape.
+ * Named categories in a meaningful order, compared by bar length.
  *
- * A column of counts tells you the numbers; the funnel tells you where
- * the drop is, which is the only question anybody opens it to ask. The
- * width of each band is its share of the widest band, so a stage that
- * loses two thirds of what entered it looks like it.
+ * A column of counts tells you the numbers; the bars tell you the
+ * shape, which is the only reason anybody opens either screen that
+ * uses this. The width of each band is its share of the widest, so a
+ * stage that loses two thirds of what entered it looks like it.
  *
- * Stages with nothing in them are drawn, not skipped — an empty "Won" is
- * information, and a funnel that quietly omits its empty steps is one
- * that always looks healthy.
+ * Categories with nothing in them are drawn, not skipped — an empty
+ * "Won" is information, and a chart that quietly omits its empty rows
+ * is one that always looks healthy.
+ *
+ * ## Two callers, and why it is one component
+ *
+ * The pipeline draws its stages; the leads screen draws its score
+ * bands. They are not the same *thing* — a lead moves through stages
+ * and sits in exactly one band — but they are the same picture, and
+ * two copies of forty lines to encode a distinction the pixels do not
+ * show is how the two come to disagree about a corner case. `caption`
+ * exists so the screen reader hears which one it is; everything else
+ * is shared.
+ *
+ * `muted` is the only encoding beyond length, and it is deliberately
+ * two-valued rather than a ramp — see the note above on why a ramp
+ * from this accent cannot be made to measure up.
  */
-export function Funnel({ rows, empty, className }: {
+export function Funnel({ rows, empty, caption, className }: {
   rows: FunnelRow[];
   empty: React.ReactNode;
+  caption: string;
   className?: string;
 }) {
   const total = rows.reduce((n, r) => n + r.value, 0);
@@ -95,7 +110,7 @@ export function Funnel({ rows, empty, className }: {
 
   return (
     <div className={cn("flex flex-col gap-1.5", className)} role="img"
-         aria-label={`Pipeline: ${rows.map((r) => `${r.label} ${r.value}`).join(", ")}`}>
+         aria-label={`${caption}: ${rows.map((r) => `${r.label} ${r.value}`).join(", ")}`}>
       {rows.map((r) => {
         const w = (r.value / widest) * 100;
         return (
@@ -123,8 +138,9 @@ export function Funnel({ rows, empty, className }: {
              */}
             <div className="flex-1 min-w-0 h-7 bg-sunk rounded-[3px] overflow-hidden">
               {r.value > 0 && (
-                <div className="h-full rounded-[3px] bg-accent"
-                     style={{ width: `${Math.max(2, w)}%` }} />
+                <div className="h-full rounded-[3px]"
+                     style={{ width: `${Math.max(2, w)}%`,
+                              background: r.muted ? "var(--rule-strong)" : "var(--accent)" }} />
               )}
             </div>
             <span className="text-note tabular text-ink font-medium w-8 text-right shrink-0">

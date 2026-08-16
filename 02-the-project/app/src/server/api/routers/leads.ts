@@ -3,9 +3,100 @@ import { TRPCError } from "@trpc/server";
 import { router, orgProcedure, requirePermission } from "../trpc";
 import { leadScope } from "@/server/auth/rbac";
 import { audit } from "@/server/lib/audit";
-import { band } from "@/server/lib/intelligence/score";
+import { Prisma } from "@prisma/client";
+import { BANDS, band } from "@/server/lib/intelligence/score";
 
 const phone = z.string().regex(/^\+[1-9]\d{7,14}$/, "Include the country code.");
+
+/**
+ * What the leads screen is looking at.
+ *
+ * Shared because two procedures answer questions about the same set —
+ * `list` returns a page of it and `distribution` counts all of it — and
+ * a second copy of these clauses is how a summary comes to describe a
+ * different population from the rows underneath it. The strip would
+ * have said "3 Hot" over a filtered list containing none.
+ */
+const filters = {
+  status: z
+    .enum(["NEW", "QUALIFYING", "QUALIFIED", "VIEWING_BOOKED",
+           "NEGOTIATING", "WON", "LOST", "UNRESPONSIVE"])
+    .optional(),
+  search: z.string().trim().max(80).optional(),
+  /**
+   * The four tabs the leads screen actually offers, which are not
+   * statuses and could not be expressed as one.
+   *
+   *   unassigned — nobody owns it. The list a manager opens first.
+   *   hot        — the buyer has replied and nobody has answered.
+   *   cold       — no inbound for a fortnight and still open.
+   *
+   * The screen has had these buttons all along and passed
+   * `{ filter }` to a procedure that only understood `status`.
+   */
+  filter: z.enum(["all", "unassigned", "hot", "cold"]).default("all"),
+};
+
+type Filters = z.infer<z.ZodObject<typeof filters>>;
+
+/**
+ * Typed as `Prisma.LeadWhereInput` rather than left to inference.
+ *
+ * The first version returned a bare object literal and needed `as never`
+ * on both `status` clauses to compile — the cast that silences a real
+ * question instead of answering it. Naming the return type makes the
+ * compiler check the clauses against the schema, so a mistyped status
+ * is an error here rather than a query that quietly matches nothing.
+ */
+function leadWhere(
+  input: Filters,
+  scope: ReturnType<typeof leadScope>,
+): Prisma.LeadWhereInput {
+  return {
+    deletedAt: null,
+    ...scope,
+    ...(input.search && {
+      OR: [
+        { name: { contains: input.search, mode: "insensitive" as const } },
+        { phone: { contains: input.search } },
+      ],
+    }),
+    ...(input.status ? { status: input.status } : {}),
+
+    // Nobody owns it.
+    ...(input.filter === "unassigned" ? { assignedToId: null } : {}),
+
+    /**
+     * Hot: they have replied and we have not answered.
+     *
+     * Unread is the signal, not recency — a lead who messaged an
+     * hour ago and got a reply is not hot, and one who messaged
+     * yesterday and is still waiting is.
+     */
+    ...(input.filter === "hot"
+      ? {
+          status: { notIn: ["WON", "LOST", "UNRESPONSIVE"] },
+          conversation: { is: { unreadCount: { gt: 0 } } },
+        }
+      : {}),
+
+    /**
+     * Cold: still open, nothing inbound for a fortnight.
+     *
+     * A lead with no conversation at all counts — an enquiry that
+     * never got a reply out of anybody is the coldest thing here.
+     */
+    ...(input.filter === "cold"
+      ? {
+          status: { notIn: ["WON", "LOST"] },
+          OR: [
+            { conversation: { is: { lastInboundAt: { lt: new Date(Date.now() - 14 * 86_400_000) } } } },
+            { conversation: { is: null } },
+          ],
+        }
+      : {}),
+  };
+}
 
 export const leadsRouter = router({
   /**
@@ -16,73 +107,14 @@ export const leadsRouter = router({
   list: orgProcedure
     .input(
       z.object({
-        status: z
-          .enum(["NEW", "QUALIFYING", "QUALIFIED", "VIEWING_BOOKED",
-                 "NEGOTIATING", "WON", "LOST", "UNRESPONSIVE"])
-          .optional(),
+        ...filters,
         cursor: z.string().nullish(),
         limit: z.number().min(1).max(100).default(25),
-        search: z.string().trim().max(80).optional(),
-        /**
-         * The four tabs the leads screen actually offers, which are not
-         * statuses and could not be expressed as one.
-         *
-         *   unassigned — nobody owns it. The list a manager opens first.
-         *   hot        — the buyer has replied and nobody has answered.
-         *   cold       — no inbound for a fortnight and still open.
-         *
-         * The screen has had these buttons all along and passed
-         * `{ filter }` to a procedure that only understood `status`.
-         */
-        filter: z.enum(["all", "unassigned", "hot", "cold"]).default("all"),
       })
     )
     .query(async ({ ctx, input }) => {
       const rows = await ctx.db.lead.findMany({
-        where: {
-          deletedAt: null,
-          ...leadScope(ctx.role, ctx.userId),
-          ...(input.search && {
-            OR: [
-              { name: { contains: input.search, mode: "insensitive" } },
-              { phone: { contains: input.search } },
-            ],
-          }),
-          ...(input.status ? { status: input.status } : {}),
-
-          // Nobody owns it.
-          ...(input.filter === "unassigned" ? { assignedToId: null } : {}),
-
-          /**
-           * Hot: they have replied and we have not answered.
-           *
-           * Unread is the signal, not recency — a lead who messaged an
-           * hour ago and got a reply is not hot, and one who messaged
-           * yesterday and is still waiting is.
-           */
-          ...(input.filter === "hot"
-            ? {
-                status: { notIn: ["WON", "LOST", "UNRESPONSIVE"] },
-                conversation: { is: { unreadCount: { gt: 0 } } },
-              }
-            : {}),
-
-          /**
-           * Cold: still open, nothing inbound for a fortnight.
-           *
-           * A lead with no conversation at all counts — an enquiry that
-           * never got a reply out of anybody is the coldest thing here.
-           */
-          ...(input.filter === "cold"
-            ? {
-                status: { notIn: ["WON", "LOST"] },
-                OR: [
-                  { conversation: { is: { lastInboundAt: { lt: new Date(Date.now() - 14 * 86_400_000) } } } },
-                  { conversation: { is: null } },
-                ],
-              }
-            : {}),
-        },
+        where: leadWhere(input, leadScope(ctx.role, ctx.userId)),
         // One extra row tells us whether there is a next page without a
         // second count query.
         take: input.limit + 1,
@@ -166,6 +198,78 @@ export const leadsRouter = router({
           };
         }),
         nextCursor,
+      };
+    }),
+
+  /**
+   * The shape of the book, not a page of it.
+   *
+   * The screen already puts a band on every row, which answers "how
+   * good is this lead". It could not answer "how good is my book" —
+   * the question an owner opens this screen with — because a count per
+   * band is not something you get by reading twenty-five rows and
+   * remembering.
+   *
+   * **This is a separate query on purpose, and the reason is a bug the
+   * screen already had.** `list` takes twenty-five rows, so the `<h1>`
+   * reading `rows.length` was never the number of leads — at a
+   * twenty-sixth it would have said 25 and stayed there, a wrong total
+   * in the largest type on the page. Banding whatever the page happened
+   * to contain would have inherited exactly that, and looked right
+   * while doing it.
+   *
+   * ## Why grouped on score rather than counted per band
+   *
+   * Five `count()` calls would put the cutoffs in this file, beside the
+   * copy of them in `score.ts`, and the two would part company the
+   * first time a threshold moved. Grouping on the score column returns
+   * at most 101 rows — one per possible value — and `band()` sorts them
+   * here, so `score.ts` stays the only place that knows where Hot
+   * begins.
+   */
+  distribution: orgProcedure
+    .input(z.object(filters))
+    .query(async ({ ctx, input }) => {
+      const groups = await ctx.db.lead.groupBy({
+        by: ["score"],
+        where: leadWhere(input, leadScope(ctx.role, ctx.userId)),
+        _count: { _all: true },
+      });
+
+      const counts = new Map<string, number>();
+      let total = 0;
+      /**
+       * Unscored is a band of its own, and it is not Cold.
+       *
+       * `band(null)` returns null deliberately — a lead created since
+       * last night's sweep has no score, and calling that Cold would
+       * file every new enquiry under "stop chasing" on the day it
+       * arrived. It is counted and named here for the same reason: a
+       * book that is mostly unscored is a fact about the sweep rather
+       * than about the leads, and folding it away makes the other four
+       * bands look like the whole picture.
+       */
+      for (const g of groups) {
+        const n = g._count._all;
+        total += n;
+        const b = band(g.score);
+        const key = b?.band ?? "UNSCORED";
+        counts.set(key, (counts.get(key) ?? 0) + n);
+      }
+
+      return {
+        total,
+        bands: [
+          ...BANDS.map((b) => ({
+            band: b.band as string, label: b.label, blurb: b.blurb,
+            count: counts.get(b.band) ?? 0,
+          })),
+          {
+            band: "UNSCORED", label: "Not scored yet",
+            blurb: "Arrived since the last nightly run. They get a score tonight.",
+            count: counts.get("UNSCORED") ?? 0,
+          },
+        ],
       };
     }),
 

@@ -25,8 +25,32 @@
  * how important it is, and UK English does not capitalise every word of
  * a noun phrase.
  */
+/**
+ * Names that are spelled a particular way, and this is not title case.
+ *
+ * The rule above stands: a data value gets a sentence, not capitals on
+ * every word. These are the exception because they are *names*, and the
+ * product already writes them this way everywhere else — "WhatsApp"
+ * appears in thirty user-facing strings, and the leads list was the one
+ * place rendering "Whatsapp ad", in a product whose whole pitch is
+ * being WhatsApp-first. Property Finder and Bayut are portals with
+ * names on their own letterheads.
+ *
+ * Matched on the whole value before the sentence rule runs, so adding
+ * one is a single line and cannot affect anything else. Keyed on the
+ * enum, not on the prose, because the prose is what we are deciding.
+ */
+const NAMES: Record<string, string> = {
+  WHATSAPP_AD: "WhatsApp ad",
+  PROPERTY_FINDER: "Property Finder",
+  META_LEAD_ADS: "Meta lead ads",
+};
+
 export function sentence(value: string | null | undefined): string {
   if (!value) return "";
+  const key = value.trim().toUpperCase().replace(/\s+/g, "_");
+  const name = NAMES[key];
+  if (name) return name;
   const words = value.replace(/_/g, " ").trim().toLowerCase();
   return words.charAt(0).toUpperCase() + words.slice(1);
 }

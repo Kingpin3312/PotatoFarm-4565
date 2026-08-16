@@ -252,6 +252,7 @@ export function Board() {
             )}
           </div>
           <Funnel
+            caption="Pipeline"
             rows={(data?.columns ?? []).map((c) => ({
               label: c.stage.name,
               value: c.total,
