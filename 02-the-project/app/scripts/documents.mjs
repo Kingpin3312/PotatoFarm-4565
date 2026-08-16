@@ -99,8 +99,29 @@ console.log("\n=== the screen the notification links to exists ===");
   // a 404, and had been since the job was written.
   const res = await p.goto("http://localhost:3000/documents?filter=expiring",{waitUntil:"networkidle"});
   ok("/documents?filter=expiring resolves", res.status() === 200, `status ${res.status()}`);
+  /**
+   * Wait for the register to render before reading it.
+   *
+   * This is the flake. It failed twice inside `npm run verify` and
+   * passed every time it was run alone, and the reason is here: every
+   * other navigation in this file settles after `goto` and this one
+   * read `innerText` immediately. `networkidle` means the network went
+   * quiet, not that React has painted — the register is a client
+   * component behind a tRPC query, so on an unloaded machine it is
+   * there within a frame and inside a gate run, with the dev server
+   * compiling and three checks' worth of traffic behind it, it is not.
+   *
+   * Waiting on the heading rather than on a timeout, so a genuinely
+   * broken page fails with "the register never rendered" instead of
+   * passing because the sleep happened to be long enough.
+   */
+  const rendered = await p.waitForSelector("h1", { timeout: 15_000 })
+    .then(() => true).catch(() => false);
+  ok("the register renders", rendered, rendered ? "" : "no h1 after 15s");
+  await p.waitForTimeout(300);
   const body = await p.evaluate(()=>document.body.innerText);
-  ok("it says what the register is for when empty", /expire|renew/i.test(body));
+  ok("it says what the register is for when empty", /expire|renew/i.test(body),
+     body.trim() ? "" : "the page body was empty — it had not rendered");
 }
 
 console.log("\n=== an expiring document cannot be filed without a date ===");
