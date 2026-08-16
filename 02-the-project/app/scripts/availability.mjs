@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
-import pw from "/opt/node22/lib/node_modules/playwright/index.js";
+import pw from "playwright";
 import { PrismaClient } from "@prisma/client";
 
 /**

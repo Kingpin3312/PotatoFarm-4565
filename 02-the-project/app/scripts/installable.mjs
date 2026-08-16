@@ -1,5 +1,5 @@
 import fs from "node:fs";
-import pw from "/opt/node22/lib/node_modules/playwright/index.js";
+import pw from "playwright";
 
 /**
  * Is it actually installable, and does it actually work with no signal?

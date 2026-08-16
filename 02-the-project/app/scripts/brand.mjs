@@ -1,5 +1,5 @@
 import fs from "node:fs";
-import pw from "/opt/node22/lib/node_modules/playwright/index.js";
+import pw from "playwright";
 
 /**
  * The logo, on every surface it appears on, at every width it has to

@@ -2,6 +2,7 @@ import { crossTenant } from "@/server/db/client";
 import { log } from "@/lib/log";
 import { allTenants, type Check } from "./tenant";
 import { jobsHealth } from "./jobs";
+import { deliver, heartbeat } from "./deliver";
 
 /**
  * Alerting.
@@ -129,7 +130,21 @@ export async function evaluate() {
     });
   }
 
-  return reconcileAlerts(found);
+  const result = await reconcileAlerts(found);
+
+  /**
+   * The sweep finished. Tell the outside world.
+   *
+   * Deliberately after the work rather than at the top: this is a
+   * dead-man's switch, and it has to mean "the health sweep completed",
+   * not "a function started". Everything above runs *inside* the
+   * application, so if the deployment is down or the crons have stopped,
+   * none of it reports anything — the external monitor noticing the
+   * silence is the only alarm that survives the outage it describes.
+   */
+  await heartbeat();
+
+  return result;
 }
 
 /**
@@ -192,11 +207,21 @@ async function reconcileAlerts(found: AlertDraft[]) {
 async function notify(a: { key: string; severity: Severity; title: string; detail: string; runbook?: string }) {
   if (a.severity === "LOG") return;
 
-  // PagerDuty, Opsgenie or a Slack channel goes here. Kept behind one
-  // function so the routing decision above stays readable.
-  log.warn(`ALERT ${a.severity}`, {}, {
-    key: a.key, title: a.title, detail: a.detail, runbook: a.runbook,
-  });
+  /**
+   * This used to be a `log.warn` with a comment saying "PagerDuty,
+   * Opsgenie or a Slack channel goes here".
+   *
+   * Everything above it worked — severity routing, runbooks,
+   * deduplication, closing an alert when its condition clears — and the
+   * last step wrote to stdout on a serverless function nothing was
+   * shipping logs from. A stopped cron raised a PAGE and **nobody was
+   * ever paged.**
+   *
+   * `deliver()` posts it somewhere a person will see, and is loud when
+   * it cannot. The log line survives as its fallback, not as its
+   * destination.
+   */
+  await deliver(a);
 }
 
 /** Stops the escalation without pretending the problem has gone. */

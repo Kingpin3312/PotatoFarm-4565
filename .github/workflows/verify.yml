@@ -1,0 +1,211 @@
+# The gate, run by a machine instead of by memory.
+#
+# Twenty-four check suites and fifteen audit scripts existed before this
+# file did, and every document said they "belong in CI". Nothing ran
+# them. The whole quality argument rested on a person remembering — and
+# the audit that produced this file found two suites that had been
+# passing while measuring nothing at all, which is exactly what happens
+# when checks are run by hand and their output is skimmed.
+#
+# Postgres is a service container rather than a mock. Seven suites need
+# a real one, and the most important of them proves that one brokerage
+# cannot read another's leads. `verify` refuses to pass without it
+# rather than skipping quietly, which is the behaviour this workflow
+# depends on.
+name: verify
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  # A weekly run catches the things that rot without anybody committing:
+  # a new dependency advisory, and a check whose fixtures drift with the
+  # calendar. One of those has already happened here.
+  schedule:
+    - cron: "0 6 * * 1"
+
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: 02-the-project/app
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: potatofarm
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      # Two roles, and the split is the tenant boundary rather than
+      # tidiness. `potato_app` is subject to row-level security;
+      # `postgres` owns the tables and bypasses it. If both URLs were the
+      # same role, RLS would enforce nothing and `check:tenancy` would
+      # pass against a database with no isolation at all.
+      DATABASE_URL: postgresql://potato_app:ci@localhost:5432/potatofarm?schema=public
+      DATABASE_URL_UNSCOPED: postgresql://postgres:ci@localhost:5432/potatofarm?schema=public
+      DATABASE_URL_DIRECT: postgresql://postgres:ci@localhost:5432/potatofarm?schema=public
+      # Throwaway values. Nothing here reaches a real service: no
+      # Anthropic key, no Resend key, no Stripe key, so no test run can
+      # message a customer or spend money.
+      AUTH_SECRET: ci-only-not-a-real-secret
+      SECRETS_KEY: Y2ktb25seS0zMi1ieXRlcy1vZi1iYXNlNjQtdmFsdWUh
+      CRON_SECRET: ci-only-cron-secret
+      # Any value works: the check signs its own fake delivery with it,
+      # so both ends agree. Leaving it unset does not fail
+      # `check:whatsapp-inbound`, it *skips* it — which is how the one
+      # end-to-end proof that an inbound message becomes a lead went
+      # unrun for the life of the project.
+      WHATSAPP_APP_SECRET: ci-only-webhook-signing-secret
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      SEAT_PRICE_FILS: "9900"
+      PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.pw-browsers
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: 02-the-project/app/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install audit dependencies
+        run: pip install -r ../../04-audit-scripts/requirements.txt
+
+      - name: Prepare the database
+        run: |
+          # The init migration creates `potato_app` NOLOGIN, because in
+          # production the role is provisioned with its own credentials
+          # out of band. CI has to give it a way in after the migration
+          # has created it.
+          #
+          # Safe here because the whole cluster is thrown away with the
+          # job. **Do not run this line against a shared machine**:
+          # ALTER ROLE is cluster-wide, not per-database, so setting the
+          # password for one scratch database changes it for every
+          # database in the cluster. Rehearsing this workflow locally
+          # broke the development environment exactly that way.
+          npx prisma migrate deploy
+          PGPASSWORD=ci psql -h localhost -U postgres -d potatofarm \
+            -c "ALTER ROLE potato_app LOGIN PASSWORD 'ci';"
+          npm run db:seed
+
+      # `verify` is the whole gate: types, 233 unit assertions, 24 check
+      # suites and the 15 audit scripts. It reports what it did NOT run
+      # rather than counting a skip as a pass, so a green tick here means
+      # the list was empty.
+      - name: Verify
+        run: npm run verify
+
+      # The production path, not a dev server. A build that only ever
+      # runs on a laptop is not evidence.
+      - name: Production build
+        run: npm run build
+
+  # Split out because it needs a browser and a running server, and
+  # because a browser failure should be legible as its own thing rather
+  # than buried in the gate's output.
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: verify
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: potatofarm
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      DATABASE_URL: postgresql://potato_app:ci@localhost:5432/potatofarm?schema=public
+      DATABASE_URL_UNSCOPED: postgresql://postgres:ci@localhost:5432/potatofarm?schema=public
+      DATABASE_URL_DIRECT: postgresql://postgres:ci@localhost:5432/potatofarm?schema=public
+      AUTH_SECRET: ci-only-not-a-real-secret
+      SECRETS_KEY: Y2ktb25seS0zMi1ieXRlcy1vZi1iYXNlNjQtdmFsdWUh
+      CRON_SECRET: ci-only-cron-secret
+      WHATSAPP_APP_SECRET: ci-only-webhook-signing-secret
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      SEAT_PRICE_FILS: "9900"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: 02-the-project/app/package-lock.json
+
+      - run: npm ci
+
+      # Until this workflow existed, all twenty of these scripts imported
+      # Playwright from `/opt/node22/lib/node_modules/playwright/index.js`
+      # — an absolute path that is correct on exactly one machine. They
+      # could not run anywhere else, which is a large part of why they
+      # were never in CI. It is a declared devDependency now.
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Prepare the database
+        run: |
+          npx prisma migrate deploy
+          PGPASSWORD=ci psql -h localhost -U postgres -d potatofarm \
+            -c "ALTER ROLE potato_app LOGIN PASSWORD 'ci';"
+          npm run db:seed
+
+      - name: Start the application
+        run: |
+          npm run build
+          npm run start &
+          # Poll rather than sleep. A fixed sleep is either wasted time
+          # or a flake, and on a cold start it is usually both.
+          for i in $(seq 1 60); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/sign-in || true)
+            [ "$code" = "200" ] && { echo "up after ${i}s"; exit 0; }
+            sleep 1
+          done
+          echo "the application never came up"; exit 1
+
+      # Every screen renders and settles; each role meets the screen it
+      # should and is told why when it may not; one family, one scale,
+      # three weights at eight widths; and the palette as a browser
+      # actually paints it.
+      - name: Screens
+        run: npm run browser:screens
+      - name: Permissions
+        run: npm run browser:roles
+      - name: Typography
+        run: npm run browser:type
+      - name: Palette
+        run: npm run browser:option1
+      - name: Accessibility
+        run: npm run browser:a11y

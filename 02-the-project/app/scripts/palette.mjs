@@ -1,5 +1,5 @@
 import fs from "node:fs";
-import pw from "/opt/node22/lib/node_modules/playwright/index.js";
+import pw from "playwright";
 
 /**
  * Find Chromium without hardcoding a build number.

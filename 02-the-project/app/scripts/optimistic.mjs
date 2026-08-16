@@ -1,5 +1,5 @@
 import fs from "node:fs";
-import pw from "/opt/node22/lib/node_modules/playwright/index.js";
+import pw from "playwright";
 
 /**
  * Does the optimistic update actually work, and does it fail safely?

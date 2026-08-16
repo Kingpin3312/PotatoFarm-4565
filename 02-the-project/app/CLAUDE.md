@@ -235,7 +235,7 @@ send path read it.
 ## Run the tests
 
     npm test          # 233 assertions, pure functions, no database
-    npm run verify    # tsc, the tests, 16 check suites, 14 audits
+    npm run verify    # tsc, the tests, 24 check suites, 15 audits
 
 **The gate is now green end to end, including the two things that used
 to skip.** `verify` reports what it did not run rather than counting a

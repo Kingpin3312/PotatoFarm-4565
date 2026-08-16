@@ -1,5 +1,5 @@
 import fs from "node:fs";
-import pw from "/opt/node22/lib/node_modules/playwright/index.js";
+import pw from "playwright";
 
 /**
  * Adding a property, through the browser, against a real database.
