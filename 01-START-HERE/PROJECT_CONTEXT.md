@@ -105,12 +105,22 @@ token, which the web app cannot do. Treat it as a design sketch.
 
 ## 4. What is built
 
-**72 database models · 60 enums · 26 API routers · 128 procedures ·
-37 screens · 24 scheduled jobs · 13 audit scripts · 11 check suites.**
+**73 database models · 60 enums · 27 API routers · 147 procedures ·
+43 screens · 25 scheduled jobs · 15 audit scripts · 21 check suites.**
 
-**123 of 128 procedures have a screen.** The five that do not are in
-section 5, and each is deliberate. `reachability.py` prints the five by
-name every run, so this number cannot quietly drift.
+**Eight procedures have no screen**, and each is deliberate:
+`migration.abandon`, `aml.updateFile`, `aml.checkRear`,
+`aml.visibilityPolicy`, `onboarding.previewImport`, `leads.assign`,
+`org.switch` and `listings.update`. `reachability.py` prints them by
+name every run.
+
+Stated as a count rather than a ratio on purpose — `reachability.py`
+counts procedures per router and `counts.py` counts them across the
+schema, and a ratio built from two different measurements is a number
+that looks precise and is not. Every figure in this paragraph is
+checked by `counts.py`, which is the reason they are now right: all
+three documents describing this codebase disagreed with it and with
+each other.
 
 Working areas: the WhatsApp assistant and its stop controls; the inbox;
 pipeline and leads; listings with Trakheesi permit tracking; viewings
@@ -137,7 +147,7 @@ chart; spoken requests ("Ask").
 - Sign-in works end to end from a cold browser.
 - The website's demo form and its four guide forms were submitted in
   Chromium, at 1280px and on an iPhone 13, against a real database.
-- All 13 audit scripts exit 0.
+- All 15 audit scripts exit 0.
 - **Object storage works against any S3-compatible provider** — AWS, R2,
   B2, Spaces, MinIO — with request signing done in-repo rather than by an
   SDK. Verified against the signature AWS publishes in its own
@@ -202,7 +212,7 @@ thing it checks and confirming it fails.
 ### The unit tests
 
 ```bash
-npm test                    # 214 assertions, no database, ~3 seconds
+npm test                    # 233 assertions, no database, ~3 seconds
 ```
 
 `package.json` declared `"test": "vitest run"` from the beginning with no
@@ -339,7 +349,7 @@ Ask — an agent can see what they asked for earlier and what came back.
 - **Voice recipes** `BOOK_VIEWING` and `COMPARABLES` return a follow-up
   question rather than completing in one step. Deliberate, but the second
   step is not wired to the booking screen.
-- **Unit tests cover seven modules, not the codebase.** 214 assertions
+- **Unit tests cover eight modules, not the codebase.** 233 assertions
   across money, the 24-hour window, Dubai sending hours, the search
   parser, lead scoring, deal risk and the assistant's guardrails — the
   pure logic where being wrong is expensive and silent. Everything

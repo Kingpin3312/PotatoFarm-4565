@@ -280,8 +280,8 @@ tenant isolation cannot be proved against a mock.
 
 ## Run the audits
 
-There are **fourteen**, in `04-audit-scripts/` at the repository root.
-All fourteen are green and all of them belong in CI.
+There are **fifteen**, in `04-audit-scripts/` at the repository root.
+All fifteen are green and all of them belong in CI.
 
     pip install -r ../../04-audit-scripts/requirements.txt
     ../../04-audit-scripts/run-all.sh
@@ -290,7 +290,7 @@ All fourteen are green and all of them belong in CI.
 same argument — six want the application, four want the website,
 `claims.py` wants both in that order, and `consistency.py` wants the
 repository root because its job is comparing surfaces to each other.
-Passing one path to all fourteen is what somebody does, and the ones
+Passing one path to all fifteen is what somebody does, and the ones
 pointed at the wrong tree then read nothing and exit 0. That is how
 `audit.py` came to check a single generated preview file instead of ten
 pages, and how `consistency.py` reported perfect consistency across four
@@ -305,6 +305,13 @@ Between them they have caught, every one invisible in code review:
 5. A permission check that broke the entire header.
 6. A circular dependency between jobs, billing and health.
 7. A dead "Log in" link on all fourteen website pages.
+8. Three documents describing this codebase, disagreeing with it and
+   with each other. `HANDOVER.md` said 34 models, 11 routers and 11
+   scheduled jobs against a real 73, 27 and 25 — under a heading that
+   reads "The shape of it", which is the first thing a new reader sees.
+   Nobody types a wrong number on purpose; they were right once and the
+   code moved. `counts.py` checks them now, the same argument
+   `ratios.py` makes about contrast ratios written in comments.
 
 **One warning about the tooling.** It has produced nine false positives
 across these reviews, and once I acted on one and added a `signal` option

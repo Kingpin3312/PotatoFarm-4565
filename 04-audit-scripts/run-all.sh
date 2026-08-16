@@ -53,6 +53,12 @@ CHECKS=(
   # what the comments claim — which is how three files came to describe a
   # palette two generations old in prose while shipping the right hexes.
   "ratios.py|$ROOT"
+  # The other kind of number a document writes about itself: how many
+  # models, routers, procedures and jobs there are. Three files claimed
+  # to describe this codebase and all three disagreed — with it and with
+  # each other — while HANDOVER.md, whose job is orienting whoever picks
+  # the project up, said 34 models against a real 73.
+  "counts.py|$ROOT"
 )
 
 pass=0; fail=0; failed=()

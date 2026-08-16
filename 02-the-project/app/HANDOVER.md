@@ -53,22 +53,31 @@ After the build, three passes that each found real faults:
 | Architecture | A cycle, and logging buried in a domain module | `ARCHITECTURE-REVIEW.md` |
 | Security | 131 undeclared RLS bypasses, all safe, none announced | `SECURITY-REVIEW.md` |
 
-All seven checks are now green. Read the three reports before changing
+All twenty-one check suites are now green. Read the three reports before changing
 anything structural — several of the fixes look like preferences and are
 not.
 
 ## The shape of it
 
-    prisma/schema.prisma      34 models
+    prisma/schema.prisma      73 models
     src/server/db/            tenant isolation — read rls.sql first
     src/server/auth/          passwordless, database sessions, permission matrix
-    src/server/api/           11 routers, mounted on root.ts
+    src/server/api/           27 routers, mounted on root.ts
     src/server/assistant/     the model, its guardrails, its off switch
     src/server/lib/           the domain: portals, feeds, scheduling,
                               billing, privacy, notify, health, support
-    src/server/jobs/          11 scheduled jobs, advisory-locked
-    mobile/                   push, offline policy, auth
-    preview-*.html            five screens at real size
+    src/server/jobs/          25 scheduled jobs, advisory-locked
+    src/app/                  43 screens, every one opened by browser:screens
+    mobile/                   push, offline policy, auth — does not build
+
+**These numbers said 34 models, 11 routers and 11 scheduled jobs until <!-- counts: ignore -->
+`counts.py` was written.** They were right when typed and the codebase
+roughly tripled underneath them, which made the first thing a new
+reader saw about "the shape of it" wrong by more than half. Nobody
+writes a wrong number on purpose; they just stop being true. The audit
+checks this paragraph now, along with the same claims in
+`PROJECT_CONTEXT.md` and `README.md`, which had drifted to three
+different answers.
 
 ## Read these five, in this order
 
