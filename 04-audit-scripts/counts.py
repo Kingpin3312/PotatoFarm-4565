@@ -135,6 +135,12 @@ DOCS = [
     os.path.join(ROOT, "01-START-HERE", "PROJECT_CONTEXT.md"),
     os.path.join(ROOT, "README.md"),
     os.path.join(APP, "HANDOVER.md"),
+    # A runbook is the worst place for a stale count, because it is read
+    # under time pressure by somebody who cannot check it. `DEPLOY.md`
+    # tells the reader the plan they must buy from the cron count, and
+    # that number has already moved once (24 → 25) while three documents
+    # went on saying the old one.
+    os.path.join(APP, "DEPLOY.md"),
 ]
 
 for doc in DOCS:
