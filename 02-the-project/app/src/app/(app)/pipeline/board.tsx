@@ -6,6 +6,7 @@ import { api } from "@/lib/trpc";
 import { QueryError } from "@/components/ui/query-state";
 import { aed, aedShort } from "@/lib/money";
 import { sentence } from "@/lib/sentence";
+import { Funnel } from "@/components/ui/chart";
 
 /**
  * The pipeline board.
@@ -190,6 +191,18 @@ export function Board() {
     );
   }
 
+  /**
+   * Open work, which is not the same as every card on the board.
+   *
+   * `Won` and `Lost` are terminal: counting them in "open" would make a
+   * brokerage that closed ten deals look busier than one that closed
+   * none, which is the opposite of true.
+   */
+  const terminal = /^(won|lost)$/i;
+  const openCols = (data?.columns ?? []).filter((c) => !terminal.test(c.stage.name));
+  const open = openCols.reduce((n, c) => n + c.total, 0);
+  const openValue = openCols.reduce((n, c) => n + (c.value ?? 0n), 0n);
+
   return (
     <div className="flex flex-col min-h-0 h-full">
       {conflict && (
@@ -213,6 +226,41 @@ export function Board() {
           </button>
         </div>
       )}
+
+      {/**
+        * The shape of the board, above the board.
+        *
+        * The columns already carry the counts, and a row of counts is a
+        * table: it tells you the numbers and not the story. The question
+        * an owner opens the pipeline to ask is "where does it stop
+        * moving", and the answer is a shape — the stage that takes nine
+        * in and passes one on.
+        *
+        * Same data as the columns beside it, no extra query. Hidden on a
+        * phone: at 375px the funnel would be six stacked bars above a
+        * board that is already the thing you came to use, and the shape
+        * is a glance a manager takes on a laptop.
+        */}
+      <div className="hidden md:block border-b border-rule px-5 py-4">
+        <div className="max-w-[620px]">
+          <div className="flex items-baseline gap-3 mb-3">
+            <h2 className="t-label text-ink-3">Where it stops moving</h2>
+            {open > 0 && (
+              <span className="text-note text-ink-3">
+                {open.toLocaleString()} open · {aedShort(openValue)}
+              </span>
+            )}
+          </div>
+          <Funnel
+            rows={(data?.columns ?? []).map((c) => ({
+              label: c.stage.name,
+              value: c.total,
+              note: c.value ? aedShort(c.value) : undefined,
+            }))}
+            empty="Nothing in the pipeline yet. Stages fill as enquiries arrive and get qualified."
+          />
+        </div>
+      </div>
 
       <div className="grid grid-flow-col auto-cols-[290px] max-[640px]:auto-cols-[86vw] overflow-x-auto min-h-0 snap-x">
         {data.columns.map((col) => (

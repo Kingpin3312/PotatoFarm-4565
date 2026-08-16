@@ -4,6 +4,7 @@ import { useState } from "react";
 import { api } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { QueryError } from "@/components/ui/query-state";
+import { Bars, Funnel } from "@/components/ui/chart";
 
 /**
  * The baseline, and the proof.
@@ -80,48 +81,43 @@ export default function Reports() {
         Enquiries do not arrive evenly and neither do replies. The gap after six in the
         evening is usually the whole story.
       </p>
-      <div className="flex items-end gap-[3px] h-40 border-b border-ink" role="img"
-           aria-label={`Median reply time by hour. Slowest ${fmt(worst)} at ${
-             hours.find((h) => h.medianMins === worst)?.hour ?? 0}:00`}>
-        {hours.map((h) => (
-          <div key={h.hour} className="flex-1 flex flex-col justify-end items-center h-full">
-            <span className="w-full rounded-t-sm"
-              style={{
-                height: `${Math.max(2, (h.medianMins / worst) * 100)}%`,
-                // Out-of-hours carries the accent. Inside office hours is
-                // neutral — the contrast between them is the finding.
-                background: h.hour < 9 || h.hour >= 18
-                  ? "var(--accent)" : "var(--panel)",
-                boxShadow: h.hour < 9 || h.hour >= 18
-                  ? "inset 0 0 0 1px var(--accent-edge)" : "inset 0 0 0 1px var(--rule)",
-              }} />
-          </div>
-        ))}
-      </div>
-      <div className="flex justify-between mt-2">
-        {[0, 6, 12, 18, 23].map((h) => (
-          <span key={h} className="font-mono text-label text-ink-3 tabular">
-            {String(h).padStart(2, "0")}:00
-          </span>
-        ))}
-      </div>
+      {/**
+        * The empty case is the point.
+        *
+        * This drew a 160px band and a row of hour labels whether or not
+        * there was anything to plot, and on a brokerage with no messages
+        * recorded that is what it drew: an axis under nothing. It read as
+        * broken software rather than as "no replies yet", which is the
+        * true and much less alarming statement.
+        *
+        * `Bars` will not render an axis it has no data for.
+        */}
+      <Bars
+        bars={hours.map((h) => ({
+          label: `${String(h.hour).padStart(2, "0")}:00`,
+          value: h.medianMins,
+          // Office hours are the quiet bars; the finding is the contrast
+          // with everything outside them.
+          muted: h.hour >= 9 && h.hour < 18,
+        }))}
+        format={fmt}
+        empty="No replies recorded yet, so there is no shape to show. This fills in once the first enquiries have been answered."
+      />
 
       <h2 className="font-sans font-semibold text-body-lg text-ink mt-12 mb-3">
         Where they come from
       </h2>
-      <div className="border-t border-ink">
-        {(byChannel?.channels ?? []).map((c) => (
-          <div key={c.label} className="flex items-baseline gap-3 py-3.5 border-b border-rule">
-            <span className="text-ui text-ink">{c.label}</span>
-            <span className="ml-auto text-ui text-ink font-medium tabular">
-              {c.count.toLocaleString()}
-            </span>
-            <span className="font-mono text-label text-ink-3 tabular w-16 text-right">
-              {fmt(c.medianMins)}
-            </span>
-          </div>
-        ))}
-      </div>
+      {/* Counts in a column are compared by reading; a length is
+          compared by looking. The reply time stays a number, because
+          "which is slowest" is not a question about size. */}
+      <Funnel
+        rows={(byChannel?.channels ?? []).map((c) => ({
+          label: c.label,
+          value: c.count,
+          note: fmt(c.medianMins),
+        }))}
+        empty="No enquiries have arrived through a connected channel yet."
+      />
     </div>
   );
 }
