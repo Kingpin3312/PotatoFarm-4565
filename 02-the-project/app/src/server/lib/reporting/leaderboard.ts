@@ -31,6 +31,14 @@ export type Row = {
 export type Board = {
   mode: "OPEN" | "RANKED" | "PRIVATE";
   headStartHours: number;
+  /**
+   * The window the figures were actually counted over.
+   *
+   * Returned because it is not always the window that was asked for —
+   * a manager's board stops `headStartHours` short — and a screen that
+   * shows a date it did not measure is lying politely.
+   */
+  countedTo: Date;
   rows: Row[];
 };
 
@@ -50,12 +58,37 @@ export async function leaderboard(args: {
   userId: string;
   from: Date;
   to: Date;
+  /**
+   * Whether this viewer sees the whole team. The head start applies to
+   * them and to nobody else.
+   */
+  seesEveryone: boolean;
 }): Promise<Board> {
   const db = forOrg(args.orgId);
 
   const policy = await db.teamVisibility.findUnique({ where: { orgId: args.orgId } });
   const mode = (policy?.mode ?? "RANKED") as Board["mode"];
   const headStartHours = policy?.agentHeadStartHours ?? 24;
+
+  /**
+   * The head start is applied **here**, before anything is counted.
+   *
+   * It was applied at the call site, to the `to` field of the response,
+   * *after* the board had already been built over the full window. So a
+   * manager received today's real figures with a timestamp twenty-four
+   * hours old — not a head start, a mislabelled one. The agent's
+   * protection was a date on a screen.
+   *
+   * `managerWindow` was correct and exported and the one line that
+   * mattered used it in the wrong place, which is worse than not having
+   * it: the file reads as though the feature works.
+   *
+   * Owned by the module that owns the policy, so a second caller cannot
+   * forget it. `reports.leaderboard` was the only one, and it did.
+   */
+  const countedTo = args.seesEveryone
+    ? managerWindow(args.to, headStartHours)
+    : args.to;
 
   const members = await db.membership.findMany({
     where: { role: "AGENT" },
@@ -69,7 +102,7 @@ export async function leaderboard(args: {
   for (const m of members) {
     const [viewings, won, replies] = await Promise.all([
       db.viewing.count({
-        where: { agentId: m.userId, scheduledAt: { gte: args.from, lte: args.to } },
+        where: { agentId: m.userId, scheduledAt: { gte: args.from, lte: countedTo } },
       }),
       /**
        * Deals that actually completed, not deals agreed.
@@ -82,14 +115,14 @@ export async function leaderboard(args: {
       db.deal.count({
         where: {
           stage: "COMPLETED",
-          completedAt: { gte: args.from, lte: args.to },
+          completedAt: { gte: args.from, lte: countedTo },
           listing: { viewings: { some: { agentId: m.userId } } },
         },
       }),
       db.message.findMany({
         where: {
           author: "AGENT", direction: "OUTBOUND",
-          sentAt: { gte: args.from, lte: args.to },
+          sentAt: { gte: args.from, lte: countedTo },
         },
         select: { sentAt: true, conversation: { select: { lastInboundAt: true } } },
         take: 500,
@@ -127,10 +160,10 @@ export async function leaderboard(args: {
    * know whether to worry, not enough to humiliate anybody in a Monday
    * meeting.
    */
-  if (mode === "PRIVATE") return { mode, headStartHours, rows: rows.filter((r) => r.isMe) };
+  if (mode === "PRIVATE") return { mode, headStartHours, countedTo, rows: rows.filter((r) => r.isMe) };
   if (mode === "RANKED") {
     return {
-      mode, headStartHours,
+      mode, headStartHours, countedTo,
       rows: rows.map((r) =>
         r.isMe
           ? r
@@ -138,7 +171,7 @@ export async function leaderboard(args: {
       ),
     };
   }
-  return { mode, headStartHours, rows };
+  return { mode, headStartHours, countedTo, rows };
 }
 
 /**

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { can } from "@/server/auth/rbac";
 import { randomBytes, createHash, timingSafeEqual } from "node:crypto";
 import { TRPCError } from "@trpc/server";
 import { limitAll, keysFor } from "@/server/lib/ratelimit";
@@ -430,6 +431,74 @@ export const orgRouter = router({
    * alarm with it: the lead waiting mid-conversation, the deal slipping
    * its Form F date, the broker card that lapses in sixty days.
    */
+  /**
+   * How much of the board each agent can see, and how long they get
+   * with their own numbers first.
+   *
+   * Nothing ever wrote a `TeamVisibility` row, so every brokerage in
+   * the product ran on `RANKED` with a 24-hour head start whether that
+   * suited them or not. Both defaults are defensible — that is why they
+   * are the defaults — and neither was ever anybody's decision.
+   *
+   * `leaderboard.ts` records where these came from, and it is worth
+   * repeating because it is the whole argument for the feature:
+   *
+   *   *"If I can see my own numbers before my manager does, it's a
+   *   tool. If he sees them first, it's surveillance."*
+   *
+   * Readable by anyone, because an agent is entitled to know what their
+   * colleagues can see about them. Writable by an admin, because it is
+   * a brokerage-wide policy rather than a personal setting.
+   */
+  teamVisibility: orgProcedure.query(async ({ ctx }) => {
+    const row = await ctx.db.teamVisibility.findUnique({ where: { orgId: ctx.orgId } });
+    return {
+      // Again the distinction that matters: chose the defaults, or
+      // never opened the screen.
+      set: Boolean(row),
+      mode: row?.mode ?? "RANKED",
+      agentHeadStartHours: row?.agentHeadStartHours ?? 24,
+      canChange: can(ctx.role, "org:update"),
+    };
+  }),
+
+  setTeamVisibility: requirePermission("org:update")
+    .input(z.object({
+      mode: z.enum(["OPEN", "RANKED", "PRIVATE"]),
+      /**
+       * Zero is allowed and means no head start — a brokerage that
+       * wants everyone on the same figures at the same moment. Capped
+       * at a week, because beyond that a manager is not looking at a
+       * leaderboard, they are looking at history.
+       */
+      agentHeadStartHours: z.number().int().min(0).max(168),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const row = await ctx.db.teamVisibility.upsert({
+        where: { orgId: ctx.orgId },
+        create: { orgId: ctx.orgId, ...input },
+        update: { ...input },
+      });
+
+      /**
+       * Audited, and this one earns it more than most.
+       *
+       * Opening a board that was private, or removing the head start,
+       * changes what a brokerage's staff can see about each other. An
+       * agent who notices the change is entitled to find out when it
+       * happened and who did it.
+       */
+      await audit(ctx.db, ctx.orgId, {
+        actorId: ctx.userId,
+        action: "org.teamVisibility",
+        entity: "TeamVisibility",
+        entityId: row.id,
+        after: { mode: input.mode, headStartHours: input.agentHeadStartHours },
+      });
+
+      return { ok: true as const };
+    }),
+
   notifications: orgProcedure.query(async ({ ctx }) => {
     const row = await ctx.db.notificationPrefs.findUnique({
       where: { orgId_userId: { orgId: ctx.orgId, userId: ctx.userId } },

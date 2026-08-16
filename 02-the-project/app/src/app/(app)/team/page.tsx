@@ -5,6 +5,7 @@ import { api } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { QueryError } from "@/components/ui/query-state";
 import { TeamCapacity } from "./capacity";
+import { TeamVisibility } from "./visibility";
 
 /**
  * The team.
@@ -126,6 +127,12 @@ export default function Team() {
           is one question, and how much work each of them takes is the
           one that decides where a lead goes. */}
       <TeamCapacity />
+
+      {/* And the third question a team screen has to answer: what any
+          of them can see about the others. It ran on a default nobody
+          picked, in every brokerage, because nothing could write the
+          row. */}
+      <TeamVisibility />
     </div>
   );
 }

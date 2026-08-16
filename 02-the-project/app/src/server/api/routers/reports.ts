@@ -1,4 +1,4 @@
-import { leaderboard, managerWindow } from "@/server/lib/reporting/leaderboard";
+import { leaderboard } from "@/server/lib/reporting/leaderboard";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { router, orgProcedure } from "../trpc";
@@ -60,12 +60,22 @@ export const reportsRouter = router({
       // The context carries the role; `can()` is how a permission is
       // checked. There is no `ctx.permissions`.
       const canSeeEveryone = can(ctx.role, "lead:read:all");
+      /**
+       * The head start is applied inside `leaderboard` now.
+       *
+       * This used to call `managerWindow` here, on the `to` field of the
+       * response, after the board had already been counted over the full
+       * window — so a manager got today's real figures under a timestamp
+       * a day old. The window is passed in and the module that owns the
+       * policy decides what to count.
+       */
       const board = await leaderboard({
-        orgId: ctx.orgId, userId: ctx.userId, from: input.from, to: input.to,
+        orgId: ctx.orgId, userId: ctx.userId,
+        from: input.from, to: input.to, seesEveryone: canSeeEveryone,
       });
       return {
         ...board,
-        to: canSeeEveryone ? managerWindow(input.to, board.headStartHours) : input.to,
+        to: board.countedTo,
         // Said plainly rather than hidden, because a manager who
         // discovers the delay by accident assumes it is a bug.
         note: canSeeEveryone
