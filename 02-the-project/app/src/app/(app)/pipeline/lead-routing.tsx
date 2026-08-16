@@ -50,7 +50,7 @@ export function LeadRouting({ leadId }: { leadId: string }) {
           <p className="text-sm text-ink">{dispute.data.ruleSays}</p>
           <ul className="mt-2 space-y-1">
             {dispute.data.timeline.map((line, i) => (
-              <li key={i} className="font-mono text-label text-ink-3">{line}</li>
+              <li key={i} className="text-label text-ink-3">{line}</li>
             ))}
           </ul>
           <p className="text-sm text-ink-2 mt-2 max-w-[46ch] leading-snug">{dispute.data.note}</p>

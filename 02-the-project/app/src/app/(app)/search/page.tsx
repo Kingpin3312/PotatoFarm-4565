@@ -173,7 +173,7 @@ export default function SearchPage() {
                         </p>
 
                         {h.subtitle && (
-                          <p className="mt-0.5 font-mono text-label text-ink-3">{h.subtitle}</p>
+                          <p className="mt-0.5 text-label text-ink-3">{h.subtitle}</p>
                         )}
 
                         {/* Why it came back. The agent is about to ring

@@ -63,7 +63,7 @@ export default function Access() {
                 </Button>
               </div>
               <p className="text-sm text-ink-2 mt-1.5 max-w-[46ch] leading-snug">{g.reason}</p>
-              <p className="font-mono text-label text-ink-3 mt-1">
+              <p className="text-label text-ink-3 mt-1">
                 granted by {g.grantedBy} · {new Date(g.grantedAt).toLocaleString("en-GB")}
               </p>
             </div>

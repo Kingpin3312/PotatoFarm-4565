@@ -69,7 +69,7 @@ export function TeamCapacity() {
               </button>
             </div>
 
-            <p className="font-mono text-label text-ink-3 mt-1">
+            <p className="text-label text-ink-3 mt-1">
               {a.languages.length ? a.languages.join(", ") : "any language"}
               {" · "}
               {a.communities.length ? a.communities.join(", ") : "any community"}

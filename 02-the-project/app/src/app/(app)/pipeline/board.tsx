@@ -295,7 +295,7 @@ export function Board() {
                         {l.source.replace(/_/g, " ").toLowerCase()}
                       </span>
                     )}
-                    <span className="ml-auto font-mono text-label text-ink-3">
+                    <span className="ml-auto text-label text-ink-3">
                       {l.assignedTo?.name ?? "Unassigned"}
                     </span>
                   </span>
