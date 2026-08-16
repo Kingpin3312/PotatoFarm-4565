@@ -12,6 +12,49 @@ and hands to a human at the right moment.
 
 Next.js App Router · tRPC · Prisma · Postgres · Expo for mobile.
 
+## If you have just arrived in a fresh container
+
+Two minutes, and skipping it has cost real work twice.
+
+**1. Confirm you are looking at the real code.** A remote container can
+come back at an older commit with no warning and no error. It happened
+four times in one session; twice it produced work built on stale
+measurements — once "fixing" a bug that was already fixed upstream, once
+nearly rewriting documentation from counts taken off old code.
+
+    git fetch origin claude/project-audit-assessment-yr66hc
+    git rev-parse --short HEAD
+    git rev-parse --short origin/claude/project-audit-assessment-yr66hc
+    # differ? git reset --hard origin/claude/project-audit-assessment-yr66hc
+
+**The tell is a number that disagrees with yesterday.** If a count you
+measured before has changed and nobody changed it, resync before
+believing anything else.
+
+**2. The database rolls back with it.** Empty screens or a 401 on every
+tRPC call usually means the migrations and the seed are gone, not that
+something is broken:
+
+    pg_ctlcluster 16 main start
+    npx prisma generate                 # a stale client throws on missing columns
+    npx prisma migrate deploy           # needs DATABASE_URL_DIRECT = the OWNING role
+    npm run db:seed                     # idempotent; adopts the existing brokerage
+    npm run dev
+
+`prisma migrate deploy` fails with "must be owner of table" if
+`DATABASE_URL_DIRECT` points at `potato_app`. It has to be
+`potato_owner`. `.env` is gitignored, so this is a local-only fix.
+
+**3. Two traps in this container specifically.**
+
+`pkill -f "next dev"` kills your own tool-call shell, because the string
+you typed is in that shell's command line. It exits 144 and takes the
+dev server's parent with it. Use `pkill -f "node .*/next"`, or capture
+the PID: `npm run dev & echo $! > /tmp/dev.pid`.
+
+`npm run verify` now exceeds a ten-minute tool timeout. Run it in parts,
+or let CI run it.
+
 ## Honest state
 
 **This has never been compiled or run.** It was written as a design and
