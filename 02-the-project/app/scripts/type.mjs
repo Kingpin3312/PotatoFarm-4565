@@ -33,13 +33,35 @@ const ok=(l,p,d="")=>{console.log(`  ${p?"✓":"✗"} ${l}${d?"  — "+d:""}`);
 const SCREENS = ["/today", "/inbox", "/pipeline", "/listings", "/leads", "/viewings",
                  "/offers", "/deals", "/blackbook", "/commission", "/compliance",
                  "/reports", "/team", "/me", "/settings", "/activity", "/search",
-                 "/ask", "/documents", "/sign-in", "/sign-in/check-your-email", "/signup"];
+                 "/ask", "/documents", "/sign-in", "/sign-in/check-your-email", "/signup",
+                 // The settings sub-pages, added with the raw-enum check.
+                 // Four of the thirteen leaks lived on these three, and
+                 // a check that does not open a screen cannot fail on it.
+                 "/settings/import", "/settings/billing", "/settings/commission"];
 
 const b=await pw.chromium.launch({executablePath:cp()});
 const ctx=await b.newContext({viewport:{width:1280,height:900}});
 await ctx.addCookies([{name:"authjs.session-token",value:"dev-session-token-ask-history",
   domain:"localhost",path:"/",httpOnly:true,sameSite:"Lax"}]);
 const p=await ctx.newPage();
+
+/**
+ * Count requests, from before the page's own scripts run.
+ *
+ * `addInitScript` is the load-bearing part. Wrapping `fetch` from an
+ * `evaluate` after navigation is too late — the queries this needs to
+ * wait for were issued by then, using the original `fetch`, so the
+ * counter reads zero and every page looks finished the moment it is
+ * asked. `__started` exists for the opposite end of the same problem:
+ * zero in flight is also true before the first request goes out.
+ */
+await p.addInitScript(() => {
+  const w = /** @type {any} */ (window);
+  w.__inflight = 0; w.__started = 0;
+  const f = w.fetch;
+  w.fetch = (...a) => { w.__inflight++; w.__started++;
+    return f(...a).finally(() => w.__inflight--); };
+});
 
 /**
  * Content that has escaped the page, ignoring anything that is meant to
@@ -88,7 +110,50 @@ async function open(url){
   await p.goto(`http://localhost:3000${url}`,{waitUntil:"domcontentloaded"});
   await p.addStyleTag({content:"nextjs-portal{display:none!important}"});
   await p.waitForSelector("h1, h2, main", {timeout: 8_000}).catch(() => {});
-  await p.waitForTimeout(700);
+  /**
+   * Wait for the data to arrive, not for a heading to appear.
+   *
+   * This was `waitForTimeout(700)` after the `h1`, and on `/leads` the
+   * `h1` is the lead *count* — it paints on the first render while the
+   * list itself is still in flight over tRPC. Every assertion in this
+   * file had therefore been measuring an empty page. It was found by
+   * doing what CLAUDE.md asks of a new test: `REFERRAL` was put back
+   * on the leads list on purpose to watch the raw-enum check go red,
+   * and it stayed green.
+   *
+   * **Sampling the rendered text was the first fix and was also
+   * wrong.** A page waiting on a query sits perfectly still, so "the
+   * text stopped changing" is true of a finished page and of an empty
+   * one alike — it went green again while `/pipeline` at 375px was
+   * still reporting 24 elements past the edge that a fresh load could
+   * not reproduce.
+   *
+   * So the signal is the requests themselves. `networkidle` cannot be
+   * used — `/inbox` polls, so it never reaches idle and the run hangs
+   * — but in-flight *count* drops to zero between polls, which is the
+   * same information without the hang.
+   */
+  await p.evaluate(async () => {
+    const w = /** @type {any} */ (window);
+    // Two consecutive quiet samples, because one is satisfied in the
+    // gap between a request finishing and its successor being issued —
+    // which is precisely the state a page waiting on a second query is
+    // in. `__started` guards the other end: a page whose first request
+    // has not been issued yet is also quiet, and looks finished.
+    const nap = (ms) => new Promise((r) => setTimeout(r, ms));
+    let calm = 0;
+    for (let i = 0; i < 30; i++) {
+      await nap(200);
+      // `/sign-in` and `/signup` fetch nothing at all, so waiting for a
+      // first request would spend six seconds on each of them proving
+      // that a static page is static.
+      if (i >= 8 && w.__started === 0) return;
+      calm = w.__inflight === 0 && w.__started > 0 ? calm + 1 : 0;
+      if (calm >= 2) return;
+    }
+  });
+  // One settle for layout after the data has landed.
+  await p.waitForTimeout(400);
 }
 
 console.log("\n=== one family, and it is the system one ===");
@@ -176,6 +241,7 @@ const small = [];
 const heavy = [];
 const shapes = new Set();
 const shouted = [];
+const rawEnums = [];
 for (const url of SCREENS) {
   // Progress, and it is not decoration: this loop sat silent for ten
   // minutes and there was no way to tell a slow screen from a hung one.
@@ -183,12 +249,43 @@ for (const url of SCREENS) {
   process.stdout.write(`  … ${url}`);
   await open(url);
   const r = await p.evaluate(() => {
-    const small = [], heavy = [], labels = [], shouted = [];
+    const small = [], heavy = [], labels = [], shouted = [], raw = [];
+    /**
+     * Genuine acronyms, which are the only all-caps words this product
+     * has any business rendering. Found by sweeping every screen and
+     * reading what came back, rather than guessed — an allowlist
+     * written from imagination is how a check comes to pass by
+     * accident.
+     */
+    const ACRONYMS = new Set(["AED", "BRN", "CSV", "NOC", "RERA", "KYC",
+      "AML", "UAE", "VAT", "DLD", "SPA", "PDF", "API", "URL", "ID", "OK"]);
     for (const el of document.querySelectorAll("body *")) {
       const c = getComputedStyle(el);
       if (c.textTransform === "uppercase") {
         const t = el.textContent.trim().slice(0, 20);
         if (t) shouted.push(`${el.tagName.toLowerCase()} "${t}"`);
+      }
+      /**
+       * A database enum that reached the screen.
+       *
+       * The rule is deliberately narrow: the element's **entire** text
+       * is one all-caps token. That is what a leaked enum looks like —
+       * `REFERRAL` in a chip, `BLOCKER` in a severity column — and it
+       * is the whole regression class, because `sentence()` is applied
+       * per value and a missed call always renders the bare value.
+       *
+       * It will not catch `{rating} risk` regressing to `HIGH risk`,
+       * and it is not meant to: the dev database has users named after
+       * their roles (`Test COMPLIANCE_OFFICER`), so a per-token rule
+       * fires on fixture data that is not a rendering fault at all.
+       * Narrow and always-true beats broad and switched off.
+       */
+      if (c.visibility !== "hidden" && c.display !== "none") {
+        const own = [...el.childNodes]
+          .filter((n) => n.nodeType === 3).map((n) => n.textContent).join("").trim();
+        if (/^[A-Z][A-Z0-9_]{2,}$/.test(own) && !ACRONYMS.has(own)) {
+          raw.push(`${el.tagName.toLowerCase()} "${own}"`);
+        }
       }
       if (el.classList.contains("t-label")) {
         labels.push(`${c.fontSize}/${c.fontWeight}/${c.letterSpacing}/${
@@ -206,12 +303,13 @@ for (const url of SCREENS) {
       if (w >= 700) heavy.push(`${w} "${txt}"`);
       else if (w >= 600 && px <= 17) heavy.push(`${w}@${px}px "${txt}"`);
     }
-    return { small, heavy, labels, shouted };
+    return { small, heavy, labels, shouted, raw };
   });
   for (const x of r.small) small.push(`${url}: ${x}`);
   for (const x of r.heavy) heavy.push(`${url}: ${x}`);
   for (const x of r.labels) shapes.add(x);
   for (const x of r.shouted) shouted.push(`${url}: ${x}`);
+  for (const x of r.raw) rawEnums.push(`${url}: ${x}`);
   console.log(` ${((Date.now() - t0) / 1000).toFixed(1)}s`);
 }
 
@@ -247,6 +345,22 @@ ok("every .t-label renders identically", shapes.size === 1,
  */
 ok("nothing is uppercased by CSS", shouted.length === 0,
    [...new Set(shouted)].slice(0, 4).join(" | ") || `checked ${SCREENS.length} screens`);
+/**
+ * And nothing is uppercase because it is still a database enum.
+ *
+ * Removing the transform turned a dozen `.toLowerCase()` workarounds
+ * into `property finder` in a chip, which `lib/sentence.ts` fixed. The
+ * other half of that bug had no workaround to break and so stayed
+ * invisible: `{l.source}` on the leads list rendered `REFERRAL` and
+ * `UNKNOWN` all along, on the screen an agent reads most, and every
+ * source-reading check passed because the source is correct — the enum
+ * simply arrives at the screen already shouting.
+ *
+ * Thirteen call sites across nine screens. Only a browser reading
+ * rendered text finds this one.
+ */
+ok("no database enum reaches the screen raw", rawEnums.length === 0,
+   [...new Set(rawEnums)].slice(0, 4).join(" | ") || `checked ${SCREENS.length} screens`);
 
 console.log("\n=== inputs do not make iOS zoom ===");
 {

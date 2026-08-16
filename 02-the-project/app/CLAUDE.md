@@ -293,8 +293,23 @@ across these reviews, and once I acted on one and added a `signal` option
 to a Prisma query — the tool caused the fault it exists to prevent.
 
 The pattern is exact: checks phrased *"confirm this"* have been right
-every time. Checks phrased *"this is broken"* have been wrong nine times.
-**Verify before you fix.**
+every time. Checks phrased *"this is broken"* have been wrong ten times.
+**Verify before you fix.** The tenth: a sweep found `COMPLIANCE_OFFICER`
+rendering on `/team` and it was a *user's name* in the dev database
+(`Test COMPLIANCE_OFFICER`), with a correct `Compliance officer` chip
+beside it.
+
+**A browser check must wait for the data, not for the heading.** Every
+assertion in `browser:type` waited 700ms after the `h1` — and on
+`/leads` the `h1` is the lead count, which paints while the list is
+still in flight. The whole suite had been measuring empty pages, and
+what found it was doing what this file asks of a new test: the bug it
+was written for was put back on purpose, and the check stayed green.
+Waiting for the rendered text to stop changing is *also* wrong — a page
+waiting on a query sits perfectly still. `open()` counts in-flight
+`fetch` calls, wrapped from `addInitScript` so the counter exists before
+the page's scripts run; wrapping it afterwards misses the requests being
+waited for. `networkidle` hangs, because `/inbox` polls.
 
 ## Conventions
 

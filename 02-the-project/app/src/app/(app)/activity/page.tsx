@@ -3,6 +3,7 @@
 import { api } from "@/lib/trpc";
 import { cn } from "@/lib/cn";
 import { QueryError } from "@/components/ui/query-state";
+import { sentence } from "@/lib/sentence";
 
 /**
  * What the assistant did, and the button that reverses it.
@@ -201,7 +202,7 @@ function headline(a: {
     const t = typeof after.title === "string" ? after.title : null;
     return t ? `Set you a reminder — ${t}` : "Set you a reminder";
   }
-  if (a.action) return a.action.toLowerCase().replace(/_/g, " ");
+  if (a.action) return sentence(a.action);
   return a.origin;
 }
 

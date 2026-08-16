@@ -5,6 +5,7 @@ import { api } from "@/lib/trpc";
 import { QueryError } from "@/components/ui/query-state";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
+import { sentence } from "@/lib/sentence";
 
 /**
  * Commission plans.
@@ -66,7 +67,7 @@ export default function CommissionPlans() {
             <div className="flex items-baseline gap-3 flex-wrap">
               <span className="text-control text-ink font-medium">{r.name}</span>
               <span className="t-label text-ink-3 border border-rule rounded-[2px] px-1.5">
-                {r.role.toLowerCase().replace(/_/g, " ")}
+                {sentence(r.role)}
               </span>
 
               {r.malformed ? (

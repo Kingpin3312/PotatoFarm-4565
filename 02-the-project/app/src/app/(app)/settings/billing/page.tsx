@@ -5,6 +5,7 @@ import { api } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { QueryError } from "@/components/ui/query-state";
 import { cn } from "@/lib/cn";
+import { sentence } from "@/lib/sentence";
 
 /**
  * Billing.
@@ -150,7 +151,7 @@ export default function Billing() {
                 <span className={cn(
                   "t-label",
                   i.status === "PAID" ? "text-success" : "text-ink-3"
-                )}>{i.status.toLowerCase()}</span>
+                )}>{sentence(i.status)}</span>
               </summary>
               {/* The arithmetic, not just the total. A bill you cannot
                   check is a bill you argue about. */}

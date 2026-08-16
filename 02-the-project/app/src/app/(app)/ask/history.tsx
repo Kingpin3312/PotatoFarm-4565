@@ -4,6 +4,7 @@ import { useState } from "react";
 import { api } from "@/lib/trpc";
 import { cn } from "@/lib/cn";
 import { QueryError } from "@/components/ui/query-state";
+import { sentence } from "@/lib/sentence";
 
 /**
  * What you asked for, and what came back.
@@ -90,7 +91,7 @@ export function History() {
               {expanded && (
                 <div className="pb-4 pl-[4.5rem] pr-1">
                   <p className="t-label text-ink-3">
-                    {RECIPE[r.recipe] ?? r.recipe.toLowerCase().replace(/_/g, " ")}
+                    {RECIPE[r.recipe] ?? sentence(r.recipe)}
                   </p>
 
                   {/* The caveats are the deliverable, not a footnote.
@@ -136,13 +137,24 @@ export function History() {
  * the red from the green at all.
  */
 function State({ state }: { state: string }) {
+  /**
+   * Written words rather than the enum, because `ESCALATED` is what the
+   * database calls it and "Passed on" is what happened.
+   *
+   * These were lower case while the labels were uppercased by CSS.
+   * With the transform gone they were the only chips in the product
+   * still starting small, beside a `Referral` and a `Paid` — so they
+   * take the capital the rest of the register now has. The fallback
+   * matches, or an unmapped state renders `CANCELLED` in a row of
+   * sentence-case neighbours.
+   */
   const label = ({
-    DONE: "done",
-    QUEUED: "waiting",
-    RUNNING: "running",
-    REFUSED: "no",
-    ESCALATED: "passed on",
-  } as Record<string, string>)[state] ?? state.toLowerCase();
+    DONE: "Done",
+    QUEUED: "Waiting",
+    RUNNING: "Running",
+    REFUSED: "No",
+    ESCALATED: "Passed on",
+  } as Record<string, string>)[state] ?? sentence(state);
 
   return (
     <span

@@ -155,7 +155,7 @@ export default function OfferThread({ params }: { params: Promise<{ listingId: s
                       className={cn("min-h-11 px-3 rounded-lg border text-ui",
                         by === k ? "bg-accent text-on-accent border-accent-edge font-medium"
                                  : "border-rule text-ink")}>
-                      {k.toLowerCase()} came back
+                      {sentence(k)} came back
                     </button>
                   ))}
                 </div>

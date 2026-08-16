@@ -5,6 +5,7 @@ import { api } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { QueryError } from "@/components/ui/query-state";
 import { cn } from "@/lib/cn";
+import { sentence } from "@/lib/sentence";
 
 /**
  * Every lead, as a list.
@@ -129,7 +130,7 @@ export default function Leads() {
                 </span>
               )}
               <span className="t-label text-ink-3">
-                {l.source}
+                {sentence(l.source)}
               </span>
               <span className="font-mono text-label text-ink-3 w-20 text-right tabular">
                 {l.assignedTo?.name ?? "unassigned"}

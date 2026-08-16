@@ -192,8 +192,44 @@ value is a small lie about how important it is.
 Six elements carried their own `uppercase` that the class sweep never
 touched, including the command palette's keyboard hint, which read
 `↑↓ MOVE · ⏎ OPEN · ESC CLOSE`. `browser:type` asserts that nothing in
-the product is uppercased by CSS, across 22 screens, so the next one
+the product is uppercased by CSS, across 25 screens, so the next one
 fails the build rather than the eye.
+
+## 7b. The other half of the uppercase bug
+
+The workaround screens were the visible half. Thirteen more call sites
+never had a workaround to break, so removing the transform changed
+nothing about them — they had been rendering the raw enum all along, in
+capitals, and looked exactly as intended:
+
+| Screen | Was | Now |
+|---|---|---|
+| `/leads` | `REFERRAL`, `UNKNOWN` | `Referral`, `Unknown` |
+| `/settings/import` | `MISSING_PHONE`, `BLOCKER`, `draft` | `Missing phone`, `Blocker`, `Draft` |
+| `/settings/billing` | `paid` | `Paid` |
+| `/settings/commission` | `senior agent` | `Senior agent` |
+| `/compliance` | `high risk` | `High risk` |
+| `/activity`, `/ask`, `/offers` | five more | sentence case |
+
+`/leads` is the one that matters: it is the screen an agent reads most,
+and `REFERRAL` had been shouting on every row since the list was built.
+
+**Left alone deliberately.** Mid-sentence lowercase is correct English —
+`Vendor countered` keeps its small *c*. A channel label and an import
+source are typed by a person, so `sentence()` would flatten their
+capitals. And `reason` fields are prose, not enums.
+
+**What found it, and what nearly didn't.** A browser sweep of every
+all-caps token on every screen, because an allowlist of "real acronyms"
+written from imagination is how a check comes to pass by accident. It
+returned AED, BRN, CSV, NOC and RERA — and `COMPLIANCE_OFFICER` on
+`/team`, which turned out to be a *user's name* in the dev database
+(`Test COMPLIANCE_OFFICER`), with a correct `Compliance officer` chip
+beside it. Not a bug. CLAUDE.md's rule earned its keep again: checks
+phrased *"this is broken"* have now been wrong ten times.
+
+`browser:type` asserts that no element's entire text is a bare enum.
+The rule is narrow on purpose, and §8 says what it therefore misses.
 
 ## 8. Checked, not asserted
 
@@ -202,6 +238,33 @@ fails the build rather than the eye.
 One family and no webfont · all 16 steps resolve to their intended pixel
 size *and* carry a line height (an unmapped step computes to the
 inherited 16px with `normal` spacing, which looks plausible and is not)
-· nothing under 12px across 22 screens · no 700 anywhere and no 600 at
-body size · every form control at 16px · eight widths · every `.t-label`
-rendering identically.
+· nothing under 12px across 25 screens · no 700 anywhere and no 600 at
+body size · no element whose entire text is a bare database enum · every
+form control at 16px · eight widths · every `.t-label` rendering
+identically.
+
+**The check was measuring empty pages, and adding a test is what found
+it.** Every assertion above waited 700ms after the `h1` appeared — but
+on `/leads` the `h1` is the lead *count*, which paints on the first
+render while the list is still in flight over tRPC. So `REFERRAL` was
+put back on the leads list on purpose, to watch the new assertion go
+red, and it stayed green.
+
+Sampling the rendered text until it stopped changing was the first fix
+and was also wrong: a page waiting on a query sits perfectly still, so
+"stopped changing" is true of a finished page and an empty one alike. It
+went green again while reporting 24 elements past the edge on
+`/pipeline` at 375px that a fresh load could not reproduce.
+
+`open()` now counts in-flight `fetch` calls, wrapped from
+`addInitScript` so the counter exists *before* the page's own scripts
+run — wrapping it afterwards misses the very requests being waited for
+and reads zero. `networkidle` cannot be used because `/inbox` polls and
+never reaches it.
+
+**What this assertion does not cover.** It fires only when an element's
+whole text is one all-caps token, so `{rating} risk` regressing to
+`HIGH risk` would pass. That is deliberate: a per-token rule fires on
+fixture data — the dev database has users named after their roles — and
+a check somebody switches off is worth less than a narrow one that is
+always true.

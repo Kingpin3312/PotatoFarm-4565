@@ -5,6 +5,7 @@ import { api } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 import type { RouterOutputs } from "@/lib/trpc";
+import { sentence } from "@/lib/sentence";
 
 /**
  * Bringing an existing CRM across.
@@ -123,11 +124,11 @@ export default function Import() {
                          g.severity === "BLOCKER" && "border-l-[3px] border-l-danger pl-4 -ml-4")}>
                     <div className="flex items-baseline gap-3">
                       <span className="text-control text-ink font-medium">
-                        {g.kind.toLowerCase().replace(/_/g, " ")}
+                        {sentence(g.kind)}
                       </span>
                       <span className="ml-auto text-ui text-ink tabular">{g.count}</span>
                       <span className="t-label text-ink-3 w-16 text-right">
-                        {g.severity.toLowerCase()}
+                        {sentence(g.severity)}
                       </span>
                     </div>
                     <p className="text-sm text-ink-2 mt-1.5 max-w-[46ch] leading-snug">
@@ -241,7 +242,7 @@ function Underway({ status }: { status: NonNullable<RouterOutputs["migration"]["
           {status.source}
         </p>
         <p className="text-body-lg text-ink font-semibold mt-1">
-          {stage?.title ?? status.state.toLowerCase()}
+          {stage?.title ?? sentence(status.state)}
         </p>
         {stage && stage.exitCriteria.length > 0 && (
           <>
@@ -272,9 +273,9 @@ function Underway({ status }: { status: NonNullable<RouterOutputs["migration"]["
             {undecided.map((i) => (
               <div key={i.id} data-issue={i.id} className="py-4 border-b border-rule">
                 <div className="flex items-baseline gap-3">
-                  <span className="text-control text-ink">{i.kind.replace(/_/g, " ")}</span>
+                  <span className="text-control text-ink">{sentence(i.kind)}</span>
                   <span className="ml-auto t-label text-ink-3">
-                    {i.severity.toLowerCase()}
+                    {sentence(i.severity)}
                   </span>
                 </div>
                 <p className="text-sm text-ink-2 mt-1 max-w-[48ch] leading-snug">{i.detail}</p>

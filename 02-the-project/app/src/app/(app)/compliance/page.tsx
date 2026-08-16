@@ -3,6 +3,7 @@
 import { api } from "@/lib/trpc";
 import { QueryError } from "@/components/ui/query-state";
 import { cn } from "@/lib/cn";
+import { sentence } from "@/lib/sentence";
 
 /**
  * The compliance officer's screen.
@@ -112,7 +113,7 @@ export default function Compliance() {
             <div key={d.id} className="flex items-baseline gap-3 py-3.5 border-b border-rule">
               <span className="text-ui text-ink">{d.name}</span>
               <span className="t-label text-ink-3">
-                {d.rating.toLowerCase()} risk
+                {sentence(d.rating)} risk
               </span>
               <span className="ml-auto font-mono text-label text-ink-3">{d.dueIn}</span>
             </div>
