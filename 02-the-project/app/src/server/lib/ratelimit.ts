@@ -32,7 +32,29 @@ const RULES: Record<string, { short: [number, number]; long: [number, number] }>
   // [max attempts, window seconds]
   "billing.signup":  { short: [3, 600],  long: [10, 86_400] },
   "org.acceptInvite": { short: [5, 300],  long: [30, 86_400] },
-  "auth.magicLink":  { short: [5, 900],  long: [20, 86_400] },
+
+  /**
+   * The sign-in email, and it is **two rules on purpose**.
+   *
+   * `auth.magicLink` is keyed on the address. Tight, because the thing
+   * being protected is one person's inbox: without it anyone could loop
+   * the endpoint against a competitor's address and fill their mail
+   * with our links, from our verified sending domain, at our cost.
+   *
+   * `auth.magicLinkIp` is keyed on the caller, and it is deliberately
+   * six times looser. **A single tight rule applied to both keys was
+   * tested and was an outage.** A brokerage sits behind one office NAT
+   * address; five sign-ins in fifteen minutes is one person retrying
+   * plus two colleagues arriving, and the sixth agent through the door
+   * got a 429 with no way round it. Verified against a running server —
+   * `agent2@` and `agent3@` were refused after an unrelated address had
+   * used the window.
+   *
+   * So: the address budget stops the abuse, and the caller budget only
+   * stops a spray across many addresses, which no office ever does.
+   */
+  "auth.magicLink":   { short: [5, 900],  long: [20, 86_400] },
+  "auth.magicLinkIp": { short: [30, 900], long: [200, 86_400] },
 
   /**
    * The two public marketing forms. Looser than the rest, because the
