@@ -93,8 +93,8 @@ export default function Billing() {
           <span className="text-ui text-ink capitalize">
             {data.card.brand ?? "Card"} ending {data.card.last4 ?? "••••"}
           </span>
-          <span className="ml-auto font-mono text-label text-ink-3 uppercase tracking-[0.1em]">
-            expires {data.card.expires ?? "—"}
+          <span className="ml-auto t-label text-ink-3">
+            Expires {data.card.expires ?? "—"}
           </span>
         </div>
       ) : (

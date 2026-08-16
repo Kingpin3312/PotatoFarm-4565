@@ -292,7 +292,7 @@ export function CommandPalette() {
             })}
           </ul>
 
-          <p className="px-4 py-2.5 border-t border-rule text-label font-mono uppercase tracking-[0.1em] text-ink-3">
+          <p className="px-4 py-2.5 border-t border-rule t-label text-ink-3">
             ↑↓ move · ⏎ open · esc close
           </p>
         </div>

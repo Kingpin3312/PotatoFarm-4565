@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { api } from "@/lib/trpc";
+import { sentence } from "@/lib/sentence";
 import { Button } from "@/components/ui/button";
 import { QueryError } from "@/components/ui/query-state";
 import { TeamCapacity } from "./capacity";
@@ -98,7 +99,7 @@ export default function Team() {
               <div key={m.id} className="flex items-baseline gap-3 py-3.5 border-b border-rule">
                 <span className="text-ui text-ink">{m.user.name ?? m.user.email}</span>
                 <span className="t-label text-ink-3">
-                  {m.role.toLowerCase()}
+                  {sentence(m.role)}
                 </span>
                 {/* Every Membership row is an accepted one — an
                     invitation that has not been taken up lives in

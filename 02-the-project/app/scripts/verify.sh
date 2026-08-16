@@ -3,7 +3,7 @@
 # One command before a deploy.
 #
 # The alternative was twenty-five commands in a particular order —
-# a type-check, eleven check suites, thirteen audit scripts — and the
+# a type-check, sixteen check suites, fourteen audit scripts — and the
 # thing about a twenty-five-command ritual is that somebody eventually
 # runs twenty-four of them, and it is never the same twenty-four.
 #
@@ -183,7 +183,7 @@ else
 fi
 
 printf '\n%sAudits%s\n' "$bold" "$off"
-step "13 audit scripts" bash "$ROOT/04-audit-scripts/run-all.sh"
+step "14 audit scripts" bash "$ROOT/04-audit-scripts/run-all.sh"
 
 printf '\n%s\n' "──────────────────────────────────────────────────────────"
 

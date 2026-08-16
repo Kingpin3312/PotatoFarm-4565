@@ -175,6 +175,7 @@ console.log("\n=== the scale resolves, every step ===");
 const small = [];
 const heavy = [];
 const shapes = new Set();
+const shouted = [];
 for (const url of SCREENS) {
   // Progress, and it is not decoration: this loop sat silent for ten
   // minutes and there was no way to tell a slow screen from a hung one.
@@ -182,9 +183,13 @@ for (const url of SCREENS) {
   process.stdout.write(`  … ${url}`);
   await open(url);
   const r = await p.evaluate(() => {
-    const small = [], heavy = [], labels = [];
+    const small = [], heavy = [], labels = [], shouted = [];
     for (const el of document.querySelectorAll("body *")) {
       const c = getComputedStyle(el);
+      if (c.textTransform === "uppercase") {
+        const t = el.textContent.trim().slice(0, 20);
+        if (t) shouted.push(`${el.tagName.toLowerCase()} "${t}"`);
+      }
       if (el.classList.contains("t-label")) {
         labels.push(`${c.fontSize}/${c.fontWeight}/${c.letterSpacing}/${
           c.fontFamily.split(",")[0].trim()}`);
@@ -201,11 +206,12 @@ for (const url of SCREENS) {
       if (w >= 700) heavy.push(`${w} "${txt}"`);
       else if (w >= 600 && px <= 17) heavy.push(`${w}@${px}px "${txt}"`);
     }
-    return { small, heavy, labels };
+    return { small, heavy, labels, shouted };
   });
   for (const x of r.small) small.push(`${url}: ${x}`);
   for (const x of r.heavy) heavy.push(`${url}: ${x}`);
   for (const x of r.labels) shapes.add(x);
+  for (const x of r.shouted) shouted.push(`${url}: ${x}`);
   console.log(` ${((Date.now() - t0) / 1000).toFixed(1)}s`);
 }
 
@@ -222,7 +228,7 @@ console.log("\n=== weight is a hierarchy, not a switch ===");
 ok("no 700+, and no 600 at body size", heavy.length === 0,
    [...new Set(heavy)].slice(0, 4).join(" | ") || `checked ${SCREENS.length} screens`);
 
-console.log("\n=== the label is one thing again ===");
+console.log("\n=== the label is one thing again, and it does not shout ===");
 /**
  * There were 174 of these across 69 files, in a monospace face, at
  * three sizes and three letter-spacings. The check is that they now
@@ -230,6 +236,17 @@ console.log("\n=== the label is one thing again ===");
  */
 ok("every .t-label renders identically", shapes.size === 1,
    [...shapes].join(" | ") || "none rendered — the class generated nothing");
+/**
+ * And nothing in the interface is uppercased by CSS.
+ *
+ * 174 labels were `text-transform: uppercase`, which the direction
+ * lists under Avoid and which was also propping up a workaround: a
+ * dozen screens lowercased a database enum so the transform could
+ * shout it back, and the moment the transform came off they rendered
+ * `property finder` in a chip. `lib/sentence.ts` owns that now.
+ */
+ok("nothing is uppercased by CSS", shouted.length === 0,
+   [...new Set(shouted)].slice(0, 4).join(" | ") || `checked ${SCREENS.length} screens`);
 
 console.log("\n=== inputs do not make iOS zoom ===");
 {

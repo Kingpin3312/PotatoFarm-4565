@@ -235,7 +235,7 @@ send path read it.
 ## Run the tests
 
     npm test          # 228 assertions, pure functions, no database
-    npm run verify    # tsc, the tests, 16 check suites, 13 audits
+    npm run verify    # tsc, the tests, 16 check suites, 14 audits
 
 `npm test` was declared from day one with no test files behind it, so it
 exited 1 and said "No test files found". There are seven files now, and
@@ -262,8 +262,8 @@ tenant isolation cannot be proved against a mock.
 
 ## Run the audits
 
-There are **thirteen**, in `04-audit-scripts/` at the repository root.
-All thirteen are green and all of them belong in CI.
+There are **fourteen**, in `04-audit-scripts/` at the repository root.
+All fourteen are green and all of them belong in CI.
 
     pip install -r ../../04-audit-scripts/requirements.txt
     ../../04-audit-scripts/run-all.sh
@@ -272,7 +272,7 @@ All thirteen are green and all of them belong in CI.
 same argument — six want the application, four want the website,
 `claims.py` wants both in that order, and `consistency.py` wants the
 repository root because its job is comparing surfaces to each other.
-Passing one path to all thirteen is what somebody does, and the ones
+Passing one path to all fourteen is what somebody does, and the ones
 pointed at the wrong tree then read nothing and exit 0. That is how
 `audit.py` came to check a single generated preview file instead of ten
 pages, and how `consistency.py` reported perfect consistency across four

@@ -221,7 +221,6 @@ body {
   line-height: var(--lh-tight);
   font-weight: var(--w-medium);
   letter-spacing: var(--track-label);
-  text-transform: uppercase;
   /* No colour. This class sits outside `@layer utilities`, so it beats
      every Tailwind utility regardless of source order — setting a
      colour here would silently override the `text-accent-deep` on the

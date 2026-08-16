@@ -4,6 +4,7 @@ import { useState } from "react";
 import { api } from "@/lib/trpc";
 import { cn } from "@/lib/cn";
 import { aedShort } from "@/lib/money";
+import { sentence } from "@/lib/sentence";
 import type { StepStage } from "@/server/lib/deals/risk";
 import { QueryError } from "@/components/ui/query-state";
 
@@ -89,8 +90,8 @@ export default function Deals() {
 
                 <span className="tabular shrink-0 text-right text-ui font-medium text-ink">
                   {aedShort(d.valueFils)}
-                  <span className="mt-0.5 block font-mono text-label font-normal uppercase tracking-[0.1em] text-ink-3">
-                    {STAGE[d.stage] ?? d.stage.toLowerCase().replace(/_/g, " ")}
+                  <span className="mt-0.5 block t-label text-ink-3">
+                    {STAGE[d.stage] ?? sentence(d.stage)}
                   </span>
                 </span>
               </button>
@@ -233,7 +234,7 @@ function Detail({ id }: { id: string }) {
                   {s.title}
                 </span>
                 <span className="t-label text-ink-3">
-                  {s.owner.toLowerCase()} · {s.dueAt.toLocaleDateString("en-GB",
+                  {sentence(s.owner)} · {s.dueAt.toLocaleDateString("en-GB",
                     { day: "numeric", month: "short" })}
                 </span>
                 {s.blockedReason && (

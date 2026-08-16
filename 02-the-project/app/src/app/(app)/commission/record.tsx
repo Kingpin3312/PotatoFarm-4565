@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { api } from "@/lib/trpc";
+import { sentence } from "@/lib/sentence";
 import { Button } from "@/components/ui/button";
 
 /**
@@ -63,7 +64,7 @@ export function RecordCommission({ dealId, valueFils }: {
               {/* There is no `label` on a split. Who it is, is the named
                   person if there is one, otherwise the role. */}
               <span className="text-ui text-ink">
-                {s.externalName ?? s.role.replace(/_/g, " ").toLowerCase()}
+                {s.externalName ?? sentence(s.role)}
               </span>
               <span className="ml-auto text-ui text-ink font-medium tabular">
                 {s.amount}

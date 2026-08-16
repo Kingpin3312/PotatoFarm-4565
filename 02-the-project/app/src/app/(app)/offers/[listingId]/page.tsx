@@ -5,6 +5,7 @@ import { api } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { QueryError } from "@/components/ui/query-state";
 import { cn } from "@/lib/cn";
+import { sentence } from "@/lib/sentence";
 
 /**
  * The negotiation.
@@ -126,8 +127,8 @@ export default function OfferThread({ params }: { params: Promise<{ listingId: s
               <ol className="mt-3 space-y-1.5">
                 {o.history.map((h, j) => (
                   <li key={j} className="text-sm text-ink-2">
-                    <span className="font-mono text-label text-ink-3 uppercase mr-2">
-                      {h.by.toLowerCase()}
+                    <span className="t-label text-ink-3 mr-2">
+                      {sentence(h.by)}
                     </span>
                     {h.amount ?? h.kind.toLowerCase()}
                     {h.note && <span className="text-ink-3"> — {h.note}</span>}

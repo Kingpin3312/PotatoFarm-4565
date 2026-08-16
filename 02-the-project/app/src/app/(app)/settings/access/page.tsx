@@ -53,7 +53,7 @@ export default function Access() {
             <div key={g.id} className="py-4 border-b border-rule">
               <div className="flex items-baseline gap-3 flex-wrap">
                 <span className="text-control text-ink font-medium">{g.staffEmail}</span>
-                <span className="font-mono text-label text-accent-deep uppercase tracking-[0.1em]">
+                <span className="t-label text-accent-deep">
                   {g.hoursLeft}h left
                 </span>
                 <Button variant="secondary" className="ml-auto"

@@ -2,13 +2,13 @@
 #
 # Run every audit against the thing it is actually meant to read.
 #
-# There are thirteen scripts and they do not take the same argument.
+# There are fourteen scripts and they do not take the same argument.
 # Some want the application, some want the website, `claims.py` wants
 # both in order, and `consistency.py` wants the repository root because
 # its whole job is comparing surfaces to each other.
 #
 # Nobody remembers that. What happened instead is that the suite was run
-# with one path passed to all thirteen, and the ones pointed at the
+# with one path passed to all fourteen, and the ones pointed at the
 # wrong tree found nothing and exited 0 — `audit.py` checked a single
 # generated preview file instead of ten pages, and `consistency.py`
 # compared four surfaces it could not open and reported perfect
@@ -48,6 +48,11 @@ CHECKS=(
   "claims.py|$SITE $APP"
   "design-audit.py|$SITE $APP $DESIGN"
   "consistency.py|$ROOT"
+  # Every contrast ratio written in a comment, against the colour beside
+  # it. `contrast.py` computes ratios from the stylesheet and never reads
+  # what the comments claim — which is how three files came to describe a
+  # palette two generations old in prose while shipping the right hexes.
+  "ratios.py|$ROOT"
 )
 
 pass=0; fail=0; failed=()

@@ -5,6 +5,7 @@ import { cn } from "@/lib/cn";
 import { api } from "@/lib/trpc";
 import { QueryError } from "@/components/ui/query-state";
 import { aed, aedShort } from "@/lib/money";
+import { sentence } from "@/lib/sentence";
 
 /**
  * The pipeline board.
@@ -292,7 +293,7 @@ export function Board() {
                   <span className="flex gap-2 mt-2 items-center flex-wrap">
                     {l.source && (
                       <span className="t-label text-ink-3 border border-rule rounded-[2px] px-1.5">
-                        {l.source.replace(/_/g, " ").toLowerCase()}
+                        {sentence(l.source)}
                       </span>
                     )}
                     <span className="ml-auto text-label text-ink-3">

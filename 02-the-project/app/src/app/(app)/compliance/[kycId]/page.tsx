@@ -2,6 +2,7 @@
 
 import { use, useState } from "react";
 import { api } from "@/lib/trpc";
+import { sentence } from "@/lib/sentence";
 import { Button } from "@/components/ui/button";
 import { QueryError } from "@/components/ui/query-state";
 
@@ -77,7 +78,7 @@ export default function Screening({ params }: { params: Promise<{ kycId: string 
             </span>
             <span className="text-ui text-ink">{s.lists[0] ?? "—"}</span>
             <span className="ml-auto t-label text-ink-3">
-              {String(s.result).toLowerCase().replace(/_/g, " ")}
+              {sentence(String(s.result))}
             </span>
           </div>
         ))}

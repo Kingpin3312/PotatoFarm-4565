@@ -156,7 +156,7 @@
    * type colour and only the `.io` stays orange. Both are here rather
    * than inline so the whole brand can be moved from one file.
    */
-  --brand-navy:     #12202E;   /* 14.88:1 on ground — "PotatoFarm" */
+  --brand-navy:     #12202E;   /* 16.51:1 on ground — "PotatoFarm" */
   --brand-navy-ink: #F5F3F0;   /* the same word, reversed out on dark */
   --brand-orange:   #E86A2C;   /* the ".io", and it is `--accent` by design */
 
@@ -169,7 +169,7 @@
      inside `.on-leather`. The footer is on leather and outside that
      class, so without these it gets literals — which is exactly what
      happened, three times. */
-  --leather-ink:   #F5F3F0;   /* 12.21:1 on leather-deep */
+  --leather-ink:   #F5F3F0;   /* 13.27:1 on leather-deep */
   --leather-ink-2: #B5B5B5;   /*  7.17:1 */
   --leather-ink-3: #9A9A96;   /*  5.21:1 on charcoal — #8A8A8A fell to 4.03 */
 
@@ -322,9 +322,10 @@
   --track-sub:     -0.01em;
   --track-ui:      -0.006em;
   --track-note:    -0.004em;
-  /* The one positive value in the system. Uppercase at 12px genuinely
-     needs air between the letters; everything else does not. */
-  --track-label:   0.06em;
+  /* A touch of air on a 12px label. It was 0.06em while these were
+     uppercase, which capitals genuinely need; sentence case does not,
+     and the wider value made a two-word label look spaced out. */
+  --track-label:   0.02em;
 
   --section: clamp(72px, 9vw, 128px);
   --measure: 34rem;
@@ -357,7 +358,20 @@
   --rule: #42403D;
   /* On charcoal the bright orange finally works as type — 5.18:1 — so
      there is nothing to darken here. */
-  --accent-type: #E86A2C;   /* 5.18:1 on leather-deep — passes AA */
+  /* The brand orange on the dark band. **4.57:1 on `--leather-deep`,
+     which passes AA — and 3.97:1 on `--leather`, the raised step, which
+     does not.**
+
+     It said "5.18:1 — passes AA", and the number was measured against a
+     charcoal two palettes ago. Both halves were wrong: the figure, and
+     the claim that it holds everywhere in the band.
+
+     It is not a fault, because since headings went to `--ink` the only
+     thing wearing this on a dark surface is the `.io` in the wordmark,
+     and WCAG 1.4.1 exempts a wordmark. But an inline comment saying
+     "passes AA" beside a value that does not is exactly how somebody
+     later puts a caption in it. */
+  --accent-type: #E86A2C;
   --on-accent: var(--leather-deep);
 }
 
