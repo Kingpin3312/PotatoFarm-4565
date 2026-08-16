@@ -52,7 +52,7 @@ function ErrorBody() {
 
   return (
     <main id="main" className="max-w-[46ch] mx-auto px-6 py-24">
-      <h1 className="font-sans font-semibold text-[32px] text-accent-type -tracking-[0.026em] leading-tight">
+      <h1 className="font-sans font-semibold text-[32px] text-ink -tracking-[0.026em] leading-tight">
         {m.title}
       </h1>
       <p className="text-[17px] text-ink-2 mt-4 leading-snug">{m.detail}</p>

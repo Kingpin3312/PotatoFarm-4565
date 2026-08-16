@@ -32,7 +32,7 @@ export default function Blackbook() {
         <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-3 block mb-3">
           Yours
         </span>
-        <h1 className="font-sans font-semibold text-[clamp(2rem,1.5rem+2vw,2.5rem)] text-accent-type -tracking-[0.026em] leading-none tabular">
+        <h1 className="font-sans font-semibold text-[clamp(2rem,1.5rem+2vw,2.5rem)] text-ink -tracking-[0.026em] leading-none tabular">
           {rows.length} {rows.length === 1 ? "person" : "people"}
         </h1>
         <p className="text-sm text-ink-2 mt-3 max-w-[48ch]">

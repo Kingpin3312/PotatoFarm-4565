@@ -96,39 +96,50 @@ def resolve(v):
 # ---------------------------------------------------------------------
 # Brand exceptions, recorded rather than removed.
 #
-# The owner has set the brand orange to #E86A2C and asked for it on
-# every heading, every tab, every link and the .io. On the cream ground
-# that measures 2.56:1, below the 4.5:1 AA floor for text and below the
-# 3:1 floor for large text. That is a decision taken with the number known, and the
-# number was put in front of them before it was made.
+# One entry left, and the list is the shorter for a real fix rather
+# than a wider allowance.
 #
-# Why this is an allow-list and not a deleted check:
+# ## What was here, and why it has gone
 #
-#   * The guard stays live for everything else. Captions, body links and
-#     every small orange label were moved to #A84015 precisely because
-#     this check caught them — they were collateral, not the request.
-#   * `WORST` pins the measured value. If somebody later lightens the
-#     orange, or puts it on a lighter ground, the ratio drops below the
+# The brand orange used to dress every heading. On the cream ground
+# that measured 2.56:1 — below the 4.5:1 AA floor for text and below
+# even the 3:1 floor for large text — and it was allowed as a recorded
+# decision taken with the number in front of us.
+#
+# Option 1 moved the ground to white and the accent to #E86A2C, which
+# measures 3.22:1. That clears AA Large, so the exception got narrower
+# and the comment here said "every heading these selectors cover is
+# display-sized".
+#
+# **That was not true, and this file was the reason nobody noticed.**
+# `h3` is 20px at weight 500. WCAG large text starts at 24px, or
+# 18.66px bold. An orange h3 was 3.22:1 against a 4.5:1 requirement and
+# this exception waved it through, because the entry covered the whole
+# `h1,h2,h3` selector and the justification only held for two thirds of
+# it. An exception written per-selector cannot see that one element in
+# the group is a different size from the others.
+#
+# Headings are now #171717 at 17.93:1, so `h1,h2,h3` and `.display` are
+# deleted rather than narrowed. The orange stays on fills, focus, the
+# active state and the `.io` — where 3.22:1 is measured against the 3:1
+# that non-text content actually requires.
+#
+# ## Why the last one is an allow-list entry and not a deleted check
+#
+#   * The guard stays live for everything else. Captions, body links
+#     and every small orange label are on #A0431B precisely because
+#     this check caught them.
+#   * The pinned value detects its own drift. If somebody lightens the
+#     orange or puts it on a lighter ground, the ratio drops below the
 #     recorded figure and this fails again. An exception that cannot
 #     detect its own drift is just a hole.
 #   * It prints on every run. Nobody inherits this quietly.
 #
-# To retire the exception: make orange type pass, then delete the entry.
-#
-# Option 1 improved this rather than worsening it. The ground moved from
-# the warm cream #F4F3F0 to pure white and the accent from #FF6B35 to
-# #E86A2C, and the pair measures 3.22:1 rather than 2.56:1 — still under
-# the 4.5:1 an AA body text needs, and now over the 3:1 that AA Large
-# allows for a heading at 24px or a bold at 18.66px. Every heading these
-# selectors cover is display-sized, so the exception is narrower than it
-# was: it now covers a case the standard actually permits.
+# To retire the last one: a wordmark is exempt from contrast rules under
+# WCAG 1.4.1, which is the actual grounds — it is recorded here so the
+# grounds are visible rather than assumed.
 BRAND_EXCEPTIONS = {
-    "h1,h2,h3":      ("#E86A2C", 3.22),
     ".brand .tld":   ("#E86A2C", 3.22),
-    # The hero. A class, so it overrides the element rule and had to be
-    # changed separately — it stayed ink while every other heading went
-    # orange, which is what a half-applied palette looks like.
-    ".display":      ("#E86A2C", 3.22),
 }
 ALLOWED = []
 

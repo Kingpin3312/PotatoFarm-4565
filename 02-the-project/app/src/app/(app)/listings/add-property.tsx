@@ -112,7 +112,7 @@ export function AddProperty({ onAdded }: { onAdded?: () => void }) {
         <form onSubmit={submit} className="p-6">
           <h2
             id="add-property-title"
-            className="font-sans font-semibold -tracking-[0.024em] text-[24px] text-accent-type mb-1.5"
+            className="font-sans font-semibold -tracking-[0.024em] text-[24px] text-ink mb-1.5"
           >
             Add a property
           </h2>

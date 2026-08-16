@@ -111,7 +111,7 @@ export function ConnectChannel() {
       >
         {done ? (
           <div className="p-6">
-            <h2 id="connect-title" className="font-sans font-semibold -tracking-[0.024em] text-[24px] text-accent-type mb-1.5">
+            <h2 id="connect-title" className="font-sans font-semibold -tracking-[0.024em] text-[24px] text-ink mb-1.5">
               {done.label} is connected
             </h2>
             <p className="text-sm text-ink-2 mb-5 max-w-[52ch]">
@@ -152,7 +152,7 @@ export function ConnectChannel() {
           </div>
         ) : (
           <form onSubmit={submit} className="p-6">
-            <h2 id="connect-title" className="font-sans font-semibold -tracking-[0.024em] text-[24px] text-accent-type mb-1.5">
+            <h2 id="connect-title" className="font-sans font-semibold -tracking-[0.024em] text-[24px] text-ink mb-1.5">
               Connect a channel
             </h2>
             <p className="text-sm text-ink-3 mb-5">

@@ -15,7 +15,7 @@
 export default function CheckYourEmail() {
   return (
     <main id="main" className="max-w-[46ch] mx-auto px-6 py-24">
-      <h1 className="font-sans font-semibold text-[32px] text-accent-type -tracking-[0.026em] leading-tight">
+      <h1 className="font-sans font-semibold text-[32px] text-ink -tracking-[0.026em] leading-tight">
         Check your email.
       </h1>
       <p className="text-[17px] text-ink-2 mt-4">
@@ -29,11 +29,11 @@ export default function CheckYourEmail() {
       <div className="mt-10 pt-6 border-t border-rule">
         <p className="text-[15px] text-ink-2 leading-snug">
           Wrong address, or it never arrives?{" "}
-          <a href="/sign-in" className="text-accent-type underline">
+          <a href="/sign-in" className="text-accent-deep underline">
             Try again
           </a>{" "}
           or email{" "}
-          <a href="mailto:hello@potatofarm.io" className="text-accent-type underline">
+          <a href="mailto:hello@potatofarm.io" className="text-accent-deep underline">
             hello@potatofarm.io
           </a>{" "}
           and a person will sort it.

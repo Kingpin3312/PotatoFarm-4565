@@ -15,7 +15,7 @@ export default function SettingsPage() {
         <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-3 block mb-3">
           Settings · Assistant
         </span>
-        <h1 className="font-sans text-[clamp(2rem,1.5rem+2vw,2.75rem)] text-accent-type -tracking-[0.01em] leading-none">
+        <h1 className="font-sans text-[clamp(2rem,1.5rem+2vw,2.75rem)] text-ink -tracking-[0.01em] leading-none">
           The assistant
         </h1>
         <p className="mt-3 max-w-[56ch] text-ink-2">

@@ -37,7 +37,7 @@ export function Register({ filter }: { filter: "all" | "expiring" }) {
         <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-3 block mb-3">
           Documents
         </span>
-        <h1 className="font-sans font-semibold text-[clamp(2rem,1.5rem+2vw,2.75rem)] text-accent-type -tracking-[0.026em] leading-none">
+        <h1 className="font-sans font-semibold text-[clamp(2rem,1.5rem+2vw,2.75rem)] text-ink -tracking-[0.026em] leading-none">
           {total === 0
             ? "Nothing recorded yet."
             : needingAttention === 0

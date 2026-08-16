@@ -68,10 +68,20 @@
   --accent-edge: #B94E1F;   /* 5.03:1 — Deep Potato Orange, hairline on a fill */
   --accent-deep: #A0431B;   /* 6.34:1 — orange type at any size */
 
-  /* Headings and links take the brand orange at display sizes, where
-     3.22:1 clears AA Large. Anything at body size or below takes
-     `--accent-deep`. This is the one token pair the palette is most
-     often got wrong in the other direction. */
+  /**
+   * The brand orange used as type. The `.io`, and nothing else.
+   *
+   * It dressed every heading until the 70/20/8/2 balance was measured
+   * rather than assumed. A 68px headline is not 2% of a page: on a
+   * phone the marketing hero came out majority orange and the one
+   * button that should have pulled the eye competed with the sentence
+   * above it. Headings are `--ink` now, at 17.93:1.
+   *
+   * The name is kept because the on-leather block below overrides it,
+   * and because the `.io` is genuinely orange type. Renaming it to
+   * `--brand-tld` would be a diff across three surfaces that changes
+   * no pixel.
+   */
   --accent-type: #E86A2C;
 
   /* Soft Orange. Selected rows, AI insight panels, highlight cards.
@@ -130,13 +140,16 @@
    * strength of a logo, which is a different job from the one asked
    * for and would have moved thirty measured contrast ratios at once.
    *
-   * **14.88:1 on the ground, measured, not estimated.** That is a shade
-   * below the 15.68:1 of the neutral ink it replaces in that one place
-   * — navy is a colour, and a colour is never quite as dark as black —
-   * and both are so far above the 4.5:1 threshold that the difference
-   * is arithmetic rather than legibility. Stated rather than rounded up,
-   * because a palette file that flatters itself is how a real failure
-   * gets waved through later.
+   * **16.51:1 on the ground, re-measured under Option 1.** It said
+   * 14.88:1 here, and that number was correct against the cream
+   * #F4F3F0 this palette replaced — carried forward rather than taken
+   * again when the ground went white. Exactly the drift the header of
+   * this file warns about, in the file that warns about it.
+   *
+   * It sits a shade below the 17.93:1 of the neutral ink it replaces in
+   * that one place — navy is a colour, and a colour is never quite as
+   * dark as black — and both are so far above the 4.5:1 threshold that
+   * the difference is arithmetic rather than legibility.
    *
    * `--brand-navy-ink` is the reversed pairing: on charcoal and on the
    * dark lockup the navy disappears, so the wordmark goes to the light

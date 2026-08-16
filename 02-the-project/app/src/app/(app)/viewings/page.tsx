@@ -49,7 +49,7 @@ export default function Viewings() {
             weekday: "long", day: "numeric", month: "long", timeZone: "Asia/Dubai",
           }).format(new Date())}
         </span>
-        <h1 className="font-sans font-semibold text-[clamp(2rem,1.5rem+2vw,2.75rem)] text-accent-type -tracking-[0.026em] leading-none">
+        <h1 className="font-sans font-semibold text-[clamp(2rem,1.5rem+2vw,2.75rem)] text-ink -tracking-[0.026em] leading-none">
           {list.length === 0 ? "Nothing today." : `${list.length} viewing${list.length === 1 ? "" : "s"}.`}
         </h1>
       </header>

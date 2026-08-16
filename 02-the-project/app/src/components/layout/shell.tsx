@@ -61,9 +61,14 @@ export function Shell({ children }: { children: React.ReactNode }) {
                 href={n.href}
                 aria-current={pathname.startsWith(n.href) ? "page" : undefined}
                 className={cn(
-                  "inline-flex min-h-11 items-center text-[15px] no-underline border-b whitespace-nowrap",
+                  // The underline carries the state, in the accent; the
+                  // label stays charcoal. A border is non-text, so
+                  // 3.22:1 is measured against the 3:1 that WCAG 1.4.11
+                  // actually asks of it — and a 15px orange label would
+                  // be measured against 4.5:1 and fail.
+                  "inline-flex min-h-11 items-center text-[15px] no-underline border-b-2 whitespace-nowrap",
                   pathname.startsWith(n.href)
-                    ? "text-ink border-ink"
+                    ? "text-ink border-accent font-medium"
                     : "text-ink-3 border-transparent hover:text-ink"
                 )}
               >
@@ -194,7 +199,13 @@ function MobileTabs({ pathname }: { pathname: string }) {
                 onClick={() => setMore(false)}
                 className={cn(
                   "flex min-h-12 items-center rounded-lg px-4 text-[16px] no-underline",
-                  pathname.startsWith(m.href) ? "bg-sunk font-semibold text-ink" : "text-ink-2"
+                  // Selected state is the soft orange the direction
+                  // reserves for exactly this. `bg-sunk` is the same
+                  // warm grey every inactive panel uses, so a selected
+                  // row was distinguishable from an unselected one only
+                  // by weight.
+                  pathname.startsWith(m.href)
+                    ? "bg-accent-soft font-semibold text-ink" : "text-ink-2"
                 )}
               >
                 {m.label}
@@ -216,8 +227,12 @@ function MobileTabs({ pathname }: { pathname: string }) {
               href={t.href}
               aria-current={on ? "page" : undefined}
               className={cn(
+                // Same split as the desktop underline. The 22px icon is
+                // non-text and takes the accent at 3.22:1 against a 3:1
+                // requirement; the 9px label underneath stays charcoal,
+                // where it would need 4.5:1 and get 3.22.
                 "flex h-14 flex-col items-center justify-center gap-1 no-underline",
-                on ? "text-ink" : "text-ink-3"
+                on ? "text-ink [&>svg]:text-accent" : "text-ink-3"
               )}
             >
               <svg viewBox="0 0 24 24" aria-hidden="true" className="h-[22px] w-[22px]"

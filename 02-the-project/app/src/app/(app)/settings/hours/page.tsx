@@ -79,7 +79,7 @@ export default function WorkingHoursPage() {
         <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-3 block mb-3">
           Working hours
         </span>
-        <h1 className="font-sans font-semibold text-[clamp(2rem,1.5rem+2vw,2.5rem)] text-accent-type -tracking-[0.026em] leading-none">
+        <h1 className="font-sans font-semibold text-[clamp(2rem,1.5rem+2vw,2.5rem)] text-ink -tracking-[0.026em] leading-none">
           {/* A day with no row is skipped by the scheduler exactly as if
               it were closed, so "unset" is the state worth a headline —
               it is the one nobody chose. */}

@@ -50,7 +50,7 @@ function SignInForm() {
 
   return (
     <main id="main" className="max-w-[46ch] mx-auto px-6 py-16">
-      <h1 className="font-sans font-semibold text-[32px] text-accent-type -tracking-[0.026em] leading-tight">
+      <h1 className="font-sans font-semibold text-[32px] text-ink -tracking-[0.026em] leading-tight">
         Sign in.
       </h1>
       <p className="text-[17px] text-ink-2 mt-3">
@@ -89,7 +89,7 @@ function SignInForm() {
         {state === "failed" && (
           <p role="alert" className="text-[15px] text-danger mt-4 leading-snug">
             We couldn&rsquo;t send that link. Email{" "}
-            <a href="mailto:hello@potatofarm.io" className="text-accent-type underline">
+            <a href="mailto:hello@potatofarm.io" className="text-accent-deep underline">
               hello@potatofarm.io
             </a>{" "}
             and we&rsquo;ll get you in by hand.

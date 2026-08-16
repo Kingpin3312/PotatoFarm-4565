@@ -197,13 +197,31 @@ body{background:var(--ground);color:var(--ink-2);font-family:var(--sans);
   font-feature-settings:"cv11","ss01"}
 section{background:var(--ground);color:var(--ink-2);padding:var(--section) 0}
 .wrap{max-width:1120px;margin:0 auto;padding:0 clamp(20px,4vw,32px)}
-h1,h2,h3{color:var(--accent-type);font-weight:600}
-/* The hero, and the one heading that most has to be the brand colour.
-   It is a class, so it beat the h1,h2,h3 element rule and stayed ink
-   while every other heading went orange — the cascade collision that
-   makes a palette change look half-finished. */
+/* Headings are charcoal. The orange is the accent, not the type.
+
+   They were orange, and it was a decision carried forward from the
+   cream palette rather than one taken again under this one. Two things
+   make it wrong here:
+
+   The direction sets the surface at roughly 70% white, 20% warm grey,
+   8% charcoal and 2% orange. A 68px hero headline is nowhere near 2%
+   of anything — at 390px it made the front page majority orange, and
+   the "Book a call" button, which is the only thing on the page that
+   should be pulling the eye, competed with the sentence above it
+   instead of standing out from it.
+
+   And `h3` is 20px at weight 500. WCAG large text starts at 24px, or
+   18.66px bold, so an orange h3 was 3.22:1 against a 4.5:1 requirement
+   — a genuine failure that `contrast.py` waved through because its
+   exception table treated the whole `h1,h2,h3` selector as display
+   sized. That comment claimed "every heading these selectors cover is
+   display-sized" and h3 never was.
+
+   Charcoal is 17.93:1 and the exception is retired rather than
+   narrowed. */
+h1,h2,h3{color:var(--ink);font-weight:600}
 .display{font-size:var(--display);line-height:1.04;letter-spacing:var(--track-display);
-  color:var(--accent-type);font-weight:600;max-width:15ch}
+  color:var(--ink);font-weight:600;max-width:15ch}
 h2{font-size:var(--h2);line-height:1.1;letter-spacing:var(--track-h2)}
 h3{font-size:var(--h3);line-height:1.25;letter-spacing:-.01em;font-weight:500}
 .lead{font-size:var(--body-lg);line-height:1.5;max-width:var(--measure);margin-top:var(--r)}

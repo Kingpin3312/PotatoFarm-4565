@@ -30,7 +30,7 @@ export default function Deals() {
   return (
     <div className="mx-auto max-w-[760px] px-6 pb-28">
       <header className="pt-10 pb-6">
-        <h1 className="font-sans text-[clamp(2rem,1.5rem+2vw,2.5rem)] font-semibold leading-none -tracking-[0.026em] text-accent-type">
+        <h1 className="font-sans text-[clamp(2rem,1.5rem+2vw,2.5rem)] font-semibold leading-none -tracking-[0.026em] text-ink">
           Deals
         </h1>
         {data && data.counts.total > 0 && (

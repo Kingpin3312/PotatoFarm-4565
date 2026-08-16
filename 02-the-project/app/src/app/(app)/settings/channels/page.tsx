@@ -59,7 +59,7 @@ export default function Channels() {
             nothing could create a channel — this screen reported
             everything was fine while inbound WhatsApp was being dropped
             as coming from an unknown number. Three states, not two. */}
-        <h1 className="font-sans font-semibold text-[clamp(2rem,1.5rem+2vw,2.5rem)] text-accent-type -tracking-[0.026em] leading-none">
+        <h1 className="font-sans font-semibold text-[clamp(2rem,1.5rem+2vw,2.5rem)] text-ink -tracking-[0.026em] leading-none">
           {all && all.length === 0
             ? "Nothing connected."
             : quiet.length > 0

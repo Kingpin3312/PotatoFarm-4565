@@ -38,7 +38,7 @@ export default function Screening({ params }: { params: Promise<{ kycId: string 
   if (file.isSuccess) {
     return (
       <div className="max-w-[560px] mx-auto px-6 py-20">
-        <h1 className="font-sans font-semibold text-[30px] text-accent-type -tracking-[0.026em]">
+        <h1 className="font-sans font-semibold text-[30px] text-ink -tracking-[0.026em]">
           Recorded.
         </h1>
         <p className="text-[17px] text-ink-2 mt-3 max-w-[44ch]">
@@ -57,7 +57,7 @@ export default function Screening({ params }: { params: Promise<{ kycId: string 
         <a href="/compliance" className="font-mono text-[11px] uppercase tracking-[0.12em] text-ink-3 no-underline">
           ← Compliance
         </a>
-        <h1 className="font-sans font-semibold text-[clamp(1.75rem,1.4rem+1.6vw,2.25rem)] text-accent-type -tracking-[0.026em] leading-tight mt-3">
+        <h1 className="font-sans font-semibold text-[clamp(1.75rem,1.4rem+1.6vw,2.25rem)] text-ink -tracking-[0.026em] leading-tight mt-3">
           {latest?.result === "CONFIRMED_MATCH" ? "Confirmed match" : "Possible match"}
         </h1>
       </header>

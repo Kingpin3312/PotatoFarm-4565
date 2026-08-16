@@ -79,7 +79,17 @@ console.log("\n=== the page is painted white, not cream ===");
   }));
   ok("the body ground is white", paint.body === WHITE || paint.body === "rgba(0, 0, 0, 0)",
      paint.body);
-  ok("the page heading takes the accent", paint.heading === ORANGE, paint.heading);
+  /**
+   * Charcoal, not orange, and this assertion is the reverse of what it
+   * said an hour ago.
+   *
+   * Orange headings were carried forward from the cream palette rather
+   * than decided again under this one, and the direction's own 70/20/8/2
+   * balance is what settles it: a 68px headline is nowhere near 2% of a
+   * page. On a phone the marketing hero was majority orange and the
+   * "Book a call" button competed with the sentence above it.
+   */
+  ok("the page heading is charcoal", paint.heading === INK, paint.heading);
 }
 
 console.log("\n=== orange is an accent, not the interface ===");
@@ -162,7 +172,7 @@ console.log("\n=== the soft orange reaches a screen ===");
     return out;
   });
   ok("`bg-accent-soft` generates a rule", r.bg === "rgb(255, 241, 232)", r.bg);
-  // #6B6B6B on #FFF1E8 is 5.14:1 — the label that carries the meaning
+  // #6B6B6B on #FFF1E8 is 4.82:1 — the label that carries the meaning
   // when the tint is invisible has to be readable on the tint too.
   ok("the label on it is readable", r.fg === "rgb(107, 107, 107)", r.fg);
 }
@@ -182,8 +192,19 @@ console.log("\n=== orange type is only ever large enough for it ===");
    * warning about exactly it.
    */
   const offenders = [];
+  let swept = 0;
+  /**
+   * The public pages are in this list, and they were not.
+   *
+   * Ten app screens were swept and the four screens an unauthenticated
+   * person sees were not — so three inline links on `/sign-in` and
+   * `/sign-in/check-your-email` sat at 15px in #E86A2C, 3.22:1, and
+   * passed every run. The first page anybody sees is a bad place to
+   * keep the one thing nothing measures.
+   */
   for (const url of ["/today", "/pipeline", "/listings", "/leads", "/inbox",
-                     "/offers", "/deals", "/settings", "/me", "/team"]) {
+                     "/offers", "/deals", "/settings", "/me", "/team",
+                     "/sign-in", "/sign-in/check-your-email", "/signup"]) {
     await open(url);
     const bad = await p.evaluate((orange) => {
       const out = [];
@@ -212,9 +233,12 @@ console.log("\n=== orange type is only ever large enough for it ===");
       return out;
     }, ORANGE);
     for (const x of bad) offenders.push(`${url}: ${x}`);
+    swept += 1;
   }
+  // Counted, not written down. The previous version said "checked 10
+  // screens" as a literal and three more were added above it.
   ok("no orange text below AA Large anywhere", offenders.length === 0,
-     offenders.slice(0, 4).join(" | ") || "checked 10 screens");
+     offenders.slice(0, 4).join(" | ") || `checked ${swept} screens`);
 }
 
 console.log("\n=== every width the direction lists ===");

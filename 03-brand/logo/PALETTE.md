@@ -1,13 +1,34 @@
 # The palette
 
-**Three colours: `#E86A2C`, `#12202E` and black.** The orange was set
-by the owner. The navy arrived with the supplied logo artwork and
+**Three colours: `#E86A2C`, `#12202E` and charcoal.** The orange was
+set by the owner. The navy arrived with the supplied logo artwork and
 dresses the wordmark only — it is not an interface colour, and `--ink`
-stays neutral. Originally two colours, and the note below still reads
-as if it were. The orange goes
-on **every heading, every tab, every link, every accent and the `.io`**.
-Everything that is not orange is ink. There is no third hue anywhere in
-the product.
+stays neutral. There is no fourth hue anywhere in the product.
+
+**Where the orange goes, and where it stopped going.** Primary actions,
+the active navigation state, selected rows, focus, the assistant's own
+output, and the `.io`. Roughly 2% of any screen.
+
+It used to go on every heading as well, and that is the one line of
+this file worth reading twice, because it was wrong in two separate
+ways and both were invisible until something measured them.
+
+*The arithmetic.* Option 1 sets the surface at roughly 70% white, 20%
+warm grey, 8% charcoal and 2% orange. A 68px hero headline is not 2% of
+anything. On a 390px phone the marketing front page came out majority
+orange, and "Book a call" — the only thing on that page with a job —
+competed with the sentence above it instead of standing out from it.
+
+*The contrast.* `h3` is 20px at weight 500. WCAG large text starts at
+24px, or 18.66px bold, so an orange h3 needed 4.5:1 and had 3.22:1.
+`contrast.py` allowed it, because the exception was written against the
+whole `h1,h2,h3` selector on the grounds that "every heading these
+selectors cover is display-sized" — true of two of the three. An
+exception written per-selector cannot see that one element in the group
+is a different size from the others.
+
+Headings are `#171717` now, at 17.93:1, and the exception is deleted
+rather than narrowed. Everything that is not orange is ink.
 
 Two palettes ago this file described a `#FF6E00` family that existed in
 no asset anywhere, so the rule now is that every figure below is
@@ -21,14 +42,28 @@ amber gradient. The `.io` beside it does not — that is type.
 
 ### The interface
 
+Every figure re-measured against the shipped tokens under Option 1.
+The previous version of this table carried the cream-ground numbers
+forward — `#E86A2C` was recorded at 2.56:1 and is 3.22:1 on white, and
+the navy at 14.88:1 is 16.51:1 — which is precisely the drift the
+paragraph above says this file exists to prevent.
+
 | Role | Hex | On ground `#FFFFFF` | On panel `#F5F3F0` | Where |
 |---|---|---|---|---|
-| **Brand** | **`#E86A2C`** | **2.56:1** | 2.36:1 | Headings, tabs, links, accents, `.io` |
-| **Wordmark navy** | **`#12202E`** | **14.88:1** | 13.72:1 | "PotatoFarm", and nothing else |
-| Hover / shade | `#CF5A22` | 3.20:1 | 2.95:1 | Hover on a fill — never type |
-| Edge | `#B94E1F` | 4.05:1 | **3.73:1** | The hairline on every orange fill |
-| Deep | `#A0431B` | **5.55:1** | 5.12:1 | Captions and inline links **only** |
-| Ink | `#171717` | 16.94:1 | — | Body, button labels, figures, tables |
+| **Brand** | **`#E86A2C`** | **3.22:1** | 2.90:1 | Fills, focus, active state, selected, `.io` — **never type** |
+| **Wordmark navy** | **`#12202E`** | **16.51:1** | 14.91:1 | "PotatoFarm", and nothing else |
+| Hover / shade | `#CF5A22` | 4.09:1 | 3.69:1 | Hover on a fill — never type |
+| Edge | `#B94E1F` | 5.03:1 | **4.54:1** | The hairline on every orange fill |
+| Deep | `#A0431B` | **6.34:1** | 5.72:1 | Orange type at any size — captions, links, labels |
+| Soft | `#FFF1E8` | — | — | The tint on machine-written text and selected rows |
+| Ink | `#171717` | **17.93:1** | 16.19:1 | Headings, body, button labels, figures, tables |
+| Ink-2 | `#4A4A4A` | 8.86:1 | 8.00:1 | Secondary body |
+| Ink-3 | `#6B6B6B` | 5.33:1 | 4.81:1 | Captions and 10px labels |
+| Rule | `#E7E5E2` | 1.26:1 | — | Separators — decorative only |
+| Rule-strong | `#918A82` | 3.41:1 | 3.08:1 | Form-control boundaries (WCAG 1.4.11) |
+
+`#171717` on `#E86A2C` is **5.57:1**; white on it is **3.22:1** and
+fails. Every label on a fill takes `--on-accent`, which is charcoal.
 
 ### The dark surfaces are charcoal, not black
 
@@ -77,29 +112,46 @@ by `--apply`.
 
 ## What this costs, plainly
 
-`#E86A2C` as **text** on the cream ground is **2.56:1**. WCAG AA asks
-4.5:1 for normal text and 3:1 for large. It clears neither.
+**Nothing, now.** That sentence used to read differently, and the
+change is the point of this section.
 
-That is a decision, taken with the number in front of us, not an
-oversight. What it means in practice: a person with reduced vision, or
-anybody reading a phone in Dubai sunlight, will find an orange heading
-harder than the near-black it replaced. The four rules below are what
-keep that confined to headings.
+`#E86A2C` as text on white is **3.22:1**. WCAG AA asks 4.5:1 for normal
+text and 3:1 for large. It clears the second and not the first — so as
+long as the orange is a *surface* colour, and orange type steps down
+the same hue until it is readable, nothing in this product is below the
+threshold for what it is.
+
+That is only true because the headings moved. While the orange dressed
+every heading, this file recorded a deliberate accessibility cost: a
+person with reduced vision, or anybody reading a phone in Dubai
+sunlight, would find an orange heading harder than the near-black it
+replaced. That cost was accepted on the grounds that the brand was
+worth it. It has now been removed instead, and the brand is not
+diminished — the orange sits on the button, which is what a customer
+perceives as the brand colour anyway.
 
 ## The four rules that keep it usable
 
 - **A label on orange is ink, never white.** `#171717` on `#E86A2C` is
-  **6.14:1** and passes. White is **2.84:1** and does not. Every button
-  takes `--on-accent`, which is ink.
-- **Every orange fill carries a `#B94E1F` hairline.** The fill is 2.36:1
-  against a panel, so the border is what makes the button's edge
-  discernible. Not decoration, not optional.
-- **Small orange type uses `--accent-deep` (`#A0431B`, 5.55:1).**
-  Captions, inline links and the ten-pixel state labels. A 40px heading
-  somebody scans and a 13px caption somebody reads word by word are not
-  the same problem, and the brand decision was about headings.
+  **5.57:1** and passes. White is **3.22:1** and does not — a 16px
+  semibold button label is not "large text", which starts at 18.66px
+  bold. Every button takes `--on-accent`, which is ink.
+- **Every orange fill carries a `#B94E1F` hairline.** The fill is
+  2.90:1 against a panel, so the border is what makes the button's edge
+  discernible against what is behind it. WCAG 1.4.11 asks 3:1 of a
+  control boundary; the edge is 4.54:1 there. Not decoration, not
+  optional.
+- **Orange type is `--accent-deep` (`#A0431B`, 6.34:1) at every size.**
+  Not "small orange type" — every size. That distinction used to carve
+  out headings and it is what let a 20px h3 through at 3.22:1.
+  `browser:option1` opens thirteen screens and measures computed colour
+  against computed size, because reading eighty-nine call sites is not
+  how the wrong ones get found.
 - **Colour is never the only signal for a state.** This became load-
-  bearing when the green and the red were removed — see below.
+  bearing when the green and the red were removed — see below. It
+  applies to the soft orange too: `#FFF1E8` on `#FFFFFF` is a 1.11:1
+  tint, which is a reinforcement and not a signal, so every panel it
+  marks carries a word as well.
 
 ## State is no longer a colour
 
