@@ -54,8 +54,8 @@ EYE    = "#3B2416"   # dark brown, not black
 # It dresses the wordmark and nothing else. `--ink` stays neutral: a
 # logo is not a reason to recolour every heading and table in a CRM.
 NAVY     = "#12202E"   # 14.88:1 on the ground
-NAVY_REV = "#EBEAE6"   # the same word on charcoal, where navy vanishes
-TLD      = "#FF6B35"   # the ".io" — the brand orange, unchanged
+NAVY_REV = "#F5F3F0"   # the same word on charcoal, where navy vanishes
+TLD      = "#E86A2C"   # the ".io" — the brand orange, Option 1
 
 STOPS = (f'<stop offset="0" stop-color="{G_HIGH}"/>'
          f'<stop offset="0.5" stop-color="{G_MID}"/>'
@@ -224,7 +224,7 @@ def apply(root="."):
     #
     # The mark has been propagated from this file since it was written
     # and the wordmark never was — so when the artwork's navy arrived,
-    # nine lockups still said #1A1A1A and there was nothing to catch it.
+    # nine lockups still said #171717 and there was nothing to catch it.
     # A brand definition that governs the potato and not the word beside
     # it is half a definition.
     #

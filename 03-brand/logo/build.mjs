@@ -47,7 +47,7 @@ const py = (args) =>
 const MARK = py([]);                                  // <svg …>…</svg>, 64x64
 const GLOW = py(["--glow"]);                          // 128x128 on dark
 
-const GROUND = "#F4F3F0";
+const GROUND = "#FFFFFF";
 const NAVY = "#12202E";
 
 /**
@@ -117,7 +117,7 @@ for (const s of [512, 192]) {
 // what the old og-default.png was.
 for (const [name, bg, word] of [
   ["og-image", GROUND, NAVY],
-  ["og-image-dark", "#0A0705", "#EBEAE6"],
+  ["og-image-dark", "#0A0705", "#F5F3F0"],
 ]) {
   const dark = bg !== GROUND;
   await shot(
@@ -127,7 +127,7 @@ for (const [name, bg, word] of [
        <div style="width:${dark ? 330 : 260}px;height:${dark ? 330 : 260}px">
          ${sized(dark ? GLOW : MARK, dark ? 330 : 260)}</div>
        <div style="font-size:76px;font-weight:600;letter-spacing:-.028em;color:${word}">
-         PotatoFarm<span style="color:#FF6B35;font-weight:500">.io</span></div>
+         PotatoFarm<span style="color:#E86A2C;font-weight:500">.io</span></div>
        <div style="font-size:27px;color:${dark ? "#B5B5B5" : "#4A4A4A"};letter-spacing:-.01em">
          Every property enquiry answered in seconds.</div>
      </div>`,

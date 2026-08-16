@@ -10,7 +10,7 @@
 <style>
 /* ============================================================
    PotatoFarm.io — design tokens, v4
-   Warm white, #FF6B35, Hermes discipline.
+   Warm white, #E86A2C, Hermes discipline.
    ============================================================ */
 
 :root{
@@ -22,32 +22,32 @@
      Pure white plus orange reads as a budget airline. Cream plus orange
      plus brown reads as the reference. The difference is about 2%
      warmth, and it is the difference. */
-  --ground: #F4F3F0;
-  --panel:  #EBEAE6;
+  --ground: #FFFFFF;
+  --panel:  #F5F3F0;
   --raised: #FFFFFF;   /* cards lift by being *whiter* than the ground */
 
   /* ---- Ink, with brown in it --------------------------------------
      A neutral grey against orange looks like a spreadsheet. Warming the
      near-black by a few points is what makes the orange belong. */
-  --ink:   #1A1A1A;   /* 16.94:1 */
+  --ink:   #171717;   /* 16.94:1 */
   --ink-2: #4A4A4A;   /*  8.34:1 */
   --ink-3: #6B6B6B;   /*  5.86:1 on ground, 5.43:1 on panel */
-  --rule:  #E2E0DA;
-  --rule-strong: #CFCCC4;
+  --rule:  #E7E5E2;
+  --rule-strong: #918A82;
 
   /* ---- Orange ------------------------------------------------------
      Two, and they are not interchangeable.
 
-     One orange: #FF6B35. Measured on the cream ground: 2.65:1 —
+     One orange: #E86A2C. Measured on the cream ground: 2.65:1 —
      below the 4.5:1 AA floor for text, so orange type is a brand
      decision taken with the number known. Ink on the orange fill is
      5.93:1; white on it is 2.94:1 and is never used.
 
      Getting this backwards is the mistake, and it is the fifth time in
      this project a warm colour has looked right and measured wrong. */
-  --accent:      #FF6B35;   /* the brand orange. 2.65:1 on ground */
-  --accent-type: #FF6B35;   /* headings, buttons and .io */
-  --accent-hover:#E85A25;
+  --accent:      #E86A2C;   /* the brand orange. 2.65:1 on ground */
+  --accent-type: #E86A2C;   /* headings, buttons and .io */
+  --accent-hover:#CF5A22;
 
   /**
    * The border on every orange fill, and it is not decoration.
@@ -60,14 +60,14 @@
    *
    * Same fix as the saffron button two palettes ago, same reason.
    */
-  --accent-edge: #CC4E1D;   /* 3.65:1 on panel — defines the boundary */
+  --accent-edge: #B94E1F;   /* 3.65:1 on panel — defines the boundary */
 
   /* **Labels on the orange fill are ink, never white.**
      White on the brand orange is 2.94:1 and fails. Ink is 5.93:1 and
      passes — and an orange button with near-black type is also the more
      Hermes answer. The measurement and the reference agreed, which does
      not always happen. */
-  --on-accent: #1A1A1A;
+  --on-accent: #171717;
 
   /* ---- Leather -----------------------------------------------------
      The anchor. Orange without a dark warm neutral beneath it floats;
@@ -78,13 +78,13 @@
      inside `.on-leather`. The footer is on leather and outside that
      class, so without these it gets literals — which is exactly what
      happened, three times. */
-  --leather-ink:   #EBEAE6;   /* 14.49:1 on leather-deep */
+  --leather-ink:   #F5F3F0;   /* 14.49:1 on leather-deep */
   --leather-ink-2: #B5B5B5;   /*  8.02:1 */
   --leather-ink-3: #9A9A96;   /*  5.21:1 on charcoal — #8A8A8A fell to 4.03 */
 
-  --success:      #1A1A1A;
-  --danger:       #A84015;
-  --warning:      #FF6B35;   /* the accent type step, deliberately */
+  --success:      #171717;
+  --danger:       #A0431B;
+  --warning:      #E86A2C;   /* the accent type step, deliberately */
 
   /* ---- Type --------------------------------------------------------
      Same stack. Warm palettes tempt people toward a serif and it is
@@ -134,7 +134,7 @@
   --rule: var(--leather);
   /* On leather the bright orange finally works as type — 6.4:1 — so the
      accent and the accent-type collapse into one here. */
-  --accent-type: #FF6B35;   /* 4.63:1 on leather — passes AA here */
+  --accent-type: #E86A2C;   /* 4.63:1 on leather — passes AA here */
   --on-accent: var(--leather-deep);
 }
 
@@ -175,7 +175,7 @@ aside.side{background:var(--ground);border-right:1px solid var(--rule);
    everywhere else hierarchy is size and space, not weight. */
 
 /* The extension in orange.
-   It is TYPE and it takes --accent-type, which is now the same #FF6B35
+   It is TYPE and it takes --accent-type, which is now the same #E86A2C
    as the fill. At 2.65:1 that is a brand decision, not a measurement. The
    token resolves per ground, so the footer and the sidebar get the
    lighter leather step automatically. */

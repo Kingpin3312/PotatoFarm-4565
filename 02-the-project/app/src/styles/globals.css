@@ -40,7 +40,7 @@
    *     of colour in the product simply was not there.
    *
    *   `border-accent-edge` (29) the hairline on every orange fill. That
-   *     is not decoration: tokens.css sets out that #FF6B35 is
+   *     is not decoration: tokens.css sets out that #E86A2C is
    *     2.65:1 on the ground and 2.44:1 on the panel, so the same button
    *     passes on one surface and fails on the other, and the darker
    *     edge is what defines the boundary regardless of what is behind
@@ -52,6 +52,10 @@
    * them.
    */
   --color-accent-type: var(--accent-type);
+  /* Soft Orange: selected rows, AI panels, highlight cards. Mapped so
+     `bg-accent-soft` generates CSS — the two tokens above spent 42 uses
+     generating nothing because nobody mapped them. */
+  --color-accent-soft: var(--accent-soft);
   --color-accent-edge: var(--accent-edge);
 
   /**

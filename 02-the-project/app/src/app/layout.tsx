@@ -86,7 +86,7 @@ export const viewport: Viewport = {
   // from a palette ago — so on a phone the browser chrome was a very
   // slightly different cream from the page it framed, which reads as a
   // seam nobody can name.
-  themeColor: "#F4F3F0",
+  themeColor: "#FFFFFF",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

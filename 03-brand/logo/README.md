@@ -69,8 +69,8 @@ wrong.
 | | Hex | |
 |---|---|---|
 | Wordmark | `#12202E` | Deep navy, sampled off the supplied artwork. 14.88:1 on the ground |
-| Wordmark, reversed | `#EBEAE6` | Navy on charcoal is 1.3:1 and vanishes |
-| `.io` | `#FF6B35` | The brand orange, on every ground |
+| Wordmark, reversed | `#F5F3F0` | Navy on charcoal is 1.3:1 and vanishes |
+| `.io` | `#E86A2C` | The brand orange, on every ground |
 | Body | `#F8BA5E` → `#F0A03A` → `#E5842A` | The mark's own amber gradient |
 | Rim | `#D9761C` | The darker edge |
 | Eyes | `#3B2416` | Dark brown, not black |

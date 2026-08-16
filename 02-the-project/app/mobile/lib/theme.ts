@@ -11,25 +11,25 @@
  * opposite polarities inside one product was a seam nobody wanted.
  */
 export const light = {
-  ground: "#F4F3F0",   // warm white, not pure — the whole effect
-  sunk:   "#EBEAE6",
+  ground: "#FFFFFF",   // warm white, not pure — the whole effect
+  sunk:   "#F5F3F0",
   raised: "#FFFFFF",   // cards lift by being whiter than the ground
 
-  ink:  "#1A1A1A",     // 16.94:1 — near-black with brown in it
+  ink:  "#171717",     // 16.94:1 — near-black with brown in it
   ink2: "#4A4A4A",     //  8.34:1
   ink3: "#6B6B6B",     //  5.86:1 on ground, 5.43:1 on panel
-  rule: "#E2E0DA",
+  rule: "#E7E5E2",
 
   /** Fill only. 3.12:1 on the ground — a non-text component, never type. */
-  accent:      "#FF6B35",
-  accentHover: "#E85A25",
+  accent:      "#E86A2C",
+  accentHover: "#CF5A22",
   /** The hairline on a fill. The orange is 2.9:1 on the panel, so the
    *  edge is what defines the button there. */
-  accentEdge:  "#E85A25",
+  accentEdge:  "#CF5A22",
   /** Every word. 5.56:1 on ground, 5.15:1 on panel. */
-  accentType:  "#FF6B35",
+  accentType:  "#E86A2C",
   /** Labels on orange are ink. White is 3.23:1 and fails. */
-  onAccent:    "#1A1A1A",
+  onAccent:    "#171717",
 
   /** The word "PotatoFarm" itself. The supplied logo sets it in a deep
    *  navy rather than the neutral ink beside it — 14.88:1 on the ground,
@@ -37,7 +37,7 @@ export const light = {
    *  --brand-navy in tokens.css. */
   brandNavy: "#12202E",
   /** The wordmark extension. Type, so it takes the deeper orange. */
-  tld: "#FF6B35",
+  tld: "#E86A2C",
   /** The two eyes in the mark. Darker than the rim so they read as
    *  holes rather than as shading. */
   markEye: "#3B2416",
@@ -49,9 +49,9 @@ export const light = {
   leather:     "#34322F",
   leatherDeep: "#2A2825",
 
-  danger:  "#A84015",
-  success: "#1A1A1A",
-  warning: "#FF6B35",
+  danger:  "#A0431B",
+  success: "#171717",
+  warning: "#E86A2C",
 } as const;
 
 export const dark = {
@@ -64,15 +64,15 @@ export const dark = {
   sunk:   "#34322F",
   raised: "#34322F",
 
-  ink:  "#EBEAE6",   // 12.21:1
+  ink:  "#F5F3F0",   // 12.21:1
   ink2: "#B5B5B5",   //  7.17:1
   ink3: "#9A9A96",   //  5.21:1 — #8A8A8A fell to 4.03 on charcoal
   rule: "#42403D",
 
-  accent:      "#FF6B35",   // 5.18:1 on this ground — works as type here
-  accentHover: "#FF6B35",
-  accentEdge:  "#E85A25",
-  accentType:  "#FF6B35",   // 5.18:1
+  accent:      "#E86A2C",   // 5.18:1 on this ground — works as type here
+  accentHover: "#E86A2C",
+  accentEdge:  "#CF5A22",
+  accentType:  "#E86A2C",   // 5.18:1
   /* The label on an orange button. It is the ground colour, so it moved
      with it — and 5.18:1 on the orange is why the ground could not go
      any lighter than this. */
@@ -80,8 +80,8 @@ export const dark = {
 
   /** Navy on charcoal is 1.3:1, so the wordmark reverses out here for
    *  the same reason `ink` does. */
-  brandNavy: "#EBEAE6",
-  tld: "#FF6B35",
+  brandNavy: "#F5F3F0",
+  tld: "#E86A2C",
   markEye: "#3B2416",
   markBody: "#F0A03A",
   markRim:  "#D9761C",
@@ -91,11 +91,11 @@ export const dark = {
 
   /* Two colours here as well. On this ground the brand orange measures
      5.18:1, so danger needs no darker step — the light theme's
-     #A84015 exists only because cream is a bright surface. Success is
+     #A0431B exists only because cream is a bright surface. Success is
      ink, as it is in the light theme: the word carries it. */
-  danger:  "#FF6B35",
-  success: "#EBEAE6",
-  warning: "#FF6B35",
+  danger:  "#E86A2C",
+  success: "#F5F3F0",
+  warning: "#E86A2C",
 } as const;
 
 /** Default is light. Dark is opt-in, not system-following — an agent

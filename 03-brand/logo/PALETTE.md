@@ -1,6 +1,6 @@
 # The palette
 
-**Three colours: `#FF6B35`, `#12202E` and black.** The orange was set
+**Three colours: `#E86A2C`, `#12202E` and black.** The orange was set
 by the owner. The navy arrived with the supplied logo artwork and
 dresses the wordmark only — it is not an interface colour, and `--ink`
 stays neutral. Originally two colours, and the note below still reads
@@ -21,14 +21,14 @@ amber gradient. The `.io` beside it does not — that is type.
 
 ### The interface
 
-| Role | Hex | On ground `#F4F3F0` | On panel `#EBEAE6` | Where |
+| Role | Hex | On ground `#FFFFFF` | On panel `#F5F3F0` | Where |
 |---|---|---|---|---|
-| **Brand** | **`#FF6B35`** | **2.56:1** | 2.36:1 | Headings, tabs, links, accents, `.io` |
+| **Brand** | **`#E86A2C`** | **2.56:1** | 2.36:1 | Headings, tabs, links, accents, `.io` |
 | **Wordmark navy** | **`#12202E`** | **14.88:1** | 13.72:1 | "PotatoFarm", and nothing else |
-| Hover / shade | `#E85A25` | 3.20:1 | 2.95:1 | Hover on a fill — never type |
-| Edge | `#CC4E1D` | 4.05:1 | **3.73:1** | The hairline on every orange fill |
-| Deep | `#A84015` | **5.55:1** | 5.12:1 | Captions and inline links **only** |
-| Ink | `#1A1A1A` | 16.94:1 | — | Body, button labels, figures, tables |
+| Hover / shade | `#CF5A22` | 3.20:1 | 2.95:1 | Hover on a fill — never type |
+| Edge | `#B94E1F` | 4.05:1 | **3.73:1** | The hairline on every orange fill |
+| Deep | `#A0431B` | **5.55:1** | 5.12:1 | Captions and inline links **only** |
+| Ink | `#171717` | 16.94:1 | — | Body, button labels, figures, tables |
 
 ### The dark surfaces are charcoal, not black
 
@@ -37,7 +37,7 @@ amber gradient. The `.io` beside it does not — that is type.
 | Charcoal ground | `#2A2825` | The inverted band, and the mobile dark theme |
 | Charcoal raised | `#34322F` | Cards lifted inside that band |
 | Rule | `#42403D` | Borders on the dark surface |
-| Type | `#EBEAE6` · `#B5B5B5` · `#9A9A96` | 12.21 · 7.17 · 5.21 on the ground |
+| Type | `#F5F3F0` · `#B5B5B5` · `#9A9A96` | 12.21 · 7.17 · 5.21 on the ground |
 
 On charcoal the brand orange measures **5.18:1** and clears AA
 comfortably. The inverted sections are the one place it is both correct
@@ -57,7 +57,7 @@ Raising the floor of a surface raises everything standing on it, and
 that is the step a palette change usually forgets.
 
 `03-brand/charcoal.py` carries the measurements and makes the change.
-It edits **named declarations, never hex values** — `#1A1A1A` was both
+It edits **named declarations, never hex values** — `#171717` was both
 `--ink` and `--leather-deep`, so a value-level replace would have turned
 every heading and every button label charcoal too.
 
@@ -77,7 +77,7 @@ by `--apply`.
 
 ## What this costs, plainly
 
-`#FF6B35` as **text** on the cream ground is **2.56:1**. WCAG AA asks
+`#E86A2C` as **text** on the cream ground is **2.56:1**. WCAG AA asks
 4.5:1 for normal text and 3:1 for large. It clears neither.
 
 That is a decision, taken with the number in front of us, not an
@@ -88,13 +88,13 @@ keep that confined to headings.
 
 ## The four rules that keep it usable
 
-- **A label on orange is ink, never white.** `#1A1A1A` on `#FF6B35` is
+- **A label on orange is ink, never white.** `#171717` on `#E86A2C` is
   **6.14:1** and passes. White is **2.84:1** and does not. Every button
   takes `--on-accent`, which is ink.
-- **Every orange fill carries a `#CC4E1D` hairline.** The fill is 2.36:1
+- **Every orange fill carries a `#B94E1F` hairline.** The fill is 2.36:1
   against a panel, so the border is what makes the button's edge
   discernible. Not decoration, not optional.
-- **Small orange type uses `--accent-deep` (`#A84015`, 5.55:1).**
+- **Small orange type uses `--accent-deep` (`#A0431B`, 5.55:1).**
   Captions, inline links and the ten-pixel state labels. A 40px heading
   somebody scans and a 13px caption somebody reads word by word are not
   the same problem, and the brand decision was about headings.

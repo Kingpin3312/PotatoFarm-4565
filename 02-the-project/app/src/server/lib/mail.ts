@@ -66,8 +66,8 @@ export async function sendMail(msg: {
  * so the tokens are resolved here rather than referenced.
  */
 const NAVY = "#12202E";
-const ORANGE = "#FF6B35";
-const GROUND = "#F4F3F0";
+const ORANGE = "#E86A2C";
+const GROUND = "#FFFFFF";
 
 export function wrap(body: string, opts: { preheader?: string } = {}) {
   return (
@@ -98,8 +98,8 @@ export function wrap(body: string, opts: { preheader?: string } = {}) {
     `<td style="font-size:19px;font-weight:600;letter-spacing:-.02em;color:${NAVY};` +
     `white-space:nowrap">PotatoFarm<span style="color:${ORANGE};font-weight:500">.io</span></td>` +
     `</tr></table></td></tr>` +
-    `<tr><td style="font-size:16px;line-height:1.55;color:#1A1A1A">${body}</td></tr>` +
-    `<tr><td style="padding-top:28px;border-top:1px solid #E2E0DA;font-size:13px;color:#6B6B6B">` +
+    `<tr><td style="font-size:16px;line-height:1.55;color:#171717">${body}</td></tr>` +
+    `<tr><td style="padding-top:28px;border-top:1px solid #E7E5E2;font-size:13px;color:#6B6B6B">` +
     `PotatoFarm.io — every property enquiry answered in seconds.` +
     `</td></tr></table></td></tr></table></body></html>`
   );
@@ -128,7 +128,7 @@ export async function sendInvite({
     html: wrap(
       `<p style="margin:0 0 16px">You've been added to <strong>${escapeHtml(orgName)}</strong> on PotatoFarm.io.</p>` +
         `<p style="margin:0 0 20px"><a href="${link}" style="display:inline-block;` +
-        `background:${ORANGE};border:1px solid #CC4E1D;color:#1A1A1A;text-decoration:none;` +
+        `background:${ORANGE};border:1px solid #B94E1F;color:#171717;text-decoration:none;` +
         `font-weight:600;padding:12px 20px;border-radius:8px">Open PotatoFarm.io</a></p>` +
         `<p style="margin:0;color:#4A4A4A">The link works for seven days. If you weren't ` +
         `expecting this, ignore it — nothing happens until you open it.</p>`,

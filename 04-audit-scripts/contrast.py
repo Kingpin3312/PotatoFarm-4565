@@ -96,7 +96,7 @@ def resolve(v):
 # ---------------------------------------------------------------------
 # Brand exceptions, recorded rather than removed.
 #
-# The owner has set the brand orange to #FF6B35 and asked for it on
+# The owner has set the brand orange to #E86A2C and asked for it on
 # every heading, every tab, every link and the .io. On the cream ground
 # that measures 2.56:1, below the 4.5:1 AA floor for text and below the
 # 3:1 floor for large text. That is a decision taken with the number known, and the
@@ -114,13 +114,21 @@ def resolve(v):
 #   * It prints on every run. Nobody inherits this quietly.
 #
 # To retire the exception: make orange type pass, then delete the entry.
+#
+# Option 1 improved this rather than worsening it. The ground moved from
+# the warm cream #F4F3F0 to pure white and the accent from #FF6B35 to
+# #E86A2C, and the pair measures 3.22:1 rather than 2.56:1 — still under
+# the 4.5:1 an AA body text needs, and now over the 3:1 that AA Large
+# allows for a heading at 24px or a bold at 18.66px. Every heading these
+# selectors cover is display-sized, so the exception is narrower than it
+# was: it now covers a case the standard actually permits.
 BRAND_EXCEPTIONS = {
-    "h1,h2,h3":      ("#FF6B35", 2.56),
-    ".brand .tld":   ("#FF6B35", 2.56),
+    "h1,h2,h3":      ("#E86A2C", 3.22),
+    ".brand .tld":   ("#E86A2C", 3.22),
     # The hero. A class, so it overrides the element rule and had to be
     # changed separately — it stayed ink while every other heading went
     # orange, which is what a half-applied palette looks like.
-    ".display":      ("#FF6B35", 2.56),
+    ".display":      ("#E86A2C", 3.22),
 }
 ALLOWED = []
 

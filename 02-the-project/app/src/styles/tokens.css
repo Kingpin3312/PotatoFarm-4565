@@ -1,96 +1,119 @@
 /* ============================================================
-   PotatoFarm.io — design tokens, v4
-   Warm white, #FF6B35 and black, Hermes discipline.
+   PotatoFarm.io — design tokens
+   OPTION 1: white, deep charcoal, and a controlled orange.
+   ============================================================
+
+   Every ratio below is measured, not estimated. Where a value fails a
+   threshold it says so rather than being rounded up — a palette file
+   that flatters itself is how a real failure gets waved through later.
+
+   ## What changed from v4, and why the old comments are gone
+
+   v4 argued for warm cream over pure white: "Hermes does not put orange
+   on #FFFFFF." That was a real argument and it lost to a decision.
+   Option 1 sets a predominantly white product at roughly 70% white,
+   20% warm neutral, 8% charcoal and 2% orange, and the warmth now lives
+   in `--panel` rather than in the ground.
+
+   The accent moved with it — and this is worth noting, because it moved
+   *towards* the artwork. Sampled off the supplied logo, the `.io` runs
+   between #E66308 and #ED8037. #FF6B35 sat outside that; #E86A2C sits
+   inside it.
    ============================================================ */
 
 :root{
-  /* ---- The ground -----------------------------------------------
-     Warm white, not pure white. This is the whole effect and it is
-     worth defending: **Hermes does not put orange on #FFFFFF.** It puts
-     it on a warm cream, anchored by deep brown leather.
+  /* ---- The ground ------------------------------------------------
+     White dominates and the warm grey does the separating. `--raised`
+     is the same white as the ground on purpose: a card is defined by
+     its border and its spacing, not by being a different colour, which
+     is what §11 and §18 of the direction ask for. On a `--panel`
+     section a white card separates itself. */
+  --ground: #FFFFFF;
+  --panel:  #F5F3F0;   /* Warm Grey — secondary sections, inputs */
+  --raised: #FFFFFF;
 
-     Pure white plus orange reads as a budget airline. Cream plus orange
-     plus brown reads as the reference. The difference is about 2%
-     warmth, and it is the difference. */
-  --ground: #F4F3F0;
-  --panel:  #EBEAE6;
-  --raised: #FFFFFF;   /* cards lift by being *whiter* than the ground */
+  /* ---- Ink ----------------------------------------------------------
+     Deep charcoal rather than pure black, which the direction asks for
+     and which is also the older palette's instinct. */
+  --ink:   #171717;   /* 17.93:1 on white, 16.19:1 on panel */
+  --ink-2: #4A4A4A;   /*  8.86:1 on white — body */
+  --ink-3: #6B6B6B;   /*  5.33:1 on white, 4.81:1 on panel — Medium Grey */
 
-  /* ---- Ink, with brown in it --------------------------------------
-     A neutral grey against orange looks like a spreadsheet. Warming the
-     near-black by a few points is what makes the orange belong. */
-  --ink:   #1A1A1A;   /* 16.94:1 */
-  --ink-2: #4A4A4A;   /*  8.34:1 */
-  --ink-3: #6B6B6B;   /*  5.86:1 on ground, 5.43:1 on panel */
-  --rule:  #E2E0DA;
-  --rule-strong: #CFCCC4;
+  /* ---- Rules, and why there are two ---------------------------------
+     `--rule` is the direction's border and it is a hairline: 1.26:1,
+     which is right for a line between two table rows and wrong for the
+     edge of a text input.
 
-  /* ---- Orange ------------------------------------------------------
-     **The product is two colours: #FF6B35 and black.**
+     WCAG 1.4.11 wants the boundary of a form control at 3:1 against
+     what is behind it, so the second step exists. Derived from the same
+     warm neutral rather than introduced — it is the grey the panel
+     would be if you kept going. */
+  --rule:        #E7E5E2;   /* 1.26:1 — separators, decorative */
+  --rule-strong: #918A82;   /* 3.41:1 on white, 3.08:1 on panel — controls */
 
-     Every heading, every tab, every link, every accent and the `.io`
-     take the orange. Everything else is ink. There is no third hue —
-     no green for success, no red for danger, no blue for active. Those
-     were removed by brand decision, and what replaces them is in the
-     `--success` / `--danger` note below.
+  /* ---- Orange, and the discipline it needs ---------------------------
+     One orange, at roughly 2% of the surface. It is the accent and not
+     the interface: primary actions, active navigation, selected state,
+     focus, the `.io`, and the AI moments. Not backgrounds, not headings
+     at body size, not decoration.
 
-     What the orange costs, recorded here rather than discovered later:
+     **The measurement that governs everything else here: #E86A2C is
+     3.22:1 on white.** That clears the 3:1 needed for a focus ring, an
+     icon or a border, and it is below the 4.5:1 needed for text. So the
+     orange is a *surface* colour by default, and orange type steps down
+     the same hue until it is readable. Three steps, all from the
+     direction's own two values. */
+  --accent:      #E86A2C;   /* 3.22:1 — fills, focus, active state, .io */
+  --accent-hover:#CF5A22;   /* 4.09:1 — the hover on a fill */
+  --accent-edge: #B94E1F;   /* 5.03:1 — Deep Potato Orange, hairline on a fill */
+  --accent-deep: #A0431B;   /* 6.34:1 — orange type at any size */
 
-       #FF6B35 on the ground   2.56:1   fails AA for text (needs 4.5)
-       #FF6B35 on the panel    2.36:1   fails
-       #FF6B35 on charcoal     5.18:1   passes comfortably
-       #1A1A1A on #FF6B35      6.14:1   passes — why buttons keep ink labels
-       #FFFFFF on #FF6B35      2.84:1   fails — never put white on it
+  /* Headings and links take the brand orange at display sizes, where
+     3.22:1 clears AA Large. Anything at body size or below takes
+     `--accent-deep`. This is the one token pair the palette is most
+     often got wrong in the other direction. */
+  --accent-type: #E86A2C;
 
-     So orange type is legible against the dark surface and marginal
-     against the light one. Three mitigations, all enforced: labels on
-     an orange fill stay ink (`--on-accent`), every orange fill keeps
-     its darker hairline (`--accent-edge`) so the shape is defined by
-     the border rather than the colour, and small orange type takes
-     `--accent-deep`.
-
-     The one thing not to do is put `--accent` on the cream at small
-     sizes. Headings are large; body text stays `--ink`. */
-  --accent:      #FF6B35;   /* the brand orange. 2.56:1 on ground */
-  --accent-type: #FF6B35;   /* headings, tabs, links, .io — see the note above */
-  --accent-hover:#E85A25;   /* 3.20:1 — a fill state, not type */
-
-  /**
-   * The legible orange, for small type only.
-   *
-   * The brand orange is #FF6B35 and it goes on headings, tabs, links
-   * and the .io by decision. It measures 2.56:1, which is fine for a
-   * 40px heading somebody is not reading word by word and wrong for a
-   * caption or an inline link in a paragraph. Those take a darker step
-   * of the same hue at 5.55:1.
-   *
-   * This is not a second brand colour — it is the same hue, darkened
-   * until it is readable. It is the same instruction applied honestly:
-   * what was asked for is orange, and what was not asked for stays
-   * legible in a bright Dubai office.
-   */
-  --accent-deep: #A84015;   /* 5.55:1 on ground, 5.12:1 on panel */
-
+  /* Soft Orange. Selected rows, AI insight panels, highlight cards.
+     Charcoal on it is 16.22:1, so anything can sit here. */
+  --accent-soft: #FFF1E8;
 
   /**
-   * The border on every orange fill, and it is not decoration.
+   * The label on an orange fill.
    *
-   * The brand orange measures 2.56:1 on the ground and **2.36:1 on the
-   * cream panel** — the same button passes on one surface and fails on
-   * the other. Rather than forbid orange on panels, or lighten the
-   * panel until it works, the fill carries a darker hairline. The edge
-   * is then defined by the border regardless of what is behind it.
+   * **The direction specifies #FFFFFF here and it measures 3.22:1**,
+   * which fails AA for a button label — a 16px semibold label is not
+   * "large text", which starts at 18.66px bold. Charcoal on the same
+   * fill is 5.57:1 and passes.
    *
-   * Same fix as the saffron button two palettes ago, same reason.
+   * Shipped as charcoal, because it keeps the orange fill exactly where
+   * the direction puts it — the fill is what a customer perceives as
+   * the brand colour — and changes only the label. It is one token, so
+   * setting it to #FFFFFF is a one-line decision rather than a hunt.
    */
-  --accent-edge: #CC4E1D;   /* 3.73:1 on panel — defines the boundary */
+  --on-accent: #171717;   /* 5.57:1 on --accent */
 
-  /* **Labels on the orange fill are ink, never white.**
-     White on the brand orange is 2.84:1 and fails. Ink is 6.14:1 and
-     passes — and an orange button with near-black type is also the more
-     Hermes answer. The measurement and the reference agreed, which does
-     not always happen. */
-  --on-accent: #1A1A1A;
+  /* ---- The direction's own token names -------------------------------
+     Aliases, not second definitions. The direction names its tokens
+     `--color-primary`, `--color-background` and so on; this codebase
+     has called them `--accent` and `--ground` since before it, and 40+
+     screens and two other surfaces read those names.
+     
+     Renaming them everywhere would be a large diff that changes no
+     pixel, and keeping two independent sets is how a palette comes to
+     disagree with itself. So the direction's names resolve to the same
+     values, and either can be used. */
+  --color-primary:            var(--accent);
+  --color-primary-hover:      var(--accent-hover);
+  --color-primary-soft:       var(--accent-soft);
+  --color-primary-strong:     var(--accent-deep);
+  --color-on-primary:         var(--on-accent);
+  --color-background:         var(--ground);
+  --color-background-secondary: var(--panel);
+  --color-text-primary:       var(--ink);
+  --color-text-secondary:     var(--ink-3);
+  --color-border:             var(--rule);
+  --color-border-strong:      var(--rule-strong);
 
   /**
    * ---- The wordmark navy --------------------------------------------
@@ -121,8 +144,8 @@
    * than inline so the whole brand can be moved from one file.
    */
   --brand-navy:     #12202E;   /* 14.88:1 on ground — "PotatoFarm" */
-  --brand-navy-ink: #EBEAE6;   /* the same word, reversed out on dark */
-  --brand-orange:   #FF6B35;   /* the ".io", and it is `--accent` by design */
+  --brand-navy-ink: #F5F3F0;   /* the same word, reversed out on dark */
+  --brand-orange:   #E86A2C;   /* the ".io", and it is `--accent` by design */
 
   /* ---- Leather -----------------------------------------------------
      The anchor. Orange without a dark warm neutral beneath it floats;
@@ -133,7 +156,7 @@
      inside `.on-leather`. The footer is on leather and outside that
      class, so without these it gets literals — which is exactly what
      happened, three times. */
-  --leather-ink:   #EBEAE6;   /* 12.21:1 on leather-deep */
+  --leather-ink:   #F5F3F0;   /* 12.21:1 on leather-deep */
   --leather-ink-2: #B5B5B5;   /*  7.17:1 */
   --leather-ink-3: #9A9A96;   /*  5.21:1 on charcoal — #8A8A8A fell to 4.03 */
 
@@ -157,9 +180,9 @@
      Danger keeps the accent, in its readable step, because an error
      still has to pull the eye. Success drops to ink: a confirmation
      that has already happened does not need to shout. */
-  --success:      #1A1A1A;   /* black — the word carries it */
-  --danger:       #A84015;   /* the accent, dark enough to read at 13px */
-  --warning:      #A84015;
+  --success:      #171717;   /* black — the word carries it */
+  --danger:       #A0431B;   /* the accent, dark enough to read at 13px */
+  --warning:      #A0431B;
 
   /* ---- Type --------------------------------------------------------
      Same stack. Warm palettes tempt people toward a serif and it is
@@ -202,7 +225,7 @@
   /* Warmer and shallower than a neutral shadow. A grey shadow on a
      cream ground looks like dirt. */
   --lift: 0 1px 2px rgb(43 30 23 / .05), 0 6px 20px rgb(43 30 23 / .06);
-  --ring: 0 0 0 3px rgb(255 107 53 / .40);
+  --ring: 0 0 0 3px rgb(232 106 44 / .40);
 }
 
 /* The inverted section. Leather, not black — a pure black band under a
@@ -219,7 +242,7 @@
   --rule: #42403D;
   /* On charcoal the bright orange finally works as type — 5.18:1 — so
      there is nothing to darken here. */
-  --accent-type: #FF6B35;   /* 5.18:1 on leather-deep — passes AA */
+  --accent-type: #E86A2C;   /* 5.18:1 on leather-deep — passes AA */
   --on-accent: var(--leather-deep);
 }
 
