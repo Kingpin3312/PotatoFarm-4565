@@ -155,11 +155,26 @@ export async function leaderboard(args: {
   rows.forEach((r, i) => { r.rank = i + 1; });
 
   /**
-   * `RANKED` is the default and the interesting one: your own row with
-   * real figures, everyone else's position without theirs. Enough to
-   * know whether to worry, not enough to humiliate anybody in a Monday
-   * meeting.
+   * The mode governs what an **agent** sees of other agents. A manager
+   * sees the team, delayed.
+   *
+   * This masked every row that was not the viewer's own — and a manager
+   * is not any of the agents, so on the default mode a manager's board
+   * was a list of hidden figures. Every row `-1`, every name "Agent 3".
+   *
+   * Which also made the head start pointless in the one place it was
+   * applied: `reports.leaderboard` carefully computed a manager's window
+   * and handed it to a board that was going to hide the numbers anyway.
+   * Two mechanisms, both aimed at the same protection, and between them
+   * they produced a screen with nothing on it.
+   *
+   * `seesEveryone` is the permission `lead:read:all`, which is manager
+   * and above. The head start is what protects an agent from their
+   * manager; the mode is what protects them from each other. Conflating
+   * the two is what produced the empty board.
    */
+  if (args.seesEveryone) return { mode, headStartHours, countedTo, rows };
+
   if (mode === "PRIVATE") return { mode, headStartHours, countedTo, rows: rows.filter((r) => r.isMe) };
   if (mode === "RANKED") {
     return {

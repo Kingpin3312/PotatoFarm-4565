@@ -90,6 +90,14 @@ export function TeamVisibility() {
         The board is the first thing most agents open. What it shows them about everyone
         else is the part worth choosing deliberately.
       </p>
+      {/* Said here rather than discovered. An owner choosing the most
+          private option should not believe it hides the team from
+          managers — the head start is what protects an agent from a
+          manager, and it is the setting below. */}
+      <p className="text-sm text-ink-2 mt-2 max-w-[54ch]">
+        These settle what <em>agents</em> see of each other. Managers and owners always
+        see the whole team; what protects an agent from their manager is the head start.
+      </p>
 
       {/* The state every brokerage was in until this screen existed. */}
       {!data.set && (
