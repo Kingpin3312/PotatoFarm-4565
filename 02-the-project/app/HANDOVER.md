@@ -2,6 +2,63 @@
 
 Written for whoever picks this up, including you in three months.
 
+## Start here
+
+**There is no outstanding engineering work blocking the pilot.** That is
+the single most important sentence in this document, because the natural
+instinct on arriving at a large codebase is to find something to build,
+and building is not what this project needs.
+
+The gate is green: `tsc` clean, 233 unit assertions, 24 check suites, 15
+audit scripts, all browser suites, and a production build that succeeds.
+CI runs the lot on every push.
+
+**What is left is four accounts and a phone call.** They are listed
+under *Still needed from the business* at the end of this file, and
+`PREFLIGHT_ENV=1 npm run check:preflight` names whichever one is
+missing. Run that first; it answers "where are we" in one command.
+
+### Before you believe anything you measure
+
+If you are in a fresh container, do the two-minute check at the top of
+`CLAUDE.md` first. A remote container can come back at an older commit
+with no error, and it has: four times in one session, twice producing
+work built on stale numbers. **The tell is a count that disagrees with
+yesterday when nobody changed it.**
+
+### Do not "optimise" forOrg()
+
+It looks like the obvious win — a transaction per query to set the
+tenant scope — and an independent audit of this project said exactly
+that, called it the largest architectural drag, and recommended setting
+the scope on connection checkout instead.
+
+**That audit was wrong, and its recommendation was a cross-tenant leak.**
+The per-org client cache already exists. It is one batched round trip,
+not several — verified by counting the statements Postgres actually
+receives. And `set_config(…, true)` is transaction-local *precisely
+because* a session-level setting outlives the request: on a
+transaction-mode pooler the next request would inherit the previous
+brokerage's scope. Measured at 5,000 leads and 40,000 messages, the
+pipeline's first page takes 4ms warm.
+
+The full account is in `CLAUDE.md` under *do not undo these*. If anyone
+proposes optimising it again, ask for the measurement first.
+
+### If you want engineering work anyway
+
+None of this blocks a pilot, and all of it is honest:
+
+- **Upgrade Next.js** to clear two dependency advisories. Both arrive
+  through it, and `sharp`'s is unreachable here because `next/image` is
+  never used — but every acquirer's scanner will flag them regardless,
+  and arguing reachability during diligence costs more than upgrading.
+- **Arabic and RTL.** The assistant handles Arabic; the interface does
+  not. This is the largest genuine product gap for a UAE brokerage.
+- **Rebuild the mobile app** on a current Expo SDK — but only once a
+  pilot proves agents want one. The responsive web app is verified at
+  eight widths and covers a pilot.
+
 ## The same class of bug, ten times
 
 The consistency checks have now caught the same failure ten times in
