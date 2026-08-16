@@ -299,6 +299,18 @@ rendering on `/team` and it was a *user's name* in the dev database
 (`Test COMPLIANCE_OFFICER`), with a correct `Compliance officer` chip
 beside it.
 
+**A check that cannot fail is decoration, and `browser:roles` was.** It
+reported PASS with the dev server switched off. Three faults, any one
+enough: `goto(...).catch(() => {})` swallowed the connection refusal;
+Chrome's "site can't be reached" page is longer than its 60-character
+blank threshold; and it never asserted a permission at all — `denied`
+was computed, printed and never checked, so a VIEWER shown the full deal
+book would have passed. It now carries a ratchet of what each role meets
+on each screen, in the spirit of `KNOWN_UNWRITTEN`. **Prove a new check
+red at the exact call site before trusting it green** — put the bug
+back, watch it fail, put it right. Doing that is what found this, and
+what found the next one.
+
 **A browser check must wait for the data, not for the heading.** Every
 assertion in `browser:type` waited 700ms after the `h1` — and on
 `/leads` the `h1` is the lead count, which paints while the list is
@@ -310,6 +322,15 @@ waiting on a query sits perfectly still. `open()` counts in-flight
 `fetch` calls, wrapped from `addInitScript` so the counter exists before
 the page's scripts run; wrapping it afterwards misses the requests being
 waited for. `networkidle` hangs, because `/inbox` polls.
+
+**And network-quiet alone is not enough either.** The shell's own
+queries satisfy "a request has been made" and finish early, so there is
+a quiet, stable window *before* the screen's query is issued. Three runs
+of `browser:roles` disagreed with each other about which screens were
+refused, from identical code against identical data, until it waited a
+minimum dwell as well as for quiet. This app has no single "finished"
+signal; the honest description of what these checks do is a heuristic
+with an empirical floor under it.
 
 ## Conventions
 
