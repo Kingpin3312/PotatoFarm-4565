@@ -290,9 +290,16 @@ every time. Checks phrased *"this is broken"* have been wrong nine times.
 
 ## What is not built
 
-- Most React screens. `preview-*.html` shows layout and interaction; only
-  the inbox thread is real.
-- The Expo screens. `mobile/` has push, offline policy and auth.
+- ~~Most React screens.~~ **Out of date and left here as a warning.**
+  There are 41, every one of them opens in a browser, and
+  `browser:screens` fails the build if one stops rendering or starts a
+  refetch loop. This line survived the screens being built, which is the
+  same drift the audit scripts exist to catch — in the file that warns
+  about it.
+- The Expo screens. `mobile/` has push, offline policy and auth, and
+  cannot build: no `app.json`, no `tsconfig.json`, no `babel.config.js`,
+  no assets, an Expo SDK two years old, and a sign-in flow expecting a
+  `?session=` token the web app cannot issue.
 - Screening provider, goAML submission, image quality checks.
 - Migration source adapters.
 - **Connecting a mailbox.** `email/sync.ts` is written and
