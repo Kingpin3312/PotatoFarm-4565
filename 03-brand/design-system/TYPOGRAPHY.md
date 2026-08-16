@@ -80,7 +80,7 @@ a pipeline is scanned four hundred times a day.
 | `--t-control` | 16 | 1.45 | −0.006em |
 | `--t-ui` | 15 | 1.45 | −0.006em |
 | `--t-note` | 13 | 1.3 | −0.004em |
-| `--t-label` | 12 | 1.3 | +0.06em |
+| `--t-label` | 12 | 1.3 | +0.02em |
 
 Each step carries its own line height and tracking, because tracking is
 a function of size: type tightens as it grows and needs air as it
@@ -98,8 +98,9 @@ page's own headings.
 | `app/src/styles/tokens.css` | The scale, the stack, the weights, per-step line height and tracking |
 | `app/src/styles/globals.css` | 16 steps exposed to Tailwind as `text-*`; `.t-label`; `strong, b` at 500 |
 | `app/src/lib/cn.ts` | The custom size names declared to tailwind-merge — see §6 |
+| `app/src/lib/sentence.ts` | One formatter for a database enum shown as a label — see §7a |
 | 77 app screens/components | 415 raw pixel sizes → named steps; 33 inline `clamp()`s → `--t-page` |
-| 69 app files | 174 mono uppercase eyebrows → `.t-label` |
+| 69 app files | 174 mono uppercase eyebrows → `.t-label` (see §7a) |
 | 46 app files | 75 body-size semibolds → medium; 11 selected chips; the Button component |
 | 34 app files | 49 hand-written tracking values removed where the step supplies it |
 | `website/assets/site.css` | Headings, body, buttons, `.phead`, the wordmark, every literal weight |
@@ -154,16 +155,45 @@ with no scrollable ancestor to reach it by.
 
 ## 7. What was deliberately not changed
 
-- **The words.** ~174 labels are uppercase and stay uppercase. Apple
-  would set most of them in sentence case, but the capitals are this
-  product's field-label convention on every screen, and rewriting 150
-  labels is a content decision rather than a typographic one. It is now
-  one class, so it is a one-line change if wanted.
 - **Layout, spacing, colour, components, routes, copy, schema, APIs,
   auth, business logic.** Untouched. The only spacing that moved is what
   the scale's own line heights changed.
 - **The wordmark's optical tracking** (`-0.024em`) — a genuine one-off,
   and the last hand-written tracking value left in the app.
+
+## 7a. The uppercase, and the bug under it
+
+Held back on the first pass and done on the second, so both halves are
+worth recording.
+
+**Held:** ~174 labels were uppercase, and the capitals were this
+product's field-label convention on every screen. Rewriting them read as
+a content decision rather than a typographic one, so the first pass
+changed the face, the size, the weight and the tracking, and left the
+transform.
+
+**Done:** the direction lists "excessive uppercase text" under Avoid,
+and 174 is excessive. `text-transform` came off the class and the
+tracking eased from 0.06em to 0.02em — capitals genuinely need air
+between them and sentence case does not.
+
+**The bug it was hiding.** A dozen screens called `.toLowerCase()` on a
+database enum so the transform could shout it back, which turned
+`PROPERTY_FINDER` into `PROPERTY FINDER` and read as deliberate. With
+the transform gone they rendered `property finder`, in a chip, on the
+board an agent looks at all day. The workaround had been propping up the
+thing that required it.
+
+`lib/sentence.ts` owns that now — one function, for the same reason
+`lib/money.ts` is one function. Only the first letter is raised:
+`Property finder`, not `Property Finder`, because title case on a data
+value is a small lie about how important it is.
+
+Six elements carried their own `uppercase` that the class sweep never
+touched, including the command palette's keyboard hint, which read
+`↑↓ MOVE · ⏎ OPEN · ESC CLOSE`. `browser:type` asserts that nothing in
+the product is uppercased by CSS, across 22 screens, so the next one
+fails the build rather than the eye.
 
 ## 8. Checked, not asserted
 
