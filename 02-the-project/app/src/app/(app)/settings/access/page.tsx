@@ -71,7 +71,7 @@ export default function Access() {
         </div>
       )}
 
-      <h2 className="font-sans font-semibold text-[17px] text-accent-type mb-3">Grant access</h2>
+      <h2 className="font-sans font-semibold text-[17px] text-accent-deep mb-3">Grant access</h2>
       <div className="space-y-4">
         <div>
           <label htmlFor="semail" className="block font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3 mb-2">
@@ -108,7 +108,7 @@ export default function Access() {
 
       {grants.filter((g) => !g.active).length > 0 && (
         <>
-          <h2 className="font-sans font-semibold text-[17px] text-accent-type mt-12 mb-3">Past grants</h2>
+          <h2 className="font-sans font-semibold text-[17px] text-accent-deep mt-12 mb-3">Past grants</h2>
           <div className="border-t border-rule">
             {grants.filter((g) => !g.active).slice(0, 10).map((g) => (
               <div key={g.id} className="flex items-baseline gap-3 py-3 border-b border-rule">

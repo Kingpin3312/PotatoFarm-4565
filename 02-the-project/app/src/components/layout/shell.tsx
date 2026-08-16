@@ -90,7 +90,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
             {/* Only shown when it is off. A green "everything is fine"
                 badge is noise; its absence is the normal state. */}
             {assistant && !assistant.enabled && (
-              <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-accent">
+              <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-accent-deep">
                 Assistant stopped
               </span>
             )}

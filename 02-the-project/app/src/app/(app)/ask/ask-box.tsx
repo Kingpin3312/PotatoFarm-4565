@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
+import { Machine } from "@/components/ui/machine";
 import { cn } from "@/lib/cn";
 import { aedWhole } from "@/lib/money";
 import { MAX_MS, MESSAGES, canRecord, startRecording, type Recorder } from "@/lib/record";
@@ -231,13 +232,13 @@ export function Ask({ compact = false }: { compact?: boolean }) {
       {/* Unclear comes back as one question, not an apology and a list.
           An agent in a car answers one thing. */}
       {c?.recipe === "UNCLEAR" && (
-        <div className="mt-6 rounded-xl border-l-[3px] border-l-accent-edge bg-sunk p-4">
+        <Machine className="mt-6" label="Understood as">
           <p className="text-[16px] text-ink">{c.question}</p>
-        </div>
+        </Machine>
       )}
 
       {c && c.recipe === "COMPARABLES" && !comps.data && (
-        <div className="mt-6 rounded-xl bg-sunk p-4">
+        <Machine className="mt-6" label="Understood as">
           <p className="mb-3 text-[15px] text-ink-2">
             Comparables for <strong className="text-ink">{c.entities.building ?? "—"}</strong>.
             How many bedrooms?
@@ -250,7 +251,7 @@ export function Ask({ compact = false }: { compact?: boolean }) {
               </Button>
             ))}
           </div>
-        </div>
+        </Machine>
       )}
 
       {comps.data && <Report r={comps.data} />}
@@ -259,9 +260,11 @@ export function Ask({ compact = false }: { compact?: boolean }) {
           reason the agent can act on. Never a spinner that resolves into
           nothing. */}
       {c?.outcome && c.recipe !== "COMPARABLES" && (
-        <div className={cn("mt-6 rounded-xl p-4",
-          c.outcome.kind === "REFUSED"
-            ? "border-l-[3px] border-l-accent-edge bg-sunk" : "bg-sunk")}>
+        <Machine
+          className="mt-6"
+          tone={c.outcome.kind === "REFUSED" ? "refused" : "claim"}
+          label={c.outcome.kind === "REFUSED" ? "Not done" : "Drafted"}
+        >
           {c.outcome.kind === "DONE" && (
             <>
               <p className="text-[16px] text-ink">{c.outcome.summary}</p>
@@ -279,7 +282,7 @@ export function Ask({ compact = false }: { compact?: boolean }) {
           {c.outcome.kind === "REFUSED" && (
             <p className="max-w-[44ch] text-[16px] leading-snug text-ink">{c.outcome.reason}</p>
           )}
-        </div>
+        </Machine>
       )}
     </div>
   );
@@ -288,7 +291,7 @@ export function Ask({ compact = false }: { compact?: boolean }) {
 function Report({ r }: { r: NonNullable<ReturnType<typeof api.requests.comparables.useMutation>["data"]> }) {
   return (
     <section className="mt-8">
-      <h2 className="font-sans text-[19px] font-semibold -tracking-[0.02em] text-accent-type">
+      <h2 className="font-sans text-[19px] font-semibold -tracking-[0.02em] text-accent-deep">
         {r.subject.building} · {r.subject.beds} bed
       </h2>
 

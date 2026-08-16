@@ -303,7 +303,12 @@ export function Board() {
                   {/* Going cold. The one thing on the card that is a
                       judgement rather than a fact, so it says how long. */}
                   {l.stale && (
-                    <span className="flex items-center gap-1.5 mt-2 pl-2 border-l-2 border-accent font-mono text-[9px] uppercase tracking-[0.1em] text-accent">
+                    /* The stripe keeps the brand orange; the words take
+                       the readable step. At 9px, #E86A2C is 3.22:1 and
+                       this is the one label on the card somebody has to
+                       read at a glance across a room. A border is not
+                       text and 3.22:1 clears the 3:1 it needs. */
+                    <span className="flex items-center gap-1.5 mt-2 pl-2 border-l-2 border-accent font-mono text-[9px] uppercase tracking-[0.1em] text-accent-deep">
                       Untouched {days(l.stageEnteredAt)} days
                     </span>
                   )}

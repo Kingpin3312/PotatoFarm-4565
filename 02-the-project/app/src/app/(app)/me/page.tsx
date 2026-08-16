@@ -77,7 +77,7 @@ export default function Me() {
 
       {me && (
         <>
-          <h2 className="font-sans font-semibold text-[22px] text-accent-type -tracking-[0.02em] mt-12 mb-1">
+          <h2 className="font-sans font-semibold text-[22px] text-accent-deep -tracking-[0.02em] mt-12 mb-1">
             Where you are
           </h2>
           <p className="text-sm text-ink-3 max-w-[52ch]">
@@ -99,7 +99,7 @@ export default function Me() {
 
       {board && board.mode !== "PRIVATE" && (
         <>
-          <h2 className="font-sans font-semibold text-[22px] text-accent-type -tracking-[0.02em] mt-12 mb-4">
+          <h2 className="font-sans font-semibold text-[22px] text-accent-deep -tracking-[0.02em] mt-12 mb-4">
             The board
           </h2>
           <div className="border-t border-ink">

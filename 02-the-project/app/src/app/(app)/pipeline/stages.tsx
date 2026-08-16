@@ -20,7 +20,7 @@ export function Stages() {
 
   return (
     <section>
-      <h2 className="font-sans font-semibold text-[19px] text-accent-type -tracking-[0.02em] mb-1">
+      <h2 className="font-sans font-semibold text-[19px] text-accent-deep -tracking-[0.02em] mb-1">
         Stages
       </h2>
       <p className="text-sm text-ink-2 mb-4 max-w-[48ch]">

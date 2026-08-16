@@ -92,7 +92,7 @@ export function Thread({ conversationId }: { conversationId: string }) {
         {data.humanHandover && (
           // Says why the assistant stopped. Silence with no explanation
           // reads as a fault, and the agent rings support.
-          <div className="ml-auto font-mono text-[10px] uppercase tracking-[0.1em] text-accent">
+          <div className="ml-auto font-mono text-[10px] uppercase tracking-[0.1em] text-accent-deep">
             You have this · {data.handoverReason}
           </div>
         )}
@@ -124,7 +124,7 @@ export function Thread({ conversationId }: { conversationId: string }) {
           <>
             <WindowState open hoursLeft={w.hoursLeft} />
             {failed && (
-              <p role="alert" className="text-[13px] text-accent mt-2">
+              <p role="alert" className="text-[13px] text-accent-deep mt-2">
                 {failed}
               </p>
             )}

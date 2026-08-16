@@ -120,7 +120,22 @@ for (const c of CARDS) {
     const h1 = document.querySelector("h1");
     return h1 ? getComputedStyle(h1).color : "";
   });
-  if (styled !== "rgb(255, 107, 53)") {
+  // Read from the stylesheet rather than pinned to a literal.
+  //
+  // This hard-coded the accent, so the palette move to Option 1 made a
+  // correct render fail the guard — the card was right and the check
+  // was a generation behind. The guard's job is "did the stylesheet
+  // load", not "is the accent this exact orange", and `contrast.py`
+  // owns the second question.
+  const expected = await p.evaluate(() =>
+    getComputedStyle(document.documentElement).getPropertyValue("--accent-type").trim());
+  const norm = (c) => c.replace(/\s/g, "").toLowerCase();
+  const asRgb = await p.evaluate((hex) => {
+    const el = document.createElement("span");
+    el.style.color = hex; document.body.appendChild(el);
+    const v = getComputedStyle(el).color; el.remove(); return v;
+  }, expected);
+  if (!expected || norm(styled) !== norm(asRgb)) {
     console.error(`  ✗ ${c.file}: site.css did not apply (h1 is ${styled || "unset"}).`);
     console.error(`    Is serve.mjs running on ${SITE}?`);
     process.exitCode = 1;

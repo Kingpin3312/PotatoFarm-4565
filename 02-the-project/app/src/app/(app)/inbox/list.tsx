@@ -50,7 +50,7 @@ export function InboxList({
               // in. The underline still sits under the label; the target
               // is the whole chip.
               "font-mono text-[11px] uppercase tracking-[0.1em] min-h-11 inline-flex items-center border-b whitespace-nowrap",
-              filter === f.id ? "text-accent border-accent" : "text-ink-3 border-transparent hover:text-ink"
+              filter === f.id ? "text-accent-deep border-accent" : "text-ink-3 border-transparent hover:text-ink"
             )}
           >
             {f.label}
@@ -131,7 +131,7 @@ function Tag({ children, highlight, dashed }: { children: React.ReactNode; highl
     <span
       className={cn(
         "font-mono text-[9px] uppercase tracking-[0.1em] border rounded-[2px] px-1.5 py-0.5",
-        highlight ? "text-accent border-accent" : "text-ink-3 border-rule",
+        highlight ? "text-accent-deep border-accent" : "text-ink-3 border-rule",
         dashed && "border-dashed"
       )}
     >

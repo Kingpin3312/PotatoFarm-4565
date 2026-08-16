@@ -200,7 +200,7 @@ export function ConnectChannel() {
 
               <label className="flex flex-col gap-1.5">
                 <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3">
-                  Name <span className="text-accent">*</span>
+                  Name <span className="text-accent-deep">*</span>
                 </span>
                 <input
                   name="label"
@@ -215,7 +215,7 @@ export function ConnectChannel() {
 
               <label className="flex flex-col gap-1.5">
                 <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3">
-                  {meta.label} <span className="text-accent">*</span>
+                  {meta.label} <span className="text-accent-deep">*</span>
                 </span>
                 <input
                   name="identifier"

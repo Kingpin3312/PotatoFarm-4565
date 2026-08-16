@@ -16,20 +16,42 @@ export function DraftCopy({ listingId }: { listingId: string }) {
   const draft = api.copy.draftListing.useMutation();
   const check = api.copy.checkCopy.useMutation();
   const [text, setText] = useState("");
+  /**
+   * True only while the box holds words the agent has not touched.
+   *
+   * The soft orange marks machine text everywhere else in the product,
+   * and this is the one place the machine writes into a field the agent
+   * then edits. Tinting the textarea for ever would say "this is the
+   * assistant's" about a description they wrote themselves; never
+   * tinting it would hide the one moment it matters, which is the
+   * paragraph about to go to a portal that nobody has read yet.
+   *
+   * So the tint is the *unread* state and the first keystroke clears
+   * it — the same moment the words stop being the model's.
+   */
+  const [drafted, setDrafted] = useState(false);
 
   return (
     <div className="border-t border-rule pt-5">
-      <h2 className="font-sans font-semibold text-[17px] text-accent-type mb-3">Description</h2>
+      <h2 className="font-sans font-semibold text-[17px] text-accent-deep mb-3">Description</h2>
 
       <label htmlFor="copy" className="sr-only">Listing description</label>
-      <textarea id="copy" rows={6} value={text} onChange={(e) => setText(e.target.value)}
-        className="w-full px-4 py-2.5 text-[16px] text-ink bg-sunk border border-rule rounded-lg focus-visible:outline-none focus-visible:shadow-[var(--ring)]" />
+      {drafted && (
+        <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3 mb-1.5">
+          Drafted — read it before you publish
+        </p>
+      )}
+      <textarea id="copy" rows={6} value={text}
+        data-machine={drafted ? "claim" : undefined}
+        onChange={(e) => { setText(e.target.value); setDrafted(false); }}
+        className={`w-full px-4 py-2.5 text-[16px] text-ink border rounded-lg focus-visible:outline-none focus-visible:shadow-[var(--ring)] ${
+          drafted ? "bg-accent-soft border-accent-edge" : "bg-sunk border-rule"}`} />
 
       <div className="flex gap-2 mt-3 flex-wrap">
         <Button variant="secondary" loading={draft.isPending}
           onClick={() => draft.mutate({ listingId },
             // `draft`, not `text` — see the router's return.
-            { onSuccess: (d) => setText(d.draft) })}>
+            { onSuccess: (d) => { setText(d.draft); setDrafted(true); } })}>
           Draft it for me
         </Button>
         <Button variant="secondary" loading={check.isPending} disabled={!text.trim()}

@@ -229,13 +229,13 @@
 }
 
 /* The inverted section. Leather, not black — a pure black band under a
-   cream page is a hole in it. */
-/* The app is cream by default and leather is the inverted case — the
-   sidebar, and any band that needs to break a long page.
+   white page is a hole in it.
 
-   The website is the same way round now. That was not true a palette
-   ago: navy was the site's ground and light was the app's, and keeping
-   two opposite polarities in one product was a seam nobody wanted. */
+   The app is white by default and leather is the inverted case: the
+   sidebar, and any band that needs to break a long page. Both surfaces
+   are the same way round. That was not true two palettes ago — navy was
+   the site's ground and light was the app's, and keeping two opposite
+   polarities in one product was a seam nobody wanted. */
 .on-leather{
   --ground: var(--leather-deep); --panel: var(--leather); --raised: var(--leather);
   --ink: var(--leather-ink); --ink-2: var(--leather-ink-2); --ink-3: var(--leather-ink-3);

@@ -53,7 +53,7 @@ export function OfferBoard({ listingId }: { listingId: string }) {
               </span>
             )}
             {i === 0 && ranked.length > 1 && (
-              <span className="ml-auto font-mono text-[10px] uppercase tracking-[0.12em] text-accent font-semibold">
+              <span className="ml-auto font-mono text-[10px] uppercase tracking-[0.12em] text-accent-deep font-semibold">
                 Strongest, not highest
               </span>
             )}

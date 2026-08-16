@@ -194,7 +194,7 @@ function Field({
   return (
     <label className="flex flex-col gap-1.5">
       <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3">
-        {label}{required && <span className="text-accent"> *</span>}
+        {label}{required && <span className="text-accent-deep"> *</span>}
       </span>
       <input
         name={name}

@@ -68,7 +68,7 @@ export default function Screening({ params }: { params: Promise<{ kycId: string 
         </div>
       )}
 
-      <h2 className="font-sans font-semibold text-[17px] text-accent-type mb-3">Screening history</h2>
+      <h2 className="font-sans font-semibold text-[17px] text-accent-deep mb-3">Screening history</h2>
       <div className="border-t border-ink mb-10">
         {(data ?? []).map((s) => (
           <div key={s.id} className="flex items-baseline gap-3 py-3 border-b border-rule">
@@ -83,7 +83,7 @@ export default function Screening({ params }: { params: Promise<{ kycId: string 
         ))}
       </div>
 
-      <h2 className="font-sans font-semibold text-[17px] text-accent-type mb-3">Your decision</h2>
+      <h2 className="font-sans font-semibold text-[17px] text-accent-deep mb-3">Your decision</h2>
       <div className="flex gap-2 flex-wrap mb-5">
         {(["NO_FILING","STR","SAR","REAR","CNMR","FFR"] as const).map((t) => (
           <button key={t} onClick={() => setType(t)} aria-pressed={type === t}

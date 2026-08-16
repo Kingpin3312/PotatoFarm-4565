@@ -73,7 +73,7 @@ export default function Reports() {
       {/* Hour by hour. The point of this chart is the shape after six in
           the evening, which is where most brokerages discover their
           problem. */}
-      <h2 className="font-sans font-semibold text-[19px] text-accent-type -tracking-[0.02em] mb-1">
+      <h2 className="font-sans font-semibold text-[19px] text-accent-deep -tracking-[0.02em] mb-1">
         By hour of day
       </h2>
       <p className="text-sm text-ink-2 mb-4 max-w-[48ch]">
@@ -106,7 +106,7 @@ export default function Reports() {
         ))}
       </div>
 
-      <h2 className="font-sans font-semibold text-[19px] text-accent-type -tracking-[0.02em] mt-12 mb-3">
+      <h2 className="font-sans font-semibold text-[19px] text-accent-deep -tracking-[0.02em] mt-12 mb-3">
         Where they come from
       </h2>
       <div className="border-t border-ink">

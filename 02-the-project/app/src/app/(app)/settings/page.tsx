@@ -29,7 +29,7 @@ export default function SettingsPage() {
 
       {data && (
         <>
-          <h2 className="font-sans font-semibold -tracking-[0.024em] text-[22px] text-accent-type mt-12 mb-1">This month</h2>
+          <h2 className="font-sans font-semibold -tracking-[0.024em] text-[22px] text-accent-deep mt-12 mb-1">This month</h2>
           <p className="text-sm text-ink-3 max-w-[60ch]">
             Every call is counted, including ones that were blocked or failed — a total
             that only reflects the successes under-reports exactly when something is
@@ -46,7 +46,7 @@ export default function SettingsPage() {
 
       {handovers && handovers.byReason.length > 0 && (
         <>
-          <h2 className="font-sans font-semibold -tracking-[0.024em] text-[22px] text-accent-type mt-12 mb-1">Why it stepped back</h2>
+          <h2 className="font-sans font-semibold -tracking-[0.024em] text-[22px] text-accent-deep mt-12 mb-1">Why it stepped back</h2>
           <p className="text-sm text-ink-3 max-w-[60ch]">
             Last seven days, grouped. The useful question is what keeps happening, not
             what happened at 14:32.

@@ -42,8 +42,20 @@ let bad=0;
 const failures=[];
 const ok=(l,p,d="")=>{console.log(`  ${p?"\u2713":"\u2717"} ${l}${d?"  \u2014 "+d:""}`);if(!p){bad++;failures.push(d?`${l}  \u2014 ${d}`:l);}};
 
-const NAVY = "rgb(18, 32, 46)";      // --brand-navy
-const ORANGE = "rgb(255, 107, 53)";  // --accent-type
+/**
+ * Both read from the stylesheet, not pinned to a literal.
+ *
+ * `ORANGE` was `rgb(255, 107, 53)` and the Option 1 palette move made a
+ * correctly-rendered lockup fail this check — the wordmark was right
+ * and the check was a generation behind, which is the second time a
+ * pinned hex has done that here (`og.mjs` was the first).
+ *
+ * The question this file is asking is "does the `.io` take the accent
+ * and the word take the navy", not "is the accent this exact orange".
+ * `contrast.py` and `browser:option1` own the second question, and
+ * neither can be got wrong by a palette move.
+ */
+let NAVY, ORANGE;
 
 const b=await pw.chromium.launch({executablePath:cp()});
 const ctx=await b.newContext({viewport:{width:1280,height:900}});
@@ -90,6 +102,19 @@ for (const url of ["/sign-in", "/sign-in/check-your-email", "/sign-in/error", "/
 }
 
 console.log("\n=== the wordmark is the artwork's navy, not neutral ink ===");
+{
+  // Resolved through the browser so the comparison is rgb-to-rgb and
+  // whitespace in the custom property cannot make a match miss.
+  const resolve = (name) => p.evaluate((n) => {
+    const hex = getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+    const el = document.createElement("span");
+    el.style.color = hex; document.body.appendChild(el);
+    const v = getComputedStyle(el).color; el.remove(); return v;
+  }, name);
+  NAVY = await resolve("--brand-navy");
+  ORANGE = await resolve("--accent-type");
+  ok("the brand tokens resolve", !!NAVY && !!ORANGE, `${NAVY} / ${ORANGE}`);
+}
 for (const url of ["/today", "/sign-in"]) {
   const l = await lockup(url);
   ok(`${url} wordmark is navy`, l.wordColour === NAVY, l.wordColour ?? "—");

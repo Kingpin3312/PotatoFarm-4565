@@ -84,7 +84,7 @@ export default function Billing() {
         </div>
       )}
 
-      <h2 className="font-sans font-semibold text-[19px] text-accent-type -tracking-[0.02em] mt-12 mb-3">
+      <h2 className="font-sans font-semibold text-[19px] text-accent-deep -tracking-[0.02em] mt-12 mb-3">
         Payment
       </h2>
 
@@ -132,7 +132,7 @@ export default function Billing() {
         </div>
       )}
 
-      <h2 className="font-sans font-semibold text-[19px] text-accent-type -tracking-[0.02em] mt-12 mb-3">
+      <h2 className="font-sans font-semibold text-[19px] text-accent-deep -tracking-[0.02em] mt-12 mb-3">
         Invoices
       </h2>
       {!invoices?.length ? (

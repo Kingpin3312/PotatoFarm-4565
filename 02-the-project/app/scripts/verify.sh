@@ -162,6 +162,12 @@ else
   # and fingerprints the potato; it cannot see that the wordmark beside
   # it is the wrong colour on every screen, which it was.
   step "browser:brand" npm run --silent browser:brand
+  # The palette as a browser resolves it. `contrast.py` reads the
+  # stylesheet and `consistency.py` compares the four places the colours
+  # are declared; neither can see what a page paints. The last palette
+  # move shipped `text-accent-type` to 42 call sites that generated no
+  # CSS at all, and every source-reading check passed.
+  step "browser:option1" npm run --silent browser:option1
   # Every screen opened in a real browser, and every link it renders
   # followed. Slow — around six minutes — and it is the only check that
   # sees what the screens actually do, which is where the two worst

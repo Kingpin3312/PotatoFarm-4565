@@ -21,7 +21,21 @@ const button = cva(
     "font-sans font-semibold whitespace-nowrap border",
     "transition-[background-color,border-color,color] duration-200 ease-out",
     "focus-visible:outline-none focus-visible:shadow-[var(--glow-focus)]",
-    "disabled:opacity-40 disabled:cursor-not-allowed",
+    /**
+     * Disabled is a different colour, not a faded one.
+     *
+     * `opacity-40` over a cream ground read as "not yet"; over white it
+     * reads as a rendering fault — a pale peach button with a grey
+     * ghost of a label. WCAG exempts a disabled control from contrast,
+     * so this is not a violation, and "not a violation" is a low bar
+     * for a product asking to be called premium.
+     *
+     * The neutral fill with a real border says unavailable and stays
+     * legible, and it is the direction's own warm grey rather than a
+     * new colour.
+     */
+    "disabled:cursor-not-allowed disabled:bg-sunk disabled:text-ink-3",
+    "disabled:border-rule-strong disabled:shadow-none",
   ],
   {
     variants: {

@@ -62,7 +62,7 @@ export default function Privacy() {
           className="w-full min-h-11 px-4 text-[16px] text-ink bg-sunk border border-rule rounded-lg focus-visible:outline-none focus-visible:shadow-[var(--ring)]" />
       </div>
 
-      <h2 className="font-sans font-semibold text-[17px] text-accent-type mt-8 mb-2">
+      <h2 className="font-sans font-semibold text-[17px] text-accent-deep mt-8 mb-2">
         Everything you hold on them
       </h2>
       <p className="text-sm text-ink-2 mb-3 max-w-[48ch] leading-snug">
@@ -74,7 +74,7 @@ export default function Privacy() {
         Build the file
       </Button>
 
-      <h2 className="font-sans font-semibold text-[17px] text-accent-type mt-10 mb-2">Erase them</h2>
+      <h2 className="font-sans font-semibold text-[17px] text-accent-deep mt-10 mb-2">Erase them</h2>
       <p className="text-sm text-ink-2 mb-3 max-w-[48ch] leading-snug">
         Personal details are scrubbed and the audit trail is kept — the log cannot be edited
         or deleted, which is enforced at the database.

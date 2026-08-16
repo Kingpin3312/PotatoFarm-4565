@@ -51,6 +51,7 @@
     "browser:screens": "node --env-file-if-exists=.env scripts/screens.mjs",
     "browser:documents": "node --env-file-if-exists=.env scripts/documents.mjs",
     "check:blocking": "node --env-file-if-exists=.env scripts/blocking.mjs",
+    "browser:option1": "node --env-file-if-exists=.env scripts/option1.mjs",
     "browser:brand": "node --env-file-if-exists=.env scripts/brand.mjs"
   },
   "dependencies": {

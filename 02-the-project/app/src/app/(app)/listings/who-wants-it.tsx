@@ -72,7 +72,7 @@ export function WhoWantsIt({ listingId, reference }: { listingId: string; refere
               describes, so the two can never disagree. */}
           <h2
             id="buyers-title"
-            className="font-sans font-semibold -tracking-[0.024em] text-[22px] leading-tight text-accent-type mt-2 max-w-[36ch]"
+            className="font-sans font-semibold -tracking-[0.024em] text-[22px] leading-tight text-accent-deep mt-2 max-w-[36ch]"
           >
             {isLoading ? "Looking through your book…" : (data?.pitch ?? "Who wants it")}
           </h2>
