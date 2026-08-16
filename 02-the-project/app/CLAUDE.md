@@ -139,7 +139,7 @@ not want.
 
 ## The shape that keeps recurring
 
-Seven times a complete, tested, documented module has turned out to have
+Eight times a complete, tested, documented module has turned out to have
 nothing that starts it — and the sixth is the product itself:
 
 1. **Billing** could invoice a customer no code path could create.
@@ -166,6 +166,20 @@ nothing that starts it — and the sixth is the product itself:
    per document type, warnings grouped per recipient, a README arguing
    why the broker card is the one that catches people out — and the
    nightly job reported success every morning for finding nothing.
+8. **Lead scoring**, and it is the variation worth knowing about,
+   because everything above it was *not running*. This was. The nightly
+   sweep computed a 0–100 score from four components, wrote
+   `Lead.score`, wrote a `LeadScoreEvent` with a plain-English driver
+   list, and compared each lead against its own value six days ago to
+   say "warming — up 12 points this week". Every night, correctly, for
+   every lead. **No screen had ever displayed any of it.** There was no
+   entry condition to fail and no first row to write — `reachability.py`
+   is looking for a model nothing writes, and this model was written to
+   nightly. The gap was on the way out, not the way in.
+
+   So the third diagnostic question below has a fourth beside it: **who
+   reads it?** A column with a writer and no reader costs a query per
+   lead per night to produce a number nobody has ever seen.
 
 `architecture.py` catches a module nothing *imports*. `reachability.py`
 catches the subtler one — a module that is imported, called correctly,
@@ -182,7 +196,7 @@ computed, exported, documented and applied to the wrong thing — a
 manager saw today's figures under yesterday's date — and no test that
 compared timestamps rather than numbers could have told. A row that nothing supersedes, completes or expires
 alarms for ever, and an alarm that never stops is one somebody switches
-off.
+off. And the fourth, which lead scoring produced: **who reads it?**
 
 ## The pattern that runs through everything
 
@@ -212,8 +226,8 @@ send path read it.
 
 ## Run the tests
 
-    npm test          # 214 assertions, pure functions, no database
-    npm run verify    # tsc, the tests, 15 check suites, 13 audits
+    npm test          # 228 assertions, pure functions, no database
+    npm run verify    # tsc, the tests, 16 check suites, 13 audits
 
 `npm test` was declared from day one with no test files behind it, so it
 exited 1 and said "No test files found". There are seven files now, and

@@ -106,7 +106,7 @@ printf '\n%sUnit tests%s\n' "$bold" "$off"
 step "vitest" npm run --silent test
 
 printf '\n%sChecks%s\n' "$bold" "$off"
-for name in tenancy intake intelligence voice deals autonomy buyers search qualification quiet migration vault visibility sigv4 storage load; do
+for name in tenancy intake intelligence voice deals autonomy buyers search qualification quiet migration vault visibility bands sigv4 storage load; do
   if [ "$name" = "load" ] && [ "$WITH_LOAD" -eq 0 ]; then
     skipped+=("check:load (use --load; it seeds a database)"); continue
   fi

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MOVEMENT_THRESHOLD, movement, scoreLead, type ScoreInput } from "./score";
+import { BANDS, MOVEMENT_THRESHOLD, band, movement, scoreLead, type ScoreInput } from "./score";
 
 /**
  * Lead scoring.
@@ -283,5 +283,87 @@ describe("movement is only reported when it means something", () => {
   it("reports a real rise and a real fall, with the number", () => {
     expect(movement(80, 70)).toBe("warming — up 10 points this week");
     expect(movement(70, 80)).toBe("cooling — down 10 points this week");
+  });
+});
+
+describe("the score comes out as a word an agent can scan", () => {
+  /**
+   * The bands are the display layer for a score that has run nightly
+   * since it was written and been shown to nobody. What is pinned here
+   * is not the arithmetic — `scoreLead` above owns that — but the two
+   * ways a band can be wrong in a way nothing else would catch.
+   */
+
+  it("does not call an unscored lead cold", () => {
+    // A lead created since the last sweep has no score. Banding it as
+    // the worst puts every new enquiry at the bottom of the list on the
+    // day it arrives, which is the exact failure `recency` is shaped to
+    // avoid two functions up.
+    expect(band(null)).toBeNull();
+  });
+
+  it("names every score from 0 to 100", () => {
+    // A gap between two thresholds renders an empty chip beside a real
+    // number, and it would only show up on the one lead that landed in
+    // it.
+    for (let n = 0; n <= 100; n++) expect(band(n)).not.toBeNull();
+  });
+
+  it("puts each threshold in its own band, not the one below", () => {
+    // Off-by-one at a boundary is invisible: 80 shown as Hot looks
+    // entirely reasonable.
+    for (const b of BANDS) expect(band(b.from)!.band).toBe(b.band);
+    for (const b of BANDS) {
+      if (b.from > 0) expect(band(b.from - 1)!.band).not.toBe(b.band);
+    }
+  });
+
+  it("keeps Golden out of reach without real engagement", () => {
+    /**
+     * The claim the band makes, checked against the scorer rather than
+     * asserted in a comment. A lead who is talking, urgent and a
+     * perfect fit for the book — but who has never attended anything or
+     * offered on anything — must not be Golden, or the top band names
+     * twenty leads and therefore none of them.
+     */
+    const talking = score({
+      lastInboundAt: NOW,
+      intent: "BUY_TO_LIVE",
+      timeframe: "ASAP",
+      budgetMaxFils: 3_000_000_00n,
+      book: { minFils: 1_000_000_00n, maxFils: 5_000_000_00n },
+    });
+    expect(band(talking.total)!.band).not.toBe("GOLDEN");
+
+    // The same lead, having turned up to two viewings and made an
+    // offer, is.
+    const committed = score({
+      lastInboundAt: NOW,
+      intent: "BUY_TO_LIVE",
+      timeframe: "ASAP",
+      budgetMaxFils: 3_000_000_00n,
+      book: { minFils: 1_000_000_00n, maxFils: 5_000_000_00n },
+      inboundCount: 8,
+      outboundCount: 8,
+      viewingCount: 2,
+      attendedCount: 2,
+      offerCount: 1,
+    });
+    expect(band(committed.total)!.band).toBe("GOLDEN");
+  });
+
+  it("does not let an unknown budget alone reach Warm", () => {
+    // `budgetFit` scores an unknown budget at the midpoint so absence
+    // does not bury a good lead. The other side of that decision is
+    // that absence must not read as warmth either.
+    const nothing = score({
+      createdAt: daysAgo(90),
+      lastInboundAt: daysAgo(60),
+      lastOutboundAt: daysAgo(60),
+      inboundCount: 0,
+      outboundCount: 0,
+      budgetMaxFils: null,
+    });
+    expect(band(nothing.total)!.band).toBe("COLD");
   });
 });

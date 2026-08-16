@@ -218,3 +218,82 @@ export function movement(current: number, previous: number | null): string | nul
     ? `warming — up ${delta} points this week`
     : `cooling — down ${Math.abs(delta)} points this week`;
 }
+
+/**
+ * The score as a word.
+ *
+ * ## Why this exists at all
+ *
+ * `scoreLead` has run nightly since it was written. It fills
+ * `Lead.score`, writes a `LeadScoreEvent` with all four components and
+ * a plain-English driver list, and computes whether a lead is warming
+ * or cooling against its own value six days ago. **No screen has ever
+ * shown any of it.** The eighth time in this codebase that a complete,
+ * tested, documented thing turned out to have nowhere to come out —
+ * and the first where the machinery was not merely unreached but
+ * genuinely running, every night, into a column nobody reads.
+ *
+ * ## Why a word and not the number
+ *
+ * The number is in the database and it stays there, on the row, for an
+ * agent who wants it. But 0–100 invites an argument about whether 61
+ * beats 58, and the honest answer is that it does not — the components
+ * are integers clamped at 25 and a day passing moves recency on its
+ * own, which is the whole reason `MOVEMENT_THRESHOLD` is 8. A band is
+ * the precision this actually has.
+ *
+ * ## The thresholds, and where they come from
+ *
+ * Four components, each 0–25. The bands are set at what a lead has to
+ * have *done* to reach them rather than at round numbers:
+ *
+ *   **Golden (80+)** — cannot be reached without real engagement. The
+ *   ceiling on recency plus intent alone is 50, so 80 needs a lead who
+ *   has attended a viewing or made an offer *and* fits the book. In
+ *   practice this is a handful per brokerage and that is the point:
+ *   a band that names twenty leads names none of them.
+ *
+ *   **Hot (60–79)** — reachable by a lead who is talking, has stated
+ *   urgency, and fits the book, with no viewing yet. The list an agent
+ *   works today.
+ *
+ *   **Warm (35–59)** — the bulk. Real, not urgent, worth a follow-up.
+ *   The floor is set so a lead with an unknown budget (12, the
+ *   midpoint) and nothing else cannot reach it: absence of information
+ *   should not read as warmth.
+ *
+ *   **Cold (<35)** — quiet, unresponsive, or badly out of range.
+ *   Deliberately not "dead": `UNRESPONSIVE` caps intent at 5 and a
+ *   fortnight of silence decays recency, so this band fills with leads
+ *   an agent should stop chasing rather than ones they should delete.
+ *
+ * ## The vocabulary
+ *
+ * These are the brand's words, and they are internal-only by decision:
+ * agents see them, and nothing customer- or vendor-facing does. A buyer
+ * finding out a brokerage filed them as a cold potato is a bad day.
+ * `crossTenant` does not gate copy, so the guard is that this function
+ * is imported by the leads screen and nothing in `whatsapp/`,
+ * `vendors/` or `notify/` — asserted in `check:bands`.
+ */
+export type Band = "GOLDEN" | "HOT" | "WARM" | "COLD";
+
+export const BANDS: { band: Band; from: number; label: string; blurb: string }[] = [
+  { band: "GOLDEN", from: 80, label: "Golden",
+    blurb: "Fits your book and has done something about it. Ring them." },
+  { band: "HOT", from: 60, label: "Hot",
+    blurb: "Talking, in range, and in a hurry. Today's list." },
+  { band: "WARM", from: 35, label: "Warm",
+    blurb: "Real, not urgent. Worth a follow-up this week." },
+  { band: "COLD", from: 0, label: "Cold",
+    blurb: "Quiet or out of range. Stop chasing rather than send a fifth message." },
+];
+
+export function band(score: number | null): typeof BANDS[number] | null {
+  // Null is not cold. A lead the nightly sweep has not reached yet —
+  // anything created since the last run — has no score, and showing it
+  // as the worst band would put every new enquiry at the bottom of the
+  // list on the day it arrives. Same argument as `recency` above.
+  if (score === null) return null;
+  return BANDS.find((b) => score >= b.from) ?? BANDS[BANDS.length - 1]!;
+}

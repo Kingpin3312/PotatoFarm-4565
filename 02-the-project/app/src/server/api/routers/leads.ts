@@ -3,6 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { router, orgProcedure, requirePermission } from "../trpc";
 import { leadScope } from "@/server/auth/rbac";
 import { audit } from "@/server/lib/audit";
+import { band } from "@/server/lib/intelligence/score";
 
 const phone = z.string().regex(/^\+[1-9]\d{7,14}$/, "Include the country code.");
 
@@ -94,6 +95,13 @@ export const leadsRouter = router({
           stageRef: { select: { id: true, name: true } },
           budgetMinFils: true, budgetMaxFils: true, intent: true, source: true,
           createdAt: true,
+          /**
+           * The nightly score.
+           *
+           * Written every night since the sweep was built and read by
+           * nothing. The reasons behind it are fetched below.
+           */
+          score: true,
           assignedTo: { select: { id: true, name: true } },
           // `id` included: the list links each row straight into the
           // inbox thread, and without it the link fell back to the lead
@@ -103,7 +111,62 @@ export const leadsRouter = router({
       });
 
       const nextCursor = rows.length > input.limit ? rows.pop()!.id : null;
-      return { rows, nextCursor };
+
+      /**
+       * Why each score is what it is.
+       *
+       * One query for the page rather than one per row, and a separate
+       * one rather than a nested select because `LeadScoreEvent` has a
+       * `leadId` column and no Prisma relation to `Lead` — it hangs off
+       * `Organisation` only. Adding the relation is the tidier schema
+       * and it is a migration to render a caption, so it is not done
+       * here.
+       *
+       * Ordered oldest-first so the `Map` write for each lead ends on
+       * its newest event. Getting that backwards shows an agent last
+       * week's reasons under this week's number, which is exactly the
+       * kind of quiet wrongness this codebase keeps finding.
+       */
+      const drivers = new Map<string, string[]>();
+      if (rows.length > 0) {
+        const events = await ctx.db.leadScoreEvent.findMany({
+          where: { leadId: { in: rows.map((r) => r.id) } },
+          orderBy: { computedAt: "asc" },
+          select: { leadId: true, drivers: true },
+        });
+        for (const e of events) drivers.set(e.leadId, e.drivers);
+      }
+
+      /**
+       * The band is resolved here, not in the screen.
+       *
+       * `band()` lives in `intelligence/score.ts` beside the thresholds
+       * it reads, and that module is server-side. Sending the resolved
+       * word rather than importing the function into a client component
+       * keeps one owner for where "Hot" starts — a second copy of the
+       * cutoffs in a `.tsx` is how the leads list and the board come to
+       * disagree about the same lead.
+       */
+      return {
+        rows: rows.map((r) => {
+          const b = band(r.score);
+          return {
+            ...r,
+            /**
+             * Reasons only where there is a conclusion to explain.
+             *
+             * A lead whose score has been cleared, or who has an event
+             * from before it was, otherwise renders "cooling — down 10
+             * points this week" with no band and no number beside it —
+             * an explanation of something not on the screen. The
+             * drivers describe the score; without one they are debris.
+             */
+            drivers: b ? drivers.get(r.id) ?? [] : [],
+            band: b,
+          };
+        }),
+        nextCursor,
+      };
     }),
 
   assign: requirePermission("lead:assign")

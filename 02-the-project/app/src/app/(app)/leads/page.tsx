@@ -50,7 +50,16 @@ export default function Leads() {
       </header>
 
       <div className="flex gap-2 flex-wrap mb-5">
-        {([["all","Everyone"],["unassigned","Nobody's"],["hot","Hot"],["cold","Gone quiet"]] as const)
+        {/* "Waiting on us", not "Hot".
+
+            The `hot` filter is unread-inbound — the buyer has replied
+            and nobody has answered — which is about *our* backlog, not
+            about how good the lead is. It shared a word with the score
+            band now shown on every row, and two different meanings of
+            Hot on one screen is worse than either. The enum value stays
+            `hot`: it is an API contract, and only the label was wrong. */}
+        {([["all","Everyone"],["unassigned","Nobody's"],
+           ["hot","Waiting on us"],["cold","Gone quiet"]] as const)
           .map(([k, label]) => (
             <button key={k} onClick={() => setFilter(k)} aria-pressed={filter === k}
               className={cn("min-h-11 px-4 rounded-lg border text-[15px]",
@@ -94,22 +103,46 @@ export default function Leads() {
       ) : (
         <div className="border-t border-ink">
           {rows.map((l) => (
-            <div key={l.id} className="flex items-center gap-3 py-3 border-b border-rule">
+            <div key={l.id} data-lead={l.id}
+                 className="flex flex-wrap items-center gap-x-3 gap-y-1 py-3 border-b border-rule">
               <label className="flex items-center min-h-11 cursor-pointer">
                 <span className="sr-only">Select {l.name ?? l.phone}</span>
                 <input type="checkbox" checked={picked.has(l.id)} onChange={() => toggle(l.id)}
                   className="w-5 h-5 accent-[var(--accent)]" />
               </label>
               <a href={`/inbox/${l.conversation?.id ?? l.id}`}
-                 className="flex min-h-11 items-center text-[15px] text-ink no-underline flex-1">
-                {l.name ?? l.phone}
+                 className="flex min-h-11 items-center text-[15px] text-ink no-underline flex-1 min-w-0">
+                <span className="truncate">{l.name ?? l.phone}</span>
               </a>
+              {/* The band, and the number it came from. Both, because
+                  the word is what an agent scans and the number is what
+                  they argue with — and a word with no number behind it
+                  is the kind of label people learn to ignore. */}
+              {l.band && (
+                <span data-band={l.band.band} title={l.band.blurb}
+                      className={cn(
+                        "font-mono text-[10px] uppercase tracking-[0.12em] px-1.5 py-0.5 rounded-[2px] border",
+                        l.band.band === "GOLDEN" || l.band.band === "HOT"
+                          ? "text-accent-deep border-accent-edge bg-accent-soft"
+                          : "text-ink-3 border-rule")}>
+                  {l.band.label} <span className="tabular">{l.score}</span>
+                </span>
+              )}
               <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-3">
                 {l.source}
               </span>
               <span className="font-mono text-[11px] text-ink-3 w-20 text-right tabular">
                 {l.assignedTo?.name ?? "unassigned"}
               </span>
+              {/* Why it is that warm, in the sweep's own words. An
+                  instruction with no reason is one an agent learns to
+                  ignore, and the reason is also how they catch it being
+                  wrong — the same argument as the Today list. */}
+              {l.drivers.length > 0 && (
+                <p className="basis-full pl-8 text-[13px] leading-snug text-ink-3">
+                  {l.drivers.join(" · ")}
+                </p>
+              )}
             </div>
           ))}
         </div>
