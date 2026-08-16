@@ -234,8 +234,26 @@ send path read it.
 
 ## Run the tests
 
-    npm test          # 228 assertions, pure functions, no database
+    npm test          # 233 assertions, pure functions, no database
     npm run verify    # tsc, the tests, 16 check suites, 14 audits
+
+**The gate is now green end to end, including the two things that used
+to skip.** `verify` reports what it did not run rather than counting a
+skip as a pass, and for a long time it reported two:
+
+- **`check:load` had never been run.** It has now: 5,000 leads, 1,200
+  listings, 6,500 requirements, 40,000 messages, built in 8s. Every
+  query an agent waits on is inside budget — the pipeline's first page
+  at 5ms warm, search at 46–65ms, "who wants this property" at 67ms. The
+  slowest *first* call was 108ms and it is the first query in the
+  process, so that is connection setup rather than the query, which is
+  the measurement behind "a pooler in front of Postgres is not
+  optional". Run it with `npm run verify --load`; it takes minutes.
+- **`check:whatsapp-inbound` needs `WHATSAPP_APP_SECRET`.** Any value
+  works locally — it is the HMAC key the check signs its own fake
+  webhook with. Without it the one end-to-end proof that an inbound
+  message becomes a lead, a conversation, a stage and a 24-hour window
+  simply did not run.
 
 `npm test` was declared from day one with no test files behind it, so it
 exited 1 and said "No test files found". There are seven files now, and
