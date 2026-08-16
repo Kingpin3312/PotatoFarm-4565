@@ -171,12 +171,16 @@ nothing that starts it — and the sixth is the product itself:
 catches the subtler one — a module that is imported, called correctly,
 and whose entry condition never occurs. **A light switch wired to
 nothing.** It now scans every model in the schema against a
-`KNOWN_UNWRITTEN` ratchet, so the remaining five are visible and a new
+`KNOWN_UNWRITTEN` ratchet, so the remaining four are visible and a new
 one is a build failure.
 
 The question to ask of anything new: **what writes the first row?** And
-then the second one, which found the missing half of the register:
-**what closes it?** A row that nothing supersedes, completes or expires
+then the second, which found the missing half of the register: **what
+closes it?** And a third, which team visibility produced: **if this
+setting were ignored, what would look different?** The head start was
+computed, exported, documented and applied to the wrong thing — a
+manager saw today's figures under yesterday's date — and no test that
+compared timestamps rather than numbers could have told. A row that nothing supersedes, completes or expires
 alarms for ever, and an alarm that never stops is one somebody switches
 off.
 
