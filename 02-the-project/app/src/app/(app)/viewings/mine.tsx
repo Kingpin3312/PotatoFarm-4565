@@ -16,7 +16,7 @@ export function MyViewings() {
 
   return (
     <section>
-      <h2 className="font-sans font-medium text-sub text-accent-deep mb-3">Next two days</h2>
+      <h2 className="font-sans font-medium text-sub text-ink mb-3">Next two days</h2>
       <div className="border-t border-ink">
         {viewings.map((v) => (
           <a key={v.id} href={`/viewings#${v.id}`}

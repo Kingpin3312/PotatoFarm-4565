@@ -68,7 +68,7 @@ export default function Routing() {
           strategy without this finds out from four complaints. */}
       {preview.data && (
         <>
-          <h2 className="font-sans font-medium text-sub text-accent-deep mt-10 mb-1">
+          <h2 className="font-sans font-medium text-sub text-ink mt-10 mb-1">
             Who would get the next one
           </h2>
           {/* `pool`, not `agents` — and every field here comes from what

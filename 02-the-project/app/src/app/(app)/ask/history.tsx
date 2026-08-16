@@ -158,14 +158,14 @@ function State({ state }: { state: string }) {
 
 /** The enum, in the words an agent would use. */
 const RECIPE: Record<string, string> = {
-  COMPARABLES: "comparables",
-  LISTING_PITCH: "listing pitch",
-  VENDOR_UPDATE: "owner update",
-  LOG_CONTACT: "contact logged",
-  BOOK_VIEWING: "viewing",
-  DRAFT_REPLY: "draft reply",
-  DAY_BRIEF: "day brief",
-  UNCLEAR: "not understood",
+  COMPARABLES: "Comparables",
+  LISTING_PITCH: "Listing pitch",
+  VENDOR_UPDATE: "Owner update",
+  LOG_CONTACT: "Contact logged",
+  BOOK_VIEWING: "Viewing",
+  DRAFT_REPLY: "Draft reply",
+  DAY_BRIEF: "Day brief",
+  UNCLEAR: "Not understood",
 };
 
 /**

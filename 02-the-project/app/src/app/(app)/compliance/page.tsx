@@ -71,7 +71,7 @@ export default function Compliance() {
         with payments from the screening flow.
       */}
 
-      <h2 className="font-sans font-semibold text-body-lg text-accent-deep mb-3">
+      <h2 className="font-sans font-semibold text-body-lg text-ink mb-3">
         Waiting on a decision
       </h2>
       {pending.length === 0 ? (
@@ -101,7 +101,7 @@ export default function Compliance() {
         </div>
       )}
 
-      <h2 className="font-sans font-semibold text-body-lg text-accent-deep mt-12 mb-3">
+      <h2 className="font-sans font-semibold text-body-lg text-ink mt-12 mb-3">
         Reviews due
       </h2>
       {due.length === 0 ? (

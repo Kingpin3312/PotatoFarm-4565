@@ -44,7 +44,7 @@ export default function CommissionPage() {
         </p>
       )}
 
-      <h2 className="font-sans font-semibold text-section text-accent-deep mt-12 mb-1">Every deal</h2>
+      <h2 className="font-sans font-semibold text-section text-ink mt-12 mb-1">Every deal</h2>
       <div className="border-t border-ink mt-4">
         {data.rows.length === 0 && (
           <p className="py-6 text-sm text-ink-3">

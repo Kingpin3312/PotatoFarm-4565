@@ -315,16 +315,16 @@ function Detail({ id }: { id: string }) {
 }
 
 const STAGE: Record<string, string> = {
-  AGREED: "agreed",
-  MOU_SIGNED: "form F",
-  DEPOSIT_PAID: "deposit",
-  MORTGAGE_APPLIED: "mortgage",
-  VALUATION_DONE: "valued",
-  FINAL_OFFER: "final offer",
-  LIABILITY_LETTER: "liability",
+  AGREED: "Agreed",
+  MOU_SIGNED: "Form F",
+  DEPOSIT_PAID: "Deposit",
+  MORTGAGE_APPLIED: "Mortgage",
+  VALUATION_DONE: "Valued",
+  FINAL_OFFER: "Final offer",
+  LIABILITY_LETTER: "Liability",
   NOC_APPLIED: "NOC applied",
   NOC_RECEIVED: "NOC in",
-  TRANSFER_BOOKED: "transfer booked",
+  TRANSFER_BOOKED: "Transfer booked",
 };
 
 function summary(c: { atRisk: number; watch: number; total: number }): string {

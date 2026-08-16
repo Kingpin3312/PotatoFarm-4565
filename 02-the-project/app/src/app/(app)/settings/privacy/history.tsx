@@ -15,7 +15,7 @@ export function ErasureHistory() {
 
   return (
     <section className="mt-12">
-      <h2 className="font-sans font-medium text-sub text-accent-deep mb-3">Past requests</h2>
+      <h2 className="font-sans font-medium text-sub text-ink mb-3">Past requests</h2>
       <div className="border-t border-ink">
         {data.requests.map((r) => (
           <div key={r.id} className="py-3 border-b border-rule">

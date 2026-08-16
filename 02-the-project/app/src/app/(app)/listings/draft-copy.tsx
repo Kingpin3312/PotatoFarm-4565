@@ -33,7 +33,7 @@ export function DraftCopy({ listingId }: { listingId: string }) {
 
   return (
     <div className="border-t border-rule pt-5">
-      <h2 className="font-sans font-medium text-sub text-accent-deep mb-3">Description</h2>
+      <h2 className="font-sans font-medium text-sub text-ink mb-3">Description</h2>
 
       <label htmlFor="copy" className="sr-only">Listing description</label>
       {drafted && (

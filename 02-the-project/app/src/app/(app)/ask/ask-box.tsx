@@ -291,7 +291,7 @@ export function Ask({ compact = false }: { compact?: boolean }) {
 function Report({ r }: { r: NonNullable<ReturnType<typeof api.requests.comparables.useMutation>["data"]> }) {
   return (
     <section className="mt-8">
-      <h2 className="font-sans text-body-lg font-semibold text-accent-deep">
+      <h2 className="font-sans text-body-lg font-semibold text-ink">
         {r.subject.building} · {r.subject.beds} bed
       </h2>
 

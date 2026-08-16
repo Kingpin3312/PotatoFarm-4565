@@ -6,6 +6,7 @@ import Link from "next/link";
 import { api } from "@/lib/trpc";
 import { cn } from "@/lib/cn";
 import { aedShort } from "@/lib/money";
+import { sentence as label } from "@/lib/sentence";
 import { Ask } from "../ask/ask-box";
 import { QueryError } from "@/components/ui/query-state";
 
@@ -163,18 +164,26 @@ function Summary({
   );
 }
 
+/**
+ * The shorter word for each action.
+ *
+ * Written in lower case when the label class uppercased everything, so
+ * the map was really "CALL -> call -> CALL". With the transform gone it
+ * rendered `call`, and a lookup table is a quieter place for that fault
+ * to hide than a `.toLowerCase()` call.
+ */
 const LABEL: Record<string, string> = {
-  CALL: "call",
-  SEND_PROPERTY: "send",
-  FOLLOW_UP: "follow up",
-  REQUEST_DOCUMENTS: "documents",
-  PREPARE_CMA: "valuation",
-  BOOK_VIEWING: "viewing",
-  ASK_FOR_LISTING: "listing",
-  REACTIVATE: "reactivate",
-  INTRODUCE_FINANCE: "finance",
-  NEGOTIATE: "negotiate",
-  RECORD_OUTCOME: "log outcome",
+  CALL: "Call",
+  SEND_PROPERTY: "Send",
+  FOLLOW_UP: "Follow up",
+  REQUEST_DOCUMENTS: "Documents",
+  PREPARE_CMA: "Valuation",
+  BOOK_VIEWING: "Viewing",
+  ASK_FOR_LISTING: "Listing",
+  REACTIVATE: "Reactivate",
+  INTRODUCE_FINANCE: "Finance",
+  NEGOTIATE: "Negotiate",
+  RECORD_OUTCOME: "Log outcome",
 };
 
 function Actions({
@@ -244,7 +253,7 @@ function Actions({
 
                 <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
                   <span className="t-label text-ink-3">
-                    {LABEL[a.action] ?? a.action.toLowerCase().replace(/_/g, " ")}
+                    {LABEL[a.action] ?? label(a.action)}
                   </span>
                   {a.valueFils !== null && a.valueFils > 0n && (
                     <span className="t-label tabular text-ink-3">

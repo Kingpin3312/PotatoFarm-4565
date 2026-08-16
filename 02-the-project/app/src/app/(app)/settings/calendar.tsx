@@ -41,7 +41,7 @@ export function CalendarFeed() {
 
   return (
     <section className="mt-12 border-t border-rule pt-7">
-      <h2 className="font-sans font-semibold text-section text-accent-deep mb-1">
+      <h2 className="font-sans font-semibold text-section text-ink mb-1">
         Your viewings, on your phone
       </h2>
       <p className="max-w-[56ch] text-ink-2 text-ui">

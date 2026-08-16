@@ -83,7 +83,7 @@ export function TeamVisibility() {
 
   return (
     <section className="mt-14" data-visibility>
-      <h2 className="font-sans font-semibold text-section text-accent-deep mb-1">
+      <h2 className="font-sans font-semibold text-section text-ink mb-1">
         What agents see about each other
       </h2>
       <p className="text-sm text-ink-2 max-w-[54ch]">

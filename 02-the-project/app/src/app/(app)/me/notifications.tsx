@@ -72,7 +72,7 @@ export function MyNotifications() {
 
   return (
     <section className="mt-12">
-      <h2 className="font-sans font-semibold text-section text-accent-deep mb-1">
+      <h2 className="font-sans font-semibold text-section text-ink mb-1">
         When not to buzz you
       </h2>
       <p className="text-sm text-ink-2 max-w-[52ch]">

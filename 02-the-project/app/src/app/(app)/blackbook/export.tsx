@@ -43,7 +43,7 @@ export function ExportBlackbook() {
 
   return (
     <div className="border-t border-rule pt-5 mt-10">
-      <h2 className="font-sans font-medium text-sub text-accent-deep mb-2">Export your book</h2>
+      <h2 className="font-sans font-medium text-sub text-ink mb-2">Export your book</h2>
       {!asked ? (
         <>
           <p className="text-sm text-ink-2 max-w-[48ch] leading-snug">

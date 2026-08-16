@@ -105,7 +105,7 @@ export default function Import() {
 
           {inspect.data && (
             <>
-              <h2 className="font-sans font-semibold text-body-lg text-accent-deep mt-8 mb-1">
+              <h2 className="font-sans font-semibold text-body-lg text-ink mt-8 mb-1">
                 {inspect.data.blockers > 0
                   ? `${inspect.data.blockers} record${inspect.data.blockers === 1 ? "" : "s"} cannot come across`
                   : "Nothing blocking"}
@@ -257,7 +257,7 @@ function Underway({ status }: { status: NonNullable<RouterOutputs["migration"]["
 
       {undecided.length > 0 && (
         <>
-          <h2 className="font-sans font-semibold text-body-lg text-accent-deep mt-8 mb-1">
+          <h2 className="font-sans font-semibold text-body-lg text-ink mt-8 mb-1">
             {undecided.length} waiting on you
           </h2>
           {/* Blockers first and named as such. A blocker is a record
