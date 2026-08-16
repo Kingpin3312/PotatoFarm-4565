@@ -90,6 +90,32 @@ it transaction-local. Session-level on a pooled connection means the next
 request inherits the previous tenant's scope. That single argument is the
 tenant boundary.
 
+**`forOrg()`'s transaction-per-query is not the inefficiency it looks
+like, and an independent audit got this wrong.** The audit called it
+"2+ round trips and the single largest architectural drag" and
+recommended caching a client per org and setting the scope on
+**connection checkout**. Checked against the code and measured against a
+running database, nearly all of that was false:
+
+- The per-org cache **already exists**, bounded, with a check asserting
+  two brokerages never share a client.
+- It is **one** round trip. Postgres receives `BEGIN → set_config →
+  query → COMMIT` as a single batched transaction — verified by turning
+  on `log_statement` and counting what arrived.
+- **Scoping on connection checkout would be a cross-tenant leak**, for
+  the reason stated directly above. The recommendation would have undone
+  the control it was meant to optimise.
+- Widening it to one interactive transaction per request holds a
+  connection across the Anthropic, Stripe and Meta calls these
+  procedures make mid-flight, which exhausts the pool far faster than
+  the round trips ever cost.
+
+Measured at 5,000 leads and 40,000 messages: pipeline first page 4ms
+warm, search 32ms. **There is nothing to reclaim here.** The lever is a
+pooler in front of Postgres, which `check:preflight` enforces. If
+somebody proposes optimising this again, ask them for the measurement
+first.
+
 **The audit log has `REVOKE UPDATE, DELETE`.** Erasure scrubs rows rather
 than deleting them. `privacy/README.md` explains how both can be true.
 
