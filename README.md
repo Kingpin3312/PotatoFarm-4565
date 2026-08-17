@@ -37,8 +37,8 @@ brokerages. $70 per agent per month.
 - **The website is finished** and can go live today — including the demo
   form, which now has a server behind it
 - **The application compiles, builds and runs.** 73 models, 27 routers,
-  149 procedures, 43 screens, 26 scheduled jobs. Seven procedures have no
-  screen and each is deliberate — `reachability.py` names them
+  149 procedures, 43 screens, 26 scheduled jobs. Eight procedures have no
+  screen — seven deliberately, one unfinished; `reachability.py` names them
 - **Tenant isolation has been tested with two brokerages in one
   database**, which is the whole security promise of the product
 - **Nothing is deployed**, because that needs a database, a Resend

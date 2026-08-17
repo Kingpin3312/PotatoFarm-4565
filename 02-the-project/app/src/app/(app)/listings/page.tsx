@@ -11,6 +11,7 @@ import { PublishCheck } from "./publish-check";
 import { WhoWantsIt } from "./who-wants-it";
 import { AddProperty } from "./add-property";
 import { EditListing } from "./edit-listing";
+import { CheckCopy } from "./check-copy";
 
 /**
  * Listings.
@@ -166,6 +167,7 @@ function Listings() {
 
             <div className="justify-self-end flex gap-2 flex-wrap justify-end max-[820px]:justify-self-start max-[820px]:justify-start">
               <EditListing listing={l} />
+              <CheckCopy />
               <WhoWantsIt listingId={l.id} reference={l.reference} />
               <PublishCheck
                 listingId={l.id}

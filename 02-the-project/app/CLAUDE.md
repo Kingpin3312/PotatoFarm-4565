@@ -555,6 +555,21 @@ with an empirical floor under it.
   designed behaviour, not a bug to tidy away**: the alternative is a
   stub returning no hits, which writes `CLEAR` and states in the record
   that a check happened.
+- **Drafting listing copy.** `copy.draftListing` builds the prompt and
+  never calls the model — the line was `const draft = ""`. It now throws
+  `NOT_IMPLEMENTED` rather than returning `{ draft: "", problems: [],
+  publishable: true }`, which is what it did: **an empty advertisement
+  marked fit to publish**, because `check("")` finds nothing wrong with
+  an empty string.
+
+  Its screen, `listings/draft-copy.tsx`, was mounted by nothing and is
+  deleted — recover it from `327f11b` when the model call is wired.
+  Worth knowing it existed: the UI is written, so finishing this is the
+  generation call and re-adding one component, not a feature.
+
+  `copy.checkCopy` is unaffected and genuinely works. It needs no model,
+  and checking copy an agent typed against the portal rules is the half
+  of this that is finished.
 - goAML submission, image quality checks. Nothing produces a
   `QualityIssue`; `collect.ts` says so at the definition.
 - Migration source adapters.

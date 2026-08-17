@@ -108,10 +108,15 @@ token, which the web app cannot do. Treat it as a design sketch.
 **73 database models · 60 enums · 27 API routers · 149 procedures ·
 43 screens · 26 scheduled jobs · 15 audit scripts · 24 check suites.**
 
-**Seven procedures have no screen**, and each is deliberate:
+**Eight procedures have no screen.** Seven are deliberate:
 `migration.abandon`, `aml.updateFile`, `aml.checkRear`,
 `aml.visibilityPolicy`, `onboarding.previewImport`, `leads.assign` and
 `org.switch`. `reachability.py` prints them by name every run.
+
+The eighth, `copy.draftListing`, is **not** deliberate — it is
+unfinished. It built its prompt and never called the model, returning an
+empty description marked publishable. It throws `NOT_IMPLEMENTED` now.
+Its sibling `copy.checkCopy` works, needs no model, and has a screen.
 
 `listings.update` was on this list and was **not** deliberate: a
 property could be added and then never changed — not the price, not the

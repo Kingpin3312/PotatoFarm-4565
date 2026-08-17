@@ -31,22 +31,31 @@ export const copyRouter = router({
         agentNotes: input.agentNotes,
       });
 
-      // Generation goes through the same client as the assistant, so the
-      // usage ledger and the spend ceiling apply to this too.
-      const draft = "";
-
-      const problems = check(draft);
-
-      return {
-        draft,
-        promptVersion: PROMPT_VERSION,
-        problems,
-        // Said explicitly in the response, not just in a comment
-        // somewhere — the client should not have to know the policy.
-        publishable: problems.length === 0,
-        autoPublish: AUTO_PUBLISH,
-        note: "Read it before it goes out. This is an advertisement the brokerage is responsible for.",
-      };
+      /**
+       * Generation is not wired, and this refuses rather than pretending.
+       *
+       * The line here was `const draft = ""` under a comment saying
+       * "generation goes through the same client as the assistant". No
+       * call was ever made — `prompt` above is built and discarded.
+       *
+       * What made that dangerous rather than merely unfinished is what
+       * came next: `check("")` finds no problems in an empty string, so
+       * the response was `{ draft: "", problems: [], publishable: true }`.
+       * **An empty advertisement, marked fit to publish.** That is the
+       * same shape as a sanctions `CLEAR` nobody produced — see
+       * `aml/screen.ts` — one regulated path over, and it is why
+       * `DraftCopy` must not be mounted until this is real.
+       *
+       * `checkCopy` below is unaffected and genuinely works: it needs no
+       * model, and checking copy an agent typed is the half of this
+       * feature that is finished.
+       */
+      throw new TRPCError({
+        code: "NOT_IMPLEMENTED",
+        message:
+          "Drafting listing copy is not available yet — the model call is not wired. " +
+          "Write the description and use the portal-rules check on it instead.",
+      });
     }),
 
   /** Check copy somebody wrote by hand against the same portal rules. */
