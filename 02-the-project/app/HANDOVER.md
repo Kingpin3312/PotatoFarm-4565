@@ -9,7 +9,7 @@ the single most important sentence in this document, because the natural
 instinct on arriving at a large codebase is to find something to build,
 and building is not what this project needs.
 
-The gate is green: `tsc` clean, 242 unit assertions, 24 check suites, 15
+The gate is green: `tsc` clean, 261 unit assertions, 24 check suites, 16
 audit scripts, all browser suites, and a production build that succeeds.
 CI runs the lot on every push.
 
@@ -58,8 +58,15 @@ None of this blocks a pilot, and all of it is honest:
   through it, and `sharp`'s is unreachable here because `next/image` is
   never used — but every acquirer's scanner will flag them regardless,
   and arguing reachability during diligence costs more than upgrading.
-- **Arabic and RTL.** The assistant handles Arabic; the interface does
-  not. This is the largest genuine product gap for a UAE brokerage.
+- **Arabic and RTL — the frame is done, the screens are not.** The
+  foundation is in and verified: the document resolves a locale and
+  carries `lang`/`dir`, every physical direction class in `src/` is gone
+  (`ml-` → `ms-`, and `i18n.py` fails the build if one returns), Arabic
+  gets its own line height and no negative letter-spacing, and the
+  navigation, shell, command palette and a language switcher are
+  translated. **What is left is the other ~330 strings across 43
+  screens** — mechanical, screen by screen, following the pattern in
+  `components/layout/shell.tsx`.
 - **Rebuild the mobile app** on a current Expo SDK — but only once a
   pilot proves agents want one. The responsive web app is verified at
   eight widths and covers a pilot.
@@ -235,7 +242,19 @@ out.
   `portals/property-finder.ts` says so at the top. Signature
   verification is real; the field names are guessed pending a partner
   agreement. Do not describe these integrations as working.
-- Arabic and RTL. The assistant handles Arabic; the interface does not.
+- **Arabic on the screens themselves.** The frame is translated and the
+  direction works end to end — `curl -H 'Cookie: pf_locale=ar'` returns
+  `<html lang="ar-AE" dir="rtl">` with an Arabic skip link — but the 43
+  screens still hold English strings. Three things are deliberately not
+  done and should be, in this order:
+  **(1) a native speaker has not read `ar.ts`**, which is an hour of
+  somebody's time and worth more than any further care in the file;
+  **(2) the preference is a cookie, so it does not follow an agent to a
+  new device** — syncing it to the user record needs middleware, because
+  the root layout cannot write a cookie and also serves the signed-out
+  pages; **(3) there is no browser check that renders a screen in Arabic
+  and asserts the layout mirrored.** The unit tests and `i18n.py` cover
+  the catalogue and the classes; nothing yet looks at a page.
 - No on-call rota. Alerts now have somewhere to go and nobody rostered
   to receive them.
 

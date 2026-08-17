@@ -79,10 +79,10 @@ function Listings() {
           </p>
         )}
 
-        {/* `ml-auto` so it sits at the right of the header on a desktop
+        {/* `ms-auto` so it sits at the end of the header on a desktop
             and wraps under the heading on a phone, where the flex-wrap
             above puts it on its own line at full reach of a thumb. */}
-        <div className="ml-auto"><AddProperty /></div>
+        <div className="ms-auto"><AddProperty /></div>
       </header>
 
       {/* The two failures that are otherwise invisible. Shown before the
@@ -211,7 +211,7 @@ function Listings() {
 
 function Alert({ count, title, detail, last }: { count: number; title: string; detail: string; last?: boolean }) {
   return (
-    <div className={cn("px-5 py-5 border-b border-rule", !last && "border-r border-rule max-[720px]:border-r-0")}>
+    <div className={cn("px-5 py-5 border-b border-rule", !last && "border-e border-rule max-[720px]:border-e-0")}>
       <div className={cn("font-sans font-semibold text-h2 leading-none", count ? "text-accent" : "text-ink-3")}>
         {count}
       </div>

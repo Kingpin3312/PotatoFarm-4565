@@ -48,7 +48,7 @@ export default function Setup() {
       <div className="border-t border-ink">
         {steps.map((s, i) => (
           <div key={s.key} className={cn("py-4 border-b border-rule",
-            !s.done && s.key === next?.key && "border-l-[3px] border-l-accent pl-4 -ml-4")}>
+            !s.done && s.key === next?.key && "border-s-[3px] border-s-accent ps-4 -ms-4")}>
             <div className="flex items-baseline gap-3">
               <span className={cn("font-mono text-label tabular",
                 s.done ? "text-success" : "text-ink-3")}>
@@ -75,7 +75,7 @@ export default function Setup() {
           that makes the whole pilot provable. Said plainly rather than
           left as a checkbox. */}
       {!steps.find((s) => s.key === "baseline")?.done && (
-        <div className="mt-8 bg-sunk rounded-xl p-5 border-l-[3px] border-l-accent-edge">
+        <div className="mt-8 bg-sunk rounded-xl p-5 border-s-[3px] border-s-accent-edge">
           <p className="text-control text-ink font-medium">
             Leave the assistant off for the first week.
           </p>

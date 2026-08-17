@@ -216,7 +216,7 @@ export function EditListing({ listing }: { listing: Listing }) {
             <Button type="button" variant="secondary" onClick={() => dialog.current?.close()}>
               Cancel
             </Button>
-            <Button type="submit" variant="primary" loading={update.isPending} className="ml-auto">
+            <Button type="submit" variant="primary" loading={update.isPending} className="ms-auto">
               Save changes
             </Button>
           </div>

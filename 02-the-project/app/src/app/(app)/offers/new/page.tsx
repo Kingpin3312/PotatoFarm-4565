@@ -40,7 +40,7 @@ export default function NewOffer({ searchParams }: {
           // Flagged, not blocked. An offer often arrives before the
           // paperwork, and refusing to record it sends the agent back to
           // a WhatsApp group.
-          <p className="text-ui text-ink-2 mt-4 pl-3 border-l-2 border-l-accent-edge">
+          <p className="text-ui text-ink-2 mt-4 ps-3 border-s-2 border-s-accent-edge">
             This listing has no owner on file yet. Add one before you present the offer —
             the weekly report and the Form F both need them.
           </p>

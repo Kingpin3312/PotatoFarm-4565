@@ -31,7 +31,7 @@ export function SendFile({ conversationId, listingId, windowOpen }: {
   // outside it and never delivers it, and the agent is never told.
   if (!windowOpen) {
     return (
-      <div className="bg-sunk rounded-xl p-4 border-l-[3px] border-l-accent-edge">
+      <div className="bg-sunk rounded-xl p-4 border-s-[3px] border-s-accent-edge">
         <p className="text-ui text-ink font-medium">Can't send a file right now</p>
         <p className="text-sm text-ink-2 mt-1 max-w-[44ch] leading-snug">
           The reply window has closed. WhatsApp accepts documents and quietly drops them —

@@ -92,7 +92,7 @@ export function Thread({ conversationId }: { conversationId: string }) {
         {data.humanHandover && (
           // Says why the assistant stopped. Silence with no explanation
           // reads as a fault, and the agent rings support.
-          <div className="ml-auto t-label text-accent-deep">
+          <div className="ms-auto t-label text-accent-deep">
             You have this · {data.handoverReason}
           </div>
         )}

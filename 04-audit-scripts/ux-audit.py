@@ -158,7 +158,20 @@ if _os.path.exists(_css_path):
                       # widened — the point of this check is to catch a
                       # hand-written class that never got a rule, not to
                       # relitigate Tailwind's vocabulary.
-                      r'|overscroll|tabular)-')
+                      r'|overscroll|tabular'
+                      # The logical-property namespaces, added when the
+                      # interface was made to work in Arabic. `ms-auto`,
+                      # `ps-3`, `start-0` and `text-start` are the
+                      # direction-neutral spellings of `ml-auto`, `pl-3`,
+                      # `left-0` and `text-left`, and `i18n.py` now fails
+                      # the build if a physical one comes back.
+                      #
+                      # Widened on the same terms as `overscroll` and
+                      # `tabular` above: verified present in the compiled
+                      # stylesheet first, not assumed from the docs —
+                      # `.ms-auto{margin-inline-start:auto}` and the rest
+                      # are all in `.next/static/css`.
+                      r'|ms|me|ps|pe|start|end)-')
     _used = set()
     for _f in _g.glob(_os.path.join(ROOT, "src/**/*.tsx"), recursive=True):
         for _m2 in _re.finditer(r'className="([^"{]+)"', open(_f).read()):

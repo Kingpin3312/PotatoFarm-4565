@@ -56,7 +56,7 @@ export default function Routing() {
       <div className="space-y-2">
         {STRATEGIES.map(([k, name, why]) => (
           <button key={k} onClick={() => setStrategy(k)} aria-pressed={strategy === k}
-            className={cn("w-full text-left min-h-11 px-4 py-3 rounded-lg border",
+            className={cn("w-full text-start min-h-11 px-4 py-3 rounded-lg border",
               strategy === k ? "border-accent-edge bg-sunk" : "border-rule")}>
             <span className="text-control text-ink font-medium block">{name}</span>
             <span className="text-sm text-ink-2 block mt-0.5 leading-snug">{why}</span>
@@ -94,10 +94,10 @@ export default function Routing() {
                       away
                     </span>
                   )}
-                  <span className="ml-auto text-ui text-ink tabular">
+                  <span className="ms-auto text-ui text-ink tabular">
                     {a.openLeads} / {a.capacity}
                   </span>
-                  <span className="font-mono text-label text-ink-3 w-20 text-right">
+                  <span className="font-mono text-label text-ink-3 w-20 text-end">
                     {a.lastAssignedAt
                       ? new Date(a.lastAssignedAt).toLocaleDateString("en-GB",
                           { day: "numeric", month: "short" })

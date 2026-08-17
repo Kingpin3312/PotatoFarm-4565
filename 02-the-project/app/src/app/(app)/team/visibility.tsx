@@ -198,7 +198,7 @@ export function TeamVisibility() {
 
         {data.canChange && (
           <div className="flex">
-            <Button type="submit" variant="primary" loading={save.isPending} className="ml-auto">
+            <Button type="submit" variant="primary" loading={save.isPending} className="ms-auto">
               Save
             </Button>
           </div>

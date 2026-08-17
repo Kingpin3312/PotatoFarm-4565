@@ -145,7 +145,7 @@ export function ConnectChannel() {
             )}
 
             <div className="flex mt-7">
-              <Button variant="primary" className="ml-auto" onClick={() => dialog.current?.close()}>
+              <Button variant="primary" className="ms-auto" onClick={() => dialog.current?.close()}>
                 Done
               </Button>
             </div>
@@ -235,7 +235,7 @@ export function ConnectChannel() {
               <Button type="button" variant="secondary" onClick={() => dialog.current?.close()}>
                 Cancel
               </Button>
-              <Button type="submit" variant="primary" loading={connect.isPending} className="ml-auto">
+              <Button type="submit" variant="primary" loading={connect.isPending} className="ms-auto">
                 Connect
               </Button>
             </div>

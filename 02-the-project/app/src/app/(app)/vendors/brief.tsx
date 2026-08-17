@@ -29,7 +29,7 @@ export function VendorBrief({ vendorId }: { vendorId: string }) {
         )}
         {data.phone && (
           <a href={`tel:${data.phone}`}
-             className={cn("ml-auto btn-inline", dontCall && "opacity-60")}>
+             className={cn("ms-auto btn-inline", dontCall && "opacity-60")}>
             Call
           </a>
         )}
@@ -37,8 +37,8 @@ export function VendorBrief({ vendorId }: { vendorId: string }) {
 
       {/* Before the number, not after. */}
       {data.callAdvice && (
-        <p className={cn("text-ui mt-3 pl-3 border-l-2 leading-snug max-w-[46ch]",
-          dontCall ? "border-l-accent-edge text-ink" : "border-l-rule text-ink-2")}>
+        <p className={cn("text-ui mt-3 ps-3 border-s-2 leading-snug max-w-[46ch]",
+          dontCall ? "border-s-accent-edge text-ink" : "border-s-rule text-ink-2")}>
           {data.callAdvice}
         </p>
       )}

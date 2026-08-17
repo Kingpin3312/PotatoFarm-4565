@@ -256,23 +256,32 @@ strong, b { font-weight: var(--w-medium); }
  *
  * Off-screen rather than `display: none`, because a hidden element is
  * not focusable and a skip link that cannot be focused is the one thing
- * it must not be. It comes back at the top-left the moment it is
- * tabbed to. */
+ * it must not be. It comes back at the top of the start edge the moment
+ * it is tabbed to.
+ *
+ * **`inset-inline-start`, not `left`.** This said `left` and it was the
+ * one piece of hand-written CSS that Arabic got wrong: the document
+ * flips, the skip link does not, and the very first thing a keyboard
+ * user meets arrives from the wrong edge — off-screen in the direction
+ * the page now reads *towards*. The rounded corner is the inner one, so
+ * it mirrors too: `border-end-end-radius` is bottom-right in English and
+ * bottom-left in Arabic, which is the same corner in both. */
 .skip {
   position: absolute;
-  left: -9999px;
+  inset-inline-start: -9999px;
   top: 0;
   z-index: 100;
   padding: 12px 18px;
   background: var(--raised);
   color: var(--ink);
   border: 1px solid var(--rule);
-  border-radius: 0 0 var(--r) 0;
+  border-radius: 0;
+  border-end-end-radius: var(--r);
   font-size: 0.9375rem;
   font-weight: 500;
   text-decoration: none;
 }
-.skip:focus-visible { left: 0; box-shadow: var(--ring); }
+.skip:focus-visible { inset-inline-start: 0; box-shadow: var(--ring); }
 
 /* Focus is the cyan ring from the site, not a browser outline. */
 :where(a, button, input, textarea, select, [tabindex]):focus-visible {
@@ -312,3 +321,70 @@ strong, b { font-weight: var(--w-medium); }
   cursor: pointer;
 }
 .btn-inline:hover { background: var(--panel); }
+
+/* ---------------------------------------------------------------------
+ * Arabic.
+ *
+ * Scoped to `[dir="rtl"]`, which the root layout sets from the resolved
+ * locale. Nothing here touches English, so `browser:type` — which
+ * asserts every step of the scale against its intended pixel size and
+ * line height, and runs signed in with no language cookie — measures
+ * exactly what it measured before.
+ *
+ * ## Letter-spacing is reset to zero, and this is the one that matters
+ *
+ * The scale is tightened at every size above 13px: `--track-display` is
+ * -0.022em, `--track-h1` -0.02em, and so on down. That is right for the
+ * system Latin faces it was tuned against, and it is **actively wrong
+ * for Arabic**, which is a connected script. Tightening tracking there
+ * does not make the line denser — it pulls the joins between letters
+ * into each other, so a word renders with its connecting strokes
+ * overlapping. It reads as a rendering fault rather than as tight type,
+ * and it gets worse the larger the text, which means it is most visible
+ * on every page heading.
+ *
+ * ## Line height goes up
+ *
+ * Arabic has no x-height in the Latin sense, and the parts that decide
+ * how much room a line needs are above and below it: the diacritics
+ * that sit over a letter and the deep bowls of ب، ج، ع that hang under
+ * it. At 1.05 — the display value, chosen so a two-line English
+ * headline sits tight — the marks of one line touch the descenders of
+ * the one above. These are the same proportions one step looser.
+ *
+ * ## What is deliberately unchanged
+ *
+ * **The font stack.** The temptation is to name Arabic faces here, and
+ * it is the wrong instinct: every platform in the stack already falls
+ * back per glyph to a good system Arabic face — SF Arabic on Apple,
+ * Segoe UI on Windows, Noto Naskh on Android — and naming them by hand
+ * risks pinning a worse one (Tahoma has wide coverage and poor
+ * shaping). The product's principle is native system rendering and no
+ * webfont; Arabic gets that for free, and the correct amount of code
+ * for it is none.
+ * ------------------------------------------------------------------ */
+[dir="rtl"] {
+  --lh-display: 1.25;
+  --lh-heading: 1.30;
+  --lh-title:   1.38;
+  --lh-body:    1.70;
+  --lh-ui:      1.65;
+  --lh-tight:   1.50;
+
+  --track-display: 0;
+  --track-h1:      0;
+  --track-h2:      0;
+  --track-h3:      0;
+  --track-title:   0;
+  --track-section: 0;
+  --track-sub:     0;
+  --track-ui:      0;
+  --track-note:    0;
+  --track-tight:   0;
+  /* The label is the exception: `.t-label` is uppercase and *widened*
+     (0.02em), and uppercase does not exist in Arabic, so the widening
+     has nothing to do. Zero rather than inherited, for the same reason
+     as the rest — a positive track on a connected script separates
+     letters that should be joined. */
+  --track-label:   0;
+}

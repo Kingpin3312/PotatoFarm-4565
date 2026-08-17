@@ -93,7 +93,7 @@ export function PublishCheck({
                   <span className="text-ui font-medium text-ink">{c.channel}</span>
                   <span
                     className={cn(
-                      "ml-auto t-label",
+                      "ms-auto t-label",
                       c.canPublish ? "text-success" : "text-accent"
                     )}
                   >
@@ -105,7 +105,7 @@ export function PublishCheck({
                   <p
                     key={i}
                     className={cn(
-                      "text-note mt-2 pl-3.5 border-l-2",
+                      "text-note mt-2 ps-3.5 border-s-2",
                       // A warning and a blocker look different, because
                       // "you can fix this later" and "this will not send"
                       // are different messages.

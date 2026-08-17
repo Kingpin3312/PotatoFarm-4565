@@ -1,10 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/trpc";
 import { cn } from "@/lib/cn";
 import { NAV, SETTINGS_NAV } from "@/components/layout/nav";
+import { useI18n, useT } from "@/lib/i18n/provider";
+import type { MessageKey } from "@/lib/i18n/en";
 
 /**
  * ⌘K.
@@ -40,21 +42,54 @@ import { NAV, SETTINGS_NAV } from "@/components/layout/nav";
  */
 export const PALETTE_OPEN = "potato:palette-open";
 
+/**
+ * `group` is a key, not a heading.
+ *
+ * It used to be the words "Go to" / "People" / "Properties", which made
+ * one string do two jobs: the heading a person reads, and the value the
+ * renderer compares against the previous row to decide where a heading
+ * goes. Translating it would have broken the comparison in exactly one
+ * language — every row would have started a new group, or none would —
+ * and the type would still have compiled.
+ */
+type Group = "goTo" | "people" | "properties";
+
+const GROUP_LABEL: Record<Group, MessageKey> = {
+  goTo: "palette.group.goTo",
+  people: "palette.group.people",
+  properties: "palette.group.properties",
+};
+
 type Item = {
   id: string;
   label: string;
   hint?: string | null;
   href: string;
-  group: "Go to" | "People" | "Properties";
+  group: Group;
 };
 
-/** Everywhere the shell can reach, flattened once. */
-const DESTINATIONS: Item[] = [
-  ...NAV.map((n): Item => ({ id: `nav:${n.href}`, label: n.label, href: n.href, group: "Go to" })),
-  ...SETTINGS_NAV.map((n): Item => ({ id: `set:${n.href}`, label: n.label, href: n.href, group: "Go to" })),
-  { id: "nav:/search", label: "Find anyone", href: "/search", group: "Go to" },
-  { id: "nav:/ask", label: "Ask", href: "/ask", group: "Go to" },
-];
+/**
+ * Everywhere the shell can reach.
+ *
+ * **Built per render, not once at module scope.** It was a module-level
+ * constant, which is correct for English and silently wrong for
+ * anything else: the labels would have been resolved once, in whatever
+ * language happened to be active when the module first evaluated, and
+ * the filter below matches the query against them. An Arabic user
+ * typing an Arabic word would have searched a list of English strings
+ * and found nothing — the palette would open, accept typing, and return
+ * "no results" for every screen in the product.
+ *
+ * `useMemo` on the translator keeps it to one build per language.
+ */
+function destinations(t: (key: MessageKey) => string): Item[] {
+  return [
+    ...NAV.map((n): Item => ({ id: `nav:${n.href}`, label: t(n.labelKey), href: n.href, group: "goTo" })),
+    ...SETTINGS_NAV.map((n): Item => ({ id: `set:${n.href}`, label: t(n.labelKey), href: n.href, group: "goTo" })),
+    { id: "nav:/search", label: t("nav.findAnyone"), href: "/search", group: "goTo" },
+    { id: "nav:/ask", label: t("nav.ask"), href: "/ask", group: "goTo" },
+  ];
+}
 
 /**
  * The visible way in.
@@ -71,6 +106,7 @@ const DESTINATIONS: Item[] = [
  * a nav bar of seven text links.
  */
 export function PaletteButton({ className }: { className?: string }) {
+  const t = useT();
   /**
    * Rendered after mount, not during.
    *
@@ -88,10 +124,10 @@ export function PaletteButton({ className }: { className?: string }) {
     <button
       type="button"
       onClick={() => window.dispatchEvent(new Event(PALETTE_OPEN))}
-      aria-label="Search and go to"
+      aria-label={t("palette.open")}
       aria-keyshortcuts="Meta+K Control+K"
       className={cn(
-        "min-h-11 flex items-center gap-2 pl-3 pr-2 rounded-lg cursor-pointer",
+        "min-h-11 flex items-center gap-2 ps-3 pe-2 rounded-lg cursor-pointer",
         "bg-sunk border border-rule text-ink-3 hover:text-ink text-note",
         className,
       )}
@@ -100,7 +136,7 @@ export function PaletteButton({ className }: { className?: string }) {
            fill="none" stroke="currentColor" strokeWidth="2">
         <circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" />
       </svg>
-      <span>Search</span>
+      <span>{t("palette.search")}</span>
       <kbd className="font-mono text-label px-1.5 py-0.5 rounded border border-rule min-w-11 text-center">
         {keys}
       </kbd>
@@ -109,6 +145,7 @@ export function PaletteButton({ className }: { className?: string }) {
 }
 
 export function CommandPalette() {
+  const { t, count } = useI18n();
   const dialog = useRef<HTMLDialogElement>(null);
   const input = useRef<HTMLInputElement>(null);
   const router = useRouter();
@@ -127,8 +164,21 @@ export function CommandPalette() {
     { enabled: open && q.trim().length >= 3, staleTime: 15_000 },
   );
 
-  const matches = q.trim()
-    ? DESTINATIONS.filter((d) => d.label.toLowerCase().includes(q.trim().toLowerCase()))
+  const DESTINATIONS = useMemo(() => destinations(t), [t]);
+
+  /**
+   * `toLocaleLowerCase` rather than `toLowerCase`.
+   *
+   * Arabic has no case, so the fold is a no-op there and the difference
+   * does not show up in the language this was added for — but the
+   * palette also searches English screen names while the interface is
+   * Arabic, and the locale-aware fold is the one that stays correct if
+   * a Turkish or Azerbaijani locale is ever added, where `I` does not
+   * lowercase to `i`.
+   */
+  const needle = q.trim().toLocaleLowerCase();
+  const matches = needle
+    ? DESTINATIONS.filter((d) => d.label.toLocaleLowerCase().includes(needle))
     : DESTINATIONS;
 
   const hits: Item[] = (data?.hits ?? [])
@@ -141,7 +191,7 @@ export function CommandPalette() {
       label: h.title,
       hint: h.why?.[0] ?? h.subtitle ?? null,
       href: h.href,
-      group: h.kind === "property" ? ("Properties" as const) : ("People" as const),
+      group: h.kind === "property" ? ("properties" as const) : ("people" as const),
     }));
 
   const items = [...matches.slice(0, q.trim() ? 5 : 8), ...hits];
@@ -216,12 +266,12 @@ export function CommandPalette() {
     }
   };
 
-  let lastGroup: string | null = null;
+  let lastGroup: Group | null = null;
 
   return (
     <dialog
       ref={dialog}
-      aria-label="Search and go to"
+      aria-label={t("palette.open")}
       onClick={(e) => { if (e.target === dialog.current) close(); }}
       className={cn(
         "backdrop:bg-ink/25 bg-transparent p-0 m-0 max-w-none max-h-none w-full h-full",
@@ -237,8 +287,8 @@ export function CommandPalette() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={onInputKey}
-            placeholder="Go to a screen, or find anyone…"
-            aria-label="Go to a screen, or find anyone"
+            placeholder={t("palette.placeholder")}
+            aria-label={t("palette.placeholderShort")}
             aria-controls="palette-list"
             aria-activedescendant={items[active] ? `palette-${items[active].id}` : undefined}
             role="combobox"
@@ -250,13 +300,13 @@ export function CommandPalette() {
           {/* The count, announced. Results change with no navigation, so
               without this a screen reader user types and hears nothing. */}
           <p role="status" aria-live="polite" className="sr-only">
-            {isFetching ? "Searching" : `${items.length} result${items.length === 1 ? "" : "s"}`}
+            {isFetching ? t("palette.searching") : count("palette.resultCount", items.length)}
           </p>
 
-          <ul id="palette-list" role="listbox" aria-label="Results" className="max-h-[52vh] overflow-y-auto overscroll-contain py-1 m-0 list-none">
+          <ul id="palette-list" role="listbox" aria-label={t("palette.results")} className="max-h-[52vh] overflow-y-auto overscroll-contain py-1 m-0 list-none">
             {items.length === 0 && (
               <li className="px-4 py-4 text-ui text-ink-3">
-                {q.trim().length < 3 ? "Keep typing to search." : "Nothing matched."}
+                {q.trim().length < 3 ? t("palette.keepTyping") : t("palette.nothingMatched")}
               </li>
             )}
             {items.map((item, i) => {
@@ -266,7 +316,7 @@ export function CommandPalette() {
                 <li key={item.id}>
                   {head && (
                     <p className="t-label text-ink-3 px-4 pt-3 pb-1">
-                      {head}
+                      {t(GROUP_LABEL[head])}
                     </p>
                   )}
                   <button
@@ -278,7 +328,7 @@ export function CommandPalette() {
                     onMouseEnter={() => setActive(i)}
                     onClick={() => go(item)}
                     className={cn(
-                      "w-full text-left px-4 min-h-11 py-2 flex flex-col gap-0.5 border-0 cursor-pointer",
+                      "w-full text-start px-4 min-h-11 py-2 flex flex-col gap-0.5 border-0 cursor-pointer",
                       i === active ? "bg-sunk" : "bg-transparent",
                     )}
                   >

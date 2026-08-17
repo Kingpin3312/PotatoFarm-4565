@@ -212,22 +212,65 @@ for p2, s2 in src.items():
 # exist, and a `source` field that was not on the type. All three were
 # written from memory instead of read from the code, and all three would
 # have compiled nowhere.
+def resolve_module(spec, importer):
+    """`@/lib/i18n` or a relative `./locale` to a key in `src`."""
+    if spec.startswith("@/"):
+        base = os.path.join(ROOT, spec.replace("@/", "src/"))
+    elif spec.startswith("."):
+        base = os.path.normpath(os.path.join(os.path.dirname(importer), spec))
+    else:
+        return None
+    return next((c for c in (base + e for e in (".ts", ".tsx", "/index.ts")) if c in src), None)
+
+
+def exports_of(path, seen=None):
+    """
+    Every name a module exports, following `export * from` one module at
+    a time.
+
+    **Barrel modules were invisible to this.** `lib/i18n/index.ts` says
+    `export * from "./locale"`, and every name re-exported that way was
+    read as missing — so the root layout importing `dirOf` from the
+    barrel was reported as importing something that does not exist. It
+    compiles, `tsc` is happy, and the check says otherwise.
+
+    That is the same false-positive shape the destructured-export case
+    below was fixed for, and this file already records why it matters: a
+    check that cries wolf is a check whose real findings get waved
+    through.
+    """
+    seen = seen or set()
+    if path in seen or path not in src:
+        return set()
+    seen.add(path)
+    body = src[path]
+
+    names = set(re.findall(
+        r'export (?:async )?(?:function|const|class|type|interface) (\w+)', body))
+    # `export const { handlers, auth } = NextAuth(…)` — a destructured
+    # export. Missing this made the NextAuth route look like it
+    # imported something that did not exist, which is exactly the
+    # class of false positive that gets a real finding ignored.
+    for grp in re.findall(r'export const \{([^}]+)\}\s*=', body):
+        names |= {n.strip().split(":")[-1].strip() for n in grp.split(",")}
+    # Every `export { … }` block, not only the first. `index.ts` has
+    # three, and reading `[0]` meant the other two exported nothing as
+    # far as this check could tell.
+    for grp in re.findall(r'export \{([^}]+)\}', body):
+        names |= {n.strip() for n in grp.split(",")}
+    for spec in re.findall(r'export \*(?:\s+as\s+\w+)?\s+from\s+"([^"]+)"', body):
+        target = resolve_module(spec, path)
+        if target:
+            names |= exports_of(target, seen)
+
+    return {n.replace("type ", "").split(" as ")[-1].strip() for n in names if n.strip()}
+
+
 for p2, s2 in src.items():
     for m2 in re.finditer(r'import \{([^}]+)\} from "(@/[^"]+)"', s2):
-        target = os.path.join(ROOT, m2.group(2).replace("@/", "src/"))
-        cand = [target + e for e in (".ts", ".tsx", "/index.ts")]
-        hit = next((c for c in cand if c in src), None)
+        hit = resolve_module(m2.group(2), p2)
         if not hit: continue
-        exported = set(re.findall(r'export (?:async )?(?:function|const|class|type|interface) (\w+)', src[hit]))
-        # `export const { handlers, auth } = NextAuth(…)` — a destructured
-        # export. Missing this made the NextAuth route look like it
-        # imported something that did not exist, which is exactly the
-        # class of false positive that gets a real finding ignored.
-        for grp in re.findall(r'export const \{([^}]+)\}\s*=', src[hit]):
-            exported |= {n.strip().split(":")[-1].strip() for n in grp.split(",")}
-        exported |= set(re.findall(r'export \{([^}]+)\}', src[hit])[0].split(",")) \
-                    if re.search(r'export \{', src[hit]) else set()
-        exported = {e.strip() for e in exported}
+        exported = exports_of(hit)
         # `{ sweep as notifySweep }` — check the exported name, which is
         # the left side. Ignoring the alias made every renamed import
         # look like a missing export.

@@ -102,7 +102,7 @@ What is verified today, measured rather than assumed:
   `/api/health` returns `200 {"ok":true}` against a real Postgres.
 - The boot log names every unconfigured service with its consequence —
   six of them in a bare development environment.
-- 242 assertions in 11 files, 24 check suites, 15 audits, all green.
+- 261 assertions in 12 files, 24 check suites, 16 audits, all green.
 
 Type errors on a fresh checkout are no longer expected. If you get one,
 it is new.
@@ -159,6 +159,23 @@ warm, search 32ms. **There is nothing to reclaim here.** The lever is a
 pooler in front of Postgres, which `check:preflight` enforces. If
 somebody proposes optimising this again, ask them for the measurement
 first.
+
+**`ms-`, `ps-`, `border-s-` and `text-start` are not typos for `ml-`,
+`pl-`, `border-l-` and `text-left`.** They are the logical spellings and
+they follow the `dir` the root layout sets from the resolved locale.
+There are none of the physical ones left in `src/`, and
+`04-audit-scripts/i18n.py` fails the build if one comes back — the
+failure it prevents is invisible in English, because the text flows
+right-to-left while the spacing stays put, so every screen is slightly
+wrong and no screen is obviously broken.
+
+Two smaller pieces of the same rule. `[dir="rtl"]` in `globals.css`
+resets letter-spacing to zero: the scale is tightened at every size
+above 13px, which is right for the Latin system faces it was tuned
+against and pulls the joins of a **connected** script into each other.
+And `formattingLocale()` returns `ar-AE-u-nu-latn` to pin Western
+digits — the comment there records that `ar-AE` already defaults that
+way and `ar-EG` does not, so it is a guarantee, not a fix.
 
 **The audit log has `REVOKE UPDATE, DELETE`.** Erasure scrubs rows rather
 than deleting them. `privacy/README.md` explains how both can be true.
@@ -393,8 +410,8 @@ send path read it.
 
 ## Run the tests
 
-    npm test          # 242 assertions, pure functions, no database
-    npm run verify    # tsc, the tests, 24 check suites, 15 audits
+    npm test          # 261 assertions, pure functions, no database
+    npm run verify    # tsc, the tests, 24 check suites, 16 audits
 
 **The gate is now green end to end, including the two things that used
 to skip.** `verify` reports what it did not run rather than counting a

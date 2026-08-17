@@ -57,7 +57,7 @@ export function Machine({
       className={cn(
         "rounded-xl p-4",
         refused
-          ? "border-l-[3px] border-l-accent-edge bg-sunk"
+          ? "border-s-[3px] border-s-accent-edge bg-sunk"
           : "bg-accent-soft",
         className,
       )}

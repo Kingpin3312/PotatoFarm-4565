@@ -49,7 +49,7 @@ export default function Reports() {
       </header>
 
       {!data?.baseline && (
-        <div className="bg-sunk rounded-xl p-5 border-l-[3px] border-l-accent-edge mb-10">
+        <div className="bg-sunk rounded-xl p-5 border-s-[3px] border-s-accent-edge mb-10">
           <p className="text-control text-ink font-medium">Capture this week as your baseline</p>
           <p className="text-sm text-ink-2 mt-1.5 max-w-[48ch] leading-snug">
             Freezes the current numbers so the difference afterwards is measurable rather than

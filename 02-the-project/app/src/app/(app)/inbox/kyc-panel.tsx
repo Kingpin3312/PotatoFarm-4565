@@ -98,7 +98,7 @@ export function KycPanel({ leadId }: { leadId: string }) {
       {held ? (
         // Neutral, and deliberately uninformative. The message comes
         // from the router; do not enrich it here.
-        <div className="bg-sunk rounded-xl p-4 border-l-[3px] border-l-rule-strong">
+        <div className="bg-sunk rounded-xl p-4 border-s-[3px] border-s-rule-strong">
           <p className="text-ui text-ink">{data.message}</p>
         </div>
       ) : (

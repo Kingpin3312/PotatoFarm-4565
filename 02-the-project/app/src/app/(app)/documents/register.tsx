@@ -80,7 +80,7 @@ export function Register({ filter }: { filter: "all" | "expiring" }) {
             them — the broker card case — and the server refuses the rest
             by name. Hiding the button from an agent would hide the one
             document they are the only person who can chase. */}
-        <Button variant="secondary" className="ml-auto" onClick={() => setAdding((a) => !a)}>
+        <Button variant="secondary" className="ms-auto" onClick={() => setAdding((a) => !a)}>
           {adding ? "Cancel" : "Record one"}
         </Button>
       </div>
@@ -101,7 +101,7 @@ export function Register({ filter }: { filter: "all" | "expiring" }) {
                 <span className="font-sans font-medium text-sub text-ink">{d.typeLabel}</span>
                 <span className="text-sm text-ink-2">{d.ownerName}</span>
                 <span
-                  className="ml-auto t-label"
+                  className="ms-auto t-label"
                   style={{
                     color:
                       d.state === "expired" ? "var(--danger-deep)"
@@ -316,7 +316,7 @@ function RecordForm({ canWrite, onDone }: { canWrite: boolean; onDone: () => voi
         <Button
           type="submit"
           variant="primary"
-          className="ml-auto"
+          className="ms-auto"
           loading={record.isPending}
           disabled={!type || (needsOwnerId && !ownerId)}
         >

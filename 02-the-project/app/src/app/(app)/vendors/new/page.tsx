@@ -61,7 +61,7 @@ export default function NewVendor() {
             {PREFERS.map(([k, label, why]) => (
               <button key={k} onClick={() => setF({ ...f, prefers: k })}
                 aria-pressed={f.prefers === k}
-                className={`w-full text-left min-h-11 px-4 py-3 rounded-lg border ${
+                className={`w-full text-start min-h-11 px-4 py-3 rounded-lg border ${
                   f.prefers === k ? "border-accent-edge bg-sunk" : "border-rule"}`}>
                 <span className="text-control text-ink font-medium block">{label}</span>
                 <span className="text-sm text-ink-2 block mt-0.5 leading-snug">{why}</span>

@@ -104,7 +104,7 @@ export default function Compliance() {
                     : p.result === "ERROR" ? "not checked"
                     : "possible match"}
                 </span>
-                <span className="ml-auto font-mono text-label text-ink-3">{p.heldFor}</span>
+                <span className="ms-auto font-mono text-label text-ink-3">{p.heldFor}</span>
               </div>
               <p className="text-sm text-ink-2 mt-1.5 max-w-[52ch] leading-snug">
                 {p.result === "ERROR"
@@ -129,7 +129,7 @@ export default function Compliance() {
               <span className="t-label text-ink-3">
                 {sentence(d.rating)} risk
               </span>
-              <span className="ml-auto font-mono text-label text-ink-3">{d.dueIn}</span>
+              <span className="ms-auto font-mono text-label text-ink-3">{d.dueIn}</span>
             </div>
           ))}
         </div>

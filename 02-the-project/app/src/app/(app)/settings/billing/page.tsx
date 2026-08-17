@@ -69,8 +69,8 @@ export default function Billing() {
           made for them. */}
       {b.usedPct >= 80 && (
         <div className={cn(
-          "mt-5 rounded-xl p-4 border-l-[3px]",
-          overAllowance ? "bg-sunk border-l-accent" : "bg-sunk border-l-warning"
+          "mt-5 rounded-xl p-4 border-s-[3px]",
+          overAllowance ? "bg-sunk border-s-accent" : "bg-sunk border-s-warning"
         )}>
           <p className="text-ui text-ink font-medium">
             {overAllowance
@@ -94,7 +94,7 @@ export default function Billing() {
           <span className="text-ui text-ink capitalize">
             {data.card.brand ?? "Card"} ending {data.card.last4 ?? "••••"}
           </span>
-          <span className="ml-auto t-label text-ink-3">
+          <span className="ms-auto t-label text-ink-3">
             Expires {data.card.expires ?? "—"}
           </span>
         </div>
@@ -147,7 +147,7 @@ export default function Billing() {
               <summary className="flex items-baseline gap-3 py-3.5 cursor-pointer min-h-11">
                 <span className="font-mono text-note text-ink-3">{i.number}</span>
                 <span className="text-sm text-ink-2">{i.period}</span>
-                <span className="ml-auto text-ui text-ink font-medium tabular">{i.total}</span>
+                <span className="ms-auto text-ui text-ink font-medium tabular">{i.total}</span>
                 <span className={cn(
                   "t-label",
                   i.status === "PAID" ? "text-success" : "text-ink-3"
@@ -157,7 +157,7 @@ export default function Billing() {
                   check is a bill you argue about. */}
               <ol className="pb-4 space-y-1">
                 {i.lines.map((l, n) => (
-                  <li key={n} className="text-sm text-ink-2 pl-4">{l}</li>
+                  <li key={n} className="text-sm text-ink-2 ps-4">{l}</li>
                 ))}
               </ol>
             </details>
@@ -175,7 +175,7 @@ function Row({ k, sub, v, quiet }: { k: string; sub?: string; v: string; quiet?:
         <span className="text-ui text-ink">{k}</span>
         {sub && <span className="block text-note text-ink-3">{sub}</span>}
       </div>
-      <span className={cn("ml-auto text-ui tabular",
+      <span className={cn("ms-auto text-ui tabular",
         quiet ? "text-ink-3" : "text-ink font-semibold")}>{v}</span>
     </div>
   );

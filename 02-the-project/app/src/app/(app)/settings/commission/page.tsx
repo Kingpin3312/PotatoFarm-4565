@@ -86,7 +86,7 @@ export default function CommissionPlans() {
               <button
                 type="button"
                 onClick={() => setEditing(editing === r.userId ? null : r.userId)}
-                className="ml-auto min-h-11 text-note bg-transparent border-0 p-0 text-accent-deep underline cursor-pointer"
+                className="ms-auto min-h-11 text-note bg-transparent border-0 p-0 text-accent-deep underline cursor-pointer"
               >
                 {editing === r.userId ? "Cancel" : r.tiers ? "Change" : "Set a plan"}
               </button>
@@ -236,7 +236,7 @@ function PlanEditor({
             Add a band
           </Button>
         )}
-        <Button type="submit" variant="primary" size="sm" loading={save.isPending} className="ml-auto">
+        <Button type="submit" variant="primary" size="sm" loading={save.isPending} className="ms-auto">
           Save
         </Button>
       </div>

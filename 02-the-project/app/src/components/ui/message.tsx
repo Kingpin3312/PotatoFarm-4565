@@ -36,7 +36,7 @@ export function Message({
     <article
       className={cn(
         "px-6 py-4 border-b border-rule",
-        outbound && "border-l-2 border-l-accent pl-[22px]",
+        outbound && "border-s-2 border-s-accent ps-[22px]",
         author === "SYSTEM" && "bg-sunk"
       )}
     >

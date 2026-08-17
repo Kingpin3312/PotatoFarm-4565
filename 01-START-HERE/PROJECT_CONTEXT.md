@@ -106,7 +106,7 @@ token, which the web app cannot do. Treat it as a design sketch.
 ## 4. What is built
 
 **73 database models · 60 enums · 27 API routers · 149 procedures ·
-43 screens · 26 scheduled jobs · 15 audit scripts · 24 check suites.**
+43 screens · 26 scheduled jobs · 16 audit scripts · 24 check suites.**
 
 **Eight procedures have no screen.** Seven are deliberate:
 `migration.abandon`, `aml.updateFile`, `aml.checkRear`,
@@ -157,7 +157,7 @@ chart; spoken requests ("Ask").
 - Sign-in works end to end from a cold browser.
 - The website's demo form and its four guide forms were submitted in
   Chromium, at 1280px and on an iPhone 13, against a real database.
-- All 15 audit scripts exit 0.
+- All 16 audit scripts exit 0.
 - **Object storage works against any S3-compatible provider** — AWS, R2,
   B2, Spaces, MinIO — with request signing done in-repo rather than by an
   SDK. Verified against the signature AWS publishes in its own
@@ -176,7 +176,7 @@ chart; spoken requests ("Ask").
 npm run verify
 ```
 
-That is `tsc --noEmit`, then the 233 unit tests, then the check suites,
+That is `tsc --noEmit`, then the 252 unit tests, then the check suites,
 then every audit script — one run, and it reports every failure rather
 than stopping at the first. It exists because the alternative was a
 long ritual in a particular order, and the thing about a long ritual is
@@ -245,7 +245,7 @@ thing it checks and confirming it fails.
 ### The unit tests
 
 ```bash
-npm test                    # 242 assertions, no database, ~3 seconds
+npm test                    # 261 assertions, no database, ~3 seconds
 ```
 
 `package.json` declared `"test": "vitest run"` from the beginning with no
@@ -403,9 +403,10 @@ Ask — an agent can see what they asked for earlier and what came back.
 - **Voice recipes** `BOOK_VIEWING` and `COMPARABLES` return a follow-up
   question rather than completing in one step. Deliberate, but the second
   step is not wired to the booking screen.
-- **Unit tests cover ten modules, not the codebase.** 242 assertions
+- **Unit tests cover eleven modules, not the codebase.** 261 assertions
   across money, the 24-hour window, Dubai sending hours, the search
-  parser, lead scoring, deal risk and the assistant's guardrails — the
+  parser, lead scoring, deal risk, the assistant's guardrails and the
+  interface's Arabic — the
   pure logic where being wrong is expensive and silent. Everything
   stateful is still covered only by the twenty-four check suites and the
   eighteen browser checks, which is not the same thing as a test suite. What is
@@ -773,7 +774,7 @@ Full spec: `03-brand/logo/SPEC.md`.
 
 ## 10. Database, API, auth, integrations
 
-**Database:** PostgreSQL via Prisma. `app/prisma/schema.prisma`, 72
+**Database:** PostgreSQL via Prisma. `app/prisma/schema.prisma`, 73
 models. Six migrations in `app/prisma/migrations/`. **`rls.sql` is
 appended to the init migration** — it is not a file somebody has to
 remember to run, because the tenant boundary is not something to leave to

@@ -56,7 +56,7 @@ export default function Access() {
                 <span className="t-label text-accent-deep">
                   {g.hoursLeft}h left
                 </span>
-                <Button variant="secondary" className="ml-auto"
+                <Button variant="secondary" className="ms-auto"
                   loading={revoke.isPending}
                   onClick={() => revoke.mutate({ grantId: g.id })}>
                   Revoke now
@@ -113,7 +113,7 @@ export default function Access() {
             {grants.filter((g) => !g.active).slice(0, 10).map((g) => (
               <div key={g.id} className="flex items-baseline gap-3 py-3 border-b border-rule">
                 <span className="text-ui text-ink-2">{g.staffEmail}</span>
-                <span className="ml-auto font-mono text-label text-ink-3">
+                <span className="ms-auto font-mono text-label text-ink-3">
                   {g.revokedAt ? "revoked early" : "expired"}
                 </span>
               </div>

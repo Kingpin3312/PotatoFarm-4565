@@ -121,13 +121,13 @@ export default function Import() {
                 {inspect.data.groups.map((g) => (
                   <div key={g.kind}
                        className={cn("py-4 border-b border-rule",
-                         g.severity === "BLOCKER" && "border-l-[3px] border-l-danger pl-4 -ml-4")}>
+                         g.severity === "BLOCKER" && "border-s-[3px] border-s-danger ps-4 -ms-4")}>
                     <div className="flex items-baseline gap-3">
                       <span className="text-control text-ink font-medium">
                         {sentence(g.kind)}
                       </span>
-                      <span className="ml-auto text-ui text-ink tabular">{g.count}</span>
-                      <span className="t-label text-ink-3 w-16 text-right">
+                      <span className="ms-auto text-ui text-ink tabular">{g.count}</span>
+                      <span className="t-label text-ink-3 w-16 text-end">
                         {sentence(g.severity)}
                       </span>
                     </div>
@@ -249,7 +249,7 @@ function Underway({ status }: { status: NonNullable<RouterOutputs["migration"]["
             <p className="text-sm text-ink-2 mt-3">Before the next stage:</p>
             <ul className="mt-1.5 space-y-1">
               {stage.exitCriteria.map((c) => (
-                <li key={c} className="text-sm text-ink-2 leading-snug pl-4 -indent-4">— {c}</li>
+                <li key={c} className="text-sm text-ink-2 leading-snug ps-4 -indent-4">— {c}</li>
               ))}
             </ul>
           </>
@@ -274,7 +274,7 @@ function Underway({ status }: { status: NonNullable<RouterOutputs["migration"]["
               <div key={i.id} data-issue={i.id} className="py-4 border-b border-rule">
                 <div className="flex items-baseline gap-3">
                   <span className="text-control text-ink">{sentence(i.kind)}</span>
-                  <span className="ml-auto t-label text-ink-3">
+                  <span className="ms-auto t-label text-ink-3">
                     {sentence(i.severity)}
                   </span>
                 </div>

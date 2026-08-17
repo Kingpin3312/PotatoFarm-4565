@@ -116,7 +116,7 @@ export default function Screening({ params }: { params: Promise<{ kycId: string 
               {new Date(s.screenedAt).toLocaleDateString("en-GB")}
             </span>
             <span className="text-ui text-ink">{s.lists[0] ?? "—"}</span>
-            <span className="ml-auto t-label text-ink-3">
+            <span className="ms-auto t-label text-ink-3">
               {sentence(String(s.result))}
             </span>
           </div>

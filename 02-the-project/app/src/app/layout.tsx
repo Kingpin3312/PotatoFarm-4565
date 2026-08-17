@@ -1,5 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Providers } from "./providers";
+import { bcp47, dirOf, translatorFor } from "@/lib/i18n";
+import { I18nProvider } from "@/lib/i18n/provider";
+import { resolveLocale } from "@/lib/i18n/server";
 import "@/styles/globals.css";
 
 /**
@@ -89,13 +92,34 @@ export const viewport: Viewport = {
   themeColor: "#FFFFFF",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+/**
+ * `lang` and `dir` are resolved per request, which this layout was
+ * already paying for.
+ *
+ * `force-dynamic` above means there is no build-time HTML to be wrong,
+ * so the language costs nothing extra here — the same property that the
+ * nonce needs. On a statically rendered layout this would have to move
+ * to middleware.
+ *
+ * **`dir` is set here and nowhere else.** Every direction-sensitive rule
+ * below it is a CSS logical property inheriting from this attribute, and
+ * `04-audit-scripts/i18n.py` fails the build if a physical one
+ * (`ml-`, `border-l-`, `text-left`) reappears anywhere in `src/`.
+ */
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const locale = await resolveLocale();
+  const t = translatorFor(locale);
+
   return (
-    <html lang="en-GB">
+    <html lang={bcp47(locale)} dir={dirOf(locale)}>
       <body>
         <RegisterServiceWorker />
-        <a href="#main" className="skip">Skip to content</a>
-        <Providers>{children}</Providers>
+        {/* Translated on the server: it sits outside the providers, and
+            it is the first thing a screen-reader user meets. */}
+        <a href="#main" className="skip">{t("shell.skipToContent")}</a>
+        <I18nProvider locale={locale}>
+          <Providers>{children}</Providers>
+        </I18nProvider>
       </body>
     </html>
   );

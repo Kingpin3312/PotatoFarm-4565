@@ -84,7 +84,7 @@ export default function OfferThread({ params }: { params: Promise<{ listingId: s
       {accept.data?.toTell?.length ? (
         // Returned rather than auto-notified. A buyer whose offer just
         // lost hears it from their agent, not a push notification.
-        <div className="bg-sunk rounded-xl p-5 border-l-[3px] border-l-accent-edge mb-8">
+        <div className="bg-sunk rounded-xl p-5 border-s-[3px] border-s-accent-edge mb-8">
           <p className="text-control text-ink font-medium">
             {accept.data.toTell.length} {accept.data.toTell.length === 1 ? "buyer needs" : "buyers need"} a call
           </p>
@@ -108,7 +108,7 @@ export default function OfferThread({ params }: { params: Promise<{ listingId: s
                 </span>
               )}
               {i === 0 && offers.length > 1 && (
-                <span className="ml-auto t-label text-accent-deep font-semibold">
+                <span className="ms-auto t-label text-accent-deep font-semibold">
                   Strongest, not highest
                 </span>
               )}
@@ -127,7 +127,7 @@ export default function OfferThread({ params }: { params: Promise<{ listingId: s
               <ol className="mt-3 space-y-1.5">
                 {o.history.map((h, j) => (
                   <li key={j} className="text-sm text-ink-2">
-                    <span className="t-label text-ink-3 mr-2">
+                    <span className="t-label text-ink-3 me-2">
                       {sentence(h.by)}
                     </span>
                     {h.amount ?? h.kind.toLowerCase()}
@@ -175,7 +175,7 @@ export default function OfferThread({ params }: { params: Promise<{ listingId: s
                 irreversible enough to be worth a sentence, not a
                 yes/no dialog nobody reads. */}
             {confirming === o.id && (
-              <div className="mt-4 bg-sunk rounded-xl p-4 border-l-[3px] border-l-accent-edge">
+              <div className="mt-4 bg-sunk rounded-xl p-4 border-s-[3px] border-s-accent-edge">
                 <p className="text-ui text-ink">
                   Accepting {o.current} closes {offers.length - 1} other
                   {offers.length === 2 ? " offer" : " offers"} on this listing and starts the

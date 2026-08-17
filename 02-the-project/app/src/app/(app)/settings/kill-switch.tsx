@@ -80,7 +80,7 @@ export function KillSwitch() {
             </p>
           </div>
 
-          <div className="ml-auto">
+          <div className="ms-auto">
             {running ? (
               <Button variant="primary" size="md" onClick={() => { dialog.current?.showModal(); dialog.current?.focus(); }}>
                 Stop the assistant
@@ -113,7 +113,7 @@ export function KillSwitch() {
             It stops replying to every conversation, immediately.
           </p>
 
-          <div className="border-l-2 border-accent pl-3.5 my-4 text-sm">
+          <div className="border-s-2 border-accent ps-3.5 my-4 text-sm">
             New enquiries will still arrive and still appear in the inbox — but nobody will
             answer them until an agent does.
             {/* The brokerage's own number, not a generic warning. */}

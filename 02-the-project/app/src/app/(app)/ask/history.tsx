@@ -74,7 +74,7 @@ export function History() {
               <button
                 onClick={() => setOpen(expanded ? null : r.id)}
                 aria-expanded={expanded}
-                className="flex w-full min-h-12 items-baseline gap-3 py-3 text-left"
+                className="flex w-full min-h-12 items-baseline gap-3 py-3 text-start"
               >
                 <State state={r.state} />
                 <span className="flex-1 text-ui text-ink leading-snug">
@@ -89,7 +89,7 @@ export function History() {
               </button>
 
               {expanded && (
-                <div className="pb-4 pl-[4.5rem] pr-1">
+                <div className="pb-4 ps-[4.5rem] pe-1">
                   <p className="t-label text-ink-3">
                     {RECIPE[r.recipe] ?? sentence(r.recipe)}
                   </p>
@@ -98,7 +98,7 @@ export function History() {
                       A comparables range an agent quotes to a seller is
                       worth exactly what its qualifications say it is. */}
                   {r.caveats.length > 0 && (
-                    <div className="mt-2 space-y-1.5 border-l-2 border-l-accent-edge pl-3">
+                    <div className="mt-2 space-y-1.5 border-s-2 border-s-accent-edge ps-3">
                       {r.caveats.map((c, i) => (
                         <p key={i} className="text-sm text-ink-2 max-w-[46ch] leading-snug">{c}</p>
                       ))}

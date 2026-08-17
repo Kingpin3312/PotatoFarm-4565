@@ -313,7 +313,7 @@ function Report({ r }: { r: NonNullable<ReturnType<typeof api.requests.comparabl
       )}
 
       {r.caveats.length > 0 && (
-        <div className="mt-4 space-y-2 border-l-2 border-l-accent-edge pl-3">
+        <div className="mt-4 space-y-2 border-s-2 border-s-accent-edge ps-3">
           {r.caveats.map((c, i) => (
             <p key={i} className="max-w-[46ch] text-ui leading-snug text-ink-2">{c}</p>
           ))}

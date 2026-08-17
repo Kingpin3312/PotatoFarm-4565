@@ -56,7 +56,7 @@ export default function Offers() {
                className="flex items-baseline gap-4 py-4 border-b border-rule no-underline">
               <span className="font-sans font-semibold text-body-lg text-ink tabular">{o.current}</span>
               <span className="text-sm text-ink-2">{o.reference}</span>
-              <span className="ml-auto t-label"
+              <span className="ms-auto t-label"
                     style={{ color: o.hoursLeft != null && o.hoursLeft <= 24 ? "var(--danger-deep)" : "var(--tertiary)" }}>
                 {o.hoursLeft == null ? "no expiry" : o.hoursLeft <= 0 ? "expired" : `${o.hoursLeft}h`}
               </span>

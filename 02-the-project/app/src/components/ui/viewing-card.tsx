@@ -50,7 +50,7 @@ export function ViewingCard({
         <span className="text-ui text-ink font-medium">
           {viewing.leadName ?? viewing.leadPhone ?? "Viewing"}
         </span>
-        <span className="ml-auto font-mono text-label text-ink-3">
+        <span className="ms-auto font-mono text-label text-ink-3">
           {viewing.durationMins}m
         </span>
       </div>
@@ -67,7 +67,7 @@ export function ViewingCard({
       )}
 
       {viewing.accessNote && (
-        <p className="text-sm text-ink-2 mt-2 pl-3 border-l-2 border-rule">
+        <p className="text-sm text-ink-2 mt-2 ps-3 border-s-2 border-rule">
           {viewing.accessNote}
         </p>
       )}

@@ -59,7 +59,7 @@ export default function Activity() {
                   disabled={setMode.isPending}
                   aria-pressed={on}
                   className={cn(
-                    "rounded-xl border px-4 py-3 text-left disabled:opacity-60",
+                    "rounded-xl border px-4 py-3 text-start disabled:opacity-60",
                     on ? "border-ink bg-sunk" : "border-rule hover:border-rule-strong"
                   )}
                 >

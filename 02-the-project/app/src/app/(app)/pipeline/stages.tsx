@@ -33,10 +33,10 @@ export function Stages() {
           const heavy = s.count > 120;
           return (
             <div key={s.id} className={cn("py-3.5 border-b border-rule",
-              heavy && "border-l-[3px] border-l-accent-edge pl-4 -ml-4")}>
+              heavy && "border-s-[3px] border-s-accent-edge ps-4 -ms-4")}>
               <div className="flex items-baseline gap-3">
                 <span className="text-control text-ink">{s.name}</span>
-                <span className="ml-auto text-ui text-ink font-medium tabular">
+                <span className="ms-auto text-ui text-ink font-medium tabular">
                   {s.count.toLocaleString()}
                 </span>
                 {heavy && (

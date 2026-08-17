@@ -267,7 +267,7 @@ function Actions({
             {/* Done and Not now are opposite signals, so they are two
                 buttons. Collapsing them into one means the engine can
                 never learn from either. */}
-            <div className="mt-3 flex gap-2 pl-7">
+            <div className="mt-3 flex gap-2 ps-7">
               <button
                 onClick={() => onAct(a.id)}
                 className="btn-inline min-h-11 disabled:opacity-50"

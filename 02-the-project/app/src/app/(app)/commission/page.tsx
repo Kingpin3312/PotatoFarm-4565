@@ -55,7 +55,7 @@ export default function CommissionPage() {
           <div key={i} className="flex gap-4 items-baseline py-4 border-b border-rule flex-wrap">
             <span className="font-mono text-note text-ink-3 min-w-[110px]">{r.deal}</span>
             <span className="text-ui text-ink font-medium">{r.amount}</span>
-            <span className="ml-auto t-label text-ink-3">
+            <span className="ms-auto t-label text-ink-3">
               {r.state}
             </span>
           </div>
@@ -67,7 +67,7 @@ export default function CommissionPage() {
 
 function Figure({ label, value, highlight, muted }: { label: string; value: string; highlight?: boolean; muted?: boolean }) {
   return (
-    <div className="px-5 py-5 border-r border-b border-rule last:border-r-0 max-[640px]:border-r-0">
+    <div className="px-5 py-5 border-e border-b border-rule last:border-e-0 max-[640px]:border-e-0">
       <div className={`font-sans font-semibold text-title leading-none ${highlight ? "text-accent" : muted ? "text-ink-3" : "text-ink"}`}>
         {value}
       </div>

@@ -220,7 +220,7 @@ export function Board() {
           <button
             type="button"
             onClick={() => setFailed(null)}
-            className="ml-auto min-h-11 px-2 bg-transparent border-0 text-ground underline cursor-pointer"
+            className="ms-auto min-h-11 px-2 bg-transparent border-0 text-ground underline cursor-pointer"
           >
             Dismiss
           </button>
@@ -268,7 +268,7 @@ export function Board() {
           <section
             key={col.stage.id}
             aria-label={col.stage.name}
-            className="border-r border-rule flex flex-col min-h-0 snap-start"
+            className="border-e border-rule flex flex-col min-h-0 snap-start"
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => {
               if (!dragging) return;
@@ -306,7 +306,7 @@ export function Board() {
                 <span className="t-label text-ink">
                   {col.stage.name}
                 </span>
-                <span className="ml-auto font-mono text-label text-ink-3">{col.total}</span>
+                <span className="ms-auto font-mono text-label text-ink-3">{col.total}</span>
               </div>
               <div className="font-sans font-semibold text-section text-ink mt-1.5">
                 {col.value ? aedShort(col.value) : "—"}
@@ -322,7 +322,7 @@ export function Board() {
                   onDragStart={() => setDragging(l.id)}
                   onDragEnd={() => setDragging(null)}
                   className={cn(
-                    "block w-full text-left px-4 py-3.5 border-b border-rule cursor-grab active:cursor-grabbing hover:bg-raised",
+                    "block w-full text-start px-4 py-3.5 border-b border-rule cursor-grab active:cursor-grabbing hover:bg-raised",
                     dragging === l.id && "opacity-40"
                   )}
                 >
@@ -345,7 +345,7 @@ export function Board() {
                         {sentence(l.source)}
                       </span>
                     )}
-                    <span className="ml-auto text-label text-ink-3">
+                    <span className="ms-auto text-label text-ink-3">
                       {l.assignedTo?.name ?? "Unassigned"}
                     </span>
                   </span>
@@ -358,7 +358,7 @@ export function Board() {
                        this is the one label on the card somebody has to
                        read at a glance across a room. A border is not
                        text and 3.22:1 clears the 3:1 it needs. */
-                    <span className="flex items-center gap-1.5 mt-2 pl-2 border-l-2 border-accent t-label text-accent-deep">
+                    <span className="flex items-center gap-1.5 mt-2 ps-2 border-s-2 border-accent t-label text-accent-deep">
                       Untouched {days(l.stageEnteredAt)} days
                     </span>
                   )}
@@ -383,7 +383,7 @@ function BoardSkeleton() {
     <div className="grid grid-flow-col auto-cols-[290px] overflow-hidden" aria-busy>
       <span className="sr-only">Loading the pipeline</span>
       {[...Array(5)].map((_, i) => (
-        <div key={i} className="border-r border-rule p-4">
+        <div key={i} className="border-e border-rule p-4">
           <div className="h-2.5 w-20 bg-sunk rounded-sm" />
           <div className="h-6 w-28 bg-sunk rounded-sm mt-3" />
           {[...Array(3)].map((_, j) => (

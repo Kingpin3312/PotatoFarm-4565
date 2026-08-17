@@ -8,6 +8,7 @@ import { NAV, SETTINGS_NAV, MORE } from "./nav";
 import { CommandPalette, PaletteButton } from "@/components/ui/command-palette";
 import { api } from "@/lib/trpc";
 import { Logo } from "@/components/brand/logo";
+import { useT } from "@/lib/i18n/provider";
 
 /**
  * The frame every screen sits in.
@@ -22,6 +23,7 @@ import { Logo } from "@/components/brand/logo";
  * wrong home for a constant another component reads.
  */
 export function Shell({ children }: { children: React.ReactNode }) {
+  const t = useT();
   const pathname = usePathname();
   const { data: orgs , isError, refetch , isLoading } = api.org.mine.useQuery();
   const { data: assistant } = api.assistant.isRunning.useQuery();
@@ -54,7 +56,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
               the touch bar. The links are 44px because a finger is
               not a mouse, and the header is 56px so they still
               centre. */}
-          <nav className="hidden lg:flex gap-5 ml-2 overflow-x-auto">
+          <nav className="hidden lg:flex gap-5 ms-2 overflow-x-auto">
             {NAV.map((n) => (
               <Link
                 key={n.href}
@@ -72,12 +74,12 @@ export function Shell({ children }: { children: React.ReactNode }) {
                     : "text-ink-3 border-transparent hover:text-ink"
                 )}
               >
-                {n.label}
+                {t(n.labelKey)}
               </Link>
             ))}
           </nav>
 
-          <div className="ml-auto flex items-center gap-3">
+          <div className="ms-auto flex items-center gap-3">
             {/* Search sits here rather than in the bar, because the bar
                 has a ceiling of seven and this is not a destination in
                 the same sense — it is the thing you reach for when you
@@ -96,7 +98,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
                 badge is noise; its absence is the normal state. */}
             {assistant && !assistant.enabled && (
               <span className="t-label text-accent-deep">
-                Assistant stopped
+                {t("shell.assistantStopped")}
               </span>
             )}
             {active && (
@@ -146,15 +148,16 @@ export function Shell({ children }: { children: React.ReactNode }) {
  * question. Everything else is a considered visit and lives behind More.
  */
 const TABS = [
-  { href: "/today", label: "Today", icon: "M12 3a4 4 0 0 1 4 4v4a4 4 0 0 1-8 0V7a4 4 0 0 1 4-4ZM5 11a7 7 0 0 0 14 0M12 18v3" },
-  { href: "/inbox", label: "Inbox", icon: "M3 5h18v12H7l-4 4V5Z" },
-  { href: "/viewings", label: "Diary", icon: "M4 5h16v16H4zM4 9h16M9 3v4M15 3v4" },
-  { href: "/pipeline", label: "Pipeline", icon: "M4 5h5v14H4zM10 5h5v9h-5zM16 5h4v6h-4z" },
+  { href: "/today", labelKey: "nav.today", icon: "M12 3a4 4 0 0 1 4 4v4a4 4 0 0 1-8 0V7a4 4 0 0 1 4-4ZM5 11a7 7 0 0 0 14 0M12 18v3" },
+  { href: "/inbox", labelKey: "nav.inbox", icon: "M3 5h18v12H7l-4 4V5Z" },
+  { href: "/viewings", labelKey: "nav.diary", icon: "M4 5h16v16H4zM4 9h16M9 3v4M15 3v4" },
+  { href: "/pipeline", labelKey: "nav.pipeline", icon: "M4 5h5v14H4zM10 5h5v9h-5zM16 5h4v6h-4z" },
 ] as const;
 
 
 
 function MobileTabs({ pathname }: { pathname: string }) {
+  const t = useT();
   const [more, setMore] = useState(false);
   const onMore = MORE.some((m) => pathname.startsWith(m.href));
   const trigger = useRef<HTMLButtonElement>(null);
@@ -185,13 +188,13 @@ function MobileTabs({ pathname }: { pathname: string }) {
   return (
     <>
       {more && (
-        <div className="lg:hidden fixed inset-0 z-40" role="dialog" aria-modal="true" aria-label="More">
+        <div className="lg:hidden fixed inset-0 z-40" role="dialog" aria-modal="true" aria-label={t("nav.more")}>
           <button
             className="absolute inset-0 w-full bg-[rgb(26_26_26/.45)]"
-            aria-label="Close"
+            aria-label={t("shell.close")}
             onClick={() => setMore(false)}
           />
-          <div className="absolute bottom-[calc(3.5rem+env(safe-area-inset-bottom))] left-0 right-0 max-h-[70dvh] overflow-y-auto rounded-t-2xl border-t border-rule bg-raised p-2">
+          <div className="absolute bottom-[calc(3.5rem+env(safe-area-inset-bottom))] start-0 end-0 max-h-[70dvh] overflow-y-auto rounded-t-2xl border-t border-rule bg-raised p-2">
             {MORE.map((m) => (
               <Link
                 key={m.href}
@@ -208,7 +211,7 @@ function MobileTabs({ pathname }: { pathname: string }) {
                     ? "bg-accent-soft font-semibold text-ink" : "text-ink-2"
                 )}
               >
-                {m.label}
+                {t(m.labelKey)}
               </Link>
             ))}
           </div>
@@ -216,15 +219,18 @@ function MobileTabs({ pathname }: { pathname: string }) {
       )}
 
       <nav
-        aria-label="Main"
+        aria-label={t("shell.mainNav")}
         className="lg:hidden fixed bottom-0 inset-x-0 z-50 grid grid-cols-5 border-t border-rule bg-ground pb-[env(safe-area-inset-bottom)]"
       >
-        {TABS.map((t) => {
-          const on = pathname.startsWith(t.href);
+        {/* `tab`, not `t` — `t` is the translator in this scope now, and
+            a map parameter that shadows it reads as working code right
+            up until a label is translated. */}
+        {TABS.map((tab) => {
+          const on = pathname.startsWith(tab.href);
           return (
             <Link
-              key={t.href}
-              href={t.href}
+              key={tab.href}
+              href={tab.href}
               aria-current={on ? "page" : undefined}
               className={cn(
                 // Same split as the desktop underline. The 22px icon is
@@ -238,9 +244,9 @@ function MobileTabs({ pathname }: { pathname: string }) {
               <svg viewBox="0 0 24 24" aria-hidden="true" className="h-[22px] w-[22px]"
                    fill="none" stroke="currentColor" strokeWidth="1.6"
                    strokeLinecap="round" strokeLinejoin="round">
-                <path d={t.icon} />
+                <path d={tab.icon} />
               </svg>
-              <span className="t-label">{t.label}</span>
+              <span className="t-label">{t(tab.labelKey)}</span>
             </Link>
           );
         })}
@@ -258,7 +264,7 @@ function MobileTabs({ pathname }: { pathname: string }) {
                fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
             <path d="M4 7h16M4 12h16M4 17h16" />
           </svg>
-          <span className="t-label">More</span>
+          <span className="t-label">{t("nav.more")}</span>
         </button>
       </nav>
     </>

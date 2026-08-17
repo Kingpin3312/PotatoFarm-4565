@@ -165,7 +165,7 @@ export function AddProperty({ onAdded }: { onAdded?: () => void }) {
             <Button type="button" variant="secondary" onClick={() => dialog.current?.close()}>
               Cancel
             </Button>
-            <Button type="submit" variant="primary" loading={create.isPending} className="ml-auto">
+            <Button type="submit" variant="primary" loading={create.isPending} className="ms-auto">
               Add it
             </Button>
           </div>

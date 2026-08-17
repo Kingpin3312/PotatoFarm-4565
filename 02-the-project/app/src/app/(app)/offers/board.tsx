@@ -54,7 +54,7 @@ export function OfferBoard({ listingId }: { listingId: string }) {
               </span>
             )}
             {i === 0 && ranked.length > 1 && (
-              <span className="ml-auto t-label text-accent-deep font-semibold">
+              <span className="ms-auto t-label text-accent-deep font-semibold">
                 Strongest, not highest
               </span>
             )}
@@ -72,7 +72,7 @@ export function OfferBoard({ listingId }: { listingId: string }) {
           </div>
 
           {o.conditions && (
-            <p className="text-sm text-ink-2 mt-2.5 pl-3 border-l-2 border-rule max-w-[52ch]">
+            <p className="text-sm text-ink-2 mt-2.5 ps-3 border-s-2 border-rule max-w-[52ch]">
               {o.conditions}
             </p>
           )}
@@ -85,7 +85,7 @@ export function OfferBoard({ listingId }: { listingId: string }) {
               <ol className="mt-2 space-y-1.5">
                 {o.history.map((h, j) => (
                   <li key={j} className="text-sm text-ink-2">
-                    <span className="t-label text-ink-3 mr-2">
+                    <span className="t-label text-ink-3 me-2">
                       {sentence(h.by)}
                     </span>
                     {h.amount ?? h.kind.toLowerCase()}

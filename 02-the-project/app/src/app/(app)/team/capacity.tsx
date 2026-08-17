@@ -57,7 +57,7 @@ export function TeamCapacity() {
                 <Tag>Default</Tag>
               ) : null}
 
-              <span className="ml-auto font-mono text-label text-ink-3">
+              <span className="ms-auto font-mono text-label text-ink-3">
                 capacity {a.capacity}
               </span>
               <button
@@ -182,7 +182,7 @@ function Editor({
       </div>
 
       <div className="flex mt-4">
-        <Button type="submit" variant="primary" size="sm" loading={save.isPending} className="ml-auto">
+        <Button type="submit" variant="primary" size="sm" loading={save.isPending} className="ms-auto">
           Save
         </Button>
       </div>

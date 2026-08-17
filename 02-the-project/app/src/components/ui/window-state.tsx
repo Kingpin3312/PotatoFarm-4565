@@ -41,7 +41,7 @@ export function WindowClosed({
   onTemplate, onAssign,
 }: { onTemplate: () => void; onAssign: () => void }) {
   return (
-    <div className="border border-rule border-l-2 border-l-danger-deep bg-sunk rounded-xl p-4">
+    <div className="border border-rule border-s-2 border-s-danger-deep bg-sunk rounded-xl p-4">
       <p className="text-sm text-ink-2">
         <strong className="text-ink font-semibold">Quiet for more than 24 hours.</strong>{" "}
         WhatsApp only allows an approved template until they reply. This isn&rsquo;t us —

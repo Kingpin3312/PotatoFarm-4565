@@ -127,7 +127,7 @@ export function WhoWantsIt({ listingId, reference }: { listingId: string; refere
                       </p>
                     </div>
 
-                    <div className="shrink-0 text-right">
+                    <div className="shrink-0 text-end">
                       <div className="font-mono text-note text-ink tabular-nums">
                         {Math.round(m.score * 100)}%
                       </div>

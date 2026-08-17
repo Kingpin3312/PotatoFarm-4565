@@ -2,6 +2,7 @@
 
 import { KillSwitch } from "./kill-switch";
 import { CalendarFeed } from "./calendar";
+import { LanguageChoice } from "./language";
 import { api } from "@/lib/trpc";
 import { QueryError } from "@/components/ui/query-state";
 
@@ -26,6 +27,8 @@ export default function SettingsPage() {
       <div className="mt-7"><KillSwitch /></div>
 
       <CalendarFeed />
+
+      <LanguageChoice />
 
       {data && (
         <>
@@ -66,7 +69,7 @@ export default function SettingsPage() {
                     style={{ width: `${(r.count / Math.max(1, handovers.byReason[0]?.count ?? 1)) * 100}%` }}
                   />
                 </span>
-                <span className="font-mono text-note text-ink-3 min-w-[28px] text-right">{r.count}</span>
+                <span className="font-mono text-note text-ink-3 min-w-[28px] text-end">{r.count}</span>
               </div>
             ))}
           </div>
@@ -78,7 +81,7 @@ export default function SettingsPage() {
 
 function Fig({ n, l, highlight }: { n: string; l: string; highlight?: boolean }) {
   return (
-    <div className="px-5 py-4 border-r border-b border-rule last:border-r-0">
+    <div className="px-5 py-4 border-e border-b border-rule last:border-e-0">
       <div className={`font-sans font-semibold text-title leading-none ${highlight ? "text-accent" : "text-ink"}`}>{n}</div>
       <div className="t-label text-ink-3 mt-2">{l}</div>
     </div>

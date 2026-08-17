@@ -59,6 +59,15 @@ CHECKS=(
   # each other — while HANDOVER.md, whose job is orienting whoever picks
   # the project up, said 34 models against a real 73.
   "counts.py|$ROOT"
+  # Interface language and direction. Catches the two ways Arabic goes
+  # half-finished: a key with no translation, and a physical direction
+  # class (`ml-`, `border-l-`) that ignores `dir="rtl"` and leaves the
+  # spacing pointing the wrong way on every screen at once. It also
+  # self-tests its own pattern before trusting it — it has been wrong in
+  # both directions already, missing `-ml-4` entirely and flagging class
+  # names quoted inside explanatory comments, and both of those look
+  # like a green run from the outside.
+  "i18n.py|$ROOT"
 )
 
 pass=0; fail=0; failed=()

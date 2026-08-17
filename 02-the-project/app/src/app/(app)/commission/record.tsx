@@ -66,14 +66,14 @@ export function RecordCommission({ dealId, valueFils }: {
               <span className="text-ui text-ink">
                 {s.externalName ?? sentence(s.role)}
               </span>
-              <span className="ml-auto text-ui text-ink font-medium tabular">
+              <span className="ms-auto text-ui text-ink font-medium tabular">
                 {s.amount}
               </span>
             </div>
           ))}
           <div className="flex items-baseline gap-3 py-3">
             <span className="text-ui text-ink-2">Gross</span>
-            <span className="ml-auto text-sub text-ink font-medium tabular">
+            <span className="ms-auto text-sub text-ink font-medium tabular">
               {preview.data.gross}
             </span>
           </div>

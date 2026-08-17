@@ -154,7 +154,7 @@ export default function Leads() {
               <option key={m.id} value={m.user.id}>{m.user.name ?? m.user.email}</option>
             ))}
           </select>
-          <button className="btn-inline ml-auto" onClick={() => setPicked(new Set())}>
+          <button className="btn-inline ms-auto" onClick={() => setPicked(new Set())}>
             Clear
           </button>
         </div>
@@ -197,7 +197,7 @@ export default function Leads() {
               <span className="t-label text-ink-3">
                 {sentence(l.source)}
               </span>
-              <span className="font-mono text-label text-ink-3 w-20 text-right tabular">
+              <span className="font-mono text-label text-ink-3 w-20 text-end tabular">
                 {l.assignedTo?.name ?? "unassigned"}
               </span>
               {/* Why it is that warm, in the sweep's own words. An
@@ -205,7 +205,7 @@ export default function Leads() {
                   ignore, and the reason is also how they catch it being
                   wrong — the same argument as the Today list. */}
               {l.drivers.length > 0 && (
-                <p className="basis-full pl-8 text-note leading-snug text-ink-3">
+                <p className="basis-full ps-8 text-note leading-snug text-ink-3">
                   {l.drivers.join(" · ")}
                 </p>
               )}

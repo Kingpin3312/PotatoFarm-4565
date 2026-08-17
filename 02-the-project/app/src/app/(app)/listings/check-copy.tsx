@@ -106,7 +106,7 @@ export function CheckCopy() {
             </Button>
             <Button
               variant="primary"
-              className="ml-auto"
+              className="ms-auto"
               loading={check.isPending}
               disabled={text.trim().length === 0}
               onClick={() => check.mutate({ text })}

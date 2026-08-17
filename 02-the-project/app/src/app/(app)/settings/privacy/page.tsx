@@ -91,7 +91,7 @@ export default function Privacy() {
           Erase
         </Button>
       ) : (
-        <div className="bg-sunk rounded-xl p-4 border-l-[3px] border-l-danger">
+        <div className="bg-sunk rounded-xl p-4 border-s-[3px] border-s-danger">
           <p className="text-ui text-ink">This cannot be undone. Type the number again to confirm.</p>
           <label htmlFor="pconfirm" className="sr-only">Confirm the number</label>
           <input id="pconfirm" type="tel" inputMode="tel" value={confirmPhone}
@@ -113,7 +113,7 @@ export default function Privacy() {
       )}
 
       {erase.data?.deferredUntil && (
-        <p className="text-sm text-ink-2 mt-4 pl-3 border-l-2 border-l-accent-edge max-w-[48ch] leading-snug">
+        <p className="text-sm text-ink-2 mt-4 ps-3 border-s-2 border-s-accent-edge max-w-[48ch] leading-snug">
           Deferred — there is a live KYC file. Scheduled for {erase.data.deferredUntil}.
         </p>
       )}

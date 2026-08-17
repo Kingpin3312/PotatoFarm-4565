@@ -41,7 +41,7 @@ export function Logo({
 }: { size?: number; word?: number; className?: string }) {
   return (
     <span className={`inline-flex items-center ${className}`}>
-      <Mark size={size} className="mr-2.5 shrink-0" />
+      <Mark size={size} className="me-2.5 shrink-0" />
       {/* One line, deliberately. JSX collapses the whitespace around a
           newline or a comment into a real space, and written across
           several lines this rendered "PotatoFarm .io". */}

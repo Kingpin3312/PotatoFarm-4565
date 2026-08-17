@@ -37,7 +37,7 @@ export function InboxList({
   const rows = data?.pages.flatMap((p) => p.rows) ?? [];
 
   return (
-    <aside className="border-r border-rule flex flex-col min-h-0">
+    <aside className="border-e border-rule flex flex-col min-h-0">
       <div className="flex gap-4 px-5 py-3.5 border-b border-rule overflow-x-auto">
         {FILTERS.map((f) => (
           <button
@@ -83,7 +83,7 @@ export function InboxList({
             onClick={() => onSelect(c.id)}
             aria-current={selectedId === c.id}
             className={cn(
-              "block w-full text-left px-5 py-3.5 border-b border-rule hover:bg-raised",
+              "block w-full text-start px-5 py-3.5 border-b border-rule hover:bg-raised",
               selectedId === c.id && "bg-raised shadow-[inset_2px_0_0_var(--accent)]"
             )}
           >
@@ -94,7 +94,7 @@ export function InboxList({
               <span className="text-ui font-medium text-ink">
                 {c.lead.name ?? c.lead.phone}
               </span>
-              <span className="ml-auto font-mono text-label tracking-[0.08em] text-ink-3 whitespace-nowrap">
+              <span className="ms-auto font-mono text-label tracking-[0.08em] text-ink-3 whitespace-nowrap">
                 {time(c.updatedAt)}
               </span>
             </span>

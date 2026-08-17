@@ -106,7 +106,7 @@ export default function Team() {
                     `data.pending` and has no membership yet, so
                     `m.acceptedAt` was a field that could not exist.
                     Last seen is the useful thing to show instead. */}
-                <span className="ml-auto text-label text-ink-3">
+                <span className="ms-auto text-label text-ink-3">
                   {m.user.lastSeenAt
                     ? `seen ${new Date(m.user.lastSeenAt).toLocaleDateString("en-GB")}`
                     : "not signed in yet"}

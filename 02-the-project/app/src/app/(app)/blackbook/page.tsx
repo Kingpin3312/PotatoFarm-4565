@@ -80,7 +80,7 @@ export default function Blackbook() {
                   {t}
                 </span>
               ))}
-              <span className="ml-auto font-mono text-label text-ink-3">
+              <span className="ms-auto font-mono text-label text-ink-3">
                 {r.lastTouched ? rel(r.lastTouched) : ""}
               </span>
             </a>

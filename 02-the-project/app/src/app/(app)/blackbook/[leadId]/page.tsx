@@ -44,7 +44,7 @@ export default function Person({ params }: { params: Promise<{ leadId: string }>
           is usually about to message them, and after 24 hours a normal
           message does not arrive and nothing says so. */}
       {w && !w.open && (
-        <div className="bg-sunk rounded-xl p-4 border-l-[3px] border-l-accent-edge mb-6">
+        <div className="bg-sunk rounded-xl p-4 border-s-[3px] border-s-accent-edge mb-6">
           <p className="text-ui text-ink font-medium">The reply window has closed</p>
           <p className="text-sm text-ink-2 mt-1 max-w-[46ch] leading-snug">
             A normal message won't arrive — WhatsApp accepts it and never delivers it. Use an
@@ -53,7 +53,7 @@ export default function Person({ params }: { params: Promise<{ leadId: string }>
         </div>
       )}
       {w?.open && w.hoursLeft <= 4 && (
-        <div className="bg-sunk rounded-xl p-4 border-l-[3px] border-l-accent-edge mb-6">
+        <div className="bg-sunk rounded-xl p-4 border-s-[3px] border-s-accent-edge mb-6">
           <p className="text-ui text-ink">
             <strong>{w.hoursLeft}h left</strong> to reply normally.
           </p>
@@ -88,7 +88,7 @@ export default function Person({ params }: { params: Promise<{ leadId: string }>
               {e.channel === "whatsapp" ? "wa" : e.channel}
             </span>
             <span className="text-ui text-ink flex-1 leading-snug">
-              {e.direction === "out" && <span className="text-ink-3 mr-1.5">you</span>}
+              {e.direction === "out" && <span className="text-ink-3 me-1.5">you</span>}
               {e.summary}
             </span>
             {e.link && (

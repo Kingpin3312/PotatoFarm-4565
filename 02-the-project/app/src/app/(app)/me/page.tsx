@@ -115,7 +115,7 @@ export default function Me() {
                 <span className={cn("text-ui", r.isMe ? "text-ink font-medium" : "text-ink-2")}>
                   {r.name}
                 </span>
-                <span className="ml-auto font-mono text-note text-ink tabular">
+                <span className="ms-auto font-mono text-note text-ink tabular">
                   {/* -1 means the brokerage chose not to share figures.
                       Shown as a dash rather than a zero, because a zero
                       is a claim and a dash is an absence. */}
@@ -147,7 +147,7 @@ function Fig({ label, value, highlight, muted }: {
   label: string; value: string; highlight?: boolean; muted?: boolean;
 }) {
   return (
-    <div className="px-5 py-5 border-r border-b border-rule last:border-r-0 max-[600px]:border-r-0">
+    <div className="px-5 py-5 border-e border-b border-rule last:border-e-0 max-[600px]:border-e-0">
       <div className={cn(
         "font-sans font-semibold text-title leading-none tabular",
         highlight ? "text-accent" : muted ? "text-ink-3" : "text-ink"

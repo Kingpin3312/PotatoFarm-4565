@@ -21,7 +21,7 @@ export function ErasureHistory() {
           <div key={r.id} className="py-3 border-b border-rule">
             <div className="flex items-baseline gap-3">
               <span className="text-ui text-ink">{r.subject}</span>
-              <span className="ml-auto font-mono text-label text-ink-3">
+              <span className="ms-auto font-mono text-label text-ink-3">
                 {new Date(r.requestedAt).toLocaleDateString("en-GB")}
               </span>
             </div>

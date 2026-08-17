@@ -153,16 +153,41 @@ for doc in DOCS:
         NOTES.append(f"{os.path.relpath(doc, ROOT)} — not found, skipped")
         continue
     rel = os.path.relpath(doc, ROOT)
-    for n, line in enumerate(text.splitlines(), 1):
-        if "counts: ignore" in line or HISTORICAL.search(line):
+    lines = text.splitlines()
+
+    def skip(line):
+        return "counts: ignore" in line or bool(HISTORICAL.search(line))
+
+    for n, line in enumerate(lines, 1):
+        if skip(line):
             continue
-        for noun, pat in PATTERNS.items():
-            for claimed in re.findall(pat, line, re.I):
-                actual = TRUTH[noun]
-                if int(claimed) != actual:
-                    FAILS.append(
-                        f"{rel}:{n} claims {claimed} {noun}, but there are {actual}"
-                        f"\n      {line.strip()[:96]}")
+
+        # A claim can straddle a line break, and one did. HANDOVER.md
+        # wrapped as "…24 check suites, 15" / "audit scripts, all browser
+        # suites…", so the number was on one line and the noun on the
+        # next, and this check read straight past it — the stale count
+        # sat in the first paragraph of the handover document, which is
+        # the one place a wrong number does the most damage.
+        #
+        # Only joined when the line ends in a digit, so the usual case
+        # does no extra work, and matches found in the pair are deduped
+        # against the ones found in the line alone.
+        targets = [line]
+        if n < len(lines) and re.search(r"\d[\s]*$", line) and not skip(lines[n]):
+            targets.append(line + " " + lines[n])
+
+        seen = set()
+        for target in targets:
+            for noun, pat in PATTERNS.items():
+                for claimed in re.findall(pat, target, re.I):
+                    if (noun, claimed) in seen:
+                        continue
+                    seen.add((noun, claimed))
+                    actual = TRUTH[noun]
+                    if int(claimed) != actual:
+                        FAILS.append(
+                            f"{rel}:{n} claims {claimed} {noun}, but there are {actual}"
+                            f"\n      {target.strip()[:96]}")
 
 print("Inventory audit\n")
 print("  measured from source:")

@@ -72,7 +72,7 @@ export default function Deals() {
                 // label. Same reason `data-listing` exists on the
                 // listings rows.
                 data-deal={d.id}
-                className="flex w-full items-baseline gap-3 py-4 text-left"
+                className="flex w-full items-baseline gap-3 py-4 text-start"
               >
                 <Level level={d.level} />
 
@@ -88,7 +88,7 @@ export default function Deals() {
                   </span>
                 </span>
 
-                <span className="tabular shrink-0 text-right text-ui font-medium text-ink">
+                <span className="tabular shrink-0 text-end text-ui font-medium text-ink">
                   {aedShort(d.valueFils)}
                   <span className="mt-0.5 block t-label text-ink-3">
                     {STAGE[d.stage] ?? sentence(d.stage)}
@@ -139,11 +139,11 @@ function Detail({ id }: { id: string }) {
   const [reason, setReason] = useState("");
 
   if (isLoading || !data) {
-    return <p className="pb-4 pl-[5.75rem] text-sm text-ink-3">Loading…</p>;
+    return <p className="pb-4 ps-[5.75rem] text-sm text-ink-3">Loading…</p>;
   }
 
   return (
-    <div className="pb-5 pl-[5.75rem] pr-1">
+    <div className="pb-5 ps-[5.75rem] pe-1">
       {/* A lapsed broker card or brokerage licence stops this deal
           moving, and the server refuses `Done` while it has. Said here
           rather than only at the click: finding out by pressing a button
@@ -152,7 +152,7 @@ function Detail({ id }: { id: string }) {
       {data.blockers.length > 0 && (
         <div
           data-blocked
-          className="mb-4 rounded-xl border-l-[3px] p-4"
+          className="mb-4 rounded-xl border-s-[3px] p-4"
           style={{ background: "var(--sunk)", borderLeftColor: "var(--danger-deep)" }}
         >
           <p className="text-ui font-medium text-ink">
@@ -195,7 +195,7 @@ function Detail({ id }: { id: string }) {
 
       {/* Everything that contributed, not only the headline reason. */}
       {data.risk.factors.length > 1 && (
-        <ul className="mb-4 space-y-1.5 border-l-2 border-l-accent-edge pl-3">
+        <ul className="mb-4 space-y-1.5 border-s-2 border-s-accent-edge ps-3">
           {data.risk.factors.slice(1).map((f, i) => (
             <li key={i} className="max-w-[48ch] text-sm leading-snug text-ink-2">{f}</li>
           ))}

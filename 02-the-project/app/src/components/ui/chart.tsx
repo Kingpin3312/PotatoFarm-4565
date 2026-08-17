@@ -143,10 +143,10 @@ export function Funnel({ rows, empty, caption, className }: {
                               background: r.muted ? "var(--rule-strong)" : "var(--accent)" }} />
               )}
             </div>
-            <span className="text-note tabular text-ink font-medium w-8 text-right shrink-0">
+            <span className="text-note tabular text-ink font-medium w-8 text-end shrink-0">
               {r.value}
             </span>
-            <span className="text-note tabular text-ink-3 w-[86px] text-right shrink-0 hidden sm:block">
+            <span className="text-note tabular text-ink-3 w-[86px] text-end shrink-0 hidden sm:block">
               {r.note ?? "—"}
             </span>
           </div>

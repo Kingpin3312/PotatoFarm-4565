@@ -121,7 +121,7 @@ export default function WorkingHoursPage() {
             >
               <span className="text-ui text-ink font-medium w-[92px]">{d.name}</span>
 
-              <label className="flex items-center gap-2 order-last w-full min-[560px]:order-none min-[560px]:w-auto min-[560px]:ml-auto">
+              <label className="flex items-center gap-2 order-last w-full min-[560px]:order-none min-[560px]:w-auto min-[560px]:ms-auto">
                 <input
                   type="checkbox"
                   checked={d.closed}
@@ -156,7 +156,7 @@ export default function WorkingHoursPage() {
         </div>
 
         <div className="flex mt-6">
-          <Button type="submit" variant="primary" loading={save.isPending} className="ml-auto">
+          <Button type="submit" variant="primary" loading={save.isPending} className="ms-auto">
             Save the week
           </Button>
         </div>

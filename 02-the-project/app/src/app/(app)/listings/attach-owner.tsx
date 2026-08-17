@@ -24,7 +24,7 @@ export function AttachOwner({ listingId, current }: {
       <div className="flex items-baseline gap-3 py-3 border-t border-rule">
         <span className="t-label text-ink-3">Owner</span>
         <span className="text-ui text-ink">{current.name}</span>
-        <a href={`/vendors/${current.id}`} className="btn-inline ml-auto">Brief</a>
+        <a href={`/vendors/${current.id}`} className="btn-inline ms-auto">Brief</a>
       </div>
     );
   }

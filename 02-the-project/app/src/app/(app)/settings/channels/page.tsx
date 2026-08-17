@@ -108,7 +108,7 @@ export default function Channels() {
           const quiet = c?.quiet ?? false;
           return (
           <div key={ch.id} className={cn("py-4 border-b border-rule",
-            quiet && "border-l-[3px] border-l-accent-edge pl-4 -ml-4",
+            quiet && "border-s-[3px] border-s-accent-edge ps-4 -ms-4",
             !ch.active && "opacity-60")}>
             <div className="flex items-baseline gap-3 flex-wrap">
               <span className="text-control text-ink font-medium">{ch.label}</span>
@@ -123,7 +123,7 @@ export default function Channels() {
                 <Tag warn>Receives only</Tag>
               ) : null}
 
-              <span className="ml-auto t-label"
+              <span className="ms-auto t-label"
                     style={{ color: quiet ? "var(--accent-type)" : "var(--ink-3)" }}>
                 {c?.lastAt ? c.lastAgo : "never"}
               </span>
