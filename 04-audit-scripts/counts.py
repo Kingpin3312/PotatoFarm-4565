@@ -141,6 +141,10 @@ DOCS = [
     # that number has already moved once (24 → 25) while three documents
     # went on saying the old one.
     os.path.join(APP, "DEPLOY.md"),
+    # The first file a new agent reads, and the one that tells it how big
+    # the codebase is before it has looked. A wrong number here is
+    # believed for the whole session.
+    os.path.join(APP, "CLAUDE.md"),
 ]
 
 for doc in DOCS:

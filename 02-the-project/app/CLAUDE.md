@@ -18,9 +18,24 @@ Two minutes, and skipping it has cost real work twice.
 
 **1. Confirm you are looking at the real code.** A remote container can
 come back at an older commit with no warning and no error. It happened
-four times in one session; twice it produced work built on stale
+six times in one session; twice it produced work built on stale
 measurements — once "fixing" a bug that was already fixed upstream, once
 nearly rewriting documentation from counts taken off old code.
+
+**It can also happen in the middle of a turn, after a successful push.**
+The sixth reset landed between `git push` and the next command. What it
+looked like from inside: CLAUDE.md was suddenly 253 lines instead of
+489, the fresh-container section was gone, `sentence.ts` and `chart.tsx`
+did not exist, and `git log` put HEAD at the old commit — a perfectly
+coherent picture of work that had been lost. None of it was. `git fetch`
+showed origin holding the pushed commit and a `reset --hard` brought
+everything back.
+
+So the rule is not only *check on arrival*. **A file that has lost
+content you remember writing is a reset until proven otherwise**, and
+the proof is one fetch. Concluding "this was never committed" from a
+tree you have not re-verified is the same mistake as trusting a stale
+count, one step further along.
 
     git fetch origin claude/project-audit-assessment-yr66hc
     git rev-parse --short HEAD
@@ -49,19 +64,48 @@ something is broken:
 
 `pkill -f "next dev"` kills your own tool-call shell, because the string
 you typed is in that shell's command line. It exits 144 and takes the
-dev server's parent with it. Use `pkill -f "node .*/next"`, or capture
-the PID: `npm run dev & echo $! > /tmp/dev.pid`.
+dev server's parent with it.
+
+**`pkill -f "node .*/next"` was the advice here and it fails exactly the
+same way** — that pattern is also a literal in the shell's command line,
+so the shell matches its own `pkill`. Any pattern you can type is a
+pattern that describes the process typing it. Break the literal with a
+character class, which matches the server but not the command:
+
+    pgrep -af 'ne[x]t-server'      # find it
+    kill <pid>                     # kill that, nothing else
+
+Capturing the PID up front (`npm run dev & echo $! > /tmp/dev.pid`) is
+still worth doing, but note it records the `npm` wrapper rather than the
+server, so the `pgrep` above is what actually ends it.
 
 `npm run verify` now exceeds a ten-minute tool timeout. Run it in parts,
 or let CI run it.
 
 ## Honest state
 
-**This has never been compiled or run.** It was written as a design and
-architecture exercise, module by module, with logic verified by
-standalone tests rather than by a build. Expect real type errors on the
-first `npm run typecheck`, and expect them to be genuine mistakes rather
-than configuration problems.
+~~**This has never been compiled or run.**~~ **It has now, and the
+production path specifically.** The line above was true for most of this
+project's life and is kept because it explains the shape of what is
+here: it was written as a design and architecture exercise, module by
+module, with logic verified by standalone tests rather than by a build.
+
+What is verified today, measured rather than assumed:
+
+- `npm run build` exits 0 with no warnings — the production build, not a
+  dev server.
+- 48 routes, **every one of them `ƒ` (dynamic) and none prerendered**,
+  which is the `force-dynamic`/CSP-nonce invariant below holding rather
+  than having quietly drifted. A static route in that list is the tell
+  that somebody removed the line.
+- `npm run start` serves `/sign-in` in about two seconds and
+  `/api/health` returns `200 {"ok":true}` against a real Postgres.
+- The boot log names every unconfigured service with its consequence —
+  six of them in a bare development environment.
+- 233 assertions in 10 files, 24 check suites, 15 audits, all green.
+
+Type errors on a fresh checkout are no longer expected. If you get one,
+it is new.
 
 Do not assume a file is correct because it is thorough. Do assume the
 *decisions* in the comments were made deliberately — those are the part
@@ -395,7 +439,7 @@ Between them they have caught, every one invisible in code review:
 6. A circular dependency between jobs, billing and health.
 7. A dead "Log in" link on all fourteen website pages.
 8. Three documents describing this codebase, disagreeing with it and
-   with each other. `HANDOVER.md` said 34 models, 11 routers and 11
+   with each other. `HANDOVER.md` previously said 34 models, 11 routers and 11
    scheduled jobs against a real 73, 27 and 25 — under a heading that
    reads "The shape of it", which is the first thing a new reader sees.
    Nobody types a wrong number on purpose; they were right once and the
