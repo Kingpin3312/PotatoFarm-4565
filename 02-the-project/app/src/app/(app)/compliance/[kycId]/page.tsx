@@ -24,6 +24,17 @@ export default function Screening({ params }: { params: Promise<{ kycId: string 
     api.aml.screeningDetail.useQuery({ kycId: kycId });
   const file = api.aml.file.useMutation({ onSuccess: () => void refetch() });
 
+  /**
+   * Re-running the check, which is the only way an `ERROR` ever clears.
+   *
+   * A provider outage records `ERROR` rather than a fabricated `CLEAR`,
+   * which is right and leaves the file stuck until somebody retries. The
+   * lists also move under a file that has already been cleared — a
+   * client clear in March may not be in June — so this is not only for
+   * failures.
+   */
+  const rescreen = api.aml.rescreen.useMutation({ onSuccess: () => void refetch() });
+
   const [type, setType] = useState<"REAR"|"STR"|"SAR"|"CNMR"|"FFR"|"NO_FILING">("NO_FILING");
   const [rationale, setRationale] = useState("");
   const [notFiledReason, setNotFiled] = useState("");
@@ -58,9 +69,37 @@ export default function Screening({ params }: { params: Promise<{ kycId: string 
         <a href="/compliance" className="t-label text-ink-3 no-underline">
           ← Compliance
         </a>
+        {/*
+          * Three states. `ERROR` means no list was consulted — the
+          * provider failed, or none is configured — and calling that a
+          * possible match tells the officer a list came back with a hit
+          * on this person when nothing was ever checked.
+          */}
         <h1 className="font-sans font-semibold text-page text-ink mt-3">
-          {latest?.result === "CONFIRMED_MATCH" ? "Confirmed match" : "Possible match"}
+          {latest?.result === "CONFIRMED_MATCH" ? "Confirmed match"
+            : latest?.result === "ERROR" ? "Not screened"
+            : "Possible match"}
         </h1>
+        <div className="mt-4">
+          <Button
+            size="sm"
+            variant="secondary"
+            loading={rescreen.isPending}
+            onClick={() => rescreen.mutate({ kycId })}
+          >
+            Run the check again
+          </Button>
+          {rescreen.isSuccess && (
+            <p role="status" className="text-sm text-ink-2 mt-2">
+              {rescreen.data.guidance}
+            </p>
+          )}
+          {rescreen.isError && (
+            <p role="alert" className="text-sm text-ink-2 mt-2">
+              {rescreen.error.message}
+            </p>
+          )}
+        </div>
       </header>
 
       {latest?.guidance && (

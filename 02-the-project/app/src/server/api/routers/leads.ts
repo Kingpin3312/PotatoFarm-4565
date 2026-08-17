@@ -5,6 +5,8 @@ import { leadScope } from "@/server/auth/rbac";
 import { audit } from "@/server/lib/audit";
 import { Prisma } from "@prisma/client";
 import { BANDS, band } from "@/server/lib/intelligence/score";
+import { entryStageId } from "@/server/lib/pipeline/defaults";
+import { assignmentFor } from "@/server/lib/routing/apply";
 
 const phone = z.string().regex(/^\+[1-9]\d{7,14}$/, "Include the country code.");
 
@@ -313,6 +315,97 @@ export const leadsRouter = router({
    * a hard delete on request is answerable with an apology when the
    * brokerage asks for it back on Monday.
    */
+  /**
+   * A lead somebody walked in with, or rang about.
+   *
+   * `lead:create` has been in `rbac.ts` since it was written, assigned to
+   * AGENT, and **nothing ever invoked it** — because there was no way to
+   * enter a lead by hand at all. Three code paths create a `Lead`: the
+   * WhatsApp webhook, a portal feed, and the assistant's structured
+   * intake. All three require the buyer to make the first move.
+   *
+   * A brokerage does not work that way. A walk-in to the office, a
+   * referral from a neighbour, a number handed over at a viewing — the
+   * enquiries most likely to convert are the ones that never touch a
+   * form, and this product could not record them.
+   *
+   * ## Two things it must do that a bare `create` would not
+   *
+   * **Land on the board.** `stageId` is nullable and the pipeline reads
+   * by it, so a lead created without one exists in the database and
+   * appears on no screen — the same stranded state `check:whatsapp-inbound`
+   * asserts against for the webhook path.
+   *
+   * **Respect routing.** `assignmentFor` is what decides whose lead this
+   * is, by source, community and language. Skipping it produces an
+   * unassigned lead that shows up in the manager's "nobody owns it"
+   * filter rather than on the agent's list.
+   *
+   * The phone number is the identity — `orgId_phone` is unique — so a
+   * number already on file is a conflict naming who owns it, rather than
+   * a duplicate record splitting one buyer's history in two.
+   */
+  create: requirePermission("lead:create")
+    .input(z.object({
+      phone,
+      name: z.string().trim().max(120).optional(),
+      email: z.string().trim().email().max(160).optional(),
+      // The three a person actually picks when typing a lead in. The
+      // portal and ad sources are set by the code that ingests them and
+      // would be a lie chosen from a dropdown.
+      source: z.enum(["WALK_IN", "REFERRAL", "UNKNOWN"]).default("WALK_IN"),
+      notes: z.string().trim().max(2000).optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const existing = await ctx.db.lead.findUnique({
+        where: { orgId_phone: { orgId: ctx.orgId, phone: input.phone } },
+        select: { id: true, name: true, assignedTo: { select: { name: true } } },
+      });
+      if (existing) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message:
+            `${existing.name ?? input.phone} is already on file` +
+            (existing.assignedTo?.name ? `, with ${existing.assignedTo.name}.` : "."),
+        });
+      }
+
+      return ctx.db.$transaction(async (tx) => {
+        const stageId = await entryStageId(tx, ctx.orgId, "NEW");
+        const assignment = await assignmentFor(tx, {
+          orgId: ctx.orgId,
+          source: input.source,
+        });
+
+        const lead = await tx.lead.create({
+          data: {
+            orgId: ctx.orgId,
+            phone: input.phone,
+            name: input.name,
+            email: input.email,
+            status: "NEW",
+            source: input.source,
+            notes: input.notes,
+            ...(stageId ? { stageId } : {}),
+            ...(assignment?.userId
+              ? { assignedToId: assignment.userId, assignedAt: new Date() }
+              : {}),
+          },
+          select: { id: true, name: true, phone: true },
+        });
+
+        await audit(tx, ctx.orgId, {
+          actorId: ctx.userId,
+          action: "lead.create",
+          entity: "Lead",
+          entityId: lead.id,
+          after: { source: input.source, entered: "manual" },
+        });
+
+        return { id: lead.id, onBoard: stageId !== null, assignedTo: assignment?.userId ?? null };
+      });
+    }),
+
   remove: requirePermission("lead:delete")
     .input(z.object({ leadId: z.string() }))
     .mutation(async ({ ctx, input }) =>

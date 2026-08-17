@@ -7,6 +7,7 @@ import { QueryError } from "@/components/ui/query-state";
 import { cn } from "@/lib/cn";
 import { sentence } from "@/lib/sentence";
 import { Funnel } from "@/components/ui/chart";
+import { AddLead } from "./add-lead";
 
 /**
  * Every lead, as a list.
@@ -54,9 +55,12 @@ export default function Leads() {
   return (
     <div className="max-w-[760px] mx-auto px-6 pb-24">
       <header className="pt-10 pb-5">
-        <span className="t-label text-ink-3 block mb-3">
-          Leads
-        </span>
+        <div className="flex items-start justify-between gap-4 mb-3">
+          <span className="t-label text-ink-3">
+            Leads
+          </span>
+          <AddLead />
+        </div>
         {/**
           * `shape.total`, not `rows.length`.
           *

@@ -9,7 +9,7 @@ the single most important sentence in this document, because the natural
 instinct on arriving at a large codebase is to find something to build,
 and building is not what this project needs.
 
-The gate is green: `tsc` clean, 233 unit assertions, 24 check suites, 15
+The gate is green: `tsc` clean, 242 unit assertions, 24 check suites, 15
 audit scripts, all browser suites, and a production build that succeeds.
 CI runs the lot on every push.
 
@@ -22,9 +22,14 @@ missing. Run that first; it answers "where are we" in one command.
 
 If you are in a fresh container, do the two-minute check at the top of
 `CLAUDE.md` first. A remote container can come back at an older commit
-with no error, and it has: four times in one session, twice producing
+with no error, and it has: six times in one session, twice producing
 work built on stale numbers. **The tell is a count that disagrees with
 yesterday when nobody changed it.**
+
+It can also happen mid-turn, after a successful push, and then it looks
+exactly like lost work — files short of content you remember writing,
+HEAD at an old commit. One `git fetch` settles it. **A file that has
+lost content is a reset until proven otherwise.**
 
 ### Do not "optimise" forOrg()
 
@@ -146,7 +151,7 @@ by putting a bug back and watching them stay green.
     src/server/assistant/     the model, its guardrails, its off switch
     src/server/lib/           the domain: portals, feeds, scheduling,
                               billing, privacy, notify, health, support
-    src/server/jobs/          25 scheduled jobs, advisory-locked
+    src/server/jobs/          26 scheduled jobs, advisory-locked
     src/app/                  43 screens, every one opened by browser:screens
     mobile/                   push, offline policy, auth — does not build
 

@@ -94,7 +94,7 @@ What is verified today, measured rather than assumed:
 
 - `npm run build` exits 0 with no warnings — the production build, not a
   dev server.
-- 48 routes, **every one of them `ƒ` (dynamic) and none prerendered**,
+- 55 routes, **every one of them `ƒ` (dynamic) and none prerendered**,
   which is the `force-dynamic`/CSP-nonce invariant below holding rather
   than having quietly drifted. A static route in that list is the tell
   that somebody removed the line.
@@ -102,7 +102,7 @@ What is verified today, measured rather than assumed:
   `/api/health` returns `200 {"ok":true}` against a real Postgres.
 - The boot log names every unconfigured service with its consequence —
   six of them in a bare development environment.
-- 233 assertions in 10 files, 24 check suites, 15 audits, all green.
+- 242 assertions in 11 files, 24 check suites, 15 audits, all green.
 
 Type errors on a fresh checkout are no longer expected. If you get one,
 it is new.
@@ -260,7 +260,7 @@ not want.
 
 ## The shape that keeps recurring
 
-Ten times a complete, tested, documented module has turned out to have
+Eleven times a complete, tested, documented module has turned out to have
 nothing that starts it — and the sixth is the product itself:
 
 1. **Billing** could invoice a customer no code path could create.
@@ -321,12 +321,38 @@ nothing that starts it — and the sixth is the product itself:
    directions — because `limit()` returns *allowed* for an unknown
    action, so a typo'd name reads as a wired limit and enforces
    nothing.
+11. **Sanctions screening**, and it is the one with legal consequences.
+   `aml/screening.ts` had the provider interface, the UAE list names,
+   `interpret()` with its freeze-the-funds guidance, and
+   `AUTO_CLEAR_THRESHOLD = null` with a paragraph on why nothing may
+   auto-clear. **No code path reached any of it, and `Screening` had
+   never had a row.**
+
+   What made it dangerous rather than merely absent was the screen.
+   `aml.reports` selects screenings that are `POSSIBLE_MATCH` or
+   `CONFIRMED_MATCH` and renders them as *pending*, so the compliance
+   officer's desk was permanently empty — and an empty compliance queue
+   does not read as "nobody has ever been screened". **It reads as a
+   clean shop.** The absence was the reassurance.
+
+   Two decisions in the fix are worth keeping. A missing provider
+   records `ERROR`, never `CLEAR`, because a fabricated clear is worse
+   than no screening at all: it turns a missing control into positive
+   evidence that a check happened, timestamped, in the file an inspector
+   reads. And `ERROR` had to be added to that queue's filter — it was
+   excluded, so a screening that failed was invisible on the one screen
+   meant to catch it.
+
+   This produced a sixth question, which is really the fourth turned
+   around: **what does this screen look like when the thing behind it
+   has never run?** If the answer is "the same as when everything is
+   fine", the screen is not a control.
 
 `architecture.py` catches a module nothing *imports*. `reachability.py`
 catches the subtler one — a module that is imported, called correctly,
 and whose entry condition never occurs. **A light switch wired to
 nothing.** It now scans every model in the schema against a
-`KNOWN_UNWRITTEN` ratchet, so the remaining four are visible and a new
+`KNOWN_UNWRITTEN` ratchet, so the remaining three are visible and a new
 one is a build failure.
 
 The question to ask of anything new: **what writes the first row?** And
@@ -367,7 +393,7 @@ send path read it.
 
 ## Run the tests
 
-    npm test          # 233 assertions, pure functions, no database
+    npm test          # 242 assertions, pure functions, no database
     npm run verify    # tsc, the tests, 24 check suites, 15 audits
 
 **The gate is now green end to end, including the two things that used
@@ -389,7 +415,7 @@ skip as a pass, and for a long time it reported two:
   simply did not run.
 
 `npm test` was declared from day one with no test files behind it, so it
-exited 1 and said "No test files found". There are seven files now, and
+exited 1 and said "No test files found". There are eleven files now, and
 they cover the pure logic where being wrong is silent: the fils unit, the
 24-hour window on both sides of the boundary, Dubai sending hours, the
 search parser's plural intents and budget bands, lead scoring, deal
@@ -520,7 +546,17 @@ with an empirical floor under it.
   cannot build: no `app.json`, no `tsconfig.json`, no `babel.config.js`,
   no assets, an Expo SDK two years old, and a sign-in flow expecting a
   `?session=` token the web app cannot issue.
-- Screening provider, goAML submission, image quality checks.
+- **A screening provider.** The write path exists now — `aml/screen.ts`,
+  the nightly `aml.screening` sweep and `aml.rescreen` — and there is no
+  vendor behind the `Screener` interface, because Dow Jones, Refinitiv
+  and LexisNexis all need a commercial agreement. Until one is
+  registered, every file records `ERROR` with `provider: "none"` and
+  appears on the compliance desk as *not checked*. **That is the
+  designed behaviour, not a bug to tidy away**: the alternative is a
+  stub returning no hits, which writes `CLEAR` and states in the record
+  that a check happened.
+- goAML submission, image quality checks. Nothing produces a
+  `QualityIssue`; `collect.ts` says so at the definition.
 - Migration source adapters.
 - **Connecting a mailbox.** `email/sync.ts` is written and
   `EmailAccount` has never had a row, because there is no OAuth flow
@@ -530,4 +566,11 @@ with an empirical floor under it.
   produces one does not exist. The Gmail half of `normalise` is also
   unwritten and **throws** rather than returning zero messages, because
   a mailbox that syncs nothing is indistinguishable from a quiet one.
-- An external heartbeat — the alerting cannot report its own absence.
+- ~~An external heartbeat — the alerting cannot report its own absence.~~
+  **Built.** `health/deliver.ts` has `heartbeat()` and `alert.ts` calls
+  it on a successful evaluation, so silence at the far end is the alarm.
+  Left struck through rather than deleted because this line was read as
+  current by an audit *after* the thing was built, and the wrong answer
+  was given to the person who asked. A stale "not built" list is the
+  same defect as a stale count, and it fails in the more expensive
+  direction: it invites somebody to build a second one.

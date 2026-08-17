@@ -44,6 +44,12 @@ const EXPECTED_EVERY_MINUTES: Record<string, number> = {
   "privacy.retention": 24 * 60,
   "listings.permit-expiry": 24 * 60,
   "documents.expiry": 24 * 60,
+  // Daily. Worth stating why it is here rather than only in the cron
+  // list: this is the job that screens a due diligence file nobody
+  // screened at onboarding, and its failure is completely silent — the
+  // compliance queue simply stops growing, which looks identical to a
+  // week with no new business.
+  "aml.screening": 24 * 60,
   "deals.slippage": 24 * 60,
   "matching.new-listings": 24 * 60,
   "plans.advance": 24 * 60,

@@ -6,6 +6,7 @@ import { interpret, AGENT_VISIBLE_STATE } from "@/server/lib/aml/screening";
 import { requestMessage } from "@/server/lib/aml/collect";
 import { audit } from "@/server/lib/audit";
 import { openKycFile } from "@/server/lib/aml/open";
+import { screen } from "@/server/lib/aml/screen";
 
 export const amlRouter = router({
   /**
@@ -79,7 +80,73 @@ export const amlRouter = router({
         });
       }
 
-      return { id, created };
+      /**
+       * Screen on the way in, and only on creation.
+       *
+       * `openKycFile` is idempotent because an agent can press the button
+       * twice; screening has to inherit that, or the second press writes
+       * a second row and the compliance queue grows a duplicate for every
+       * impatient click.
+       *
+       * The nightly sweep is what catches files opened by the deal
+       * transaction, which cannot screen inline. This is here so that an
+       * agent who opens a file by hand gets an answer now rather than
+       * tomorrow morning — that is the whole reason the manual path
+       * exists.
+       */
+      let screening: Awaited<ReturnType<typeof screen>> | null = null;
+      if (created) {
+        const subject = await ctx.db.kycRecord.findUniqueOrThrow({
+          where: { id },
+          select: { legalName: true, nationality: true },
+        });
+        screening = await screen(ctx.db, {
+          orgId: ctx.orgId,
+          kycId: id,
+          fullName: subject.legalName,
+          nationality: subject.nationality ?? undefined,
+        });
+      }
+
+      return { id, created, screening };
+    }),
+
+  /**
+   * Run the check again, on demand.
+   *
+   * Compliance-gated rather than agent-gated, unlike opening a file. An
+   * agent must be able to start due diligence or they will proceed
+   * without it; re-running a screening is a compliance decision, and the
+   * result may be a match an agent must never be shown.
+   *
+   * Needed because the lists move underneath a file that has already
+   * been cleared, and because a provider outage records `ERROR` — which
+   * is honest, and useless until somebody retries it.
+   */
+  rescreen: requirePermission("compliance:read")
+    .input(z.object({ kycId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const subject = await ctx.db.kycRecord.findUniqueOrThrow({
+        where: { id: input.kycId },
+        select: { legalName: true, nationality: true },
+      });
+
+      const result = await screen(ctx.db, {
+        orgId: ctx.orgId,
+        kycId: input.kycId,
+        fullName: subject.legalName,
+        nationality: subject.nationality ?? undefined,
+      });
+
+      await audit(ctx.db, ctx.orgId, {
+        actorId: ctx.userId,
+        action: "aml.rescreened",
+        entity: "KycRecord",
+        entityId: input.kycId,
+        after: { result: result.result, screeningId: result.id },
+      });
+
+      return result;
     }),
 
   /**
@@ -209,11 +276,21 @@ export const amlRouter = router({
     const now = new Date();
 
     const [screenings, reviews, filed] = await Promise.all([
-      // Anything not clear, newest first. `AUTO_CLEAR_THRESHOLD` is null
-      // on purpose — nothing clears itself, so everything here is a
-      // person's decision.
+      /**
+       * Anything not clear, newest first. `AUTO_CLEAR_THRESHOLD` is null
+       * on purpose — nothing clears itself, so everything here is a
+       * person's decision.
+       *
+       * **`ERROR` belongs in this list and was missing from it.** An
+       * errored screening means nobody knows whether this person is on a
+       * sanctions list: the provider was down, or none was configured at
+       * all. Filtering it out left the one screen meant to catch that
+       * showing an empty queue, which reads as "nothing to review"
+       * rather than "nothing was ever checked" — the same silent-absence
+       * failure this codebase keeps finding, on the regulated path.
+       */
       ctx.db.screening.findMany({
-        where: { result: { in: ["POSSIBLE_MATCH", "CONFIRMED_MATCH"] } },
+        where: { result: { in: ["POSSIBLE_MATCH", "CONFIRMED_MATCH", "ERROR"] } },
         orderBy: { screenedAt: "desc" },
         take: 100,
         select: {

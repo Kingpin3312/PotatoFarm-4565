@@ -86,16 +86,30 @@ export default function Compliance() {
                className="block py-4 border-b border-rule no-underline">
               <div className="flex items-baseline gap-3">
                 <span className="text-control text-ink font-medium">{p.name}</span>
+                {/*
+                  * Three states, not two. `ERROR` means nothing was
+                  * checked — the provider failed or none is configured —
+                  * and rendering it as "possible match" would tell a
+                  * compliance officer a list came back with a hit when no
+                  * list was ever consulted. That is a worse lie than the
+                  * empty queue it replaced.
+                  */}
                 <span className={cn("t-label px-2 py-0.5 rounded-[3px] border",
                   p.result === "CONFIRMED_MATCH"
                     ? "border-danger text-danger font-semibold"
-                    : "border-accent-edge text-accent-deep")}>
-                  {p.result === "CONFIRMED_MATCH" ? "confirmed" : "possible match"}
+                    : p.result === "ERROR"
+                      ? "border-danger text-danger"
+                      : "border-accent-edge text-accent-deep")}>
+                  {p.result === "CONFIRMED_MATCH" ? "confirmed"
+                    : p.result === "ERROR" ? "not checked"
+                    : "possible match"}
                 </span>
                 <span className="ml-auto font-mono text-label text-ink-3">{p.heldFor}</span>
               </div>
               <p className="text-sm text-ink-2 mt-1.5 max-w-[52ch] leading-snug">
-                {p.listName} · matched on {p.matchedOn}
+                {p.result === "ERROR"
+                  ? "No sanctions or PEP list was consulted. This file is unscreened."
+                  : `${p.listName} · matched on ${p.matchedOn}`}
               </p>
             </a>
           ))}

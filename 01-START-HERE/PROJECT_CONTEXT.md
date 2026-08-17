@@ -105,14 +105,19 @@ token, which the web app cannot do. Treat it as a design sketch.
 
 ## 4. What is built
 
-**73 database models · 60 enums · 27 API routers · 147 procedures ·
-43 screens · 25 scheduled jobs · 15 audit scripts · 24 check suites.**
+**73 database models · 60 enums · 27 API routers · 149 procedures ·
+43 screens · 26 scheduled jobs · 15 audit scripts · 24 check suites.**
 
-**Eight procedures have no screen**, and each is deliberate:
+**Seven procedures have no screen**, and each is deliberate:
 `migration.abandon`, `aml.updateFile`, `aml.checkRear`,
-`aml.visibilityPolicy`, `onboarding.previewImport`, `leads.assign`,
-`org.switch` and `listings.update`. `reachability.py` prints them by
-name every run.
+`aml.visibilityPolicy`, `onboarding.previewImport`, `leads.assign` and
+`org.switch`. `reachability.py` prints them by name every run.
+
+`listings.update` was on this list and was **not** deliberate: a
+property could be added and then never changed — not the price, not the
+status, not the permit number that arrives a week later. A price
+reduction is the most common edit there is in this market. It has an
+edit dialog now.
 
 Stated as a count rather than a ratio on purpose — `reachability.py`
 counts procedures per router and `counts.py` counts them across the
@@ -235,7 +240,7 @@ thing it checks and confirming it fails.
 ### The unit tests
 
 ```bash
-npm test                    # 233 assertions, no database, ~3 seconds
+npm test                    # 242 assertions, no database, ~3 seconds
 ```
 
 `package.json` declared `"test": "vitest run"` from the beginning with no
@@ -347,7 +352,7 @@ your name on them:
    one-time link to a work email, so **email delivery is the only way
    into the product**. An unverified sender puts every sign-in link in a
    junk folder and the failure looks like the application being broken.
-3. **Vercel Pro, about $20/month.** 25 cron jobs and `maxDuration = 300`
+3. **Vercel Pro, about $20/month.** 26 cron jobs and `maxDuration = 300`
    both require it; Hobby allows 2 crons once a day at 60 seconds.
 4. Anthropic, WhatsApp Business, Meta and Stripe credentials, as and when
    each feature is wanted. The application boots without them and says in
@@ -393,7 +398,7 @@ Ask — an agent can see what they asked for earlier and what came back.
 - **Voice recipes** `BOOK_VIEWING` and `COMPARABLES` return a follow-up
   question rather than completing in one step. Deliberate, but the second
   step is not wired to the booking screen.
-- **Unit tests cover eight modules, not the codebase.** 233 assertions
+- **Unit tests cover ten modules, not the codebase.** 242 assertions
   across money, the 24-hour window, Dubai sending hours, the search
   parser, lead scoring, deal risk and the assistant's guardrails — the
   pure logic where being wrong is expensive and silent. Everything
@@ -873,7 +878,7 @@ and refusing to boot over it would be worse than saying so.
 
 ## 12. Deployment
 
-**The application → Vercel.** `app/vercel.json` defines **25 cron jobs**
+**The application → Vercel.** `app/vercel.json` defines **26 cron jobs**
 matching those in `src/server/jobs/index.ts`; a check enforces that they
 stay in step. `prisma generate` is in the build script — without it,
 Vercel's cached `node_modules` gives you a stale client and a guaranteed

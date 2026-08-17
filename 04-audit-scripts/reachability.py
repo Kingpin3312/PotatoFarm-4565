@@ -172,7 +172,12 @@ KNOWN_UNWRITTEN = {
     "Session": "NextAuth PrismaAdapter",
 
     # Genuine gaps. Each is a feature that can be read and not created.
-    "Screening": "sanctions screening has no row to write",
+    #
+    # `Screening` was here and has been retired: `aml/screen.ts` writes
+    # one, the nightly `aml.screening` job calls it for every file that
+    # has none, and `aml.openFile` calls it on the way in. The ratchet
+    # asked for this line to be removed rather than letting it sit as a
+    # permanent excuse, which is the point of listing them.
     "PlanSubscription": "portal plan subscriptions cannot be created",
     "EmailAccount": "no mailbox can be connected",
 }
@@ -268,6 +273,20 @@ for rf in routers:
     for m in re.finditer(r'^  (\w+): (?:require\w+\([^)]*\)|orgProcedure|publicProcedure)'
                          r'\s*\n\s*\.input\(z\.object\(\{(.*?)\}\)\)', rbody, re.M | re.S):
         keys = set(re.findall(r'(\w+)\s*:\s*z\.', m.group(2)))
+        # Shorthand: `phone,` on its own line, where the value is a
+        # shared schema const rather than an inline `z.…`.
+        #
+        # `leads.create` writes `z.object({ phone, name: z.string()… })`
+        # because the E.164 rule is defined once at the top of the router
+        # and reused. Only the `name: z.` form was captured, so `phone`
+        # was not a known key and the screen passing it was reported as
+        # passing an argument the procedure does not accept.
+        #
+        # A false failure, and the expensive kind: the suggested fix is
+        # to inline the regex, which would put the phone rule in two
+        # places — the tool causing the fault it exists to prevent, which
+        # has happened once already in this suite.
+        keys |= set(re.findall(r'^\s{4,}(\w+),\s*$', m.group(2), re.M))
         router_inputs[f"{rname}.{m.group(1)}"] = keys
 
 def _keys_only(fragment: str) -> str:

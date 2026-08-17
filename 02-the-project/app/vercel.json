@@ -57,6 +57,10 @@
       "schedule": "30 4 * * *"
     },
     {
+      "path": "/api/cron/aml.screening",
+      "schedule": "0 5 * * *"
+    },
+    {
       "path": "/api/cron/plans.advance",
       "schedule": "0 7 * * *"
     },

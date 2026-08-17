@@ -26,6 +26,8 @@ import { compose } from "@/server/lib/feedback/report";
 import { crossTenant } from "@/server/db/client";
 import { dispatch } from "@/server/lib/notify/dispatch";
 import { sweepIntelligence } from "@/server/lib/intelligence/sweep";
+import { screen, screeningConfigured } from "@/server/lib/aml/screen";
+import { deliver } from "@/server/lib/health/deliver";
 // Used in two jobs and never imported.
 import { log } from "@/lib/log";
 
@@ -135,6 +137,82 @@ export const JOBS = {
       issued += 1;
     }
     return { considered: due.length, issued };
+  }),
+
+  /**
+   * Sanctions screening for files that have none, and re-screening for
+   * files whose check has gone stale. Daily.
+   *
+   * The offer-acceptance path opens a `KycRecord` **inside the deal
+   * transaction**, deliberately, so a deal cannot exist without a file.
+   * Screening cannot go there: it calls an external provider over HTTP,
+   * and holding a Postgres connection across a third-party call is the
+   * thing that exhausts the pool. So the file opens transactionally and
+   * the screening happens here, moments later.
+   *
+   * It is also the only place periodic re-screening can live. Lists
+   * change — `screening.ts` puts it plainly: a client who was clear in
+   * March may not be in June — so a one-off check at onboarding is a
+   * control that decays.
+   */
+  "aml.screening": () => run("aml.screening", async () => {
+    const db = crossTenant("sweep");
+    const stale = new Date(Date.now() - 90 * 86_400_000);
+
+    const records = await db.kycRecord.findMany({
+      where: {
+        status: { notIn: ["REJECTED"] },
+        OR: [
+          { screenings: { none: {} } },
+          { screenings: { every: { screenedAt: { lt: stale } } } },
+        ],
+      },
+      select: { id: true, orgId: true, legalName: true, nationality: true },
+      take: 500,
+    });
+
+    /**
+     * With no provider, do not write a row per file per night.
+     *
+     * `screen()` records an `ERROR` when nothing is configured, which is
+     * right for a single deliberate action by an agent — they pressed a
+     * button and deserve a recorded outcome. Run over every open file
+     * every night it would be thousands of identical rows burying the
+     * real ones, which is its own kind of silence.
+     *
+     * One alert instead, carrying the count. Unconfigured screening is a
+     * compliance hole, not a quiet Tuesday.
+     */
+    if (!screeningConfigured()) {
+      if (records.length) {
+        await deliver({
+          key: "aml.no-provider",
+          severity: "PAGE",
+          title: "Sanctions screening is not configured",
+          detail:
+            `${records.length} due diligence file(s) have never been screened, and no ` +
+            `provider is configured to screen them. Every one of these is a transaction ` +
+            `proceeding without a check the firm is legally obliged to perform.`,
+          runbook: "OPERATIONS.md — configure a screening provider",
+        });
+      }
+      return { unscreened: records.length, screened: 0, provider: "none" };
+    }
+
+    let confirmed = 0, possible = 0, errors = 0;
+    for (const r of records) {
+      const out = await screen(db, {
+        orgId: r.orgId,
+        kycId: r.id,
+        fullName: r.legalName,
+        nationality: r.nationality ?? undefined,
+      });
+      if (out.result === "CONFIRMED_MATCH") confirmed += 1;
+      else if (out.result === "POSSIBLE_MATCH") possible += 1;
+      else if (out.result === "ERROR") errors += 1;
+    }
+
+    return { screened: records.length, confirmed, possible, errors };
   }),
 
   /**

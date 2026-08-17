@@ -114,6 +114,25 @@ export async function receiveDocument(args: {
  * moment somebody actually needs to read it. Basic quality checks happen
  * on receipt so the assistant can ask again while the person is still in
  * the conversation, rather than an agent discovering it a fortnight later.
+ *
+ * ## Not reachable yet, and saying so here rather than only in a list
+ *
+ * **Nothing produces a `QualityIssue` and nothing calls
+ * `qualityMessage`.** There is no image inspection in this codebase —
+ * `CLAUDE.md` lists "image quality checks" as unbuilt — so the four
+ * codes below are a vocabulary waiting for a detector, and the sentence
+ * above describes an intention rather than behaviour.
+ *
+ * It is written down at the definition because the list of unbuilt
+ * things lives three files away, and the paragraph above reads exactly
+ * like a description of something that runs. That gap — a confident
+ * comment over unreachable code — is how this codebase has repeatedly
+ * convinced a reviewer that a control exists.
+ *
+ * Deliberately **not** replaced with a stub returning no issues. That
+ * would make every document silently pass a check nobody performed,
+ * which is the same mistake as a fabricated sanctions `CLEAR` — see
+ * `aml/screen.ts` for the argument in full.
  */
 export type QualityIssue = "too_small" | "too_dark" | "cropped" | "glare";
 
