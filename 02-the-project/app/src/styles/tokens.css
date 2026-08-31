@@ -85,10 +85,30 @@
      alone. Links carry an underline for that reason: it is the
      non-colour signal that keeps them findable.
      ------------------------------------------------------------------ */
-  --accent:      #E86A2C;   /* fills, focus, active state, .io */
-  --accent-hover:#E86A2C;   /* the hover on a fill — the same orange */
-  --accent-edge: #E86A2C;   /* hairline on a fill — the same orange */
-  --accent-deep: #E86A2C;   /* orange type — the same orange */
+  --accent:      #FFA500;   /* fills, focus, active state, .io */
+  --accent-hover:#FFA500;   /* the hover on a fill — the same orange */
+  --accent-edge: #FFA500;   /* hairline on a fill — the same orange */
+
+  /**
+   * Orange type on a light surface, and it is **not orange any more.**
+   *
+   * This is the one token the move to #FFA500 could not carry across.
+   * The colour is 1.97:1 on white — not "below AA", but below the 3:1
+   * that a *border* needs, so as body text it is barely visible rather
+   * than merely non-compliant. #E86A2C was 3.22:1 and could at least be
+   * argued for with an underline beside it; this cannot.
+   *
+   * The brief settles it: white ground, black text, one accent. So the
+   * accent does what it is good at, and it is genuinely good at it —
+   * as a fill with a black label it measures 9.08:1, where the orange
+   * it replaced managed 5.57:1. Type is ink. Emphasis that used to be
+   * carried by orange words is carried by the orange rule, dot or fill
+   * beside them.
+   *
+   * `.on-leather` puts the orange back, because on charcoal the same
+   * value is 7.44:1 and reads perfectly.
+   */
+  --accent-deep: #171717;   /* 17.93:1 — orange type is not readable here */
 
   /**
    * The brand orange used as type. The `.io`, and nothing else.
@@ -104,26 +124,33 @@
    * `--brand-tld` would be a diff across three surfaces that changes
    * no pixel.
    */
-  --accent-type: #E86A2C;
+  --accent-type: #FFA500;
 
   /* Soft Orange. Selected rows, AI insight panels, highlight cards.
-     Charcoal on it is 16.22:1, so anything can sit here. */
-  --accent-soft: #FFF1E8;
+     A tint of the accent, so it moved with it: the old #FFF1E8 was a
+     tint of #E86A2C and sat at hue 23.5 against the new accent's 38.8,
+     which is the "two oranges" complaint in its quietest form — a peach
+     panel behind an amber button. Same lightness (95.5), so nothing
+     else about the surface changes. Ink on it is 16.84:1. */
+  --accent-soft: #FFF7E8;
 
   /**
    * The label on an orange fill.
    *
-   * **The direction specifies #FFFFFF here and it measures 3.22:1**,
-   * which fails AA for a button label — a 16px semibold label is not
-   * "large text", which starts at 18.66px bold. Charcoal on the same
-   * fill is 5.57:1 and passes.
+   * **The direction specifies a white label here and it measures
+   * 1.97:1** against the accent, which fails AA for a button label —
+   * a 16px semibold label is not "large text", which starts at
+   * 18.66px bold. Charcoal on the same fill is 9.08:1 and passes
+   * comfortably. Under the previous orange the same two numbers were
+   * 3.22 and 5.57, so this palette makes the right answer more
+   * obviously right rather than less.
    *
    * Shipped as charcoal, because it keeps the orange fill exactly where
    * the direction puts it — the fill is what a customer perceives as
    * the brand colour — and changes only the label. It is one token, so
    * setting it to #FFFFFF is a one-line decision rather than a hunt.
    */
-  --on-accent: #171717;   /* 5.57:1 on --accent */
+  --on-accent: #171717;   /* 9.08:1 on --accent */
 
   /* ---- The direction's own token names -------------------------------
      Aliases, not second definitions. The direction names its tokens
@@ -180,7 +207,7 @@
    */
   --brand-navy:     #12202E;   /* 16.51:1 on ground — "PotatoFarm" */
   --brand-navy-ink: #F5F3F0;   /* the same word, reversed out on dark */
-  --brand-orange:   #E86A2C;   /* the ".io", and it is `--accent` by design */
+  --brand-orange:   #FFA500;   /* the ".io", and it is `--accent` by design */
 
   /* ---- Leather -----------------------------------------------------
      The anchor. Orange without a dark warm neutral beneath it floats;
@@ -221,8 +248,8 @@
      link. Both of those were real, and the direction is one colour, so
      both are gone. If an error needs to be distinguishable from a link
      again, the answer is a red, not another orange. */
-  --danger:       #E86A2C;
-  --warning:      #E86A2C;
+  --danger:       #FFA500;
+  --warning:      #FFA500;
 
   /* ---- Type ---------------------------------------------------------
      One scale, Apple's proportions, two registers.
@@ -383,8 +410,10 @@
   --ground: var(--leather-deep); --panel: var(--leather); --raised: var(--leather);
   --ink: var(--leather-ink); --ink-2: var(--leather-ink-2); --ink-3: var(--leather-ink-3);
   --rule: #42403D;
-  /* On charcoal the bright orange finally works as type — 5.18:1 — so
-     there is nothing to darken here. */
+  /* On charcoal the orange genuinely works as type: #FFA500 is 7.44:1
+     on `--leather-deep`. So the dark band is the one surface where the
+     accent may be a word, and `--accent-deep` goes back to it. */
+  --accent-deep: #FFA500;
   /* The brand orange on the dark band. **4.57:1 on `--leather-deep`,
      which passes AA — and 3.97:1 on `--leather`, the raised step, which
      does not.**
@@ -398,8 +427,8 @@
      and WCAG 1.4.1 exempts a wordmark. But an inline comment saying
      "passes AA" beside a value that does not is exactly how somebody
      later puts a caption in it. */
-  --accent-type: #E86A2C;
-  --on-accent: var(--leather-deep);
+  --accent-type: #FFA500;
+  --on-accent: var(--leather-deep);   /* 7.44:1 on the accent */
 }
 
 @media (prefers-reduced-motion: reduce){

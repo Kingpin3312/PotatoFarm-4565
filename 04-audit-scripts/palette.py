@@ -34,7 +34,15 @@ import colorsys, os, re, sys
 ROOT = sys.argv[1] if len(sys.argv) > 1 else "."
 
 # The one orange. Everything warm answers to this — exactly.
-ACCENT = "#E86A2C"
+#
+# #FFA500 replaced #E86A2C on instruction. Worth recording what the two
+# measure, because the swap changes where the colour may be used rather
+# than only how it looks: #E86A2C was 3.22:1 on white and #FFA500 is
+# **1.97:1**, which is below the 3:1 a border or icon needs and far
+# below the 4.5:1 text needs. As a *fill* it is the better of the two —
+# black on it is 9.08:1 against the old 5.57:1. So the rule this palette
+# now runs on is: orange fills, black type.
+ACCENT = "#FFA500"
 
 # Deliberately not a hue tolerance any more.
 #

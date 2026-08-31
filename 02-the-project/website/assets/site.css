@@ -75,9 +75,10 @@
      It used to dress every heading too. A 68px headline is not 2% of a
      page, and an h3 at 20px/500 is not large text, so that was both an
      imbalance and a genuine AA failure. Headings are `--ink` now. */
-  --accent:      #E86A2C;   /* 3.22:1 on white, 2.90:1 on panel */
-  --accent-type: #E86A2C;   /* the `.io`, and nothing else */
-  --accent-hover:#E86A2C;   /* the hover on a fill — the same orange */
+  --accent:      #FFA500;   /* 1.97:1 on white, 1.78:1 on panel — a
+                               fill colour only, never type */
+  --accent-type: #FFA500;   /* the `.io`, and nothing else */
+  --accent-hover:#FFA500;   /* the hover on a fill — the same orange */
 
   /**
    * The legible orange, and it is not a second brand colour.
@@ -86,7 +87,13 @@
    * size. That distinction used to carve out headings, and carving out
    * headings is what let a 20px h3 through at 3.22:1.
    */
-  --accent-deep: #E86A2C;   /* the same orange. See tokens.css for why */
+  /* Orange type, and on a light ground it is **ink**, not orange.
+     #FFA500 is 1.97:1 on white — below even the 3:1 a border needs, so
+     as a word it is barely there. The brief is white ground, black
+     text, one accent: the accent does fills, type is ink. The dark
+     sections put the orange back, where it measures 7.44:1.
+     `tokens.css` carries the same split for the same reason. */
+  --accent-deep: #171717;   /* 17.93:1 on white */
 
   /**
    * The border on every orange fill, and it is not decoration.
@@ -97,11 +104,11 @@
    * edge is defined regardless of what is behind it. WCAG 1.4.11 asks
    * 3:1 of a control boundary; this is 4.54:1 there.
    */
-  --accent-edge: #E86A2C;   /* the same orange */
+  --accent-edge: #FFA500;   /* the same orange */
 
   /* Soft Orange. Selected rows and machine-written text — see
      `components/ui/machine.tsx`. Charcoal on it is 16.22:1. */
-  --accent-soft: #FFF1E8;
+  --accent-soft: #FFF7E8;
 
   /* **Labels on the orange fill are ink, never white.**
      White on the brand orange is 3.22:1 and fails — a 16px semibold
@@ -130,8 +137,11 @@
      error still has to pull the eye; success drops to ink, because a
      confirmation that has already happened does not need to shout. */
   --success:      #171717;
-  --danger:       #E86A2C;   /* the same orange */
-  --warning:      #E86A2C;
+  /* An error is a sentence, so it follows the type token rather than
+     the raw accent — #FFA500 as an error message is 1.97:1. The orange
+     still marks the field: `[data-invalid]` borders it. */
+  --danger:       var(--accent-deep);
+  --warning:      var(--accent-deep);
 
   /* ---- Type ---------------------------------------------------------
      One scale, Apple's proportions, two registers.
@@ -304,7 +314,10 @@
      and WCAG 1.4.1 exempts a wordmark. But an inline comment saying
      "passes AA" beside a value that does not is exactly how somebody
      later puts a caption in it. */
-  --accent-type: #E86A2C;
+  --accent-type: #FFA500;
+  /* The one surface where the accent may be a word: #FFA500 is 7.44:1
+     on the charcoal ground. */
+  --accent-deep: #FFA500;
   --on-accent: var(--leather-deep);
 }
 

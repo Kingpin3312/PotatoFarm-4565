@@ -43,7 +43,7 @@ export function Message({
       <div
         className={cn(
           "t-label mb-1.5",
-          outbound ? "text-accent" : "text-ink-3"
+          outbound ? "text-accent-deep" : "text-ink-3"
         )}
       >
         {LABEL[author]}

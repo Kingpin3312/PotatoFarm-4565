@@ -82,7 +82,7 @@ export default function SettingsPage() {
 function Fig({ n, l, highlight }: { n: string; l: string; highlight?: boolean }) {
   return (
     <div className="px-5 py-4 border-e border-b border-rule last:border-e-0">
-      <div className={`font-sans font-semibold text-title leading-none ${highlight ? "text-accent" : "text-ink"}`}>{n}</div>
+      <div className={`font-sans font-semibold text-title leading-none ${highlight ? "text-accent-deep" : "text-ink"}`}>{n}</div>
       <div className="t-label text-ink-3 mt-2">{l}</div>
     </div>
   );

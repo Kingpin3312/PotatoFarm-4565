@@ -139,7 +139,20 @@ def resolve(v):
 # WCAG 1.4.1, which is the actual grounds — it is recorded here so the
 # grounds are visible rather than assumed.
 BRAND_EXCEPTIONS = {
-    ".brand .tld":   ("#E86A2C", 3.22),
+    # Repinned from ("#E86A2C", 3.22) when the accent became #FFA500.
+    #
+    # **This exemption is now carrying far more weight than it was, and
+    # that is worth stating rather than quietly re-pinning.** At 3.22:1
+    # the `.io` was legible and merely short of AA. At 1.97:1 it is
+    # below the 3:1 that even a *border* needs — pale amber on white.
+    # The grounds are unchanged and still valid (WCAG 1.4.1 exempts a
+    # logotype, and this is the wordmark), but the grounds are about
+    # compliance, not about whether a person can read it.
+    #
+    # So: legally fine, visually weak. If the `.io` looks washed out on
+    # the site, this line is why, and the fix is a decision about the
+    # wordmark rather than a bug to find.
+    ".brand .tld":   ("#FFA500", 1.97),
 }
 ALLOWED = []
 

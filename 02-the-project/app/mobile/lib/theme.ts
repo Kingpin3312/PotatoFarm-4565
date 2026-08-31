@@ -33,10 +33,10 @@ export const light = {
    * on both, and orange type is a brand decision taken with the number
    * known rather than a passing measurement.
    */
-  accent:      "#E86A2C",
-  accentHover: "#E86A2C",
-  accentEdge:  "#E86A2C",
-  accentType:  "#E86A2C",
+  accent:      "#FFA500",
+  accentHover: "#FFA500",
+  accentEdge:  "#FFA500",
+  accentType:  "#FFA500",
   /** Labels on orange are ink at 5.57:1. White is 3.22:1 and fails. */
   onAccent:    "#171717",
 
@@ -46,7 +46,7 @@ export const light = {
    *  --brand-navy in tokens.css. */
   brandNavy: "#12202E",
   /** The wordmark extension. Type, so it takes the deeper orange. */
-  tld: "#E86A2C",
+  tld: "#FFA500",
   /** The mark's own brown — eyes, mouth, brow and cheek. It is the one
    *  warm colour in the product that is deliberately *not* the accent,
    *  because a flat orange body needs something dark to keep a face in
@@ -57,8 +57,8 @@ export const light = {
    *  interface at 19.8. That two-brands-on-one-screen effect is the
    *  thing the branding review actually reported. Flat, now, and the
    *  same value as everything else. */
-  markBody: "#E86A2C",
-  markRim:  "#E86A2C",
+  markBody: "#FFA500",
+  markRim:  "#FFA500",
 
   /* The inverted band inside the light theme. Charcoal, matching
      --leather / --leather-deep in tokens.css. */
@@ -69,9 +69,9 @@ export const light = {
      orange means an error is told apart by its words and by shape —
      outlined where an everyday action is filled. Same argument as
      tokens.css. */
-  danger:  "#E86A2C",
+  danger:  "#FFA500",
   success: "#171717",
-  warning: "#E86A2C",
+  warning: "#FFA500",
 } as const;
 
 export const dark = {
@@ -89,10 +89,10 @@ export const dark = {
   ink3: "#9A9A96",   //  5.21:1 — #8A8A8A fell to 4.03 on charcoal
   rule: "#42403D",
 
-  accent:      "#E86A2C",   // 4.57:1 on this ground — works as type here
-  accentHover: "#E86A2C",
-  accentEdge:  "#E86A2C",
-  accentType:  "#E86A2C",   // 4.57:1
+  accent:      "#FFA500",   // 4.57:1 on this ground — works as type here
+  accentHover: "#FFA500",
+  accentEdge:  "#FFA500",
+  accentType:  "#FFA500",   // 4.57:1
   /* The label on an orange button. It is the ground colour, so it moved
      with it — and 4.57:1 against the orange is why the ground cannot go
      any lighter at all.
@@ -106,10 +106,10 @@ export const dark = {
   /** Navy on charcoal is 1.3:1, so the wordmark reverses out here for
    *  the same reason `ink` does. */
   brandNavy: "#F5F3F0",
-  tld: "#E86A2C",
+  tld: "#FFA500",
   markEye: "#3B2416",
-  markBody: "#E86A2C",
-  markRim:  "#E86A2C",
+  markBody: "#FFA500",
+  markRim:  "#FFA500",
 
   leather:     "#34322F",
   leatherDeep: "#2A2825",
@@ -117,9 +117,9 @@ export const dark = {
   /* On this ground the brand orange measures 4.57:1, so danger needed
      no darker step here even before the ramp was collapsed. Success is
      ink, as it is in the light theme: the word carries it. */
-  danger:  "#E86A2C",
+  danger:  "#FFA500",
   success: "#F5F3F0",
-  warning: "#E86A2C",
+  warning: "#FFA500",
 } as const;
 
 /** Default is light. Dark is opt-in, not system-following — an agent

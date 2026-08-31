@@ -58,16 +58,18 @@ const button = cva(
          * the word. That is the same reasoning the state tokens in
          * `tokens.css` were built on — colour reinforces, words carry.
          *
-         * The hover label is ink and not white. It was `text-white`,
-         * which was correct when `--danger-deep` resolved to `#A0431B`
-         * (white on it, 6.34:1). Collapsing the ramp to one orange moved
-         * it to `#E86A2C` and took that to **3.22:1** — under the 4.5:1
-         * floor — without changing this line, so the button kept a
-         * contrast failure that no colour edit here could have shown.
-         * A hover state is the easiest thing in a palette move to miss:
-         * nothing renders it until somebody points at it.
+         * The hover **fill** is `--accent` rather than `--danger-deep`,
+         * and that is not a tidy-up. Under #FFA500 an error message has
+         * to be ink to be readable, so `--danger-deep` resolves to ink
+         * — and the previous line filled the button with `danger-deep`
+         * and then set the label to `--on-accent`, which is also ink.
+         * Black on black, on hover only. Twice now this variant has
+         * broken from a token change three files away without a
+         * character of it being edited: a hover state renders for
+         * nobody until somebody points at it, so when a token moves,
+         * grep the components for the states that token appears in.
          */
-        danger: "bg-transparent border-danger-deep text-danger-deep hover:not-disabled:bg-danger-deep hover:not-disabled:text-on-accent",
+        danger: "bg-transparent border-danger-deep text-danger-deep hover:not-disabled:bg-accent hover:not-disabled:text-on-accent",
       },
       size: {
         // 44px even on the compact size. The visual weight comes from

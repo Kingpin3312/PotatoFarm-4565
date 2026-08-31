@@ -238,7 +238,7 @@ function MobileTabs({ pathname }: { pathname: string }) {
                 // requirement; the 9px label underneath stays charcoal,
                 // where it would need 4.5:1 and get 3.22.
                 "flex h-14 flex-col items-center justify-center gap-1 no-underline",
-                on ? "text-ink [&>svg]:text-accent" : "text-ink-3"
+                on ? "text-ink [&>svg]:text-accent-deep" : "text-ink-3"
               )}
             >
               <svg viewBox="0 0 24 24" aria-hidden="true" className="h-[22px] w-[22px]"

@@ -127,7 +127,7 @@ for (const [name, bg, word] of [
        <div style="width:${dark ? 330 : 260}px;height:${dark ? 330 : 260}px">
          ${sized(dark ? GLOW : MARK, dark ? 330 : 260)}</div>
        <div style="font-size:76px;font-weight:600;letter-spacing:-.028em;color:${word}">
-         PotatoFarm<span style="color:#E86A2C;font-weight:500">.io</span></div>
+         PotatoFarm<span style="color:#FFA500;font-weight:500">.io</span></div>
        <div style="font-size:27px;color:${dark ? "#B5B5B5" : "#4A4A4A"};letter-spacing:-.01em">
          Every property enquiry answered in seconds.</div>
      </div>`,

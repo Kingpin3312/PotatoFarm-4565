@@ -76,8 +76,12 @@
   --color-teal: var(--accent);
   --color-cyan: var(--accent-type);
 
-  --color-danger: var(--danger);
-  --color-danger-deep: var(--danger);
+  /* Danger follows the type token, not the raw accent: #FFA500 as an
+     error message is 1.97:1 and unreadable. `--accent-deep` is ink on a
+     light surface and the orange on the dark band, which is exactly the
+     behaviour an error wants. */
+  --color-danger: var(--accent-deep);
+  --color-danger-deep: var(--accent-deep);
   --color-success: var(--success);
   --color-warning: var(--warning);
 

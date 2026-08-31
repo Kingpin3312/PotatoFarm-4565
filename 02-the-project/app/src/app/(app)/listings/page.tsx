@@ -143,9 +143,9 @@ function Listings() {
                   className={cn(
                     "t-label border rounded-[2px] px-1.5 py-0.5",
                     p.state === "PUBLISHED" && "text-success border-success",
-                    p.state === "REJECTED" && "text-accent border-accent",
+                    p.state === "REJECTED" && "text-accent-deep border-accent",
                     p.state === "PENDING" && "text-ink-3 border-rule border-dashed",
-                    p.state === "FAILED" && "text-accent border-accent border-dashed"
+                    p.state === "FAILED" && "text-accent-deep border-accent border-dashed"
                   )}
                 >
                   {p.state === "PUBLISHED" ? "Live" : p.state.toLowerCase()}
@@ -157,8 +157,8 @@ function Listings() {
               className={cn(
                 "font-mono text-label",
                 l.permitDaysLeft === null && "text-ink-3",
-                l.permitDaysLeft !== null && l.permitDaysLeft < 0 && "text-accent font-medium",
-                l.permitDaysLeft !== null && l.permitDaysLeft >= 0 && l.permitDaysLeft <= 14 && "text-accent",
+                l.permitDaysLeft !== null && l.permitDaysLeft < 0 && "text-accent-deep font-medium",
+                l.permitDaysLeft !== null && l.permitDaysLeft >= 0 && l.permitDaysLeft <= 14 && "text-accent-deep",
                 l.permitDaysLeft !== null && l.permitDaysLeft > 14 && "text-ink-2"
               )}
             >
@@ -212,7 +212,7 @@ function Listings() {
 function Alert({ count, title, detail, last }: { count: number; title: string; detail: string; last?: boolean }) {
   return (
     <div className={cn("px-5 py-5 border-b border-rule", !last && "border-e border-rule max-[720px]:border-e-0")}>
-      <div className={cn("font-sans font-semibold text-h2 leading-none", count ? "text-accent" : "text-ink-3")}>
+      <div className={cn("font-sans font-semibold text-h2 leading-none", count ? "text-accent-deep" : "text-ink-3")}>
         {count}
       </div>
       <div className="text-ui font-medium text-ink mt-2">{title}</div>

@@ -110,7 +110,7 @@ function Tag({ children, good }: { children: React.ReactNode; good?: boolean }) 
   return (
     <span className={cn(
       "t-label px-2 py-0.5 border rounded-[3px]",
-      good ? "border-accent text-accent font-semibold" : "border-rule text-ink-3"
+      good ? "border-accent text-accent-deep font-semibold" : "border-rule text-ink-3"
     )}>
       {children}
     </span>

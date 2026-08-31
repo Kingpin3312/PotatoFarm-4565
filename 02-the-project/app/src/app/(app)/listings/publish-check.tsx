@@ -94,7 +94,7 @@ export function PublishCheck({
                   <span
                     className={cn(
                       "ms-auto t-label",
-                      c.canPublish ? "text-success" : "text-accent"
+                      c.canPublish ? "text-success" : "text-accent-deep"
                     )}
                   >
                     {c.canPublish ? "Ready" : "Blocked"}

@@ -68,7 +68,7 @@ export default function CommissionPage() {
 function Figure({ label, value, highlight, muted }: { label: string; value: string; highlight?: boolean; muted?: boolean }) {
   return (
     <div className="px-5 py-5 border-e border-b border-rule last:border-e-0 max-[640px]:border-e-0">
-      <div className={`font-sans font-semibold text-title leading-none ${highlight ? "text-accent" : muted ? "text-ink-3" : "text-ink"}`}>
+      <div className={`font-sans font-semibold text-title leading-none ${highlight ? "text-accent-deep" : muted ? "text-ink-3" : "text-ink"}`}>
         {value}
       </div>
       <div className="t-label text-ink-3 mt-2">{label}</div>

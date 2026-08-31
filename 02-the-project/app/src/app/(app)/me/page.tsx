@@ -150,7 +150,7 @@ function Fig({ label, value, highlight, muted }: {
     <div className="px-5 py-5 border-e border-b border-rule last:border-e-0 max-[600px]:border-e-0">
       <div className={cn(
         "font-sans font-semibold text-title leading-none tabular",
-        highlight ? "text-accent" : muted ? "text-ink-3" : "text-ink"
+        highlight ? "text-accent-deep" : muted ? "text-ink-3" : "text-ink"
       )}>
         {value}
       </div>
