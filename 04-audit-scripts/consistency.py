@@ -283,7 +283,17 @@ MARK_SURFACES = [
 # changing this line — deliberately, so a redraw cannot land on six
 # surfaces and miss the seventh, which is exactly what this caught when
 # the new artwork went in.
-POTATO = "M31.8,3.2"   # the tapered potato, second artwork
+# The first path point of the mark, which is the cheapest reliable
+# fingerprint for "this is the current potato". It has moved twice now —
+# the tapered second artwork began "M31.8,3.2", and the rounder third
+# begins here.
+#
+# When it moves again, this line moves with it, and that is the point:
+# the check exists so a surface that gets missed fails the build rather
+# than quietly becoming a second logo. It earned that this time —
+# `mark.py --apply` reported success while leaving ten files on the old
+# mark, and this is what caught them.
+POTATO = "M32.6,3.0"   # the rounder potato, third artwork
 for path in MARK_SURFACES:
     if not require(path): continue
     body = open(path).read()

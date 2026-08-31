@@ -28,10 +28,10 @@ raster and this codebase renders the mark at sixteen pixels.
 # Taller than wide, narrow-ish shoulders, a full round bottom that sits
 # slightly left, and a bulge on the lower right. 64x64 to match every
 # existing file, so nothing downstream has to change its viewBox.
-BODY = ("M31.8,3.2 C38.4,2.9 43.8,7.4 46.6,14.2 C49.0,20.0 49.8,26.4 50.4,32.6 "
-        "C51.0,39.2 50.6,46.2 46.8,51.8 C42.9,57.6 35.6,61.2 28.6,60.6 "
-        "C21.6,60.0 15.6,55.0 13.2,48.4 C10.8,41.8 11.4,34.4 12.6,27.4 "
-        "C13.9,19.8 16.2,11.6 21.8,6.6 C24.6,4.1 28.0,3.4 31.8,3.2 Z")
+BODY = ("M32.6,3.0 C39.6,2.8 45.0,7.6 47.8,14.6 C50.2,20.6 51.2,27.2 51.6,33.6 "
+        "C52.0,40.6 51.0,47.6 46.6,52.8 C42.2,58.0 34.8,61.4 27.6,60.8 "
+        "C20.4,60.2 14.2,55.4 11.8,48.6 C9.4,41.8 10.2,34.2 11.6,27.0 "
+        "C13.0,19.4 15.4,11.4 21.2,6.4 C24.2,3.9 28.6,3.2 32.6,3.0 Z")
 
 # ---- the palette ----------------------------------------------------
 # Amber, not the interface orange. The mark keeps its own gradient — it
@@ -62,11 +62,20 @@ STOPS = (f'<stop offset="0" stop-color="{G_HIGH}"/>'
          f'<stop offset="1" stop-color="{G_LOW}"/>')
 
 # ---- the face -------------------------------------------------------
-# Capsules rather than ellipses: the source has flat-sided eyes with
-# round ends, and at 16px the difference is the whole character.
+# Ellipses, not capsules.
+#
+# The previous artwork had flat-sided eyes with round ends and this file
+# argued for capsules on that basis. The revised artwork does not: the
+# eyes are plainly oval, rounder, larger and set further apart, and that
+# is most of what makes the new mark read as softer than the old one.
+#
+# The ratio matters more than the size. At roughly 1.6 tall to wide they
+# stay oval at 16px; pushed nearer 2.2, as the capsules were, they
+# collapse into two dashes and the face loses its expression in the
+# favicon — which is the one place this mark is seen most often.
 def eyes(p=""):
-    return (f'<rect x="22.8" y="22.2" width="4.5" height="10.0" rx="2.25" fill="{EYE}"/>'
-            f'<rect x="35.0" y="21.6" width="4.2" height="9.6" rx="2.1" fill="{EYE}"/>')
+    return (f'<ellipse cx="26.4" cy="29.6" rx="2.6" ry="4.1" fill="{EYE}"/>'
+            f'<ellipse cx="38.4" cy="29.2" rx="2.6" ry="4.1" fill="{EYE}"/>')
 
 # Two separate strokes, not one smile.
 #
@@ -75,17 +84,17 @@ def eyes(p=""):
 # a long, very soft cheek boundary on the right and a short downturn at
 # the lower left. Kept apart, and both quieter than the eyes, so the
 # face reads as a potato with a face rather than a smiley.
-CREASE_PATH = (f'<path d="M45.4,33.0 C46.2,41.4 42.6,49.4 35.4,52.8" fill="none" '
-               f'stroke="{CREASE}" stroke-width="1.5" stroke-linecap="round" opacity="0.55"/>'
-               f'<path d="M22.6,40.8 C24.4,42.6 27.2,43.0 29.4,41.8" fill="none" '
-               f'stroke="{CREASE}" stroke-width="1.6" stroke-linecap="round" opacity="0.8"/>')
+CREASE_PATH = (f'<path d="M46.0,33.4 C46.6,42.0 42.8,49.8 35.2,53.4" fill="none" '
+               f'stroke="{CREASE}" stroke-width="1.6" stroke-linecap="round" opacity="0.55"/>'
+               f'<path d="M23.8,45.6 C26.0,48.2 29.6,48.6 32.2,46.6" fill="none" '
+               f'stroke="{CREASE}" stroke-width="1.8" stroke-linecap="round" opacity="0.85"/>')
 
 # Surface marks. Three, asymmetric, because a symmetrical potato reads
 # as a logo of a potato rather than a potato.
-MARKS = (f'<path d="M22.6,16.0 C24.2,14.6 26.4,14.5 28.0,15.6" fill="none" stroke="{CREASE}" '
-         f'stroke-width="1.5" stroke-linecap="round" opacity="0.7"/>'
-         f'<ellipse cx="41.8" cy="16.8" rx="1.0" ry="1.3" fill="{CREASE}" opacity="0.5"/>'
-         f'<ellipse cx="43.0" cy="43.2" rx="1.1" ry="1.4" fill="{CREASE}" opacity="0.45"/>')
+MARKS = (f'<path d="M23.4,15.4 C25.2,13.9 27.6,13.8 29.4,15.0" fill="none" stroke="{CREASE}" '
+         f'stroke-width="1.6" stroke-linecap="round" opacity="0.7"/>'
+         f'<ellipse cx="42.4" cy="17.4" rx="1.0" ry="1.3" fill="{CREASE}" opacity="0.5"/>'
+         f'<ellipse cx="43.4" cy="44.0" rx="1.1" ry="1.4" fill="{CREASE}" opacity="0.45"/>')
 
 FACE = eyes() + CREASE_PATH + MARKS
 
@@ -206,12 +215,31 @@ def _jsx(block):
 def apply(root="."):
     """Rewrite every inlined copy of the mark from the definition above."""
     import os, re, glob, io as _io
-    head = re.escape(BODY[:10])
+    # ---- what an inlined mark looks like, without assuming its shape --
+    #
+    # This used to anchor on `BODY[:10]` — the first ten characters of
+    # the *current* silhouette. That meant the propagator could only
+    # find marks that already matched the definition it was about to
+    # write, so it could push a change to the face and **could not push
+    # a change to the body path at all**. Editing the silhouette and
+    # running `--apply` rewrote nothing and reported success, because the
+    # lockups still counted a wordmark substitution.
+    #
+    # Ten files kept the old potato and five said "updated". A tool that
+    # silently does nothing is worse than no tool, and this one guards
+    # the single thing it exists to keep identical.
+    #
+    # The anchor is the structure instead: the gradient id `sh<pfx>` and
+    # the clip group are unique to this mark, so the body path in
+    # between can be anything and is replaced wholesale. The face
+    # accepts either eye primitive for the same reason — capsules
+    # yesterday, ellipses today.
+    eye = r'(?:<rect [^/]*/>|<ellipse [^/]*/>)'
     block = re.compile(
-        r'<defs>.*?</defs>'
-        r'\s*<path d="' + head + r'[^"]*"[^/]*/>'
+        r'<defs><linearGradient id="sh[\w-]*".*?</defs>'
+        r'\s*<path d="M[^"]*"[^/]*/>'
         r'\s*<g clip-?[Pp]ath="url\(#cp[^)]*\)">.*?</g>'
-        r'\s*<rect [^/]*/><rect [^/]*/><path [^/]*/><path [^/]*/><path [^/]*/>'
+        r'\s*' + eye + eye + r'<path [^/]*/><path [^/]*/><path [^/]*/>'
         r'<ellipse [^/]*/><ellipse [^/]*/>', re.S)
     pfx_re = re.compile(r'<linearGradient id="sh([\w-]+)"')
 
@@ -224,7 +252,16 @@ def apply(root="."):
                # every screen in the app now renders this one component.
                + [os.path.join(root, "02-the-project/app/src/components/brand/logo.tsx"),
                   os.path.join(root, "02-the-project/app/src/components/layout/shell.tsx"),
-                  os.path.join(root, "02-the-project/app/preview-mobile.html")])
+                  os.path.join(root, "02-the-project/app/preview-mobile.html"),
+                  # The app's own favicon, which this list did not cover.
+                  # It is the most-seen instance of the mark — every open
+                  # tab — and it was the last thing left showing the old
+                  # potato after a propagation that reported success.
+                  os.path.join(root, "02-the-project/app/public/favicon.svg"),
+                  # The Expo app cannot build, but a stale mark in a file
+                  # nobody compiles is still a second logo waiting to be
+                  # shipped the day somebody fixes the build.
+                  os.path.join(root, "02-the-project/app/mobile/components/wordmark.tsx")])
     # The wordmark's colour, wherever it is written as SVG text.
     #
     # The mark has been propagated from this file since it was written

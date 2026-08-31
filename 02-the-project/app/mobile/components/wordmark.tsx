@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet } from "react-native";
-import Svg, { Path, Rect } from "react-native-svg";
+import Svg, { Path, Ellipse } from "react-native-svg";
 import { t } from "@/lib/theme";
 
 /**
@@ -18,9 +18,7 @@ import { t } from "@/lib/theme";
  */
 
 const BODY =
-  "M31.8,3.2 C38.4,2.9 43.8,7.4 46.6,14.2 C49.0,20.0 49.8,26.4 50.4,32.6 " +
-  "C51.0,39.2 50.6,46.2 46.8,51.8 C42.9,57.6 35.6,61.2 28.6,60.6 " +
-  "C21.6,60.0 15.6,55.0 13.2,48.4 C10.8,41.8 11.4,34.4 12.6,27.4 " +
+  "M32.6,3.0 C39.6,2.8 45.0,7.6 47.8,14.6 C50.2,20.6 51.2,27.2 51.6,33.6 C52.0,40.6 51.0,47.6 46.6,52.8 C42.2,58.0 34.8,61.4 27.6,60.8 C20.4,60.2 14.2,55.4 11.8,48.6 C9.4,41.8 10.2,34.2 11.6,27.0 C13.0,19.4 15.4,11.4 21.2,6.4 C24.2,3.9 28.6,3.2 32.6,3.0 Z";
   "C13.9,19.8 16.2,11.6 21.8,6.6 C24.6,4.1 28.0,3.4 31.8,3.2 Z";
 
 /** Fixed. Their unevenness is what makes the shape read as a potato
@@ -33,8 +31,9 @@ const BODY =
 /** x, y, w, h — capsules, matching the SVG masters. The source artwork
  *  has flat-sided eyes with round ends, and at this size that shape is
  *  the whole character. */
+/** cx, cy, rx, ry — ellipses now, matching the vector mark. */
 const EYES: [number, number, number, number][] = [
-  [22.8, 22.2, 4.5, 10.0], [35.0, 21.6, 4.2, 9.6],
+  [26.4, 29.6, 2.6, 4.1], [38.4, 29.2, 2.6, 4.1],
 ];
 
 export function Wordmark({ size = 17 }: { size?: number }) {
@@ -47,8 +46,8 @@ export function Wordmark({ size = 17 }: { size?: number }) {
       <Svg width={mark} height={mark} viewBox="0 0 64 64" style={s.mark}>
         <Path d={BODY} fill={t.markBody} stroke={t.markRim} strokeWidth={1.7}
               strokeLinejoin="round" />
-        {EYES.map(([x, y, w, h], i) => (
-          <Rect key={i} x={x} y={y} width={w} height={h} rx={w / 2} fill={t.markEye} />
+        {EYES.map(([cx, cy, rx, ry], i) => (
+          <Ellipse key={i} cx={cx} cy={cy} rx={rx} ry={ry} fill={t.markEye} />
         ))}
       </Svg>
       <Text style={[s.name, { fontSize: size }]}>
