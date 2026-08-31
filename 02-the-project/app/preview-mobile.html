@@ -38,11 +38,11 @@
   /* ---- Orange ------------------------------------------------------
      Two, and they are not interchangeable.
 
-     One orange: #E86A2C, and one means one — not a ramp of four
-     shades of it. Measured on the white ground: 3.22:1 — below the
+     One orange: #C65A1E, and one means one — not a ramp of four
+     shades of it. Measured on the white ground: 4.30:1 — below the
      4.5:1 AA floor for text, so orange type is a brand decision taken
-     with the number known. Ink on the orange fill is 5.57:1; white on
-     it is 3.22:1 and is never used.
+     with the number known. White on the orange fill is 4.30:1 and is
+     what ships; ink on it is 4.17:1 and is not used.
 
      The ratios above said 2.65:1 and 5.93:1 until this edit, which were
      the numbers against the *cream* ground two palettes ago. Nothing
@@ -68,12 +68,15 @@
    */
   --accent-edge: #C65A1E;   /* the same orange */
 
-  /* **Labels on the orange fill are ink, never white.**
-     White on the brand orange is 2.94:1 and fails. Ink is 5.93:1 and
-     passes — and an orange button with near-black type is also the more
-     Hermes answer. The measurement and the reference agreed, which does
-     not always happen. */
-  --on-accent: #171717;
+  /* **Labels on the orange fill are white, never ink**, on
+     instruction. On #C65A1E white measures 4.30:1 and ink 4.17:1 —
+     both under the 4.5:1 a button label needs, and white is the better
+     of the two, so the direction costs nothing here.
+
+     The numbers this comment used to carry (2.94 and 5.93) were
+     measured against a cream ground and an orange two palettes ago,
+     and neither had been recomputed since. */
+  --on-accent: #FFFFFF;
 
   /* ---- Leather -----------------------------------------------------
      The anchor. Orange without a dark warm neutral beneath it floats;
@@ -157,7 +160,7 @@
   /* On leather the bright orange finally works as type — 6.4:1 — so the
      accent and the accent-type collapse into one here. */
   --accent-type: #C65A1E;   /* 7.1:1 on leather */
-  --on-accent: var(--leather-deep);
+  --on-accent: #FFFFFF;
 }
 
 @media (prefers-reduced-motion: reduce){

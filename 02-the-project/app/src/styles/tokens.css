@@ -136,25 +136,25 @@
   /**
    * The label on an orange fill.
    *
-   * **#C65A1E is a mid-tone, and mid-tones have no good label.**
-   * White on it is 4.30:1; charcoal on it is 4.17:1. Both are under
-   * the 4.5:1 a 16px semibold label needs, and both clear the 3:1 that
-   * large text needs — so this is the first accent in this project
-   * where the button label fails AA whichever way it is set.
+   * **White, on instruction: no black on orange, anywhere.**
    *
-   * Shipped as charcoal, unchanged, because the difference is 0.13 and
-   * changing it would buy nothing while breaking the "labels on orange
-   * are ink" rule the rest of the system follows. **This is a real
-   * exception and it is recorded here rather than smoothed over**: the
-   * ways out are a darker fill (white then passes) or a larger, bolder
-   * label, and both are decisions about the brand rather than fixes.
+   * #C65A1E is a mid-tone, and mid-tones have no good label — white on
+   * it is 4.30:1 and charcoal is 4.17:1, so both sit under the 4.5:1 a
+   * 16px semibold label needs and both clear the 3:1 for large text.
+   * White is the better of the two by 0.13, so this direction costs
+   * nothing in contrast and gains the consistency it was asked for.
    *
-   * Shipped as charcoal, because it keeps the orange fill exactly where
-   * the direction puts it — the fill is what a customer perceives as
-   * the brand colour — and changes only the label. It is one token, so
-   * setting it to #FFFFFF is a one-line decision rather than a hunt.
+   * **It is still under AA, and that has not changed.** The ways out
+   * are unchanged too, and both are brand decisions rather than fixes:
+   * the same hue at L 42 (#BA551C) puts this white label at 4.77:1, or
+   * a larger and bolder label reaches the large-text threshold instead.
+   *
+   * Every label on an orange fill reads this one token — 19 call sites
+   * across the app, plus the native palette and the email button, which
+   * is inline-styled and the only one that does not. So this line is
+   * the whole rule, and the email is the file to remember.
    */
-  --on-accent: #171717;   /* 4.17:1 on --accent — see above */
+  --on-accent: #FFFFFF;
 
   /* ---- The direction's own token names -------------------------------
      Aliases, not second definitions. The direction names its tokens
@@ -432,7 +432,10 @@
      "passes AA" beside a value that does not is exactly how somebody
      later puts a caption in it. */
   --accent-type: #C65A1E;
-  --on-accent: var(--leather-deep);   /* 7.44:1 on the accent */
+  /* White here too. This was the charcoal ground, which was 3.42:1 on
+     the orange — so the dark band is the surface this instruction
+     *improved*, from 3.42:1 to 4.30:1. */
+  --on-accent: #FFFFFF;
 }
 
 @media (prefers-reduced-motion: reduce){

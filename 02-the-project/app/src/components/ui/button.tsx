@@ -11,11 +11,15 @@ import { cn } from "@/lib/cn";
  * per instance. An agent using this in a car with one thumb is the
  * primary case, not an accessibility afterthought.
  *
- * **The label on the orange fill is ink, never white.** White on
- * `#E86A2C` measures 3.22:1 and is unreadable on a phone in sunlight;
- * ink is 5.57:1. That is why `--on-accent` exists rather than
- * hardcoding a colour here — and it is the rule that caught the danger
- * button below, whose hover had gone white against the same fill.
+ * **The label on the orange fill is white, never ink** — reversed on
+ * instruction, and the numbers happen to agree: on `#C65A1E` white is
+ * 4.30:1 and ink 4.17:1. Under the two accents before this one ink was
+ * the clearly better label (5.57:1 against 3.22:1 on `#E86A2C`), which
+ * is why the rule used to read the other way round.
+ *
+ * The point that has survived all three: it is `--on-accent`, never a
+ * colour hardcoded here. That is what let this reverse in one line, and
+ * it is the rule that caught the danger button below.
  */
 const button = cva(
   [
@@ -62,7 +66,9 @@ const button = cva(
          * and that is not a tidy-up. Under #FFA500 an error message has
          * to be ink to be readable, so `--danger-deep` resolves to ink
          * — and the previous line filled the button with `danger-deep`
-         * and then set the label to `--on-accent`, which is also ink.
+         * and then set the label to `--on-accent`, which was also ink
+         * at the time. (`--on-accent` is white now, so this particular
+         * collision could not recur — but the shape of it can.)
          * Black on black, on hover only. Twice now this variant has
          * broken from a token change three files away without a
          * character of it being edited: a hover state renders for

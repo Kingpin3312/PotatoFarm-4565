@@ -110,11 +110,15 @@
      `components/ui/machine.tsx`. Charcoal on it is 16.22:1. */
   --accent-soft: #FAF2ED;
 
-  /* **Labels on the orange fill are ink, never white.**
-     White on the brand orange is 3.22:1 and fails — a 16px semibold
-     button label is not "large text", which starts at 18.66px bold.
-     Ink is 5.57:1 and passes. */
-  --on-accent: #171717;
+  /* **Labels on the orange fill are white, never ink**, on
+     instruction.
+
+     White on #C65A1E is 4.30:1.
+     Ink on the same fill would be 4.17:1.
+
+     Both sit under the 4.5:1 a 16px semibold label needs, and white is
+     the better of the two, so the direction costs nothing here. */
+  --on-accent: #FFFFFF;
 
   /* ---- Leather -----------------------------------------------------
      The anchor. Orange without a dark warm neutral beneath it floats;
@@ -320,7 +324,7 @@
      Large text and the wordmark only; a caption in this colour on
      charcoal would not be readable. */
   --accent-deep: #C65A1E;
-  --on-accent: var(--leather-deep);
+  --on-accent: #FFFFFF;
 }
 
 /* Cream is the default, so this class is a no-op that exists only
