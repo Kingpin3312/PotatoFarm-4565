@@ -35,14 +35,21 @@ ROOT = sys.argv[1] if len(sys.argv) > 1 else "."
 
 # The one orange. Everything warm answers to this — exactly.
 #
-# #FFA500 replaced #E86A2C on instruction. Worth recording what the two
-# measure, because the swap changes where the colour may be used rather
-# than only how it looks: #E86A2C was 3.22:1 on white and #FFA500 is
-# **1.97:1**, which is below the 3:1 a border or icon needs and far
-# below the 4.5:1 text needs. As a *fill* it is the better of the two —
-# black on it is 9.08:1 against the old 5.57:1. So the rule this palette
-# now runs on is: orange fills, black type.
-ACCENT = "#FFA500"
+# Three accents on instruction, and the measurements are worth keeping
+# together because each swap changed where the colour may be used, not
+# only how it looks:
+#
+#     on white          as type   black on the fill
+#     #E86A2C            3.22:1        5.57:1
+#     #FFA500            1.97:1        9.08:1
+#     #C65A1E            4.30:1        4.17:1   <- current
+#
+# #C65A1E is the best *type* colour of the three and the worst *fill* to
+# put a label on — it is a mid-tone, so nothing contrasts well with it
+# in either direction. The rule the palette runs on is unchanged (orange
+# fills, black type) because 4.30 is still under the 4.5 that body text
+# needs; see `tokens.css` for the button-label exception this forces.
+ACCENT = "#C65A1E"
 
 # Deliberately not a hue tolerance any more.
 #
