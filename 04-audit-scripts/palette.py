@@ -33,25 +33,84 @@ import colorsys, os, re, sys
 
 ROOT = sys.argv[1] if len(sys.argv) > 1 else "."
 
-# The one orange. Everything warm answers to this.
+# The one orange. Everything warm answers to this — exactly.
 ACCENT = "#E86A2C"
-TOLERANCE = 6.0          # degrees of hue either side
+
+# Deliberately not a hue tolerance any more.
+#
+# The first version of this check allowed anything within six degrees,
+# which passed a palette of four different oranges: #E86A2C for a fill,
+# #CF5A22 for its hover, #B94E1F for its border, #A0431B for orange
+# text. All one hue, all obviously different colours to anyone using the
+# product, and the complaint that produced this file was made twice
+# before the check was tightened.
+#
+# The direction is one colour, so the rule is equality.
+EXCEPTIONS = {
+    # The mark's brown. Eyes, mouth, brow and cheek line — dark enough
+    # that nobody calls it orange, and it is what keeps the potato's face
+    # readable now that the body is a flat fill.
+    "#3B2416",
+}
 
 # Where a colour that ships lives. Deliberately not the whole repo:
 # `PALETTE-V4.md`, `SPEC.md` and the repalette tooling record superseded
 # palettes on purpose, and a check that fails on documented history
 # teaches people to delete the history.
+#
+# ## This list was the hole, twice
+#
+# It named `src/styles`, `src/components` and `website/assets/site.css`
+# — the places a palette obviously lives — and passed green while two
+# whole surfaces sat on the old four-step ramp: `preview-mobile.html`
+# and the entire native app, the latter still carrying the *old logo
+# gradient* (#F0A03A over #D9761C, hue 35.8 and 28.6 against the
+# interface's 19.8). That is the two-brands-on-one-screen effect the
+# branding review reported, surviving inside the check written to catch
+# it.
+#
+# So the entries below are directories rather than files. A named file
+# covers what somebody remembered; a directory covers what they did not.
 LIVE = [
-    "02-the-project/app/src/styles",
-    "02-the-project/app/src/components",
-    "02-the-project/app/src/server/lib/mail.ts",
-    "02-the-project/website/assets/site.css",
+    "02-the-project/app/src",
+    "02-the-project/app/public",
+    "02-the-project/app/preview-mobile.html",
+    # The native palette. React Native has no custom properties, so this
+    # is a duplicate of the tokens by necessity — and a duplicate is the
+    # thing most able to drift.
+    "02-the-project/app/mobile",
+    # The whole site, not just its stylesheet. Ten pages carry inline
+    # colour in `<svg>` marks and theme-colour meta tags.
+    "02-the-project/website",
     "03-brand/logo",
+    # The design-system prototypes. `consistency.py` caught these when
+    # the tokens were unified and this list did not cover them — the
+    # marketing and dashboard mockups still carried the old ramp, which
+    # is exactly the "every asset" gap the direction was about.
+    "03-brand/design-system",
 ]
 SKIP_NAMES = {"PALETTE-V4.md", "SPEC.md", "PALETTE.md", "README.md", "THINKING.md"}
-SKIP_EXT = {".png", ".ico", ".webp", ".jpg", ".zip"}
+# Markdown is documentation, never a shipped surface. The brand
+# documents quote every colour that was ever considered — including the
+# rejected ones, on purpose — and a check that fails on a design
+# rationale teaches people to delete the rationale.
+SKIP_EXT = {".png", ".ico", ".webp", ".jpg", ".zip", ".md"}
 
 HEX = re.compile(r"#([0-9A-Fa-f]{6})\b")
+
+
+def strip_comments(t):
+    """Prose is not a shipped colour.
+
+    `tokens.css` explains at length which oranges were rejected and why,
+    naming them. That history is worth keeping and is not a palette
+    violation, so block comments, line comments and markdown quotes come
+    out before anything is measured.
+    """
+    t = re.sub(r"/\*.*?\*/", " ", t, flags=re.S)      # CSS and JS blocks
+    t = re.sub(r"^\s*//.*$", " ", t, flags=re.M)       # JS line comments
+    t = re.sub(r"^\s*#.*$", " ", t, flags=re.M)        # Python and markdown
+    return t
 
 
 def hls(hx):
@@ -94,22 +153,24 @@ for base in LIVE:
             text = open(f, encoding="utf-8").read()
         except (OSError, UnicodeDecodeError):
             continue
+        text = strip_comments(text)
         for m in HEX.finditer(text):
             hx = "#" + m.group(1).upper()
             h, l, s = hls(hx)
             if not warm_enough(h, l, s):
                 continue
-            # Distance on a circle, so 359 and 1 are two degrees apart.
+            if hx in EXCEPTIONS:
+                continue
             d = abs(h - ACC_H)
             d = min(d, 360 - d)
             rel = os.path.relpath(f, ROOT)
             seen.setdefault(hx, {"hue": h, "d": d, "files": set()})["files"].add(rel)
-            if d > TOLERANCE:
+            if hx != ACCENT:
                 seen[hx]["bad"] = True
 
 print("Palette audit\n")
-print(f"  the one orange: {ACCENT}  hue {ACC_H:.1f}")
-print(f"  tolerance:      +/-{TOLERANCE:.0f} degrees\n")
+print(f"  the one orange: {ACCENT}")
+print("  the rule:       exact equality, not a hue family\n")
 
 ok = sorted((k, v) for k, v in seen.items() if not v.get("bad"))
 bad = sorted((k, v) for k, v in seen.items() if v.get("bad"))
@@ -121,15 +182,17 @@ if bad:
     for hx, v in bad:
         where = ", ".join(sorted(v["files"])[:3])
         more = "" if len(v["files"]) <= 3 else f" +{len(v['files']) - 3} more"
-        fails.append(f"{hx} is hue {v['hue']:.1f}, {v['d']:.1f} degrees off the accent — {where}{more}")
+        fails.append(f"{hx} is not {ACCENT} (hue {v['hue']:.1f}, {v['d']:.1f} off) — {where}{more}")
         print(f"    x    {hx}  hue {v['hue']:5.1f}  ({v['d']:.1f} off)  {where}{more}")
 
 if fails:
     print(f"\n  {len(fails)} orange(s) outside the brand:\n")
     for f in fails:
         print(f"    x {f}")
-    print("\n  One orange. Derive shades from the accent by changing")
-    print("  lightness, not hue — `mark.py` shows the ramp.\n")
+    print(f"\n  One orange: {ACCENT}. Not a shade of it, not a hue near it.")
+    print("  If a darker value is genuinely needed — an error that must not")
+    print("  look like a link — the answer is a different colour, not")
+    print("  another orange.\n")
     sys.exit(1)
 
-print(f"\n  every warm colour that ships is within {TOLERANCE:.0f} degrees of the accent.\n")
+print(f"\n  every warm colour that ships is exactly {ACCENT}.\n")

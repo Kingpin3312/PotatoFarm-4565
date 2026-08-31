@@ -11,9 +11,11 @@ import { cn } from "@/lib/cn";
  * per instance. An agent using this in a car with one thumb is the
  * primary case, not an accessibility afterthought.
  *
- * **The label on teal is navy, never white.** White on `#0099B8`
- * measures 3.36:1 and is unreadable on a phone in sunlight. That is why
- * `--on-accent` exists rather than hardcoding a colour here.
+ * **The label on the orange fill is ink, never white.** White on
+ * `#E86A2C` measures 3.22:1 and is unreadable on a phone in sunlight;
+ * ink is 5.57:1. That is why `--on-accent` exists rather than
+ * hardcoding a colour here — and it is the rule that caught the danger
+ * button below, whose hover had gone white against the same fill.
  */
 const button = cva(
   [
@@ -44,15 +46,28 @@ const button = cva(
   {
     variants: {
       variant: {
-        // Teal. The everyday action.
+        // The everyday action, and the only filled orange on a screen.
         primary: "bg-accent border-accent text-on-accent hover:not-disabled:bg-accent-hover",
-        // Royal blue. Weightier — the one action on a page that matters most.
-        surface: "bg-surface border-surface text-on-surface hover:not-disabled:brightness-110",
         secondary: "bg-transparent border-rule text-ink hover:not-disabled:border-ink-2",
         quiet: "bg-transparent border-transparent text-ink-2 hover:not-disabled:text-ink",
-        // Destructive. Red now means only this, which was the point of
-        // dropping it as the brand colour.
-        danger: "bg-transparent border-danger-deep text-danger-deep hover:not-disabled:bg-danger-deep hover:not-disabled:text-white",
+        /**
+         * Destructive, and it is told apart by *shape*, not by hue.
+         *
+         * There is one orange now, so "the red one" is not available:
+         * this is outlined where `primary` is filled, and the label says
+         * the word. That is the same reasoning the state tokens in
+         * `tokens.css` were built on — colour reinforces, words carry.
+         *
+         * The hover label is ink and not white. It was `text-white`,
+         * which was correct when `--danger-deep` resolved to `#A0431B`
+         * (white on it, 6.34:1). Collapsing the ramp to one orange moved
+         * it to `#E86A2C` and took that to **3.22:1** — under the 4.5:1
+         * floor — without changing this line, so the button kept a
+         * contrast failure that no colour edit here could have shown.
+         * A hover state is the easiest thing in a palette move to miss:
+         * nothing renders it until somebody points at it.
+         */
+        danger: "bg-transparent border-danger-deep text-danger-deep hover:not-disabled:bg-danger-deep hover:not-disabled:text-on-accent",
       },
       size: {
         // 44px even on the compact size. The visual weight comes from

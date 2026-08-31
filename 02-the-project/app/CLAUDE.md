@@ -94,7 +94,7 @@ What is verified today, measured rather than assumed:
 
 - `npm run build` exits 0 with no warnings — the production build, not a
   dev server.
-- 55 routes, **every one of them `ƒ` (dynamic) and none prerendered**,
+- 56 routes, **every one of them `ƒ` (dynamic) and none prerendered**,
   which is the `force-dynamic`/CSP-nonce invariant below holding rather
   than having quietly drifted. A static route in that list is the tell
   that somebody removed the line.
@@ -530,6 +530,35 @@ on each screen, in the spirit of `KNOWN_UNWRITTEN`. **Prove a new check
 red at the exact call site before trusting it green** — put the bug
 back, watch it fail, put it right. Doing that is what found this, and
 what found the next one.
+
+**A check pinned to specific values goes quiet exactly when those values
+are superseded.** Two in the palette work, found the same afternoon.
+`mobile/_check.py` compared the native palette against a hardcoded list
+of eight colours; every one was two generations old, so the loop could
+never fire — while the file it guarded sat on the old orange ramp *and*
+the old logo gradient, months after the web had moved. And `palette.py`
+named `src/styles`, `src/components` and one stylesheet: the places a
+palette obviously lives. It passed green across two whole surfaces it
+had never been pointed at. **Prefer a rule that names no values and a
+list that names directories rather than files** — the first cannot go
+stale, the second covers what somebody did not think of.
+
+Both were then proved red at the call site, and the first attempt at
+the rewrite *still* could not fail: it stripped comments from the native
+theme but not from `tokens.css`, which names every superseded orange in
+its own prose, so putting `#CF5A22` back matched a sentence about
+`#CF5A22` and passed. **The history a file keeps about rejected values
+is not a declaration of them** — strip prose from both sides of any
+comparison, not just the side you are suspicious of.
+
+**And a palette move misses hover states first.** Collapsing the ramp to
+one orange moved `--danger-deep` from `#A0431B` to `#E86A2C` without
+touching `button.tsx`, whose danger variant still said
+`hover:text-white` — correct at 6.34:1 against the old value, **3.22:1**
+against the new one, and under the AA floor. Nothing renders a hover
+until somebody points at it, so no screenshot, no build and no contrast
+audit of the tokens would have shown it. When a token changes, grep the
+components for the states that token appears in, not just for the token.
 
 **A browser check must wait for the data, not for the heading.** Every
 assertion in `browser:type` waited 700ms after the `h1` — and on

@@ -34,34 +34,33 @@ BODY = ("M32.6,3.0 C39.6,2.8 45.0,7.6 47.8,14.6 C50.2,20.6 51.2,27.2 51.6,33.6 "
         "C13.0,19.4 15.4,11.4 21.2,6.4 C24.2,3.9 28.6,3.2 32.6,3.0 Z")
 
 # ---- the palette ----------------------------------------------------
-# **One orange. The mark is drawn from the interface ramp.**
+# **One orange. #E86A2C, exactly, everywhere.**
 #
-# This file used to argue for amber here — that the mark could keep its
-# own warmer gradient because WCAG exempts a brand mark from contrast.
-# That was true and it was the wrong trade. Measured, the mark sat at
-# hue 28.6–35.8 while the interface and the `.io` sat at 18.0–19.8: up
-# to sixteen degrees apart, which is not a shade of the same orange, it
-# is a different one. On a screen showing the logo beside an orange
-# button it read as two brands, which is what an outside branding team
-# reported — after every check in the suite had passed.
+# This block has now been wrong twice. First it argued for an amber
+# gradient — hue 28.6 to 35.8 against the interface's 19.8 — and a
+# branding team said, correctly, that the logo was a different orange
+# from the product. Then it was moved onto the interface *ramp*, which
+# fixed the hue and still left four different hex values in the mark.
+# That was the same answer in a smaller size: a button one shade, its
+# border another.
 #
-# Four of the five values below are now literally the interface tokens
-# from `tokens.css`, so the relationship is not "close to" but "the
-# same":
+# The direction was one colour, so there is one colour. Every stop of
+# the gradient and the rim are the same value, which means the body is a
+# flat #E86A2C.
 #
-#     G_MID  = --accent        #E86A2C   the .io orange itself
-#     G_LOW  = --accent-hover  #CF5A22
-#     RIM    = --accent-edge   #B94E1F
-#     CREASE = --accent-hover  #CF5A22
-#
-# Only the top highlight is not a token: it is a tint of the accent at
-# the same hue, because the gradient needs a lighter stop and the ramp
-# does not go up from the accent.
-G_HIGH = "#F39263"   # lit top-left — tint of --accent, hue 19.8
-G_MID  = "#E86A2C"   # body — --accent, the .io orange exactly
-G_LOW  = "#CF5A22"   # lower right — --accent-hover
-RIM    = "#B94E1F"   # the darker edge — --accent-edge
-CREASE = "#CF5A22"   # cheek line and surface marks — --accent-hover
+# Dimension now comes from things that are not orange and therefore
+# cannot disagree with it: the white highlight already clipped inside
+# the body, and the dark eyes. The creases — the mouth, the brow, the
+# cheek line — are drawn in the eye's brown at low opacity rather than a
+# darker orange, because a darker orange is another orange.
+G_HIGH = "#E86A2C"   # the one orange
+G_MID  = "#E86A2C"   # the one orange
+G_LOW  = "#E86A2C"   # the one orange
+RIM    = "#E86A2C"   # the one orange
+# Not an orange. The mark's own brown, already present in the eyes, so
+# the face keeps a mouth and a brow without introducing a second warm
+# value. Drawn at the opacities set in `CREASE_PATH` and `MARKS`.
+CREASE = "#3B2416"
 EYE    = "#3B2416"   # dark brown, not black. Not an orange, unchanged.
 
 # ---- the wordmark ---------------------------------------------------
@@ -126,7 +125,7 @@ def svg(pfx: str, extra_g: str = "", size: str = "") -> str:
         f'<linearGradient id="sh{pfx}" x1="22%" y1="10%" x2="74%" y2="90%">{STOPS}</linearGradient>'
         f'<filter id="bl{pfx}"><feGaussianBlur stdDeviation="7"/></filter>'
         f'<filter id="dp{pfx}" x="-35%" y="-35%" width="180%" height="180%">'
-        f'<feDropShadow dx="0" dy="2" stdDeviation="2.2" flood-color="#8A3810" flood-opacity="0.18"/></filter>'
+        f'<feDropShadow dx="0" dy="2" stdDeviation="2.2" flood-color="#E86A2C" flood-opacity="0.18"/></filter>'
         f'<clipPath id="cp{pfx}"><path d="{BODY}"/></clipPath>'
         f'</defs>'
         f'<path d="{BODY}" fill="url(#sh{pfx})" stroke="{RIM}" stroke-width="1.7" '

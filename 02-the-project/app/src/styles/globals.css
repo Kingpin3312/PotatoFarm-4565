@@ -20,8 +20,6 @@
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);
   --color-on-accent: var(--on-accent);
-  --color-surface: var(--accent);
-  --color-on-surface: var(--on-accent);
   --color-active: var(--accent-type);
   --color-accent-deep: var(--accent-deep);
 

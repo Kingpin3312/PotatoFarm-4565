@@ -15,41 +15,61 @@ export const light = {
   sunk:   "#F5F3F0",
   raised: "#FFFFFF",   // cards lift by being whiter than the ground
 
-  ink:  "#171717",     // 16.94:1 — near-black with brown in it
-  ink2: "#4A4A4A",     //  8.34:1
-  ink3: "#6B6B6B",     //  5.86:1 on ground, 5.43:1 on panel
+  ink:  "#171717",     // 17.93:1 — near-black with brown in it
+  ink2: "#4A4A4A",     //  8.86:1
+  ink3: "#6B6B6B",     //  5.33:1 on ground, 4.81:1 on panel
   rule: "#E7E5E2",
 
-  /** Fill only. 3.12:1 on the ground — a non-text component, never type. */
+  /**
+   * One orange, and every name below is the same value.
+   *
+   * `accentHover` and `accentEdge` were #CF5A22 — a darker step for a
+   * pressed state and for the hairline that defined an orange fill
+   * against the panel. Both were real, and both are gone: the direction
+   * is one orange rather than a family of them, so a state is carried
+   * by opacity or by fill-versus-outline, never by a second orange.
+   *
+   * 3.22:1 on the ground and 2.90:1 on the panel — a non-text component
+   * on both, and orange type is a brand decision taken with the number
+   * known rather than a passing measurement.
+   */
   accent:      "#E86A2C",
-  accentHover: "#CF5A22",
-  /** The hairline on a fill. The orange is 2.9:1 on the panel, so the
-   *  edge is what defines the button there. */
-  accentEdge:  "#CF5A22",
-  /** Every word. 5.56:1 on ground, 5.15:1 on panel. */
+  accentHover: "#E86A2C",
+  accentEdge:  "#E86A2C",
   accentType:  "#E86A2C",
-  /** Labels on orange are ink. White is 3.23:1 and fails. */
+  /** Labels on orange are ink at 5.57:1. White is 3.22:1 and fails. */
   onAccent:    "#171717",
 
   /** The word "PotatoFarm" itself. The supplied logo sets it in a deep
-   *  navy rather than the neutral ink beside it — 14.88:1 on the ground,
+   *  navy rather than the neutral ink beside it — 16.51:1 on the ground,
    *  and it dresses the wordmark and nothing else. Mirrors
    *  --brand-navy in tokens.css. */
   brandNavy: "#12202E",
   /** The wordmark extension. Type, so it takes the deeper orange. */
   tld: "#E86A2C",
-  /** The two eyes in the mark. Darker than the rim so they read as
-   *  holes rather than as shading. */
+  /** The mark's own brown — eyes, mouth, brow and cheek. It is the one
+   *  warm colour in the product that is deliberately *not* the accent,
+   *  because a flat orange body needs something dark to keep a face in
+   *  it. `palette.py` carries it as the single exception. */
   markEye: "#3B2416",
-  markBody: "#F0A03A",
-  markRim:  "#D9761C",
+  /** The body and its rim were #F0A03A over #D9761C — a gradient, and
+   *  at hue 35.8 and 28.6 it was a visibly different orange from the
+   *  interface at 19.8. That two-brands-on-one-screen effect is the
+   *  thing the branding review actually reported. Flat, now, and the
+   *  same value as everything else. */
+  markBody: "#E86A2C",
+  markRim:  "#E86A2C",
 
   /* The inverted band inside the light theme. Charcoal, matching
      --leather / --leather-deep in tokens.css. */
   leather:     "#34322F",
   leatherDeep: "#2A2825",
 
-  danger:  "#A0431B",
+  /* `danger` was #A0431B so an error did not look like a link. One
+     orange means an error is told apart by its words and by shape —
+     outlined where an everyday action is filled. Same argument as
+     tokens.css. */
+  danger:  "#E86A2C",
   success: "#171717",
   warning: "#E86A2C",
 } as const;
@@ -64,18 +84,23 @@ export const dark = {
   sunk:   "#34322F",
   raised: "#34322F",
 
-  ink:  "#F5F3F0",   // 12.21:1
+  ink:  "#F5F3F0",   // 13.27:1
   ink2: "#B5B5B5",   //  7.17:1
   ink3: "#9A9A96",   //  5.21:1 — #8A8A8A fell to 4.03 on charcoal
   rule: "#42403D",
 
-  accent:      "#E86A2C",   // 5.18:1 on this ground — works as type here
+  accent:      "#E86A2C",   // 4.57:1 on this ground — works as type here
   accentHover: "#E86A2C",
-  accentEdge:  "#CF5A22",
-  accentType:  "#E86A2C",   // 5.18:1
+  accentEdge:  "#E86A2C",
+  accentType:  "#E86A2C",   // 4.57:1
   /* The label on an orange button. It is the ground colour, so it moved
-     with it — and 5.18:1 on the orange is why the ground could not go
-     any lighter than this. */
+     with it — and 4.57:1 against the orange is why the ground cannot go
+     any lighter at all.
+
+     This said 5.18:1 in both places until it was measured. The
+     conclusion was right and the margin was not: 0.07 above the 4.5:1
+     floor, not 0.68. A number nobody rechecks is how a palette drifts
+     one step past a threshold and still reads as comfortable. */
   onAccent:    "#2A2825",
 
   /** Navy on charcoal is 1.3:1, so the wordmark reverses out here for
@@ -83,15 +108,14 @@ export const dark = {
   brandNavy: "#F5F3F0",
   tld: "#E86A2C",
   markEye: "#3B2416",
-  markBody: "#F0A03A",
-  markRim:  "#D9761C",
+  markBody: "#E86A2C",
+  markRim:  "#E86A2C",
 
   leather:     "#34322F",
   leatherDeep: "#2A2825",
 
-  /* Two colours here as well. On this ground the brand orange measures
-     5.18:1, so danger needs no darker step — the light theme's
-     #A0431B exists only because cream is a bright surface. Success is
+  /* On this ground the brand orange measures 4.57:1, so danger needed
+     no darker step here even before the ramp was collapsed. Success is
      ink, as it is in the light theme: the word carries it. */
   danger:  "#E86A2C",
   success: "#F5F3F0",

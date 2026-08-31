@@ -53,15 +53,16 @@ def require(path):
     """
     True if the file is there. Records a failure if it is not.
 
-    `preview-mobile.html` is generated and git-ignored, so it is the one
-    surface allowed to be absent — it is a note, not a failure.
+    Every surface is required. `preview-mobile.html` used to be exempt
+    on the grounds that it was "generated and git-ignored" — it is
+    neither: `git ls-files` has tracked it all along. The exemption cost
+    something real, because that file then sat on the superseded orange
+    ramp while this check reported four surfaces in perfect agreement.
+    An exemption written from a wrong premise is worse than no check.
     """
     if os.path.exists(path):
         return True
-    if path.endswith("preview-mobile.html"):
-        NOTES.append(f"{os.path.basename(path)} not generated — that surface was not checked")
-    else:
-        FAILS.append(f"surface missing: {os.path.relpath(path, ROOT)} — this check read nothing")
+    FAILS.append(f"surface missing: {os.path.relpath(path, ROOT)} — this check read nothing")
     return False
 
 def read(paths):

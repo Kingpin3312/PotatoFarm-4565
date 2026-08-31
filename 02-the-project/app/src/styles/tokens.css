@@ -63,10 +63,32 @@
      orange is a *surface* colour by default, and orange type steps down
      the same hue until it is readable. Three steps, all from the
      direction's own two values. */
-  --accent:      #E86A2C;   /* 3.22:1 — fills, focus, active state, .io */
-  --accent-hover:#CF5A22;   /* 4.09:1 — the hover on a fill */
-  --accent-edge: #B94E1F;   /* 5.03:1 — Deep Potato Orange, hairline on a fill */
-  --accent-deep: #A0431B;   /* 6.34:1 — orange type at any size */
+/* ------------------------------------------------------------------
+     ONE ORANGE. #E86A2C, everywhere, exactly.
+
+     This used to be a four-step ramp — #E86A2C, #CF5A22, #B94E1F,
+     #A0431B — chosen so that orange *type* could reach 4.5:1 and orange
+     hairlines could sit on an orange fill. Every step was a different
+     hex, and to anybody looking at the product they were simply
+     different oranges: a button one shade, its hover another, a link a
+     third.
+
+     The direction is one colour. Every link, every button, every border,
+     every hover, every fill is now the same value, and the tokens are
+     kept as separate names only so that a future decision has somewhere
+     to land.
+
+     **The consequence, stated plainly:** #E86A2C is 3.22:1 on white.
+     That is fine for a fill, a border or an icon, which WCAG measures at
+     3:1. It is below the 4.5:1 that body-size text needs, so orange
+     *text* — a link in a paragraph — no longer meets AA on contrast
+     alone. Links carry an underline for that reason: it is the
+     non-colour signal that keeps them findable.
+     ------------------------------------------------------------------ */
+  --accent:      #E86A2C;   /* fills, focus, active state, .io */
+  --accent-hover:#E86A2C;   /* the hover on a fill — the same orange */
+  --accent-edge: #E86A2C;   /* hairline on a fill — the same orange */
+  --accent-deep: #E86A2C;   /* orange type — the same orange */
 
   /**
    * The brand orange used as type. The `.io`, and nothing else.
@@ -194,8 +216,13 @@
      still has to pull the eye. Success drops to ink: a confirmation
      that has already happened does not need to shout. */
   --success:      #171717;   /* black — the word carries it */
-  --danger:       #A0431B;   /* the accent, dark enough to read at 13px */
-  --warning:      #A0431B;
+  /* The same orange. These were #A0431B — a darker shade so that error
+     text could reach 6.34:1 and so that a warning did not look like a
+     link. Both of those were real, and the direction is one colour, so
+     both are gone. If an error needs to be distinguishable from a link
+     again, the answer is a red, not another orange. */
+  --danger:       #E86A2C;
+  --warning:      #E86A2C;
 
   /* ---- Type ---------------------------------------------------------
      One scale, Apple's proportions, two registers.
