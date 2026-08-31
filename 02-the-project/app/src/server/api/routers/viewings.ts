@@ -110,16 +110,64 @@ export const viewingsRouter = router({
        *  own viewing should not have to name themselves. A manager
        *  booking on someone else's diary still passes it. */
       agentId: z.string().optional(),
-      listingId: z.string().optional(), start: z.date(), durationMins: z.number().default(30),
+      listingId: z.string().optional(),
+      start: z.date(),
+      /**
+       * Bounded, because this value reaches a generated Postgres column
+       * and a `gist` exclusion constraint rather than just a form.
+       *
+       * `z.number()` alone accepted both ends of the range and both were
+       * faults. A negative duration puts the upper bound of `timespan`
+       * before the lower, which Postgres rejects outright — and the catch
+       * below only handles an exclusion violation, so it surfaced as an
+       * unhandled 500. A very large one creates a range spanning
+       * centuries, and the exclusion constraint then blocks every future
+       * booking for that agent until somebody finds and deletes the row.
+       *
+       * Eight hours is the longest plausible viewing; five minutes the
+       * shortest useful one.
+       */
+      durationMins: z.number().int().min(5).max(480).default(30),
     }))
     .mutation(async ({ ctx, input }) => {
+      /**
+       * The agent must be in this brokerage.
+       *
+       * `agentId` arrives from the client and is written straight to the
+       * row. Row-level security does not catch it: `orgId` comes from the
+       * session so the insert is legitimately in-tenant, and `User` is a
+       * global table, so an id belonging to another brokerage resolves
+       * perfectly well.
+       *
+       * Two things went wrong without this. `notify/sweep.ts` dispatches
+       * the reminder with `assignedToId: v.agentId`, and `sendPush`
+       * resolves devices by user id with no org filter — so a push
+       * carrying a buyer's name and the property left the tenant
+       * entirely. And because `audience()` returns only the assigned user
+       * at rung 0, nobody *inside* the brokerage was told either: the
+       * viewing simply fell off every list.
+       *
+       * `leads.assign` and `pipeline.bulkAssign` have always done this.
+       * This procedure took the same class of input and did not.
+       */
+      const agentId = input.agentId ?? ctx.userId;
+      if (agentId !== ctx.userId) {
+        const member = await ctx.db.membership.findUnique({
+          where: { orgId_userId: { orgId: ctx.orgId, userId: agentId } },
+          select: { userId: true },
+        });
+        if (!member) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "That agent isn't in your team." });
+        }
+      }
+
       try {
         return await ctx.db.viewing.create({
           data: {
             orgId: ctx.orgId,
             leadId: input.leadId,
             listingId: input.listingId,
-            agentId: input.agentId ?? ctx.userId,
+            agentId,
             scheduledAt: input.start,
             durationMins: input.durationMins,
             status: "SCHEDULED",

@@ -282,9 +282,22 @@ export const leadsRouter = router({
         const before = await tx.lead.findUnique({ where: { id: input.leadId } });
         if (!before) throw new TRPCError({ code: "NOT_FOUND" });
 
-        // The agent must be in this brokerage. Without this check an id
-        // from another org would assign a lead to a stranger — RLS does
-        // not police Membership lookups by id alone.
+        // The agent must be in this brokerage.
+        //
+        // Defence in depth, not a substitute for absent policy: the
+        // comment here used to say "RLS does not police Membership
+        // lookups by id alone", and that is false. The init migration
+        // creates a `tenant_isolation` policy for **every table carrying
+        // an orgId column**, and Membership has one — so `ctx.db` cannot
+        // see another brokerage's rows in the first place.
+        //
+        // The explicit orgId is kept because this is an authorisation
+        // decision about a caller-supplied id, and those are worth
+        // stating in the query rather than inferring from a session
+        // setting two layers away. The wrong version of this comment
+        // mattered: `commission.setPlan` states the opposite, and a
+        // reader trusting the wrong one either strips a good check or
+        // adds redundant ones.
         if (input.agentId) {
           const member = await tx.membership.findUnique({
             where: { orgId_userId: { orgId: ctx.orgId, userId: input.agentId } },

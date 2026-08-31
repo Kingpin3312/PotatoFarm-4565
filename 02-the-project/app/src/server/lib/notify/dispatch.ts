@@ -1,6 +1,7 @@
 import { crossTenant } from "@/server/db/client";
 import type { NotificationKind } from "@prisma/client";
 import { RULES, inQuietHours } from "./rules";
+import { log } from "@/lib/log";
 
 /**
  * Deciding who gets told, and when to stop asking them.
@@ -122,7 +123,36 @@ export async function dispatch(args: {
 
 /** Who is on the ladder at this rung. */
 async function audience(orgId: string, assignedToId: string | null, rung: number): Promise<Target[]> {
-  if (rung === 0 && assignedToId) return [{ userId: assignedToId, escalation: 0 }];
+  /**
+   * The assigned user, **if they are actually in this brokerage.**
+   *
+   * This branch used to return `assignedToId` unchecked, and it was the
+   * only path in this function that did not scope by `orgId`. That made
+   * it the last gate on a chain that ended outside the tenant:
+   * `viewings.hold` accepted an `agentId` from the client, and
+   * `sendPush` resolves devices by user id with no org filter — so a
+   * notification carrying a buyer's name could be delivered to a phone
+   * belonging to another brokerage.
+   *
+   * The upstream check is fixed too. This one stays because a
+   * notification is the point where data leaves the system, and the
+   * caller list will grow.
+   *
+   * Falling through rather than returning nothing is deliberate: an
+   * unassignable notification should still reach the people who can act
+   * on it, which is what the role query below does. Returning `[]` here
+   * would reproduce the quieter half of the same bug, where a viewing
+   * assigned to a stranger meant nobody inside the brokerage was told.
+   */
+  if (rung === 0 && assignedToId) {
+    const member = await crossTenant("sweep").membership.findUnique({
+      where: { orgId_userId: { orgId, userId: assignedToId } },
+      select: { userId: true },
+    });
+    if (member) return [{ userId: assignedToId, escalation: 0 }];
+    log.warn("notification assigned to a non-member; falling back to the team", { orgId },
+             { assignedToId });
+  }
 
   const roles = rung === 0 || rung === 1
     ? (["OWNER", "ADMIN", "MANAGER"] as const)

@@ -245,7 +245,7 @@ thing it checks and confirming it fails.
 ### The unit tests
 
 ```bash
-npm test                    # 261 assertions, no database, ~3 seconds
+npm test                    # 268 assertions, no database, ~3 seconds
 ```
 
 `package.json` declared `"test": "vitest run"` from the beginning with no
@@ -403,7 +403,7 @@ Ask — an agent can see what they asked for earlier and what came back.
 - **Voice recipes** `BOOK_VIEWING` and `COMPARABLES` return a follow-up
   question rather than completing in one step. Deliberate, but the second
   step is not wired to the booking screen.
-- **Unit tests cover eleven modules, not the codebase.** 261 assertions
+- **Unit tests cover thirteen modules, not the codebase.** 268 assertions
   across money, the 24-hour window, Dubai sending hours, the search
   parser, lead scoring, deal risk, the assistant's guardrails and the
   interface's Arabic — the

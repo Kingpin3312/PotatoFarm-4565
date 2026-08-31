@@ -29,7 +29,7 @@ import { sweepIntelligence } from "@/server/lib/intelligence/sweep";
 import { screen, screeningConfigured } from "@/server/lib/aml/screen";
 import { deliver } from "@/server/lib/health/deliver";
 // Used in two jobs and never imported.
-import { log } from "@/lib/log";
+import { log, report } from "@/lib/log";
 
 /**
  * Every scheduled job, in one place.
@@ -38,6 +38,67 @@ import { log } from "@/lib/log";
  * file, so somebody reading this knows how often a thing happens without
  * going and looking somewhere else.
  */
+/**
+ * One month on, clamped to the end of the target month.
+ *
+ * `setUTCMonth(getUTCMonth() + 1)` overflows for any day after the 28th:
+ * 31 January becomes 3 March rather than 28 February, and 31 March
+ * becomes 1 May. Measured, not assumed.
+ *
+ * It does not overcharge — `generateInvoice` divides the monthly price
+ * by the actual period length, so a longer period bills a lower daily
+ * rate and the total self-corrects. What it does is move the billing
+ * anniversary: a brokerage that signs up on the 31st is billed on the
+ * 3rd from then on, and never gets its date back.
+ */
+export function addOneMonth(from: Date): Date {
+  const d = new Date(from);
+  const day = d.getUTCDate();
+  // Move to the 1st first, so adding the month cannot roll past the end
+  // of a shorter one, then clamp the day back.
+  d.setUTCDate(1);
+  d.setUTCMonth(d.getUTCMonth() + 1);
+  const lastDay = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
+  d.setUTCDate(Math.min(day, lastDay));
+  return d;
+}
+
+/**
+ * Run one item of a sweep without letting it take the others down.
+ *
+ * Every loop in this file iterates across **all tenants** via
+ * `crossTenant("sweep")`, and none of them caught anything. One
+ * unprocessable row — a malformed lead, a provider timeout, a deleted
+ * user — threw, and every tenant after it in the batch was silently not
+ * processed. On `billing.invoices` that means one customer's bad data
+ * stops invoicing for everybody.
+ *
+ * It is not caught at the job level, because a job that swallows its
+ * own failure looks healthy: `jobsHealth()` only advances on
+ * `SUCCEEDED`, and that is the signal worth keeping. So failures are
+ * isolated per item, counted, and returned in the job result where the
+ * count is visible.
+ */
+async function each<T>(
+  // `Iterable`, not `T[]`: several sweeps group rows into a Map keyed by
+  // brokerage and iterate its entries.
+  items: Iterable<T>,
+  label: (item: T) => string,
+  fn: (item: T) => Promise<void>,
+): Promise<{ done: number; failed: number }> {
+  let done = 0, failed = 0;
+  for (const item of items) {
+    try {
+      await fn(item);
+      done += 1;
+    } catch (err) {
+      failed += 1;
+      report(err, {}, { sweepItem: label(item) });
+    }
+  }
+  return { done, failed };
+}
+
 export const JOBS = {
   /** Handovers waiting, leads unclaimed, viewings due. Every 5 minutes. */
   "notify.sweep": () => run("notify.sweep", async () => {
@@ -74,7 +135,7 @@ export const JOBS = {
   /** Portal feeds that have gone quiet. Hourly. */
   "portals.silence": () => run("portals.silence", async () => {
     const alerts = await checkChannelSilence();
-    for (const a of alerts) {
+    await each(alerts, (a) => `channel ${a.channelId}`, async (a) => {
       await dispatch({
         orgId: a.orgId,
         kind: "PORTAL_SILENT",
@@ -85,7 +146,7 @@ export const JOBS = {
         assignedToId: null,
         since: new Date(Date.now() - a.quietHours * 3_600_000),
       });
-    }
+    });
     return { alerts: alerts.length };
   }),
 
@@ -115,12 +176,12 @@ export const JOBS = {
     });
 
     let issued = 0;
-    for (const s of due) {
+    const { failed } = await each(due, (s) => `subscription ${s.id}`, async (s) => {
       const already = await crossTenant("sweep").invoice.findFirst({
         where: { subId: s.id, periodFrom: s.currentFrom, periodTo: s.currentTo },
         select: { id: true },
       });
-      if (already) continue;
+      if (already) return;
 
       await generateInvoice(s.id, s.currentFrom, s.currentTo);
 
@@ -128,15 +189,14 @@ export const JOBS = {
       // failure halfway leaves the period un-advanced and the job simply
       // tries again tomorrow.
       const nextFrom = s.currentTo;
-      const nextTo = new Date(nextFrom);
-      nextTo.setUTCMonth(nextTo.getUTCMonth() + 1);
+      const nextTo = addOneMonth(nextFrom);
       await crossTenant("sweep").subscription.update({
         where: { id: s.id },
         data: { currentFrom: nextFrom, currentTo: nextTo },
       });
       issued += 1;
-    }
-    return { considered: due.length, issued };
+    });
+    return { considered: due.length, issued, failed };
   }),
 
   /**
@@ -200,7 +260,7 @@ export const JOBS = {
     }
 
     let confirmed = 0, possible = 0, errors = 0;
-    for (const r of records) {
+    const { failed } = await each(records, (r) => `kyc ${r.id}`, async (r) => {
       const out = await screen(db, {
         orgId: r.orgId,
         kycId: r.id,
@@ -210,9 +270,9 @@ export const JOBS = {
       if (out.result === "CONFIRMED_MATCH") confirmed += 1;
       else if (out.result === "POSSIBLE_MATCH") possible += 1;
       else if (out.result === "ERROR") errors += 1;
-    }
+    });
 
-    return { screened: records.length, confirmed, possible, errors };
+    return { screened: records.length, confirmed, possible, errors, failed };
   }),
 
   /**
@@ -235,7 +295,7 @@ export const JOBS = {
     for (const d of docs) byOrg.set(d.orgId, [...(byOrg.get(d.orgId) ?? []), d]);
 
     let sent = 0;
-    for (const [orgId, items] of byOrg) {
+    await each(byOrg, ([orgId, items]) => `org ${orgId}`, async ([orgId, items]) => {
       for (const group of groupForNotification(items)) {
         await dispatch({
           orgId,
@@ -253,7 +313,7 @@ export const JOBS = {
         });
         sent += 1;
       }
-    }
+    });
     return { documents: docs.length, notifications: sent };
   }),
 
@@ -281,7 +341,7 @@ export const JOBS = {
     const byOrg = new Map<string, typeof soon>();
     for (const l of soon) byOrg.set(l.orgId, [...(byOrg.get(l.orgId) ?? []), l]);
 
-    for (const [orgId, listings] of byOrg) {
+    await each(byOrg, ([orgId, listings]) => `org ${orgId}`, async ([orgId, listings]) => {
       // `[0]` on a possibly-empty array is `undefined` under
       // noUncheckedIndexedAccess. byOrg is only ever built from a
       // non-empty list so this cannot fire, but the compiler cannot see
@@ -290,7 +350,7 @@ export const JOBS = {
       const [earliest] = listings
         .map((l) => l.permitExpiresAt!)
         .sort((a, b) => a.getTime() - b.getTime());
-      if (!earliest) continue;
+      if (!earliest) return;
 
       const days = Math.floor((earliest.getTime() - Date.now()) / 86_400_000);
 
@@ -306,7 +366,7 @@ export const JOBS = {
         assignedToId: null,
         since: new Date(),
       });
-    }
+    });
     return { brokerages: byOrg.size, listings: soon.length };
   }),
 
@@ -349,7 +409,7 @@ export const JOBS = {
     });
 
     let atRisk = 0;
-    for (const d of live) {
+    await each(live, (d) => `deal ${d.id}`, async (d) => {
       const health = assess({
         deal: {
           financing: d.financing,
@@ -361,7 +421,7 @@ export const JOBS = {
 
       // Only when it has actually gone wrong, or is about to. Telling
       // somebody daily that a deal is on track is how they stop reading.
-      if (health.achievable && health.daysOfSlack > 3) continue;
+      if (health.achievable && health.daysOfSlack > 3) return;
 
       await dispatch({
         orgId: d.orgId,
@@ -376,7 +436,7 @@ export const JOBS = {
         since: new Date(),
       });
       atRisk += 1;
-    }
+    });
     return { live: live.length, atRisk };
   }),
 
@@ -409,7 +469,7 @@ export const JOBS = {
 
     let messaged = 0, considered = 0, blocked = 0;
 
-    for (const [orgId, listings] of byOrg) {
+    await each(byOrg, ([orgId, listings]) => `org ${orgId}`, async ([orgId, listings]) => {
       const requirements = await crossTenant("sweep").requirement.findMany({
         where: { orgId, active: true },
         include: {
@@ -430,7 +490,7 @@ export const JOBS = {
         // Trust gate first — cheapest check, and the one that keeps a
         // guessed requirement from ever reaching a customer.
         const trust = canDriveOutreach(r);
-        if (!trust.ok) { blocked += 1; continue; }
+        if (!trust.ok) { blocked += 1; return; }
 
         const match = best(
           {
@@ -453,7 +513,7 @@ export const JOBS = {
             purpose: l.purpose as "SALE" | "RENT", listedAt: l.createdAt,
           }))
         );
-        if (!match) continue;
+        if (!match) return;
 
         const call = decide({
           lead: {
@@ -465,7 +525,7 @@ export const JOBS = {
           },
           match,
         });
-        if (!call.send) { blocked += 1; continue; }
+        if (!call.send) { blocked += 1; return; }
 
         // Sending happens through the normal outbound path, so the
         // template rule, the ledger and the audit trail all apply. There
@@ -482,7 +542,7 @@ export const JOBS = {
         });
         messaged += 1;
       }
-    }
+    });
 
     return { listings: fresh.length, considered, messaged, blocked };
   }),
@@ -505,7 +565,7 @@ export const JOBS = {
 
     let acted = 0, paused = 0, finished = 0;
 
-    for (const sub of due) {
+    await each(due, (sub) => `plan sub ${sub.id}`, async (sub) => {
       const lead = await crossTenant("sweep").lead.findUnique({
         where: { id: sub.leadId },
         select: {
@@ -513,7 +573,7 @@ export const JOBS = {
           conversation: { select: { lastInboundAt: true } },
         },
       });
-      if (!lead) continue;
+      if (!lead) return;
 
       const call = shouldAdvance({
         sub: {
@@ -540,7 +600,7 @@ export const JOBS = {
           });
           call.newState === "PAUSED" ? paused++ : finished++;
         }
-        continue;
+        return;
       }
 
       // The step itself goes through the ordinary outbound path — same
@@ -561,7 +621,7 @@ export const JOBS = {
         },
       });
       acted++;
-    }
+    });
 
     return { due: due.length, acted, paused, finished };
   }),
@@ -584,15 +644,15 @@ export const JOBS = {
     });
 
     let asked = 0;
-    for (const v of done) {
+    await each(done, (v) => `viewing ${v.id}`, async (v) => {
       const already = await crossTenant("sweep").viewingFeedback.findUnique({
         where: { viewingId: v.id },
         select: { askedAt: true },
       });
-      if (already?.askedAt) continue;
+      if (already?.askedAt) return;
 
       const due = askAt(new Date(v.scheduledAt.getTime() + v.durationMins * 60_000));
-      if (due > new Date()) continue;
+      if (due > new Date()) return;
 
       await crossTenant("sweep").viewingFeedback.upsert({
         where: { viewingId: v.id },
@@ -600,7 +660,7 @@ export const JOBS = {
         update: { askedAt: new Date() },
       });
       asked += 1;
-    }
+    });
     return { completed: done.length, asked };
   }),
 
@@ -622,7 +682,7 @@ export const JOBS = {
 
     let composed = 0, withSignal = 0;
 
-    for (const l of listings) {
+    await each(listings, (l) => `listing ${l.id}`, async (l) => {
       const rows = await crossTenant("sweep").viewingFeedback.findMany({
         where: { listingId: l.id, answeredAt: { not: null } },
         select: { verdict: true, reasons: true },
@@ -630,7 +690,7 @@ export const JOBS = {
       const viewings = await crossTenant("sweep").viewing.count({
         where: { listingId: l.id, status: "COMPLETED" },
       });
-      if (!viewings) continue;
+      if (!viewings) return;
 
       const offers = rows.filter((r) => r.verdict === "OFFERING").length;
       const daysListed = Math.floor((Date.now() - l.createdAt.getTime()) / 86_400_000);
@@ -651,7 +711,7 @@ export const JOBS = {
 
       composed += 1;
       if (report.recommendation) withSignal += 1;
-    }
+    });
     return { listings: listings.length, composed, withSignal };
   }),
 
