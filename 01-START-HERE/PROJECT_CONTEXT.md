@@ -106,7 +106,7 @@ token, which the web app cannot do. Treat it as a design sketch.
 ## 4. What is built
 
 **73 database models · 60 enums · 27 API routers · 149 procedures ·
-43 screens · 26 scheduled jobs · 16 audit scripts · 24 check suites.**
+43 screens · 26 scheduled jobs · 16 audit scripts · 25 check suites.**
 
 **Eight procedures have no screen.** Seven are deliberate:
 `migration.abandon`, `aml.updateFile`, `aml.checkRear`,
