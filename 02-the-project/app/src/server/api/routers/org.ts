@@ -69,6 +69,60 @@ export const orgRouter = router({
     return { url: `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/api/calendar/${token}` };
   }),
 
+  /**
+   * The listing feed a portal fetches.
+   *
+   * Brokerage-level, unlike the calendar feed above, because a portal
+   * takes the firm's inventory rather than one agent's diary — and
+   * `org:update` for the same reason: this is a credential for the
+   * whole brokerage's advertising, not a personal convenience.
+   */
+  listingFeed: requirePermission("org:update").query(async ({ ctx }) => {
+    const org = await ctx.db.organisation.findUnique({
+      where: { id: ctx.orgId },
+      select: { feedToken: true, feedTokenAt: true },
+    });
+    return {
+      url: org?.feedToken
+        ? `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/api/feed/${org.feedToken}/listings.xml`
+        : null,
+      createdAt: org?.feedTokenAt ?? null,
+    };
+  }),
+
+  /**
+   * Mint the feed URL, or replace the one that exists.
+   *
+   * One control for both, for the reason `calendarRotate` gives: the
+   * moment somebody realises the link is in the wrong inbox, the useful
+   * action is making the old one dead, and a separate revoke button is
+   * how a live secret stays live.
+   *
+   * **Generating this is what turns the feed on.** There is no enabled
+   * flag beside it — a feed nobody holds a URL for is off, and a
+   * boolean next to a nullable token is two sources of truth for one
+   * fact, which is how a screen comes to disagree with the system.
+   */
+  rotateListingFeed: requirePermission("org:update").mutation(async ({ ctx }) => {
+    const token = randomBytes(32).toString("base64url");
+    await ctx.db.organisation.update({
+      where: { id: ctx.orgId },
+      data: { feedToken: token, feedTokenAt: new Date() },
+    });
+    await audit(ctx.db, ctx.orgId, {
+      actorId: ctx.userId,
+      action: "listingFeed.rotate",
+      entity: "Organisation",
+      entityId: ctx.orgId,
+      // Never the token. An audit row a manager can read is not where a
+      // live credential belongs — same rule as the calendar feed.
+      after: { rotated: true },
+    });
+    return {
+      url: `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/api/feed/${token}/listings.xml`,
+    };
+  }),
+
   mine: orgProcedure.query(async ({ ctx }) => {
     const rows = await crossTenant("user-scoped").membership.findMany({
       where: { userId: ctx.userId, org: { deletedAt: null } },

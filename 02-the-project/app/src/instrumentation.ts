@@ -58,6 +58,18 @@ export async function register() {
     );
   }
 
+  /**
+   * Portal publishers, registered once per server instance.
+   *
+   * Here rather than in a module's top-level side effect, because a
+   * side effect only runs if something imports the module, and the
+   * thing that would have imported it was the queue — which is exactly
+   * the code that concluded no publisher existed. `register()` is the
+   * one function Next guarantees to call.
+   */
+  const { registerPortalPublishers } = await import("@/server/lib/portals/register");
+  registerPortalPublishers();
+
   if (missing.length === 0) {
     console.info("[config] every external service is configured");
     return;

@@ -80,6 +80,19 @@ model Organisation {
   auditLogs     AuditLog[]
 
   @@index([deletedAt])
+  /// The listing feed's URL secret, at brokerage level rather than per
+  /// user — a portal fetches the firm's inventory, not one agent's.
+  ///
+  /// Null until somebody generates one, and **generating it is what
+  /// turns the feed on**. There is no separate enabled flag: a feed
+  /// nobody has a URL for is off, and a second boolean beside a
+  /// nullable token is two sources of truth for one fact.
+  ///
+  /// Rotating it is the revocation mechanism. That is why the timestamp
+  /// is kept — a portal that stops fetching after a rotation is a
+  /// question somebody has to be able to answer.
+  feedToken     String?   @unique
+  feedTokenAt   DateTime?
 }
 
 model User {
