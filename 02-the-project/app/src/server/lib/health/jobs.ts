@@ -27,6 +27,10 @@ const EXPECTED_EVERY_MINUTES: Record<string, number> = {
   // week to the agent it is happening to.
   "notify.digest": 60,
   "scheduling.expire-holds": 10,
+  // If this stops, every listing a brokerage publishes sits in the queue
+  // showing "pending" and reaches no portal. Nothing errors; properties
+  // simply never appear, which is indistinguishable from a quiet market.
+  "listings.publish-queue": 10,
   "reminders.viewings": 60,
   "portals.silence": 60,
   "support.expire-grants": 60,

@@ -2,17 +2,11 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { router, orgProcedure, requirePermission } from "../trpc";
 import { audit } from "@/server/lib/audit";
-import { validateForPublish, blocking } from "@/server/lib/feeds/validate";
+import { validateForPublish, blocking, PORTAL_REQUIREMENTS } from "@/server/lib/feeds/validate";
 import { buyersFor, pitch } from "@/server/lib/matching/buyers";
 import { can } from "@/server/auth/rbac";
 import { aedToFils } from "@/lib/money";
 
-const PORTAL_RULES = {
-  PROPERTY_FINDER: { requiresPermit: true, languages: ["en", "ar"], minPhotos: 4 },
-  BAYUT:           { requiresPermit: true, languages: ["en", "ar"], minPhotos: 4 },
-  DUBIZZLE:        { requiresPermit: true, languages: ["en"], minPhotos: 3 },
-  WEBSITE_FORM:    { requiresPermit: false, languages: ["en"], minPhotos: 1 },
-} as const;
 
 export const listingsRouter = router({
   list: orgProcedure
@@ -247,7 +241,7 @@ export const listingsRouter = router({
       const photoCount = (listing.descriptions as any)?.photos?.length ?? 0;
 
       return channels.map((c) => {
-        const rules = PORTAL_RULES[c.type as keyof typeof PORTAL_RULES] ?? PORTAL_RULES.WEBSITE_FORM;
+        const rules = PORTAL_REQUIREMENTS[c.type as keyof typeof PORTAL_REQUIREMENTS] ?? PORTAL_REQUIREMENTS.WEBSITE_FORM;
         const problems = validateForPublish(listing as any, rules, photoCount);
         return {
           channelId: c.id,
@@ -298,7 +292,7 @@ export const listingsRouter = router({
         const results = [];
 
         for (const c of channels) {
-          const rules = PORTAL_RULES[c.type as keyof typeof PORTAL_RULES] ?? PORTAL_RULES.WEBSITE_FORM;
+          const rules = PORTAL_REQUIREMENTS[c.type as keyof typeof PORTAL_REQUIREMENTS] ?? PORTAL_REQUIREMENTS.WEBSITE_FORM;
           const problems = validateForPublish(listing as any, rules, photoCount);
           const blockers = blocking(problems);
 

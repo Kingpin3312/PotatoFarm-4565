@@ -17,6 +17,10 @@
       "schedule": "*/10 * * * *"
     },
     {
+      "path": "/api/cron/listings.publish-queue",
+      "schedule": "*/10 * * * *"
+    },
+    {
       "path": "/api/cron/reminders.viewings",
       "schedule": "0 * * * *"
     },

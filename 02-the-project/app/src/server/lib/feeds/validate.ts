@@ -16,6 +16,30 @@ export type Problem = {
   severity: "block" | "warn";
 };
 
+/**
+ * What each portal demands before it will accept a listing.
+ *
+ * This lived as a private const inside `listings.ts`, where only the
+ * pre-publish *check* could reach it. The queue that actually sends the
+ * listing needs the same table, and a second copy is how the button and
+ * the sender come to disagree about whether a listing is publishable —
+ * the button says yes, the portal says no, and the agent is told
+ * "rejected" with no reason.
+ *
+ * Permit requirements are not preferences: Dubai requires a Trakheesi
+ * number on every property advertisement, and advertising without a
+ * valid one is a fineable offence for the brokerage.
+ */
+export const PORTAL_REQUIREMENTS = {
+  PROPERTY_FINDER: { requiresPermit: true, languages: ["en", "ar"], minPhotos: 4 },
+  BAYUT:           { requiresPermit: true, languages: ["en", "ar"], minPhotos: 4 },
+  DUBIZZLE:        { requiresPermit: true, languages: ["en"], minPhotos: 3 },
+  WEBSITE_FORM:    { requiresPermit: false, languages: ["en"], minPhotos: 1 },
+} as const;
+
+export type PortalRequirement =
+  (typeof PORTAL_REQUIREMENTS)[keyof typeof PORTAL_REQUIREMENTS];
+
 const DUBAI_PERMIT = /^\d{5,12}$/;
 
 export function validateForPublish(

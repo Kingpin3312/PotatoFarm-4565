@@ -26,6 +26,7 @@ import { compose } from "@/server/lib/feedback/report";
 import { crossTenant } from "@/server/db/client";
 import { dispatch } from "@/server/lib/notify/dispatch";
 import { sweepIntelligence } from "@/server/lib/intelligence/sweep";
+import { drainPublishQueue } from "@/server/lib/portals/queue";
 import { screen, screeningConfigured } from "@/server/lib/aml/screen";
 import { deliver } from "@/server/lib/health/deliver";
 // Used in two jobs and never imported.
@@ -198,6 +199,24 @@ export const JOBS = {
     });
     return { considered: due.length, issued, failed };
   }),
+
+  /**
+   * Send queued listings to the portals. Every 10 minutes.
+   *
+   * `listings.publish` writes `state: "PENDING"` and, until this job
+   * existed, **nothing ever read it**. A brokerage pressed publish, the
+   * screen showed "pending", and the listing was never sent anywhere —
+   * for a product whose customers are judged on how fast a property
+   * appears on Bayut, that is the whole job undone.
+   *
+   * Ten minutes rather than nightly. A listing is perishable: the first
+   * hours after an instruction are when the enquiries are, and a
+   * brokerage that watches a competitor's identical unit go live first
+   * does not care that ours would have gone out at 4am.
+   */
+  "listings.publish-queue": () => run("listings.publish-queue", async () =>
+    drainPublishQueue()
+  ),
 
   /**
    * Sanctions screening for files that have none, and re-screening for
