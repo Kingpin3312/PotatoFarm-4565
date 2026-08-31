@@ -72,6 +72,13 @@ CHECKS=(
   # once and every check stayed green until a branding team looked at it.
   "palette.py|$ROOT"
   "i18n.py|$ROOT"
+  # A migration that quietly undoes an earlier one. `migrate dev` builds
+  # its diff from schema.prisma, so the eight raw-SQL search indexes —
+  # which Prisma cannot express — read as drift and get dropped. It
+  # generated exactly that twice in one afternoon, the second time after
+  # a warning about the first was already written into the repository.
+  # Nothing fails when they go; search silently stops using an index.
+  "migrations.py|$ROOT"
 )
 
 pass=0; fail=0; failed=()

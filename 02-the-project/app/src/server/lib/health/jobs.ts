@@ -58,6 +58,11 @@ const EXPECTED_EVERY_MINUTES: Record<string, number> = {
   "matching.new-listings": 24 * 60,
   "plans.advance": 24 * 60,
   "feedback.vendor-report": 7 * 24 * 60,
+  // If this stops, an enquiry that was never emailed stops being
+  // reported — and the alarm that exists precisely because nobody was
+  // told goes quiet, which is the failure it was written to catch
+  // wearing a different hat.
+  "website.undelivered": 60,
 };
 export async function jobsHealth() {
   const out: {

@@ -9,7 +9,7 @@ the single most important sentence in this document, because the natural
 instinct on arriving at a large codebase is to find something to build,
 and building is not what this project needs.
 
-The gate is green: `tsc` clean, 285 unit assertions, 25 check suites, 17
+The gate is green: `tsc` clean, 285 unit assertions, 26 check suites, 18
 audit scripts, all browser suites, and a production build that succeeds.
 CI runs the lot on every push.
 
@@ -151,14 +151,14 @@ by putting a bug back and watching them stay green.
 
 ## The shape of it
 
-    prisma/schema.prisma      73 models
+    prisma/schema.prisma      74 models
     src/server/db/            tenant isolation — read rls.sql first
     src/server/auth/          passwordless, database sessions, permission matrix
     src/server/api/           27 routers, mounted on root.ts
     src/server/assistant/     the model, its guardrails, its off switch
     src/server/lib/           the domain: portals, feeds, scheduling,
                               billing, privacy, notify, health, support
-    src/server/jobs/          27 scheduled jobs, advisory-locked
+    src/server/jobs/          28 scheduled jobs, advisory-locked
     src/app/                  43 screens, every one opened by browser:screens
     mobile/                   push, offline policy, auth — does not build
 

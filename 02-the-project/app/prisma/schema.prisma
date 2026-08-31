@@ -2337,6 +2337,64 @@ enum AttachmentKind {
 /// before a tenant is known. Swept daily; without that it becomes the
 /// largest table in the database, which is a silly way to run out of
 /// disk.
+/// An enquiry from the marketing website, before any brokerage exists.
+///
+/// **Not tenant-scoped, and it cannot be** — the person filling in the
+/// demo form has no `orgId` because they are not a customer yet. Same
+/// reason as `RateLimitHit` below.
+///
+/// ## Why this model exists at all
+///
+/// It did not, and the enquiry was emailed and nothing else. Two emails
+/// through Resend, `Promise.allSettled`, and a `log.error` if they
+/// failed — so an unset API key, an expired domain or a bad afternoon
+/// at the provider meant the enquiry was **gone**. No row, no queue,
+/// nothing to replay.
+///
+/// That was a defensible call at one request a day. It stops being
+/// defensible the moment demos begin, because this is the only path in
+/// the entire product that produces revenue, and it had a single point
+/// of failure with no durable record behind it.
+///
+/// The row is written *before* the emails now. If delivery fails the
+/// enquiry is still here, `emailedAt` is null, and it is findable.
+model WebsiteLead {
+  id        String   @id @default(cuid())
+  kind      WebsiteLeadKind
+  name      String?
+  email     String
+  phone     String?
+  company   String?
+  teamSize  String?
+  message   String?
+
+  /// Where they came from — utm parameters and referrer, as captured.
+  source    Json?
+  /// Consent evidence. Under the UAE's PDPL and under GDPR you have to
+  /// be able to show when consent was given and from where, and the
+  /// point of capture is the only place that ever holds up.
+  ip        String?
+  userAgent String?
+
+  /// Null until both emails have gone. **A null here on an old row is
+  /// the alarm**: it means somebody asked for a call and nobody was
+  /// told. `website.undelivered` sweeps for it.
+  emailedAt DateTime?
+  /// Why delivery failed, kept verbatim so it can be diagnosed rather
+  /// than guessed at.
+  emailError String?
+
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([emailedAt])
+}
+
+enum WebsiteLeadKind {
+  DEMO        // asked for a call
+  SUBSCRIBE   // asked for the guides
+}
+
 model RateLimitHit {
   id     String   @id @default(cuid())
   action String

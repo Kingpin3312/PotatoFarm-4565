@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { log } from "@/lib/log";
+import { crossTenant } from "@/server/db/client";
 import { escapeHtml, headerSafe, sendMail, wrap } from "@/server/lib/mail";
 
 /**
@@ -147,7 +148,52 @@ export type Lead = DemoRequest & {
  * problem, not theirs.
  */
 export async function dispatchLead(lead: Lead) {
+  /**
+   * **The row is written before either email is attempted.**
+   *
+   * This function used to be two emails and a `log.error`, and the
+   * comment above it argued that at one demo request a day an email to
+   * a person who reads it is the correct amount of machinery. That was
+   * true, and it stopped being true the moment demos started: this is
+   * the only path in the product that produces revenue, and an unset
+   * `RESEND_API_KEY`, an expired sending domain or a bad afternoon at
+   * the provider meant the enquiry did not exist anywhere.
+   *
+   * `crossTenant` because there is no tenant — the person filling in
+   * this form is not a customer yet, which is the whole point of the
+   * form. It is the same reason `RateLimitHit` is unscoped.
+   */
+  await recordWebsiteLead("DEMO", {
+    id: lead.id,
+    name: lead.name,
+    email: lead.email,
+    phone: lead.phone,
+    company: lead.company,
+    teamSize: lead.teamSize,
+    message: lead.message,
+    source: lead.source,
+    ip: lead.ip,
+    userAgent: lead.userAgent,
+  });
+
   const results = await Promise.allSettled([emailTeam(lead), emailLead(lead)]);
+
+  /**
+   * **A fulfilled promise is not a delivered email.**
+   *
+   * `sendMail` returns `false` when there is no API key rather than
+   * throwing, so `allSettled` reports both of these as fulfilled and
+   * `failed.length` was 0 — this function then stamped `emailedAt` on
+   * an enquiry nobody had been told about, which is the exact failure
+   * the row was added to prevent. It was found by `check:website-lead`
+   * asserting the unhappy path rather than the happy one.
+   *
+   * So a send counts only when it both settled *and* returned true.
+   */
+  const failed = results.filter(
+    (r) => r.status === "rejected" || r.value === false,
+  );
+
   results.forEach((r, i) => {
     if (r.status === "rejected") {
       // Logged with the id so a failed delivery can be traced and sent
@@ -158,6 +204,97 @@ export async function dispatchLead(lead: Lead) {
       });
     }
   });
+
+  /**
+   * `emailedAt` is set only when **both** went. A half-delivered
+   * enquiry — the customer thanked, nobody on our side told — is the
+   * one that looks handled and is not, so it stays unstamped and the
+   * sweep picks it up.
+   */
+  await settleWebsiteLead(
+    lead.id,
+    failed.length === 0,
+    failed
+      .map((r) =>
+        r.status === "rejected"
+          ? String(r.reason)
+          : "mail is not configured — RESEND_API_KEY is unset",
+      )
+      .join(" | "),
+  );
+}
+
+/** Written before delivery is attempted. Never throws into the request. */
+async function recordWebsiteLead(
+  kind: "DEMO" | "SUBSCRIBE",
+  row: {
+    id: string; name?: string | null; email: string; phone?: string | null;
+    company?: string | null; teamSize?: string | null; message?: string | null;
+    source?: unknown; ip?: string | null; userAgent?: string | null;
+  },
+) {
+  try {
+    await crossTenant("pre-tenant").websiteLead.create({
+      data: {
+        id: row.id,
+        kind,
+        name: row.name ?? null,
+        email: row.email,
+        phone: row.phone ?? null,
+        company: row.company ?? null,
+        teamSize: row.teamSize ?? null,
+        message: row.message ?? null,
+        source: (row.source ?? undefined) as never,
+        ip: row.ip ?? null,
+        userAgent: row.userAgent ?? null,
+      },
+    });
+  } catch (err) {
+    /**
+     * A database that is down must not cost us the enquiry either, so
+     * this is caught and the emails still go. Logged at error because
+     * it means the durable half of this is not working — the opposite
+     * failure from the one this function was written to fix, and just
+     * as silent if nobody says so.
+     */
+    log.error("[website] could not record the enquiry", {}, {
+      leadId: row.id, reason: String(err),
+    });
+  }
+}
+
+async function settleWebsiteLead(id: string, delivered: boolean, error: string) {
+  try {
+    await crossTenant("pre-tenant").websiteLead.update({
+      where: { id },
+      data: {
+        emailedAt: delivered ? new Date() : null,
+        emailError: delivered ? null : error.slice(0, 2000),
+      },
+    });
+  } catch {
+    // The row either does not exist (the create above failed and said
+    // so) or the database is still down. Both are already reported.
+  }
+}
+
+/** The guide subscribers, same durability, far less machinery. */
+export async function recordSubscriber(args: {
+  id: string; email: string; from?: string; ip?: string | null; userAgent?: string | null;
+}) {
+  await recordWebsiteLead("SUBSCRIBE", {
+    id: args.id,
+    email: args.email,
+    source: args.from ? { from: args.from } : undefined,
+    ip: args.ip,
+    userAgent: args.userAgent,
+  });
+  return args.id;
+}
+
+/** Called by the subscribe route once the guide has actually gone. */
+export async function settleSubscriber(id: string, delivered: boolean, error = "") {
+  await settleWebsiteLead(id, delivered, error);
 }
 
 function emailTeam(lead: Lead) {

@@ -60,7 +60,8 @@
     "check:preflight": "node scripts/preflight.mjs",
     "db:restore-drill": "bash scripts/restore-drill.sh",
     "check:billing": "esbuild scripts/billing.check.ts --bundle --platform=node --format=esm --outfile=.tmp/billing.mjs --external:@prisma/client --log-level=warning && node --env-file-if-exists=.env .tmp/billing.mjs",
-    "check:notify-isolation": "esbuild scripts/notify-isolation.check.ts --bundle --platform=node --format=esm --outfile=.tmp/notify-iso.mjs --external:@prisma/client --log-level=warning && node --env-file-if-exists=.env .tmp/notify-iso.mjs"
+    "check:notify-isolation": "esbuild scripts/notify-isolation.check.ts --bundle --platform=node --format=esm --outfile=.tmp/notify-iso.mjs --external:@prisma/client --log-level=warning && node --env-file-if-exists=.env .tmp/notify-iso.mjs",
+    "check:website-lead": "esbuild scripts/website-lead.check.ts --bundle --platform=node --format=esm --outfile=.tmp/wlead.mjs --external:@prisma/client --log-level=warning && node --env-file-if-exists=.env .tmp/wlead.mjs"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.7.0",

@@ -24,7 +24,23 @@ export async function sendMail(msg: {
   const key = process.env.RESEND_API_KEY;
   if (!key) {
     log.warn("[mail] RESEND_API_KEY not set — email not sent", {}, { subject: msg.subject });
-    return;
+    /**
+     * **False, not undefined, and this return value is load-bearing.**
+     *
+     * Returning nothing here made an unconfigured mailer look exactly
+     * like a successful send to any caller using `Promise.allSettled` —
+     * the promise fulfils, so nothing is rejected, so the caller
+     * records delivery. `dispatchLead` did precisely that and stamped
+     * `emailedAt` on an enquiry no one had been told about, which is
+     * the failure the WebsiteLead row exists to prevent, reintroduced
+     * one layer up. `check:website-lead` caught it.
+     *
+     * Throwing instead would be wrong: several callers deliberately
+     * no-op in development, and a sign-in flow that explodes because
+     * there is no mail key is worse than one that logs. So the fact is
+     * reported and the caller decides.
+     */
+    return false;
   }
 
   const res = await fetch("https://api.resend.com/emails", {
@@ -41,6 +57,7 @@ export async function sendMail(msg: {
     signal: AbortSignal.timeout(8000),
   });
   if (!res.ok) throw new Error(`Resend ${res.status}: ${await res.text()}`);
+  return true;
 }
 
 /**

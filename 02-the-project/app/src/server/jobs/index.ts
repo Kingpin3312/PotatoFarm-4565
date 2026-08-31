@@ -790,6 +790,45 @@ export const JOBS = {
   "privacy.retention": () => run("privacy.retention", async () =>
     retentionSweep()
   ),
+
+  /**
+   * Somebody asked us for a call and nobody was told.
+   *
+   * The enquiry is durable now, which fixes losing it — but a row
+   * nobody reads is the shape this codebase has found twelve times, and
+   * a `WebsiteLead` with a null `emailedAt` is exactly that unless
+   * something goes looking. **This is the "what closes it?" half.**
+   *
+   * An hour is deliberate. Faster and a transient Resend blip pages
+   * somebody at 3am for something that has already retried; slower and
+   * a brokerage owner who asked for a call on Monday morning is still
+   * waiting on Monday afternoon, which is the whole business.
+   */
+  "website.undelivered": () => run("website.undelivered", async () => {
+    const stale = await crossTenant("sweep").websiteLead.findMany({
+      where: {
+        emailedAt: null,
+        createdAt: { lt: new Date(Date.now() - 60 * 60_000) },
+      },
+      select: { id: true, kind: true, email: true, createdAt: true, emailError: true },
+      orderBy: { createdAt: "asc" },
+      take: 50,
+    });
+    if (stale.length === 0) return { undelivered: 0 };
+
+    await deliver({
+      key: "website.undelivered",
+      severity: "PAGE",
+      title: `${stale.length} website enquir${stale.length === 1 ? "y" : "ies"} were never delivered`,
+      detail:
+        `The row exists and the email did not go. These people asked to be ` +
+        `contacted and nobody has been told.\n\n` +
+        stale.map((s: (typeof stale)[number]) => `  ${s.createdAt.toISOString()}  ${s.kind}  ${s.email}` +
+          (s.emailError ? `  — ${s.emailError.slice(0, 120)}` : "")).join("\n"),
+      runbook: "OPERATIONS.md — undelivered website enquiry",
+    });
+    return { undelivered: stale.length };
+  }),
 } as const;
 
 export type JobName = keyof typeof JOBS;

@@ -107,6 +107,10 @@
     {
       "path": "/api/cron/intelligence.sweep",
       "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/cron/website.undelivered",
+      "schedule": "40 * * * *"
     }
   ]
 }

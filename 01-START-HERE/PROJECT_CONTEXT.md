@@ -105,8 +105,8 @@ token, which the web app cannot do. Treat it as a design sketch.
 
 ## 4. What is built
 
-**73 database models · 60 enums · 27 API routers · 149 procedures ·
-43 screens · 27 scheduled jobs · 17 audit scripts · 25 check suites.**
+**74 database models · 61 enums · 27 API routers · 149 procedures ·
+43 screens · 28 scheduled jobs · 18 audit scripts · 26 check suites.**
 
 **Eight procedures have no screen.** Seven are deliberate:
 `migration.abandon`, `aml.updateFile`, `aml.checkRear`,
@@ -157,7 +157,7 @@ chart; spoken requests ("Ask").
 - Sign-in works end to end from a cold browser.
 - The website's demo form and its four guide forms were submitted in
   Chromium, at 1280px and on an iPhone 13, against a real database.
-- All 17 audit scripts exit 0.
+- All 18 audit scripts exit 0.
 - **Object storage works against any S3-compatible provider** — AWS, R2,
   B2, Spaces, MinIO — with request signing done in-repo rather than by an
   SDK. Verified against the signature AWS publishes in its own
@@ -357,7 +357,7 @@ your name on them:
    one-time link to a work email, so **email delivery is the only way
    into the product**. An unverified sender puts every sign-in link in a
    junk folder and the failure looks like the application being broken.
-3. **Vercel Pro, about $20/month.** 27 cron jobs and `maxDuration = 300`
+3. **Vercel Pro, about $20/month.** 28 cron jobs and `maxDuration = 300`
    both require it; Hobby allows 2 crons once a day at 60 seconds.
 4. Anthropic, WhatsApp Business, Meta and Stripe credentials, as and when
    each feature is wanted. The application boots without them and says in
@@ -774,7 +774,7 @@ Full spec: `03-brand/logo/SPEC.md`.
 
 ## 10. Database, API, auth, integrations
 
-**Database:** PostgreSQL via Prisma. `app/prisma/schema.prisma`, 73
+**Database:** PostgreSQL via Prisma. `app/prisma/schema.prisma`, 74
 models. Six migrations in `app/prisma/migrations/`. **`rls.sql` is
 appended to the init migration** — it is not a file somebody has to
 remember to run, because the tenant boundary is not something to leave to
@@ -884,7 +884,7 @@ and refusing to boot over it would be worse than saying so.
 
 ## 12. Deployment
 
-**The application → Vercel.** `app/vercel.json` defines **27 cron jobs**
+**The application → Vercel.** `app/vercel.json` defines **28 cron jobs**
 matching those in `src/server/jobs/index.ts`; a check enforces that they
 stay in step. `prisma generate` is in the build script — without it,
 Vercel's cached `node_modules` gives you a stale client and a guaranteed
