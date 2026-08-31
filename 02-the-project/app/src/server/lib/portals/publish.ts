@@ -121,6 +121,35 @@ export function publishingConfigured(): PortalKey[] {
 }
 
 /**
+ * Statuses that mean the advertisement must come down.
+ *
+ * A sold property still live on Bayut is not an untidy record. It is the
+ * buyer who rings about a unit that went last month, the owner asking
+ * why their sold villa is still being marketed, and — because a Dubai
+ * advertisement carries a Trakheesi permit — a listing the brokerage is
+ * still formally advertising after it had the right to.
+ */
+export const OFF_MARKET = ["SOLD", "LET", "WITHDRAWN"] as const;
+
+/**
+ * Should this publication be pulled?
+ *
+ * **Derived from the listing's own status rather than stored beside it.**
+ * A separate "please withdraw" flag is a second source of truth that
+ * drifts the moment somebody changes a status without setting it — the
+ * same argument the `timespan` generated column makes in the schema. A
+ * listing that is sold is off-market whether or not anybody remembered
+ * to tick anything.
+ */
+export function needsWithdrawal(
+  publication: { state: string },
+  listingStatus: string,
+): boolean {
+  return publication.state === "PUBLISHED"
+    && (OFF_MARKET as readonly string[]).includes(listingStatus);
+}
+
+/**
  * How long to wait before trying again, in minutes.
  *
  * Exponential with a ceiling. A portal having a bad hour should not cost

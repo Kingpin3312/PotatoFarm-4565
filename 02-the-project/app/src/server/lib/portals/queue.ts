@@ -3,7 +3,7 @@ import { readSecret } from "@/server/lib/secrets";
 import { validateForPublish, blocking, PORTAL_REQUIREMENTS } from "@/server/lib/feeds/validate";
 import { log } from "@/lib/log";
 import {
-  publisherFor, dueForRetry, MAX_ATTEMPTS,
+  publisherFor, dueForRetry, MAX_ATTEMPTS, OFF_MARKET,
   type ListingPayload, type PublishOutcome,
 } from "./publish";
 import type { PortalKey } from "./types";
@@ -70,7 +70,8 @@ function payloadFrom(listing: {
   };
 }
 
-type Result = { published: number; rejected: number; failed: number; unconfigured: number };
+type Result = { published: number; rejected: number; failed: number; unconfigured: number;
+                withdrawn: number; stillLive: number };
 
 /**
  * Drain the queue once.
@@ -84,7 +85,8 @@ type Result = { published: number; rejected: number; failed: number; unconfigure
 export async function drainPublishQueue(limit = 200): Promise<Result> {
   const now = new Date();
   const rows = await due(now, limit);
-  const out: Result = { published: 0, rejected: 0, failed: 0, unconfigured: 0 };
+  const out: Result = { published: 0, rejected: 0, failed: 0, unconfigured: 0,
+                        withdrawn: 0, stillLive: 0 };
 
   for (const row of rows) {
     try {
@@ -188,7 +190,87 @@ export async function drainPublishQueue(limit = 200): Promise<Result> {
     }
   }
 
+  await withdrawOffMarket(out, now, limit);
+
   return out;
+}
+
+
+/**
+ * Pull advertisements for properties that are no longer for sale.
+ *
+ * The intent is read from `Listing.status`, not from a flag beside the
+ * publication — see `needsWithdrawal`. A brokerage marks a unit SOLD on
+ * the listing screen and means it everywhere; asking them to also
+ * remember a second control is how a sold villa stays on Bayut.
+ */
+async function withdrawOffMarket(out: Result, now: Date, limit: number) {
+  const rows = await crossTenant("sweep").listingPublication.findMany({
+    where: {
+      state: "PUBLISHED",
+      listing: { status: { in: [...OFF_MARKET] } },
+    },
+    take: limit,
+    select: {
+      id: true, orgId: true, channelId: true, externalId: true,
+      listing: { select: { reference: true, status: true } },
+    },
+  });
+
+  for (const row of rows) {
+    try {
+      const channel = await crossTenant("sweep").channel.findUnique({
+        where: { id: row.channelId },
+        select: { type: true, label: true, secretRef: true },
+      });
+      const publisher = channel ? publisherFor(channel.type as PortalKey) : null;
+
+      /**
+       * No integration, or one that cannot pull a listing.
+       *
+       * The row stays PUBLISHED, because it is: the advertisement is
+       * still live and saying otherwise would be a comfortable lie on
+       * the one screen an agent checks. What changes is that it now
+       * carries the reason, which the listings screen shows on the
+       * publication chip.
+       */
+      if (!publisher?.withdraw) {
+        out.stillLive += 1;
+        await mark(row.id, {
+          rejection:
+            `${row.listing.reference} is ${row.listing.status.toLowerCase()} but is STILL ` +
+            `ADVERTISED on ${channel?.label ?? "this portal"}. ` +
+            `Remove it there by hand — no integration here can pull it.`,
+        });
+        log.warn("off-market listing still advertised", { orgId: row.orgId },
+                 { publicationId: row.id, reference: row.listing.reference });
+        continue;
+      }
+
+      const credentials: Record<string, string> = channel?.secretRef
+        ? { token: await readSecret(channel.secretRef) }
+        : {};
+
+      await publisher.withdraw(row.externalId ?? "", credentials);
+
+      out.withdrawn += 1;
+      await mark(row.id, {
+        state: "WITHDRAWN",
+        lastTriedAt: now,
+        // `externalId` is kept deliberately. It is the record of what was
+        // advertised where, and an owner disputing when their property
+        // came down is a conversation that needs it.
+        rejection: null,
+      });
+    } catch (err) {
+      // Still live, and still to be retried on the next drain. Not
+      // counted as withdrawn, because it is not.
+      out.stillLive += 1;
+      await mark(row.id, {
+        rejection: `Could not withdraw: ${String(err).slice(0, 200)}. It is still advertised.`,
+      });
+    }
+  }
 }
 
 async function mark(id: string, data: Record<string, unknown>) {

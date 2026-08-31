@@ -102,7 +102,7 @@ What is verified today, measured rather than assumed:
   `/api/health` returns `200 {"ok":true}` against a real Postgres.
 - The boot log names every unconfigured service with its consequence —
   six of them in a bare development environment.
-- 279 assertions in 14 files, 25 check suites, 16 audits, all green.
+- 285 assertions in 14 files, 25 check suites, 16 audits, all green.
 
 Type errors on a fresh checkout are no longer expected. If you get one,
 it is new.
@@ -277,7 +277,7 @@ not want.
 
 ## The shape that keeps recurring
 
-Eleven times a complete, tested, documented module has turned out to have
+Twelve times a complete, tested, documented module has turned out to have
 nothing that starts it — and the sixth is the product itself:
 
 1. **Billing** could invoice a customer no code path could create.
@@ -365,6 +365,25 @@ nothing that starts it — and the sixth is the product itself:
    has never run?** If the answer is "the same as when everything is
    fine", the screen is not a control.
 
+12. **Outbound listings**, and this one was the product rather than a
+   feature. `listings.publish` wrote `ListingPublication.state =
+   "PENDING"` and **nothing in the codebase ever read that state** — no
+   job, no adapter method. Everything in `portals/` pointed inward: the
+   adapters receive enquiries, and nothing sent a listing anywhere.
+
+   The tell was in the folder shape rather than in any file. `types.ts`
+   defines `Adapter` around `RawEnquiry`, and there was no counterpart —
+   a directory named for a two-way integration that only had one
+   direction. Every file in it was correct.
+
+   What made it invisible for so long is that the screen rendered the
+   row as **"pending"**, which an agent reads as *on its way*. A state
+   that means "nothing will ever happen" wearing the word for "in
+   progress" is the most convincing form this bug takes. `portals/queue.ts`
+   drains it now, and `health/jobs.ts` alarms if the drain stops —
+   because listings silently never appearing looks exactly like a quiet
+   market.
+
 `architecture.py` catches a module nothing *imports*. `reachability.py`
 catches the subtler one — a module that is imported, called correctly,
 and whose entry condition never occurs. **A light switch wired to
@@ -410,7 +429,7 @@ send path read it.
 
 ## Run the tests
 
-    npm test          # 279 assertions, pure functions, no database
+    npm test          # 285 assertions, pure functions, no database
     npm run verify    # tsc, the tests, 25 check suites, 16 audits
 
 **The gate is now green end to end, including the two things that used
@@ -587,6 +606,20 @@ with an empirical floor under it.
   `copy.checkCopy` is unaffected and genuinely works. It needs no model,
   and checking copy an agent typed against the portal rules is the half
   of this that is finished.
+- **A portal publishing integration.** The structure is built —
+  `portals/publish.ts` defines `Publisher`, `portals/queue.ts` drains
+  the queue with a retry policy, and `listings.publish-queue` runs it
+  every ten minutes. **No vendor implements `Publisher`**, because
+  Property Finder, Bayut and Dubizzle each need a partner agreement and
+  the wire format that comes with it — the same thing
+  `property-finder.ts` says about the inbound direction.
+
+  Until one is registered, a queued listing is marked `FAILED` with a
+  rejection saying it is not advertised. **That is the designed
+  behaviour**: PENDING would read as "on its way", and PUBLISHED would
+  tell a brokerage their property is live when it is not. Both competitors
+  lead on portal distribution, so this is the commercial step that decides
+  whether the product competes.
 - goAML submission, image quality checks. Nothing produces a
   `QualityIssue`; `collect.ts` says so at the definition.
 - Migration source adapters.

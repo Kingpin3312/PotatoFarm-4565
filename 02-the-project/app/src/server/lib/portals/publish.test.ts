@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { dueForRetry, backoffMinutes, MAX_ATTEMPTS } from "./publish";
+import { dueForRetry, backoffMinutes, MAX_ATTEMPTS, needsWithdrawal } from "./publish";
 
 /**
  * The retry policy for sending a listing to a portal.
@@ -77,5 +77,44 @@ describe("backoffMinutes", () => {
   it("is capped, so a portal outage does not push retries into next year", () => {
     expect(backoffMinutes(99)).toBe(backoffMinutes(5));
     expect(backoffMinutes(99)).toBeLessThanOrEqual(720);
+  });
+});
+
+/**
+ * Taking an advertisement down.
+ *
+ * Read from the listing's own status rather than a flag beside the
+ * publication, so a brokerage marking a unit SOLD means it everywhere.
+ * The failure this prevents is specific: a sold villa still live on
+ * Bayut, which is the buyer ringing about a unit that went last month
+ * and the owner asking why it is still being marketed.
+ */
+describe("needsWithdrawal", () => {
+  it("pulls a live advertisement once the property is sold", () => {
+    expect(needsWithdrawal({ state: "PUBLISHED" }, "SOLD")).toBe(true);
+  });
+
+  it("pulls it when a rental is let", () => {
+    expect(needsWithdrawal({ state: "PUBLISHED" }, "LET")).toBe(true);
+  });
+
+  it("pulls it when the instruction is withdrawn", () => {
+    expect(needsWithdrawal({ state: "PUBLISHED" }, "WITHDRAWN")).toBe(true);
+  });
+
+  it("leaves an available property advertised", () => {
+    expect(needsWithdrawal({ state: "PUBLISHED" }, "AVAILABLE")).toBe(false);
+  });
+
+  it("leaves a property under offer advertised", () => {
+    // Under offer is not sold. Deals collapse, and pulling the advert
+    // the moment an offer is accepted costs the fallback buyer.
+    expect(needsWithdrawal({ state: "PUBLISHED" }, "UNDER_OFFER")).toBe(false);
+  });
+
+  it("does nothing to a publication that was never live", () => {
+    for (const state of ["PENDING", "FAILED", "REJECTED", "WITHDRAWN"]) {
+      expect(needsWithdrawal({ state }, "SOLD")).toBe(false);
+    }
   });
 });
