@@ -667,11 +667,26 @@ model ListingPublication {
 }
 
 enum PublishState {
-  PENDING     // queued, not yet sent
-  PUBLISHED   // live on the portal
-  REJECTED    // portal refused it — see rejection
-  WITHDRAWN   // pulled on purpose
-  FAILED      // transport failure, will retry
+  PENDING       // queued, not yet sent
+  PUBLISHED     // live on the portal
+  REJECTED      // portal refused it — see rejection
+  WITHDRAWN     // pulled on purpose
+  FAILED        // transport failure, will retry
+  /// No publishing integration exists for that portal yet.
+  ///
+  /// Not a failure and not progress, which is why it is neither FAILED
+  /// nor PENDING. The listing is correct and the queue is working; what
+  /// is missing is a commercial agreement, and the thing that clears it
+  /// is a deployment rather than the passage of time.
+  ///
+  /// It used to be recorded as FAILED. That was honest about the
+  /// outcome and wrong about the cause, and it mattered in two places:
+  /// a demo, where a prospect clicking Publish saw a failure and read
+  /// it as a broken product; and the retry budget, because a FAILED row
+  /// burns an attempt each sweep and stops for ever after six — so the
+  /// day a portal was finally connected, every listing queued before it
+  /// would have been past its ceiling and would never have been sent.
+  NOT_CONNECTED
 }
 
 enum Purpose {

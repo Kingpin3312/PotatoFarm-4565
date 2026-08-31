@@ -37,6 +37,31 @@ describe("dueForRetry", () => {
     expect(dueForRetry({ state: "WITHDRAWN", attempts: 1, lastTriedAt: at(0) }, NOW)).toBe(false);
   });
 
+  /**
+   * The case that only bites weeks later.
+   *
+   * A NOT_CONNECTED row is waiting on a portal integration being
+   * registered. If it were treated like FAILED it would spend an
+   * attempt every sweep and stop for ever after six — so on the day the
+   * agreement is signed and the adapter ships, every listing queued
+   * before that day would sit past its ceiling and never be sent. The
+   * brokerage would see nothing appear and no error anywhere, which is
+   * this codebase's signature failure.
+   */
+  it("keeps sending an unconnected listing back, past the attempt ceiling", () => {
+    expect(dueForRetry({ state: "NOT_CONNECTED", attempts: 0, lastTriedAt: null }, NOW)).toBe(true);
+    // Well beyond MAX_ATTEMPTS, and still due — the condition that
+    // clears this is a deployment, not the passage of time.
+    expect(
+      dueForRetry({ state: "NOT_CONNECTED", attempts: MAX_ATTEMPTS + 40, lastTriedAt: at(0) }, NOW),
+    ).toBe(true);
+    // And with no backoff: a registry lookup costs nothing, so there is
+    // no reason to make a connected portal wait ten minutes.
+    expect(
+      dueForRetry({ state: "NOT_CONNECTED", attempts: 3, lastTriedAt: at(999) }, NOW),
+    ).toBe(true);
+  });
+
   it("retries a transport failure once the backoff has elapsed", () => {
     // attempts: 1 → 10 minutes. NOW is at(1000), so at(995) is five
     // minutes ago and at(990) is exactly ten.

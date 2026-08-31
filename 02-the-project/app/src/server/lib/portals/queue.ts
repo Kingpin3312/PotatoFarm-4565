@@ -32,7 +32,7 @@ import type { PortalKey } from "./types";
 /** Publications that are due, oldest first, across every brokerage. */
 async function due(now: Date, limit: number) {
   const rows = await crossTenant("sweep").listingPublication.findMany({
-    where: { state: { in: ["PENDING", "FAILED"] } },
+    where: { state: { in: ["PENDING", "FAILED", "NOT_CONNECTED"] } },
     orderBy: { lastTriedAt: { sort: "asc", nulls: "first" } },
     take: limit,
     select: {
@@ -130,14 +130,26 @@ export async function drainPublishQueue(limit = 200): Promise<Result> {
       const publisher = publisherFor(channel.type as PortalKey);
       if (!publisher) {
         out.unconfigured += 1;
+        /**
+         * NOT_CONNECTED, and **`attempts` is deliberately not
+         * incremented.**
+         *
+         * This row has not been tried — there was nothing to try it
+         * against. Counting it as an attempt spends the retry budget on
+         * the one condition that time cannot fix, and after six sweeps
+         * `dueForRetry` would drop the listing for good. The portal
+         * agreement is signed weeks later, the adapter is registered,
+         * and every listing queued in the meantime sits silently past
+         * its ceiling. `lastTriedAt` is left alone for the same reason:
+         * it is the backoff clock, and there is no backoff here.
+         */
         await mark(row.id, {
-          state: "FAILED",
-          attempts: row.attempts + 1,
-          lastTriedAt: now,
+          state: "NOT_CONNECTED",
           rejection:
-            `No publishing integration is connected for ${channel.label}. ` +
-            `This listing is NOT advertised there. Connecting the portal is a ` +
-            `commercial step, not a setting.`,
+            `${channel.label} is not connected yet, so this listing is NOT ` +
+            `advertised there. It stays queued and will be sent automatically ` +
+            `once the portal is connected — that is a commercial agreement, ` +
+            `not a setting.`,
         });
         continue;
       }

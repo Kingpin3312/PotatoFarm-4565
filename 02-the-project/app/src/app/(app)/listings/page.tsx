@@ -145,10 +145,24 @@ function Listings() {
                     p.state === "PUBLISHED" && "text-success border-success",
                     p.state === "REJECTED" && "text-accent-deep border-accent",
                     p.state === "PENDING" && "text-ink-3 border-rule border-dashed",
-                    p.state === "FAILED" && "text-accent-deep border-accent border-dashed"
+                    p.state === "FAILED" && "text-accent-deep border-accent border-dashed",
+                    /* Quiet, not alarming. Nothing is wrong with this
+                       listing and there is nothing for the agent to do
+                       — the portal is not connected yet. Wearing the
+                       accent here would put a listing that is fine on
+                       the same footing as one a portal refused. */
+                    p.state === "NOT_CONNECTED" && "text-ink-3 border-rule"
                   )}
                 >
-                  {p.state === "PUBLISHED" ? "Live" : p.state.toLowerCase()}
+                  {p.state === "PUBLISHED"
+                    ? "Live"
+                    : p.state === "NOT_CONNECTED"
+                      /* Not "not_connected". Every other state is one
+                         word and lowercases cleanly; this one does not,
+                         and a screen reading "not_connected" is the tell
+                         that a label was derived rather than written. */
+                      ? "not connected"
+                      : p.state.toLowerCase()}
                 </span>
               ))}
             </div>

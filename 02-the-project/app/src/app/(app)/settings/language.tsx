@@ -7,8 +7,8 @@ import { useI18n } from "@/lib/i18n/provider";
 import {
   LOCALE_COOKIE,
   LOCALE_COOKIE_MAX_AGE,
-  LOCALES,
   type Locale,
+  OFFERED_LOCALES,
 } from "@/lib/i18n/locale";
 
 const LABEL_KEY = {
@@ -56,6 +56,22 @@ export function LanguageChoice() {
   const router = useRouter();
   const [saved, setSaved] = useState(false);
 
+  /**
+   * Nothing to choose between, so nothing to show.
+   *
+   * Placed after every hook on purpose — an early return above
+   * `useState` changes the hook count between renders and React throws.
+   *
+   * This is not "hiding a feature". The switch offered Arabic while the
+   * Arabic catalogue covers 51 strings across 26 of 97 components, so
+   * choosing it produced a right-to-left layout wrapped around English
+   * text. A control that leads somewhere broken is worse than no
+   * control. `OFFERED_LOCALES` in `lib/i18n/locale.ts` is the one place
+   * that decides, and adding "ar" back there brings this whole screen
+   * back with it.
+   */
+  if (OFFERED_LOCALES.length < 2) return null;
+
   function choose(next: Locale) {
     if (next === locale) return;
     // `SameSite=Lax` so it survives a normal navigation; not `Secure`,
@@ -81,7 +97,7 @@ export function LanguageChoice() {
         role="radiogroup"
         aria-label={t("settings.language.title")}
       >
-        {LOCALES.map((code) => (
+        {OFFERED_LOCALES.map((code) => (
           <button
             key={code}
             type="button"

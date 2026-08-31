@@ -182,6 +182,18 @@ export function dueForRetry(
   now: Date,
 ): boolean {
   if (row.state === "PENDING") return true;
+  /**
+   * Always due, and deliberately ahead of the attempt ceiling.
+   *
+   * A NOT_CONNECTED row is waiting on a portal integration being
+   * registered, which is a deployment rather than a period of time — so
+   * a backoff would delay it for no reason, and the `MAX_ATTEMPTS`
+   * ceiling below would eventually stop it for ever. The day a portal
+   * is connected, every listing queued before that day has to go, and
+   * this line is what makes that true. The cost of re-checking is a
+   * lookup in an in-memory registry, not a network call.
+   */
+  if (row.state === "NOT_CONNECTED") return true;
   if (row.state !== "FAILED") return false;
   if (row.attempts >= MAX_ATTEMPTS) return false;
   if (!row.lastTriedAt) return true;

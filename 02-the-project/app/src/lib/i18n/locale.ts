@@ -33,6 +33,33 @@
  */
 export const LOCALES = ["en", "ar"] as const;
 
+/**
+ * The locales a brokerage may actually choose, which is not the same
+ * list.
+ *
+ * **Arabic is built and not offered.** The machinery is complete — the
+ * catalogue, the plural rules, `dir` on the root layout, the logical
+ * CSS properties and the audit that fails the build on a physical one.
+ * What is not complete is the *words*: 51 strings across 26 of 97
+ * components, with the pipeline, today and compliance screens carrying
+ * none at all. Product direction is that Arabic is not required, so
+ * nobody is going to finish them.
+ *
+ * That combination is worse than either half alone. An unfinished
+ * translation nobody can reach is dead weight; an unfinished
+ * translation behind a live switch is a control that turns a working
+ * product into a right-to-left shell around English text. So the switch
+ * comes off the settings screen and the machinery stays.
+ *
+ * **To offer Arabic again, add it back to this array.** That is the
+ * whole change — `LanguageChoice` renders itself from this list and
+ * hides when there is only one entry. Finish the catalogue first:
+ * `i18n.py` and the type checker between them will tell you what is
+ * missing, because `MessageKey` is derived from `en.ts` and `ar.ts` is
+ * checked against it.
+ */
+export const OFFERED_LOCALES: readonly Locale[] = ["en"];
+
 export type Locale = (typeof LOCALES)[number];
 
 export const DEFAULT_LOCALE: Locale = "en";
