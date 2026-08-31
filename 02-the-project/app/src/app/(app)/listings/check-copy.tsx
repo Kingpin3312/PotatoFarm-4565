@@ -5,18 +5,20 @@ import { api } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 
 /**
- * Checking a description against the rules that get listings rejected.
+ * Writing a listing description, and checking it against the rules that
+ * get listings rejected.
  *
- * This is the surviving half of `draft-copy.tsx`, which offered drafting
- * *and* checking and was mounted by nothing. Drafting turned out to be
- * unfinished — `copy.draftListing` built its prompt and never called the
- * model, returning an empty description marked publishable — so it
- * throws now, and its component was deleted.
+ * Drafting is back. It was removed when `copy.draftListing` turned out
+ * to build its prompt and never call the model — returning an empty
+ * description marked publishable — and the model call is wired now, so
+ * the two halves are one dialog again rather than two components with
+ * overlapping jobs.
  *
- * **Checking is different: it is finished and it needs no model.** The
- * rules are a regex list, run in-process, free and instant. Deleting the
- * whole component would have taken a working feature off the floor
- * because the half beside it was broken.
+ * `draft-copy.tsx`, the original, is **not** what came back. It was a
+ * page block written for a listing detail screen that does not exist,
+ * and restoring it would have put a second checking UI on the floor
+ * beside this one. The behaviour was worth recovering; the component
+ * was not.
  *
  * Worth having for a UAE brokerage specifically. A portal rejection is
  * silent from the agent's side — the listing simply is not live — and
@@ -24,13 +26,28 @@ import { Button } from "@/components/ui/button";
  * description, a superlative that reads as a guarantee, block capitals.
  * `publish-check.tsx` covers the permit; this covers the words.
  */
-export function CheckCopy() {
+export function CheckCopy({ listingId }: { listingId: string }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [text, setText] = useState("");
   const check = api.copy.checkCopy.useMutation();
+  const draft = api.copy.draftListing.useMutation();
+
+  /**
+   * True only while the box holds words the agent has not touched.
+   *
+   * The soft accent marks machine text everywhere else in the product,
+   * and this is the one place the machine writes into a field the agent
+   * then edits. Tinting it for ever would say "this is the assistant's"
+   * about a description they wrote themselves; never tinting it would
+   * hide the one moment that matters — a paragraph about to go to a
+   * portal that nobody has read yet. So the tint is the *unread* state
+   * and the first keystroke clears it.
+   */
+  const [unread, setUnread] = useState(false);
 
   const open = () => {
     check.reset();
+    draft.reset();
     dialog.current?.showModal();
     dialog.current?.focus();
   };
@@ -50,18 +67,20 @@ export function CheckCopy() {
             Check the wording
           </h2>
           <p className="text-sm text-ink-3 mb-5">
-            Paste the description. This checks it against the rules portals reject
-            listings for — it does not write it for you.
+            Draft it from the property's facts, or paste your own. Either way it is
+            checked against the rules portals reject listings for.
           </p>
 
           <label className="flex flex-col gap-1.5">
             <span className="t-label text-ink-3">Description</span>
             <textarea
               value={text}
-              onChange={(e) => setText(e.target.value)}
+              onChange={(e) => { setText(e.target.value); setUnread(false); }}
               rows={7}
               autoFocus
-              className="px-3 py-2.5 text-control bg-ground border border-rule rounded-[3px] text-ink outline-none focus:border-ink resize-y"
+              data-machine={unread ? "claim" : undefined}
+              className={`px-3 py-2.5 text-control border rounded-[3px] text-ink outline-none focus:border-ink resize-y ${
+                unread ? "bg-accent-soft border-accent-edge" : "bg-ground border-rule"}`}
               placeholder="Spacious two-bedroom apartment in Marina Gate with full marina views…"
             />
           </label>
@@ -94,6 +113,18 @@ export function CheckCopy() {
             </div>
           )}
 
+          {unread && (
+            <p className="t-label text-ink-3 mt-1.5">
+              Drafted from the property&rsquo;s facts — read it before you publish.
+            </p>
+          )}
+
+          {draft.isError && (
+            <p role="alert" className="mt-4 px-3 py-2.5 bg-ink text-ground text-sm rounded-[3px]">
+              {draft.error.message}
+            </p>
+          )}
+
           {check.isError && (
             <p role="alert" className="mt-4 px-3 py-2.5 bg-ink text-ground text-sm rounded-[3px]">
               {check.error.message}
@@ -103,6 +134,22 @@ export function CheckCopy() {
           <div className="flex gap-2.5 mt-7">
             <Button type="button" variant="secondary" onClick={() => dialog.current?.close()}>
               Close
+            </Button>
+            {/* Drafting never publishes and never saves — it fills this
+                box, a person reads it, and the agent still has to check
+                and paste. `AUTO_PUBLISH` is false for the same reason. */}
+            <Button
+              type="button"
+              variant="secondary"
+              loading={draft.isPending}
+              onClick={() =>
+                draft.mutate(
+                  { listingId },
+                  { onSuccess: (d) => { setText(d.draft); setUnread(true); check.reset(); } },
+                )
+              }
+            >
+              Draft it for me
             </Button>
             <Button
               variant="primary"

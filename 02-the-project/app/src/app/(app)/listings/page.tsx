@@ -181,7 +181,7 @@ function Listings() {
 
             <div className="justify-self-end flex gap-2 flex-wrap justify-end max-[820px]:justify-self-start max-[820px]:justify-start">
               <EditListing listing={l} />
-              <CheckCopy />
+              <CheckCopy listingId={l.id} />
               <WhoWantsIt listingId={l.id} reference={l.reference} />
               <PublishCheck
                 listingId={l.id}

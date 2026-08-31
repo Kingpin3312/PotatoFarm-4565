@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { router, requirePermission } from "../trpc";
-import { buildPrompt, facts, check, PROMPT_VERSION, AUTO_PUBLISH } from "@/server/lib/copy/listing";
+import { buildPrompt, facts, check, PROMPT_VERSION } from "@/server/lib/copy/listing";
+import { callModel } from "@/server/assistant/run";
 
 export const copyRouter = router({
   /**
@@ -32,30 +33,83 @@ export const copyRouter = router({
       });
 
       /**
-       * Generation is not wired, and this refuses rather than pretending.
+       * Wired now. It used to be `const draft = ""` beneath a comment
+       * claiming generation went through the assistant's client, then a
+       * `NOT_IMPLEMENTED` once that was found — because the response
+       * had been `{ draft: "", problems: [], publishable: true }`, an
+       * empty advertisement marked fit to publish, since `check("")`
+       * finds nothing wrong with an empty string.
        *
-       * The line here was `const draft = ""` under a comment saying
-       * "generation goes through the same client as the assistant". No
-       * call was ever made — `prompt` above is built and discarded.
-       *
-       * What made that dangerous rather than merely unfinished is what
-       * came next: `check("")` finds no problems in an empty string, so
-       * the response was `{ draft: "", problems: [], publishable: true }`.
-       * **An empty advertisement, marked fit to publish.** That is the
-       * same shape as a sanctions `CLEAR` nobody produced — see
-       * `aml/screen.ts` — one regulated path over, and it is why
-       * `DraftCopy` must not be mounted until this is real.
-       *
-       * `checkCopy` below is unaffected and genuinely works: it needs no
-       * model, and checking copy an agent typed is the half of this
-       * feature that is finished.
+       * **A missing key still refuses rather than returning nothing.**
+       * That is the same decision `aml/screen.ts` takes about a missing
+       * screening provider: an empty result that looks like a
+       * successful one is worse than an honest failure.
        */
-      throw new TRPCError({
-        code: "NOT_IMPLEMENTED",
-        message:
-          "Drafting listing copy is not available yet — the model call is not wired. " +
-          "Write the description and use the portal-rules check on it instead.",
-      });
+      if (!process.env.ANTHROPIC_API_KEY?.trim()) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message:
+            "Drafting needs ANTHROPIC_API_KEY, which is not set. Write the " +
+            "description and use the portal-rules check on it instead.",
+        });
+      }
+
+      let draft: string;
+      try {
+        /**
+         * The assistant's own client, not a second one. It carries the
+         * timeout and the response parsing, and two HTTP clients to the
+         * same provider is how one of them quietly stops matching the
+         * other's model or version header.
+         *
+         * The facts go in as the single turn rather than as system
+         * text, because the model is being asked to write *from* them —
+         * and `buildPrompt` already forbids inventing anything not in
+         * the fact block, which is the rule that keeps an invented
+         * service charge or a nonexistent sea view out of a legally
+         * binding advertisement.
+         */
+        const out = await callModel(prompt, [
+          { direction: "INBOUND", body: facts(listing) },
+        ]);
+        draft = out.text.trim();
+      } catch (err) {
+        // A timeout or a 5xx is not a draft. Refusing keeps the agent in
+        // the one state they can act on: write it yourself.
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: `Drafting failed: ${String(err).slice(0, 200)}`,
+        });
+      }
+
+      /**
+       * **The empty case is checked explicitly**, because it is the
+       * exact shape of the bug this procedure used to be. A model that
+       * returns nothing — refusal, truncation, a content filter — must
+       * not arrive at the screen as publishable copy.
+       */
+      if (draft.length < 40) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message:
+            "The model returned nothing usable. Nothing has been saved — " +
+            "write the description and check it instead.",
+        });
+      }
+
+      const problems = check(draft);
+      return {
+        draft,
+        problems,
+        /**
+         * `AUTO_PUBLISH` is false and this is not it. Publishable means
+         * "breaks no portal rule", which is a fact about the text. It
+         * never means "send it" — a human accepts the draft, which is
+         * why this procedure writes nothing to the listing.
+         */
+        publishable: problems.length === 0,
+        promptVersion: PROMPT_VERSION,
+      };
     }),
 
   /** Check copy somebody wrote by hand against the same portal rules. */

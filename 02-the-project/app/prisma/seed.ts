@@ -256,8 +256,108 @@ async function main() {
     }
   }
 
+  await listings(org.id);
+
   await report(org.id, org.name, existing === 0);
 }
+
+/**
+ * Properties to advertise.
+ *
+ * **The seed created none**, and it took the listing feed to notice: a
+ * freshly seeded brokerage had eleven leads, six stages, seven people
+ * and nothing to sell. `/listings` drew an empty screen and the feed
+ * served a document with `count="0"`, which is indistinguishable from a
+ * broken feed at exactly the moment somebody is being shown one.
+ *
+ * The three that used to be in the development database came from an
+ * older seed that no longer exists — a bundle left behind in `.tmp`.
+ * They survived because nothing had reset that database in a while,
+ * which is the least reliable form of fixture there is.
+ *
+ * ## Every one carries a permit, and that is the point
+ *
+ * A listing with no Trakheesi number is withheld from the feed and
+ * refused by the publish queue, because advertising without one is a
+ * fineable offence rather than a portal preference. Seeding unpermitted
+ * listings would therefore seed a demo where nothing can be advertised
+ * and the reason is three files away. One is deliberately left expiring
+ * inside the warning window so `listings.permit-expiry` has something
+ * true to find.
+ */
+async function listings(orgId: string) {
+  const inDays = (n: number) => new Date(Date.now() + n * 86_400_000);
+  const rows = [
+    {
+      reference: "DH-101", title: "Four-bedroom villa, Dubai Hills Grove",
+      community: "Dubai Hills Estate", building: "Grove",
+      bedrooms: 4, bathrooms: 5, areaSqft: 4100,
+      priceFils: 11_500_000n * 100n, purpose: "SALE" as const,
+      permitNumber: "7112843", permitExpiresAt: inDays(210),
+      en: "A four-bedroom villa on Grove, backing onto the park run. Twin " +
+          "living areas, a maid's room off the kitchen and covered parking for two.",
+    },
+    {
+      reference: "MG-202", title: "Two-bedroom apartment, Marina Gate 1",
+      community: "Dubai Marina", building: "Marina Gate 1",
+      bedrooms: 2, bathrooms: 3, areaSqft: 1320,
+      priceFils: 3_150_000n * 100n, purpose: "SALE" as const,
+      permitNumber: "7238190", permitExpiresAt: inDays(96),
+      en: "A two-bedroom on a high floor of Marina Gate 1, facing the marina. " +
+          "Fitted kitchen, floor-to-ceiling glass, one allocated bay.",
+    },
+    {
+      reference: "AR-303", title: "Three-bedroom townhouse, Arabian Ranches III",
+      community: "Arabian Ranches III", building: "Joy",
+      bedrooms: 3, bathrooms: 4, areaSqft: 2100,
+      priceFils: 2_950_000n * 100n, purpose: "SALE" as const,
+      // Inside the renewal warning window on purpose, so the nightly
+      // permit sweep has a real row to find rather than reporting
+      // success for finding nothing — the exact failure documented
+      // against `documents/` in CLAUDE.md.
+      permitNumber: "7301556", permitExpiresAt: inDays(19),
+      en: "A three-bedroom in Joy, mid-terrace, opposite the pool. Landscaped " +
+          "rear garden and a converted study on the ground floor.",
+    },
+    {
+      reference: "JVC-404", title: "One-bedroom apartment, Jumeirah Village Circle",
+      community: "Jumeirah Village Circle", building: "Bloom Towers",
+      bedrooms: 1, bathrooms: 2, areaSqft: 780,
+      priceFils: 95_000n * 100n, purpose: "RENT" as const,
+      permitNumber: "7419002", permitExpiresAt: inDays(150),
+      en: "A one-bedroom in Bloom Towers, unfurnished, available now. " +
+          "Chiller free, one parking space, gym and pool in the building.",
+    },
+  ];
+
+  for (const r of rows) {
+    const { en, ...listing } = r;
+    await db.listing.upsert({
+      where: { orgId_reference: { orgId, reference: r.reference } },
+      update: {
+        // Idempotent, and it repairs rather than skips: a database
+        // carrying the old permit-less rows gets them completed rather
+        // than left broken because the reference already existed.
+        permitNumber: r.permitNumber,
+        permitExpiresAt: r.permitExpiresAt,
+        reraBrokerCard: "26542",
+        descriptions: { en, photos: PHOTOS },
+      },
+      create: {
+        orgId, ...listing, status: "AVAILABLE",
+        reraBrokerCard: "26542",
+        descriptions: { en, photos: PHOTOS },
+      },
+    });
+  }
+}
+
+/**
+ * Four, because Property Finder and Bayut both refuse a listing with
+ * fewer. They are references rather than files — nothing here uploads —
+ * so the count is what is being seeded, not the images.
+ */
+const PHOTOS = ["01.jpg", "02.jpg", "03.jpg", "04.jpg"];
 
 async function session(token: string, userId: string, orgId: string) {
   // Thirty days, not a year: the browser checks run against whatever
