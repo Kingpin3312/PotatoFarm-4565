@@ -38,7 +38,7 @@ and `consistency.py` fails the build if one of them drifts.
 
 **The mark is the exception, and it is the only one.** A logo is exempt
 from contrast rules; a button is not. The illustration keeps its warmer
-amber gradient. The `.io` beside it does not — that is type.
+accent gradient. The `.io` beside it does not — that is type.
 
 ### The interface
 
@@ -100,11 +100,24 @@ every heading and every button label charcoal too.
 
 | Role | Hex | Where |
 |---|---|---|
-| Gradient high | `#F8BA5E` | The lit top-left of the body |
-| Gradient mid | `#F0A03A` | The body |
-| Gradient low | `#E5842A` | The lower right |
-| Rim | `#D9761C` | The darker edge, all the way round |
-| Crease | `#DD8A2E` | The cheek line and the surface marks |
+| Gradient high | `#F39263` | The lit top-left. A tint of the accent, hue 19.8 |
+| Gradient mid | `#E86A2C` | The body — `--accent`, the `.io` orange itself |
+| Gradient low | `#CF5A22` | The lower right — `--accent-hover` |
+| Rim | `#B94E1F` | The darker edge — `--accent-edge` |
+| Crease | `#CF5A22` | The cheek line and surface marks — `--accent-hover` |
+
+**One orange.** Four of the five above are literally the interface
+tokens; only the highlight is a tint, because the ramp does not go up
+from the accent.
+
+This table used to describe an amber gradient — hue 28.6 to 35.8 —
+while the interface and the `.io` sat at 18.0 to 19.8. Up to sixteen
+degrees apart is a different orange, not a shade of one, and on a screen
+showing the logo beside an orange button it read as two brands. The
+reversed lockups carried a third, `#FF8533`, on the `.io` of all things.
+
+`palette.py` measures this now: any warm, saturated colour that ships
+must be within six degrees of the accent.
 | Eye | `#3B2416` | Dark brown, not black |
 
 Drawn in one place — `03-brand/logo/mark.py` — and inlined into 34 copies

@@ -34,15 +34,35 @@ BODY = ("M32.6,3.0 C39.6,2.8 45.0,7.6 47.8,14.6 C50.2,20.6 51.2,27.2 51.6,33.6 "
         "C13.0,19.4 15.4,11.4 21.2,6.4 C24.2,3.9 28.6,3.2 32.6,3.0 Z")
 
 # ---- the palette ----------------------------------------------------
-# Amber, not the interface orange. The mark keeps its own gradient — it
-# always did — and WCAG exempts a brand mark from contrast, which is
-# why the logo can be warm while the type stays measurable.
-G_HIGH = "#F8BA5E"   # lit top-left
-G_MID  = "#F0A03A"   # body
-G_LOW  = "#E5842A"   # lower right
-RIM    = "#D9761C"   # the darker edge, all the way round
-CREASE = "#DD8A2E"   # cheek line and surface marks
-EYE    = "#3B2416"   # dark brown, not black
+# **One orange. The mark is drawn from the interface ramp.**
+#
+# This file used to argue for amber here — that the mark could keep its
+# own warmer gradient because WCAG exempts a brand mark from contrast.
+# That was true and it was the wrong trade. Measured, the mark sat at
+# hue 28.6–35.8 while the interface and the `.io` sat at 18.0–19.8: up
+# to sixteen degrees apart, which is not a shade of the same orange, it
+# is a different one. On a screen showing the logo beside an orange
+# button it read as two brands, which is what an outside branding team
+# reported — after every check in the suite had passed.
+#
+# Four of the five values below are now literally the interface tokens
+# from `tokens.css`, so the relationship is not "close to" but "the
+# same":
+#
+#     G_MID  = --accent        #E86A2C   the .io orange itself
+#     G_LOW  = --accent-hover  #CF5A22
+#     RIM    = --accent-edge   #B94E1F
+#     CREASE = --accent-hover  #CF5A22
+#
+# Only the top highlight is not a token: it is a tint of the accent at
+# the same hue, because the gradient needs a lighter stop and the ramp
+# does not go up from the accent.
+G_HIGH = "#F39263"   # lit top-left — tint of --accent, hue 19.8
+G_MID  = "#E86A2C"   # body — --accent, the .io orange exactly
+G_LOW  = "#CF5A22"   # lower right — --accent-hover
+RIM    = "#B94E1F"   # the darker edge — --accent-edge
+CREASE = "#CF5A22"   # cheek line and surface marks — --accent-hover
+EYE    = "#3B2416"   # dark brown, not black. Not an orange, unchanged.
 
 # ---- the wordmark ---------------------------------------------------
 # The one colour the supplied artwork has that the product did not.
@@ -106,7 +126,7 @@ def svg(pfx: str, extra_g: str = "", size: str = "") -> str:
         f'<linearGradient id="sh{pfx}" x1="22%" y1="10%" x2="74%" y2="90%">{STOPS}</linearGradient>'
         f'<filter id="bl{pfx}"><feGaussianBlur stdDeviation="7"/></filter>'
         f'<filter id="dp{pfx}" x="-35%" y="-35%" width="180%" height="180%">'
-        f'<feDropShadow dx="0" dy="2" stdDeviation="2.2" flood-color="#8A4310" flood-opacity="0.18"/></filter>'
+        f'<feDropShadow dx="0" dy="2" stdDeviation="2.2" flood-color="#8A3810" flood-opacity="0.18"/></filter>'
         f'<clipPath id="cp{pfx}"><path d="{BODY}"/></clipPath>'
         f'</defs>'
         f'<path d="{BODY}" fill="url(#sh{pfx})" stroke="{RIM}" stroke-width="1.7" '
@@ -274,6 +294,15 @@ def apply(root="."):
     # and their light fill is correct rather than stale.
     word_re = re.compile(r'(<text\b[^>]*?\bfill=")(#[0-9A-Fa-f]{6})("[^>]*>PotatoFarm)')
 
+    # The `.io`, which nothing governed.
+    #
+    # The rule above matches the wordmark's own `fill` on `<text>`. The
+    # `.io` is a `<tspan>` inside it and was never covered, so its colour
+    # was set by hand wherever a lockup was written. The reversed lockups
+    # carried #FF8533 — a third orange, on the one piece of the wordmark
+    # that is deliberately the brand orange.
+    tld_re = re.compile(r'(<tspan\b[^>]*?\bfill=")(#[0-9A-Fa-f]{6})("[^>]*>\.io)')
+
     def _reword(m):
         return m.group(1) + (m.group(2) if _light(m.group(2)) else NAVY) + m.group(3)
 
@@ -286,7 +315,7 @@ def apply(root="."):
         if not os.path.exists(f):
             continue
         s = _io.open(f, encoding="utf-8").read()
-        n = len(block.findall(s)) + len(word_re.findall(s))
+        n = len(block.findall(s)) + len(word_re.findall(s)) + len(tld_re.findall(s))
         if not n:
             continue
         def sub(m, _f=f):
@@ -295,6 +324,10 @@ def apply(root="."):
             return _jsx(b) if _f.endswith((".tsx", ".jsx")) else b
         s = block.sub(sub, s)
         s = word_re.sub(_reword, s)
+        # The `.io` is the brand orange on every background. Unlike the
+        # wordmark it is not lightened for reversed lockups: that is what
+        # produced the third orange in the first place.
+        s = tld_re.sub(lambda m: m.group(1) + TLD + m.group(3), s)
         _io.open(f, "w", encoding="utf-8").write(s)
         out[f] = n
     return out

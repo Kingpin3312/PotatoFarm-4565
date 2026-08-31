@@ -67,6 +67,10 @@ CHECKS=(
   # both directions already, missing `-ml-4` entirely and flagging class
   # names quoted inside explanatory comments, and both of those look
   # like a green run from the outside.
+  # Hue, which nothing else measures. `contrast.py` and `ratios.py` are
+  # both about lightness; the brand carried three different oranges at
+  # once and every check stayed green until a branding team looked at it.
+  "palette.py|$ROOT"
   "i18n.py|$ROOT"
 )
 
