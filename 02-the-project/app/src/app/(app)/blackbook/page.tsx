@@ -67,24 +67,63 @@ export default function Blackbook() {
         </p>
       ) : (
         <div className="border-t border-ink">
-          {rows.map((r) => (
-            <a key={r.id}
-               href={r.leadId ? `/blackbook/${r.leadId}` : `/blackbook/v/${r.vendorId ?? r.id}`}
-               className="flex items-baseline gap-3 py-3.5 border-b border-rule no-underline">
-              {r.starred && <span aria-label="starred" className="text-accent-deep">★</span>}
-              <span className="text-control text-ink">
-                {r.nickname ?? r.standaloneName ?? "—"}
-              </span>
-              {r.tags.slice(0, 2).map((t) => (
-                <span key={t} className="t-label text-ink-3 border border-rule rounded-[3px] px-1.5 py-0.5">
-                  {t}
+          {rows.map((r) => {
+            /**
+             * Only a lead has a page to open.
+             *
+             * This linked every row, sending the ones with no `leadId` to
+             * `/blackbook/v/<id>` — a route that does not exist and never
+             * has. It was invisible for as long as the list was empty,
+             * and it 404'd on the first fixture that put a standalone
+             * contact in it: the mortgage broker and the conveyancer,
+             * which the copy above calls the point of the page.
+             *
+             * `blackbook.person` resolves a lead's timeline — messages,
+             * viewings, offers. A standalone contact has none of those,
+             * so there is nothing for a detail page to show that is not
+             * already on this row. The note is shown here instead of
+             * being hidden behind a link that goes nowhere.
+             */
+            const inner = (
+              <>
+                {r.starred && <span aria-label="starred" className="text-accent-deep">★</span>}
+                <span className="text-control text-ink">
+                  {r.nickname ?? r.standaloneName ?? "—"}
                 </span>
-              ))}
-              <span className="ms-auto font-mono text-label text-ink-3">
-                {r.lastTouched ? rel(r.lastTouched) : ""}
-              </span>
-            </a>
-          ))}
+                {r.tags.slice(0, 2).map((t) => (
+                  <span key={t} className="t-label text-ink-3 border border-rule rounded-[3px] px-1.5 py-0.5">
+                    {t}
+                  </span>
+                ))}
+                <span className="ms-auto font-mono text-label text-ink-3">
+                  {r.lastTouched ? rel(r.lastTouched) : ""}
+                </span>
+              </>
+            );
+
+            if (r.leadId) {
+              return (
+                <a key={r.id} href={`/blackbook/${r.leadId}`}
+                   className="flex items-baseline gap-3 py-3.5 border-b border-rule no-underline">
+                  {inner}
+                </a>
+              );
+            }
+            return (
+              <div key={r.id} className="py-3.5 border-b border-rule">
+                <div className="flex items-baseline gap-3">{inner}</div>
+                {r.privateNote && (
+                  <p className="mt-1.5 text-note text-ink-2 max-w-[62ch]">{r.privateNote}</p>
+                )}
+                {r.standalonePhone && (
+                  <a href={`tel:${r.standalonePhone}`}
+                     className="mt-1 inline-block font-mono text-label text-ink-3">
+                    {r.standalonePhone}
+                  </a>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

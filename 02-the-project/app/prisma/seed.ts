@@ -268,7 +268,90 @@ async function main() {
     }
   }
 
+  /**
+   * Re-anchor the demo clock, on every run rather than only the first.
+   *
+   * ## The fixture was decaying on its own
+   *
+   * `lastInboundAt` is written once, as an absolute date, and then real
+   * time keeps moving. The leads screen calls anything with no inbound
+   * message for fourteen days "gone quiet", so a brokerage seeded three
+   * weeks ago reads as **eleven of eleven gone quiet** — every lead
+   * dead, on the first screen anybody is shown. Nothing had changed and
+   * nothing was broken; the fixture simply aged past its own threshold.
+   *
+   * The `existing === 0` guard above is right — overwriting real
+   * development data is how a seed becomes something people stop
+   * running — but it also meant the one part of the fixture that *must*
+   * move with the calendar never did. So the times are re-stated every
+   * run while the rows themselves are left alone.
+   *
+   * The two deliberately unowned leads are restored here for the same
+   * reason: the checks assign leads as a side effect of testing routing,
+   * and a "Nobody's" tab that has quietly filled in cannot demonstrate
+   * the thing it exists to show.
+   */
+  const spread = await db.lead.findMany({
+    where: { orgId: org.id, deletedAt: null },
+    orderBy: { createdAt: "asc" },
+    select: { id: true, name: true, conversation: { select: { id: true } } },
+  });
+  for (const [i, l] of spread.entries()) {
+    if (!l.conversation) continue;
+    // A working brokerage is a spread, not a cohort: a couple of live
+    // conversations, most within the fortnight, and two genuinely stale
+    // so "gone quiet" has something true to find.
+    const age = [0, 1, 2, 3, 5, 8, 11, 13, 21, 34, 61][i % 11] ?? 7;
+    await db.conversation.update({
+      where: { id: l.conversation.id },
+      data: { lastInboundAt: daysAgo(age) },
+    });
+  }
+  /**
+   * And the "Nobody's" tab, restored by shape rather than by row.
+   *
+   * `LEADS` marks two entries `nobody: true`, and matching on their
+   * phone numbers found nothing — because **the leads in the development
+   * database are not the leads this file describes.** They carry
+   * `+971500000202`, `+97155500101` and so on; `LEADS` carries
+   * `+9715010000NN`. They are survivors of an older seed, kept alive by
+   * the `existing === 0` guard above, which is the same "least reliable
+   * form of fixture there is" the listings comment below records.
+   *
+   * That is worth knowing on its own: anybody reading this file to learn
+   * what the demo contains is reading a description of eleven leads that
+   * are not there. Replacing them is a bigger decision than a seed run
+   * should take on its own — they may be somebody's working data — so
+   * this restores the *shape* the fixture is supposed to have and says
+   * so, rather than quietly deleting rows.
+   *
+   * Two unowned, and only when none are: the check suites assign leads
+   * as a side effect of testing routing, so this fills back in what they
+   * consume without overruling a developer who has deliberately left
+   * some unassigned.
+   */
+  const nobodyWanted = LEADS.filter((l) => l.nobody).length;
+  const nobodyNow = await db.lead.count({
+    where: { orgId: org.id, deletedAt: null, assignedToId: null },
+  });
+  if (nobodyNow === 0 && nobodyWanted > 0) {
+    const pick = await db.lead.findMany({
+      where: { orgId: org.id, deletedAt: null },
+      orderBy: { createdAt: "desc" },
+      take: nobodyWanted,
+      select: { id: true },
+    });
+    await db.lead.updateMany({
+      where: { id: { in: pick.map((l) => l.id) } },
+      data: { assignedToId: null },
+    });
+  }
+
   await listings(org.id);
+
+  await commissions(org.id);
+  await blackbook(org.id, owner, agent);
+  await register(org.id, owner, agent);
 
   await report(org.id, org.name, existing === 0);
 }
@@ -430,6 +513,206 @@ async function report(orgId: string, name: string, fresh: boolean) {
     if (n === 0 || n === leads) {
       console.warn(`  ! "${tab}" matches ${n} of ${leads} — that tab cannot catch a regression.`);
     }
+  }
+}
+
+/**
+ * Money the brokerage is owed, against the deals that already exist.
+ *
+ * ## Why an empty screen here is worse than an empty screen elsewhere
+ *
+ * `/commission` rendered **AED 0.00 owed, AED 0.00 paid, AED 0.00
+ * forecast** on a brokerage with three live deals worth eight figures.
+ * The screen was right — no `Commission` row had ever been written — and
+ * an agent seeing three zeros over a full pipeline concludes the feature
+ * does not work, not that the fixture is thin. Commission is also the
+ * thing a Dubai agent checks first and argues about most, so it is the
+ * worst screen in the product to show empty.
+ *
+ * One commission per deal, at the 2% Dubai norm, in the three states
+ * that actually differ: forecast on the deal that has not completed,
+ * invoiced on the one waiting to be paid, received on the one that has.
+ * A screen that shows three rows all in one state cannot demonstrate the
+ * difference between what you are owed and what you have.
+ *
+ * Splits are the half brokerages disagree over, so each carries two: the
+ * agent's share and what the brokerage keeps. `shareBp` sums to 10,000
+ * on every row — a split that does not add up is the bug this shape
+ * exists to make visible.
+ */
+async function commissions(orgId: string) {
+
+  const deals = await db.deal.findMany({
+    where: { orgId },
+    orderBy: { reference: "asc" },
+    select: { id: true, valueFils: true },
+  });
+  /**
+   * Both people, and that is not padding.
+   *
+   * `commission.mine` filters on `userId: ctx.userId` — the page is
+   * "what *you* are owed", not the brokerage's book. The first version
+   * of this fixture gave every split to the first AGENT, so the screen
+   * stayed at AED 0.00 for the owner the development session signs in
+   * as, and looked exactly as broken as it had before any of this was
+   * seeded.
+   *
+   * A manager override alongside the selling agent's share is also the
+   * realistic arrangement in a small Dubai brokerage, where the owner
+   * lists as well as runs the place.
+   */
+  const people = await db.membership.findMany({
+    where: { orgId, role: { in: ["AGENT", "OWNER", "ADMIN"] } },
+    select: { userId: true, role: true },
+  });
+  const seller = people.find((m) => m.role === "AGENT")?.userId ?? null;
+  const manager = people.find((m) => m.role !== "AGENT")?.userId ?? null;
+
+  const states = [
+    { status: "RECEIVED" as const, invoiced: 34, received: 12 },
+    { status: "INVOICED" as const, invoiced: 9,  received: null },
+    { status: "FORECAST" as const, invoiced: null, received: null },
+  ];
+
+  for (const [i, d] of deals.entries()) {
+    // Per deal, not "does any commission exist". A whole-table guard
+    // hands the fixture's fate to whatever ran last — `check:blocking`
+    // clears the document register and leaves one row of its own, which
+    // was enough to make the seed skip the register entirely and leave
+    // a demo with a single document in it.
+    if (await db.commission.count({ where: { orgId, dealId: d.id } })) continue;
+    const st = states[i % states.length]!;
+    const rateBp = 200;                                   // 2%, the Dubai norm
+    const gross = (d.valueFils * BigInt(rateBp)) / 10_000n;
+    const vat = gross / 20n;                              // 5% UAE VAT
+    const net = gross;                                    // VAT is on top, not deducted
+
+    const c = await db.commission.create({
+      data: {
+        orgId, dealId: d.id, rateBp,
+        grossFils: gross, vatFils: vat, netFils: net,
+        status: st.status,
+        invoicedAt: st.invoiced === null ? null : daysAgo(st.invoiced),
+        receivedAt: st.received === null ? null : daysAgo(st.received),
+      },
+      select: { id: true },
+    });
+
+    // 50 / 5 / 45, which sums to 10,000 basis points exactly. A split
+    // that does not add up is the bug this shape exists to make visible,
+    // so the numbers are chosen to be checkable rather than round.
+    for (const sp of [
+      { role: "SELLING_AGENT" as const, userId: seller, shareBp: 5000 },
+      { role: "MANAGER" as const, userId: manager, shareBp: 500 },
+      { role: "BROKERAGE" as const, userId: null, shareBp: 4500 },
+    ]) {
+      if (sp.role !== "BROKERAGE" && !sp.userId) continue;
+      await db.commissionSplit.create({
+        data: {
+          orgId, commissionId: c.id, role: sp.role, userId: sp.userId,
+          externalName: sp.userId ? null : "Marina Bay Properties",
+          shareBp: sp.shareBp,
+          amountFils: (net * BigInt(sp.shareBp)) / 10_000n,
+          paidAt: st.status === "RECEIVED" ? daysAgo(st.received ?? 0) : null,
+        },
+      });
+    }
+  }
+}
+
+/**
+ * An agent's own contacts.
+ *
+ * `/blackbook` said "Nobody yet" under copy that is one of this
+ * product's better arguments — the page no manager can see, that exports
+ * with the agent if they leave, while the client records and the
+ * compliance file stay with the brokerage. Making that argument over an
+ * empty list is the weakest possible way to make it.
+ *
+ * **Two agents, deliberately.** The whole claim is that this page is
+ * private, and a fixture with one agent's entries cannot show that the
+ * other agent does not see them — which is exactly what
+ * `check:visibility` asserts and what somebody will ask about in a
+ * demonstration.
+ *
+ * Standalone people rather than links to leads: a mortgage broker and a
+ * conveyancer are not in anybody's pipeline, and they are the reason an
+ * agent keeps a book at all.
+ */
+async function blackbook(orgId: string, owner: string, agent: string) {
+
+  const entries = [
+    { agentId: agent, standaloneName: "Faisal Rahman", standalonePhone: "+971502223301",
+      nickname: "Faisal — ENBD", tags: ["mortgage broker", "fast"], starred: true,
+      privateNote: "Pre-approves in 48h. Ask for him by name, not the branch.", touched: 2 },
+    { agentId: agent, standaloneName: "Marta Nowak", standalonePhone: "+971502223302",
+      tags: ["conveyancer"], starred: false,
+      privateNote: "Handles the DLD appointment herself. Slower in August.", touched: 9 },
+    { agentId: agent, standaloneName: "Omar Sadiq", standalonePhone: "+971502223303",
+      tags: ["photographer", "same day"], starred: false, touched: 21 },
+    // The other agent's book, which is the point of the page.
+    { agentId: owner, standaloneName: "Priya Menon", standalonePhone: "+971502223304",
+      nickname: "Priya — Emaar", tags: ["developer", "off-plan"], starred: true,
+      privateNote: "Holds back two units a launch. Worth a call before release.", touched: 4 },
+  ];
+
+  for (const e of entries) {
+    const { touched, ...rest } = e;
+    if (await db.blackbookEntry.count({
+      where: { orgId, agentId: e.agentId, standalonePhone: e.standalonePhone },
+    })) continue;
+    await db.blackbookEntry.create({
+      data: { orgId, ...rest, lastTouched: daysAgo(touched) },
+    });
+  }
+}
+
+/**
+ * The document register, which is really an expiry register.
+ *
+ * `/documents` said "Nothing recorded yet" under copy explaining that a
+ * broker card takes sixty days to renew and warns you about none of it.
+ * The nightly `documents.expiry` sweep therefore had nothing to find and
+ * reported success every morning — the shape CLAUDE.md names, pointed at
+ * the fixture rather than at the product.
+ *
+ * The dates are chosen so each branch of that sweep has a true case:
+ * one card comfortably valid, one inside the sixty-day warning window,
+ * one already lapsed, and the brokerage licence. The lapsed card is the
+ * one `check:blocking` needs — a deal cannot be moved on while the
+ * agent's card has expired, and that assertion needs a real expired row
+ * rather than one the check writes for itself and then deletes.
+ *
+ * `storageRef` is null on every one, deliberately: the register is a
+ * list of dates and numbers first and a filing cabinet second, and
+ * requiring a scan to record an expiry is how the alarm stays silent
+ * until somebody finds a photocopier.
+ */
+async function register(orgId: string, owner: string, agent: string) {
+
+  const inDays = (n: number) => new Date(Date.now() + n * 86_400_000);
+  const docs = [
+    { ownerType: "USER" as const, ownerId: agent, type: "RERA_BROKER_CARD" as const,
+      reference: "BRN-41552", issuedAt: daysAgo(500), expiresAt: inDays(240), verified: true },
+    // Inside the sixty-day window, so the nightly sweep has something true to say.
+    { ownerType: "USER" as const, ownerId: owner, type: "RERA_BROKER_CARD" as const,
+      reference: "BRN-38104", issuedAt: daysAgo(700), expiresAt: inDays(41), verified: true },
+    { ownerType: "ORGANISATION" as const, ownerId: orgId, type: "BROKERAGE_LICENCE" as const,
+      reference: "CN-1188472", issuedAt: daysAgo(300), expiresAt: inDays(120), verified: true },
+    { ownerType: "ORGANISATION" as const, ownerId: orgId, type: "TRAKHEESI_PERMIT" as const,
+      reference: "7654321", issuedAt: daysAgo(80), expiresAt: inDays(15), verified: false },
+  ];
+
+  for (const d of docs) {
+    const { verified, ...rest } = d;
+    if (await db.document.count({ where: { orgId, reference: d.reference } })) continue;
+    await db.document.create({
+      data: {
+        orgId, ...rest,
+        verifiedAt: verified ? daysAgo(20) : null,
+        verifiedById: verified ? owner : null,
+      },
+    });
   }
 }
 

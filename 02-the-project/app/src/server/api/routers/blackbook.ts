@@ -33,6 +33,16 @@ export const blackbookRouter = router({
           id: true, nickname: true, tags: true, starred: true, lastTouched: true,
           standaloneName: true, standalonePhone: true, standaloneEmail: true,
           leadId: true, vendorId: true,
+          /**
+           * The note comes back with the row now.
+           *
+           * A standalone contact — the mortgage broker, the conveyancer,
+           * the people this page exists for — has no lead behind it and
+           * so no detail page to open. Without the note here the row was
+           * a name, two tags and a dead end, and the one piece of
+           * information the agent actually wrote down was unreachable.
+           */
+          privateNote: true,
         },
       });
       return rows;
