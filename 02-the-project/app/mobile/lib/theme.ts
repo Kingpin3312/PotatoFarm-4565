@@ -37,11 +37,11 @@ export const light = {
   accentHover: "#FF5A00",
   accentEdge:  "#FF5A00",
   accentType:  "#FF5A00",
-  /** Labels on orange are ink — 5.73:1, against 3.13:1 for white.
-   *  Reverses "no black on orange", which was set when the two were
-   *  level. It matters more on this platform than on the web: a phone
-   *  held up outside a building in Dubai is the whole case. */
-  onAccent:    "#171717",
+  /** Labels on orange are white — 3.13:1, against 5.73:1 for ink.
+   *  Below AA and chosen knowingly by the brand owner. It matters most
+   *  on this platform: a phone held up outside a building in Dubai is
+   *  the hardest case for a 3.13:1 label. See `tokens.css`. */
+  onAccent:    "#FFFFFF",
 
   /** The word "PotatoFarm" itself. The supplied logo sets it in a deep
    *  navy rather than the neutral ink beside it — 16.51:1 on the ground,
@@ -104,7 +104,7 @@ export const dark = {
      conclusion was right and the margin was not: 0.07 above the 4.5:1
      floor, not 0.68. A number nobody rechecks is how a palette drifts
      one step past a threshold and still reads as comfortable. */
-  onAccent:    "#171717",
+  onAccent:    "#FFFFFF",
 
   /** Navy on charcoal is 1.3:1, so the wordmark reverses out here for
    *  the same reason `ink` does. */

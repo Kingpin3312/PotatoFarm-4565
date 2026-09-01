@@ -136,25 +136,25 @@
   /**
    * The label on an orange fill.
    *
-   * **Ink. This reverses the "no black on orange" instruction, and the
-   * reversal was a decision taken deliberately rather than a drift.**
+   * **White. Confirmed by the brand owner after the measurement was put
+   * in front of them, which is what makes it a decision rather than an
+   * oversight.**
    *
-   * That instruction was given when the accent was #C65A1E, where white
-   * measured 4.30:1 and ink 4.17:1 — a tie in practice, so the choice
-   * was pure aesthetics and cost nothing. #FF5A00 broke the tie badly:
+   *     white on the fill    3.13:1   below the 4.5:1 AA floor
+   *     ink on the fill      5.73:1   passes
    *
-   *     white on the fill    3.13:1   fails AA
-   *     ink on the fill      5.73:1   passes AA
+   * It was briefly ink on exactly that reading. The instruction is
+   * white on orange everywhere, the number is known, and the number
+   * does not get to overrule the brand — so this is white and the cost
+   * is recorded here rather than argued about again.
    *
-   * The argument for changing it is not compliance. It is that agents
-   * using this are outdoors in Dubai, reading a button in sunlight,
-   * and 3.13:1 is the difference between a control they can see and one
-   * they hunt for. The premise the instruction was given under no
-   * longer holds.
+   * **The cost, stated once:** a 16px semibold label at 3.13:1 is
+   * legible indoors and soft in direct sun, which is where UAE agents
+   * work. The two ways to keep white *and* the contrast are to darken
+   * the fill to about L 38, or to make button labels large text
+   * (18.66px bold), where 3:1 is the standard and this passes.
    *
-   * **If the design team want white back, this is the one line** — and
-   * the honest alternative that keeps it is darkening the fill to about
-   * L 38, where a white label reaches 4.5:1.
+   * Do not "fix" this to ink. It has been changed back once already.
    *
    * Four accents, and the label has now been ink, ink, white and ink.
    * That is not indecision: the fill kept moving and the readable
@@ -167,7 +167,7 @@
    * is inline-styled and the only one that does not. So this line is
    * the whole rule, and the email is the file to remember.
    */
-  --on-accent: #171717;
+  --on-accent: #FFFFFF;
 
   /* ---- The direction's own token names -------------------------------
      Aliases, not second definitions. The direction names its tokens
@@ -445,12 +445,9 @@
      "passes AA" beside a value that does not is exactly how somebody
      later puts a caption in it. */
   --accent-type: #FF5A00;
-  /* Ink here too. The fill is the same colour on either ground, so the
-     label that reads on it is the same: 5.73:1 against white's 3.13:1.
-     This used to be the charcoal ground rather than ink, which is
-     nearly the same value and was written as a relationship to the
-     band rather than as a contrast decision. */
-  --on-accent: #171717;
+  /* White here too. The fill is the same colour on either ground, so
+     the label on it is the same decision — and the same 3.13:1. */
+  --on-accent: #FFFFFF;
 }
 
 @media (prefers-reduced-motion: reduce){

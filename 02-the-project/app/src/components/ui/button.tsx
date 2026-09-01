@@ -11,15 +11,14 @@ import { cn } from "@/lib/cn";
  * per instance. An agent using this in a car with one thumb is the
  * primary case, not an accessibility afterthought.
  *
- * **The label on the orange fill is ink, never white** — 5.73:1
- * against white's 3.13:1 on `#FF5A00`. It has been ink, ink, white and
- * ink across four accents, because the fill kept moving and the
- * readable answer moved with it: on `#E86A2C` ink won 5.57 to 3.22, on
- * `#C65A1E` the two were level and the choice was aesthetic, and here
- * ink wins again by a distance.
+ * **The label on the orange fill is white, never ink** — a brand
+ * decision, taken with the measurement known: white is 3.13:1 on
+ * `#FF5A00` and ink would be 5.73:1.
  *
- * The point that survives all four: it is `--on-accent`, never a colour
- * hardcoded here. That is what makes each reversal one line.
+ * The point that survives four accents and several reversals: it is
+ * `--on-accent`, never a colour hardcoded here. That is what makes each
+ * change one line in one file rather than a hunt through 19 call sites,
+ * a native palette and an inline-styled email.
  *
  * The point that has survived all three: it is `--on-accent`, never a
  * colour hardcoded here. That is what let this reverse in one line, and

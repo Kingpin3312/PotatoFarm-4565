@@ -145,7 +145,7 @@ export async function sendInvite({
     html: wrap(
       `<p style="margin:0 0 16px">You've been added to <strong>${escapeHtml(orgName)}</strong> on PotatoFarm.io.</p>` +
         `<p style="margin:0 0 20px"><a href="${link}" style="display:inline-block;` +
-        `background:${ORANGE};border:1px solid #FF5A00;color:#171717;text-decoration:none;` +
+        `background:${ORANGE};border:1px solid #FF5A00;color:#FFFFFF;text-decoration:none;` +
         `font-weight:600;padding:12px 20px;border-radius:8px">Open PotatoFarm.io</a></p>` +
         `<p style="margin:0;color:#4A4A4A">The link works for seven days. If you weren't ` +
         `expecting this, ignore it — nothing happens until you open it.</p>`,
