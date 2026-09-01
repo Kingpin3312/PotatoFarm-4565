@@ -330,6 +330,63 @@ async function main() {
    * consume without overruling a developer who has deliberately left
    * some unassigned.
    */
+  /**
+   * A funnel, rather than a heap in one column.
+   *
+   * Nine of eleven leads sat in "Qualifying" with "New", "Won" and
+   * "Lost" empty. On a desktop that is a board with one tall column; on
+   * a phone it is worse, because `board.tsx` is a snap carousel at 86vw
+   * per stage and the first stage is the one it opens on — so the
+   * pipeline's first impression was **a blank screen you have to swipe
+   * past**.
+   *
+   * Status and stage are moved together. They are two expressions of the
+   * same fact — `DEFAULT_STAGES` maps one onto the other, and the adopt
+   * branch above relies on that mapping — so setting a stage without its
+   * status leaves a lead the board draws in one place and every status
+   * filter counts in another.
+   *
+   * A won and a lost deal are worth having for their own reason: they are
+   * the two columns nobody builds fixtures for, and they are where the
+   * "closed" states of the board and the reports are proved.
+   */
+  const funnel: [LeadStatus, string][] = [
+    ["NEW", "New"], ["NEW", "New"],
+    ["QUALIFYING", "Qualifying"], ["QUALIFYING", "Qualifying"], ["QUALIFYING", "Qualifying"],
+    ["VIEWING_BOOKED", "Viewing booked"], ["VIEWING_BOOKED", "Viewing booked"],
+    ["NEGOTIATING", "Negotiating"], ["NEGOTIATING", "Negotiating"],
+    ["WON", "Won"],
+    ["LOST", "Lost"],
+  ];
+  /**
+   * Leads with something unread go to the front, and that is not
+   * cosmetic.
+   *
+   * The funnel ends in WON and LOST, and "waiting on us" counts a lead
+   * only while its status is none of WON, LOST or UNRESPONSIVE. The
+   * first version of this assigned in `createdAt` order, dropped the one
+   * lead carrying unread messages into Lost, and took that tab from 1 to
+   * 0 — trading one degenerate tab for another, which the seed's own
+   * report caught on the next run.
+   *
+   * Sorting by unread first puts every live conversation in an active
+   * stage and leaves the closed states for leads with nothing waiting,
+   * which is also what a real board looks like.
+   */
+  const inOrder = (await db.lead.findMany({
+    where: { orgId: org.id, deletedAt: null },
+    orderBy: { createdAt: "asc" },
+    select: { id: true, conversation: { select: { unreadCount: true } } },
+  })).sort((a, b) => (b.conversation?.unreadCount ?? 0) - (a.conversation?.unreadCount ?? 0));
+  for (const [i, l] of inOrder.entries()) {
+    const f = funnel[i % funnel.length];
+    if (!f) continue;
+    const [status, stageName] = f;
+    const stageId = stages.get(stageName);
+    if (!stageId) continue;
+    await db.lead.update({ where: { id: l.id }, data: { status, stageId } });
+  }
+
   const nobodyWanted = LEADS.filter((l) => l.nobody).length;
   const nobodyNow = await db.lead.count({
     where: { orgId: org.id, deletedAt: null, assignedToId: null },
@@ -568,10 +625,26 @@ async function commissions(orgId: string) {
   const seller = people.find((m) => m.role === "AGENT")?.userId ?? null;
   const manager = people.find((m) => m.role !== "AGENT")?.userId ?? null;
 
+  /**
+   * Three states, chosen so all three headline figures are non-zero.
+   *
+   * The first arrangement was received / invoiced / forecast, which is
+   * the tidy list — and it rendered a page headed **"What you're owed"**
+   * above **"Owed to you AED 0.00"**. `commission.mine` counts a split
+   * as owed only when the commission is RECEIVED and the split has not
+   * been paid out, so an INVOICED row contributes to nothing an agent
+   * can see.
+   *
+   * Two received commissions fixes it, and the arrangement is the real
+   * one: the brokerage has been paid on both, has run the payout on the
+   * older, and has not on the newer. That is the state an agent actually
+   * checks this page for. The rows still read three different words —
+   * paid, received, forecast — so the list has not lost anything.
+   */
   const states = [
-    { status: "RECEIVED" as const, invoiced: 34, received: 12 },
-    { status: "INVOICED" as const, invoiced: 9,  received: null },
-    { status: "FORECAST" as const, invoiced: null, received: null },
+    { status: "RECEIVED" as const, invoiced: 34, received: 12, payOut: true },
+    { status: "RECEIVED" as const, invoiced: 9,  received: 3,  payOut: false },
+    { status: "FORECAST" as const, invoiced: null, received: null, payOut: false },
   ];
 
   for (const [i, d] of deals.entries()) {
@@ -613,7 +686,7 @@ async function commissions(orgId: string) {
           externalName: sp.userId ? null : "Marina Bay Properties",
           shareBp: sp.shareBp,
           amountFils: (net * BigInt(sp.shareBp)) / 10_000n,
-          paidAt: st.status === "RECEIVED" ? daysAgo(st.received ?? 0) : null,
+          paidAt: st.payOut ? daysAgo(st.received ?? 0) : null,
         },
       });
     }
