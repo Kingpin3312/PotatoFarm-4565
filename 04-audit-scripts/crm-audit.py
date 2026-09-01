@@ -347,11 +347,29 @@ for _p in glob.glob(os.path.join(ROOT, "scripts/*.ts")):
 #
 # So the frontier is walked rather than read once. The check still fails
 # for a genuine island, which is the thing it was written to catch.
+def _is_mounted(p2):
+    """A file Next mounts at a URL — a route handler *or* a page.
+
+    The comment further up makes exactly this argument and then applied
+    it to `route.ts` alone. So the first module reachable only from a
+    page was reported as an island: `lib/listings/public.ts`, behind
+    `/p/[slug]/[reference]`, which had been fetched over HTTP and had
+    returned a rendered property while this said nothing could reach it.
+
+    A page is an entry point by the same reasoning as a route handler,
+    and being wrong about it is expensive in the one direction that
+    matters — it invites somebody to delete working code.
+    """
+    u = p2.replace(os.sep, "/")
+    if "/app/" not in u:
+        return False
+    return u.endswith("/route.ts") or u.endswith("/page.tsx") or u.endswith("/layout.tsx")
+
+
 _entry = {
     p2 for p2 in src
     if "/routers/" in p2 or p2.endswith("root.ts") or "/jobs/" in p2
-    or (p2.replace(os.sep, "/").endswith("/route.ts")
-        and "/app/api/" in p2.replace(os.sep, "/"))
+    or _is_mounted(p2)
 }
 
 _IMPORT_RE = re.compile(r"""from\s+["']([^"']+)["']""")

@@ -77,6 +77,18 @@ const PUBLIC = [
    * offline page.
    */
   "/offline",
+  /**
+   * Public property pages. A stranger opening a link an agent sent them
+   * over WhatsApp has no session and must not be sent to sign-in — the
+   * whole value of the link is that it works for somebody who has never
+   * heard of us.
+   *
+   * The page itself decides what may be shown: `publicListing` requires
+   * a live listing with a valid Trakheesi permit and returns the same
+   * nothing for every other case, so this entry opens a route, not a
+   * brokerage's data.
+   */
+  "/p",
 ];
 
 export function middleware(req: NextRequest) {
