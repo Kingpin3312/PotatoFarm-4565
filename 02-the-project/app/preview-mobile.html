@@ -68,15 +68,14 @@
    */
   --accent-edge: #FF5A00;   /* the same orange */
 
-  /* **Labels on the orange fill are white, never ink**, on
-     instruction. On #FF5A00 white measures 3.13:1 and ink 5.73:1, so
-     the direction now costs a passing label rather than nothing — the
-     inversion is recorded in `tokens.css` with the one-line fix.
+  /* **Labels on the orange fill are ink, never white**, on
+     instruction, reversed on #FF5A00 where white measures 3.13:1 and
+     ink 5.73:1. `tokens.css` carries the argument.
 
      The numbers this comment used to carry (2.94 and 5.93) were
      measured against a cream ground and an orange two palettes ago,
      and neither had been recomputed since. */
-  --on-accent: #FFFFFF;
+  --on-accent: #171717;
 
   /* ---- Leather -----------------------------------------------------
      The anchor. Orange without a dark warm neutral beneath it floats;
@@ -160,7 +159,7 @@
   /* On leather the bright orange finally works as type — 6.4:1 — so the
      accent and the accent-type collapse into one here. */
   --accent-type: #FF5A00;   /* 7.1:1 on leather */
-  --on-accent: #FFFFFF;
+  --on-accent: #171717;
 }
 
 @media (prefers-reduced-motion: reduce){

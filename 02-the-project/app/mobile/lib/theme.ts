@@ -37,13 +37,11 @@ export const light = {
   accentHover: "#FF5A00",
   accentEdge:  "#FF5A00",
   accentType:  "#FF5A00",
-  /** Labels on orange are white, on instruction — 3.13:1 on the
-   *  accent, against 5.73:1 for ink. **This inverted under #FF5A00:**
-   *  white was the better of two failures on the previous colour and is
-   *  now the worse by a wide margin, with ink the only one that passes.
-   *  Kept as white because it is the standing brand instruction; see
-   *  `tokens.css` for the argument and the one-line fix. */
-  onAccent:    "#FFFFFF",
+  /** Labels on orange are ink — 5.73:1, against 3.13:1 for white.
+   *  Reverses "no black on orange", which was set when the two were
+   *  level. It matters more on this platform than on the web: a phone
+   *  held up outside a building in Dubai is the whole case. */
+  onAccent:    "#171717",
 
   /** The word "PotatoFarm" itself. The supplied logo sets it in a deep
    *  navy rather than the neutral ink beside it — 16.51:1 on the ground,
@@ -106,7 +104,7 @@ export const dark = {
      conclusion was right and the margin was not: 0.07 above the 4.5:1
      floor, not 0.68. A number nobody rechecks is how a palette drifts
      one step past a threshold and still reads as comfortable. */
-  onAccent:    "#FFFFFF",
+  onAccent:    "#171717",
 
   /** Navy on charcoal is 1.3:1, so the wordmark reverses out here for
    *  the same reason `ink` does. */

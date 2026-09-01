@@ -113,15 +113,15 @@
   /* **Labels on the orange fill are white, never ink**, on
      instruction.
 
-     White on #FF5A00 is 3.13:1.
-     Ink on the same fill would be 5.73:1.
+     Ink #171717 on the accent is 5.73:1.
+     White on the same fill would be 3.13:1.
 
-     **This inverts under the new accent.** White was the better of two
-     failures on the colour it was chosen against; here ink is the only
-     one that passes AA and white is well short. Shipped as white
-     because that is the standing brand instruction — see `tokens.css`,
-     which carries the argument and the one-line fix. */
-  --on-accent: #FFFFFF;
+     **Ink, reversing "no black on orange".** That instruction was set
+     when the two were 4.30 and 4.17 — a tie, so it cost nothing.
+     #FF5A00 broke the tie, and an agent reading a button outdoors in
+     Dubai is the case that decides it. `tokens.css` carries the full
+     argument and the one line that puts white back. */
+  --on-accent: #171717;
 
   /* ---- Leather -----------------------------------------------------
      The anchor. Orange without a dark warm neutral beneath it floats;
@@ -327,7 +327,7 @@
      may be a word here as well as a fill. It is the one surface this
      accent improves. */
   --accent-deep: #FF5A00;
-  --on-accent: #FFFFFF;
+  --on-accent: #171717;
 }
 
 /* Cream is the default, so this class is a no-op that exists only

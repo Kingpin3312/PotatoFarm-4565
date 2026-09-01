@@ -136,32 +136,38 @@
   /**
    * The label on an orange fill.
    *
-   * **White, on instruction: no black on orange, anywhere.**
+   * **Ink. This reverses the "no black on orange" instruction, and the
+   * reversal was a decision taken deliberately rather than a drift.**
    *
-   * **#FF5A00 inverts the choice this token was set on, and not
-   * marginally:**
+   * That instruction was given when the accent was #C65A1E, where white
+   * measured 4.30:1 and ink 4.17:1 — a tie in practice, so the choice
+   * was pure aesthetics and cost nothing. #FF5A00 broke the tie badly:
    *
    *     white on the fill    3.13:1   fails AA
-   *     ink on the fill      5.73:1   passes AA comfortably
+   *     ink on the fill      5.73:1   passes AA
    *
-   * White was chosen against #C65A1E, where it measured 4.30:1 to
-   * ink's 4.17:1 — the better of two failures, so the instruction cost
-   * nothing. Here it is the worse of the two by a wide margin, and ink
-   * is the only value on this fill that passes.
+   * The argument for changing it is not compliance. It is that agents
+   * using this are outdoors in Dubai, reading a button in sunlight,
+   * and 3.13:1 is the difference between a control they can see and one
+   * they hunt for. The premise the instruction was given under no
+   * longer holds.
    *
-   * **Shipped as white, because that is the standing instruction and a
-   * brand decision is not reversed on a measurement.** Recorded rather
-   * than quietly corrected: this is one line, and setting it to
-   * #171717 is the entire fix if the design team want the number back.
-   * Otherwise, the same hue darkened to roughly L 38 carries a white
-   * label at 4.5:1.
+   * **If the design team want white back, this is the one line** — and
+   * the honest alternative that keeps it is darkening the fill to about
+   * L 38, where a white label reaches 4.5:1.
+   *
+   * Four accents, and the label has now been ink, ink, white and ink.
+   * That is not indecision: the fill kept moving and the readable
+   * answer moved with it. `--on-accent` existing at all is what makes
+   * each of those a one-line change rather than a hunt through 19 call
+   * sites, the native palette and an inline-styled email.
    *
    * Every label on an orange fill reads this one token — 19 call sites
    * across the app, plus the native palette and the email button, which
    * is inline-styled and the only one that does not. So this line is
    * the whole rule, and the email is the file to remember.
    */
-  --on-accent: #FFFFFF;
+  --on-accent: #171717;
 
   /* ---- The direction's own token names -------------------------------
      Aliases, not second definitions. The direction names its tokens
@@ -439,11 +445,12 @@
      "passes AA" beside a value that does not is exactly how somebody
      later puts a caption in it. */
   --accent-type: #FF5A00;
-  /* White here too, and on this ground it is the weaker choice: white
-     on #FF5A00 is 3.13:1 where the charcoal it replaced would now be
-     4.70:1. The dark band gained under the previous accent and gives
-     that back under this one. */
-  --on-accent: #FFFFFF;
+  /* Ink here too. The fill is the same colour on either ground, so the
+     label that reads on it is the same: 5.73:1 against white's 3.13:1.
+     This used to be the charcoal ground rather than ink, which is
+     nearly the same value and was written as a relationship to the
+     band rather than as a contrast decision. */
+  --on-accent: #171717;
 }
 
 @media (prefers-reduced-motion: reduce){
