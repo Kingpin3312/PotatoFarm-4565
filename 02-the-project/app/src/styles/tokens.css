@@ -85,29 +85,29 @@
      alone. Links carry an underline for that reason: it is the
      non-colour signal that keeps them findable.
      ------------------------------------------------------------------ */
-  --accent:      #C65A1E;   /* fills, focus, active state, .io */
-  --accent-hover:#C65A1E;   /* the hover on a fill — the same orange */
-  --accent-edge: #C65A1E;   /* hairline on a fill — the same orange */
+  --accent:      #FF5A00;   /* fills, focus, active state, .io */
+  --accent-hover:#FF5A00;   /* the hover on a fill — the same orange */
+  --accent-edge: #FF5A00;   /* hairline on a fill — the same orange */
 
   /**
    * Orange type on a light surface, and it is **not orange any more.**
    *
    * Kept as ink through three accents now, and the reason has shifted
-   * rather than disappeared. Under #FFA500 it was forced: 1.97:1 on
-   * white is below even the 3:1 a *border* needs. #C65A1E is a much
-   * better type colour at **4.30:1** — but that is still under the
-   * 4.5:1 AA floor for body text, so orange words would be a knowing
-   * exception rather than a safe default.
+   * rather than disappeared. #FF5A00 is **3.13:1** on white — it
+   * clears the 3:1 a border or an icon needs and is well under the
+   * 4.5:1 body text needs, so orange words stay a knowing exception
+   * rather than a safe default. The three accents before it measured
+   * 3.22, 1.97 and 4.30, and this token has been ink through all four.
    *
    * The brief is white ground, black text, one accent, and this is the
    * line that keeps the middle clause true. If orange type is wanted
-   * back, this is the one token to change, and 4.30:1 is the number to
+   * back, this is the one token to change, and 3.13:1 is the number to
    * take the decision on.
    *
    * `.on-leather` puts the orange back, because on charcoal the same
    * value is 7.44:1 and reads perfectly.
    */
-  --accent-deep: #171717;   /* 17.93:1 — orange type would be 4.30:1 */
+  --accent-deep: #171717;   /* 17.93:1 — orange type would be 3.13:1 */
 
   /**
    * The brand orange used as type. The `.io`, and nothing else.
@@ -123,7 +123,7 @@
    * `--brand-tld` would be a diff across three surfaces that changes
    * no pixel.
    */
-  --accent-type: #C65A1E;
+  --accent-type: #FF5A00;
 
   /* Soft Orange. Selected rows, AI insight panels, highlight cards.
      A tint of the accent, so it moved with it: the old #FFF1E8 was a
@@ -131,23 +131,30 @@
      which is the "two oranges" complaint in its quietest form — a peach
      panel behind an amber button. Same lightness (95.5), so nothing
      else about the surface changes. Ink on it is 16.84:1. */
-  --accent-soft: #FAF2ED;
+  --accent-soft: #FFF0E8;
 
   /**
    * The label on an orange fill.
    *
    * **White, on instruction: no black on orange, anywhere.**
    *
-   * #C65A1E is a mid-tone, and mid-tones have no good label — white on
-   * it is 4.30:1 and charcoal is 4.17:1, so both sit under the 4.5:1 a
-   * 16px semibold label needs and both clear the 3:1 for large text.
-   * White is the better of the two by 0.13, so this direction costs
-   * nothing in contrast and gains the consistency it was asked for.
+   * **#FF5A00 inverts the choice this token was set on, and not
+   * marginally:**
    *
-   * **It is still under AA, and that has not changed.** The ways out
-   * are unchanged too, and both are brand decisions rather than fixes:
-   * the same hue at L 42 (#BA551C) puts this white label at 4.77:1, or
-   * a larger and bolder label reaches the large-text threshold instead.
+   *     white on the fill    3.13:1   fails AA
+   *     ink on the fill      5.73:1   passes AA comfortably
+   *
+   * White was chosen against #C65A1E, where it measured 4.30:1 to
+   * ink's 4.17:1 — the better of two failures, so the instruction cost
+   * nothing. Here it is the worse of the two by a wide margin, and ink
+   * is the only value on this fill that passes.
+   *
+   * **Shipped as white, because that is the standing instruction and a
+   * brand decision is not reversed on a measurement.** Recorded rather
+   * than quietly corrected: this is one line, and setting it to
+   * #171717 is the entire fix if the design team want the number back.
+   * Otherwise, the same hue darkened to roughly L 38 carries a white
+   * label at 4.5:1.
    *
    * Every label on an orange fill reads this one token — 19 call sites
    * across the app, plus the native palette and the email button, which
@@ -211,7 +218,7 @@
    */
   --brand-navy:     #12202E;   /* 16.51:1 on ground — "PotatoFarm" */
   --brand-navy-ink: #F5F3F0;   /* the same word, reversed out on dark */
-  --brand-orange:   #C65A1E;   /* the ".io", and it is `--accent` by design */
+  --brand-orange:   #FF5A00;   /* the ".io", and it is `--accent` by design */
 
   /* ---- Leather -----------------------------------------------------
      The anchor. Orange without a dark warm neutral beneath it floats;
@@ -252,8 +259,8 @@
      link. Both of those were real, and the direction is one colour, so
      both are gone. If an error needs to be distinguishable from a link
      again, the answer is a red, not another orange. */
-  --danger:       #C65A1E;
-  --warning:      #C65A1E;
+  --danger:       #FF5A00;
+  --warning:      #FF5A00;
 
   /* ---- Type ---------------------------------------------------------
      One scale, Apple's proportions, two registers.
@@ -417,7 +424,7 @@
   /* On charcoal the orange genuinely works as type: #FFA500 is 7.44:1
      on `--leather-deep`. So the dark band is the one surface where the
      accent may be a word, and `--accent-deep` goes back to it. */
-  --accent-deep: #C65A1E;
+  --accent-deep: #FF5A00;
   /* The brand orange on the dark band. **4.57:1 on `--leather-deep`,
      which passes AA — and 3.97:1 on `--leather`, the raised step, which
      does not.**
@@ -431,10 +438,11 @@
      and WCAG 1.4.1 exempts a wordmark. But an inline comment saying
      "passes AA" beside a value that does not is exactly how somebody
      later puts a caption in it. */
-  --accent-type: #C65A1E;
-  /* White here too. This was the charcoal ground, which was 3.42:1 on
-     the orange — so the dark band is the surface this instruction
-     *improved*, from 3.42:1 to 4.30:1. */
+  --accent-type: #FF5A00;
+  /* White here too, and on this ground it is the weaker choice: white
+     on #FF5A00 is 3.13:1 where the charcoal it replaced would now be
+     4.70:1. The dark band gained under the previous accent and gives
+     that back under this one. */
   --on-accent: #FFFFFF;
 }
 

@@ -12,10 +12,13 @@ import { cn } from "@/lib/cn";
  * primary case, not an accessibility afterthought.
  *
  * **The label on the orange fill is white, never ink** — reversed on
- * instruction, and the numbers happen to agree: on `#C65A1E` white is
- * 4.30:1 and ink 4.17:1. Under the two accents before this one ink was
- * the clearly better label (5.57:1 against 3.22:1 on `#E86A2C`), which
- * is why the rule used to read the other way round.
+ * instruction. The numbers agreed on `#C65A1E` — white 4.30:1, ink
+ * 4.17:1 — and **disagree sharply on `#FF5A00`: white 3.13:1, ink
+ * 5.73:1.** Under the two accents before that, ink was clearly better
+ * again (5.57:1 against 3.22:1 on `#E86A2C`), which is why the rule
+ * used to read the other way round. The colour keeps moving; the rule
+ * is a brand decision, and `--on-accent` is the one line that carries
+ * it.
  *
  * The point that has survived all three: it is `--on-accent`, never a
  * colour hardcoded here. That is what let this reverse in one line, and

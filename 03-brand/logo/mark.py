@@ -53,10 +53,10 @@ BODY = ("M32.6,3.0 C39.6,2.8 45.0,7.6 47.8,14.6 C50.2,20.6 51.2,27.2 51.6,33.6 "
 # the body, and the dark eyes. The creases — the mouth, the brow, the
 # cheek line — are drawn in the eye's brown at low opacity rather than a
 # darker orange, because a darker orange is another orange.
-G_HIGH = "#C65A1E"   # the one orange
-G_MID  = "#C65A1E"   # the one orange
-G_LOW  = "#C65A1E"   # the one orange
-RIM    = "#C65A1E"   # the one orange
+G_HIGH = "#FF5A00"   # the one orange
+G_MID  = "#FF5A00"   # the one orange
+G_LOW  = "#FF5A00"   # the one orange
+RIM    = "#FF5A00"   # the one orange
 # Not an orange. The mark's own brown, already present in the eyes, so
 # the face keeps a mouth and a brow without introducing a second warm
 # value. Drawn at the opacities set in `CREASE_PATH` and `MARKS`.
@@ -74,7 +74,7 @@ EYE    = "#3B2416"   # dark brown, not black. Not an orange, unchanged.
 # logo is not a reason to recolour every heading and table in a CRM.
 NAVY     = "#12202E"   # 14.88:1 on the ground
 NAVY_REV = "#F5F3F0"   # the same word on charcoal, where navy vanishes
-TLD      = "#C65A1E"   # the ".io" — the brand orange, Option 1
+TLD      = "#FF5A00"   # the ".io" — the brand orange, Option 1
 
 STOPS = (f'<stop offset="0" stop-color="{G_HIGH}"/>'
          f'<stop offset="0.5" stop-color="{G_MID}"/>'
@@ -125,7 +125,7 @@ def svg(pfx: str, extra_g: str = "", size: str = "") -> str:
         f'<linearGradient id="sh{pfx}" x1="22%" y1="10%" x2="74%" y2="90%">{STOPS}</linearGradient>'
         f'<filter id="bl{pfx}"><feGaussianBlur stdDeviation="7"/></filter>'
         f'<filter id="dp{pfx}" x="-35%" y="-35%" width="180%" height="180%">'
-        f'<feDropShadow dx="0" dy="2" stdDeviation="2.2" flood-color="#C65A1E" flood-opacity="0.18"/></filter>'
+        f'<feDropShadow dx="0" dy="2" stdDeviation="2.2" flood-color="#FF5A00" flood-opacity="0.18"/></filter>'
         f'<clipPath id="cp{pfx}"><path d="{BODY}"/></clipPath>'
         f'</defs>'
         f'<path d="{BODY}" fill="url(#sh{pfx})" stroke="{RIM}" stroke-width="1.7" '

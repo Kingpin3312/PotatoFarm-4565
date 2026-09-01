@@ -141,12 +141,15 @@ def resolve(v):
 BRAND_EXCEPTIONS = {
     # Repinned twice: ("#E86A2C", 3.22) -> ("#FFA500", 1.97) -> here.
     #
-    # #C65A1E puts the `.io` back at **4.30:1**, which is the healthiest
-    # this exemption has ever been — better than the #E86A2C it started
-    # on and more than double the #FFA500 in between, where the wordmark
-    # was legal but visibly washed out. The grounds are unchanged (WCAG
-    # 1.4.1 exempts a logotype); it is simply no longer doing much work.
-    ".brand .tld":   ("#C65A1E", 4.30),
+    # Repinned again for #FF5A00, which puts the `.io` at **3.13:1** —
+    # between the 4.30 it replaces and the 1.97 of the amber before
+    # that. Legible, short of AA, and exempt on the same unchanged
+    # grounds: WCAG 1.4.1 does not apply contrast to a logotype.
+    #
+    # Four accents, four repins. The pinned value is what makes this an
+    # exception rather than a hole — it detects its own drift, so a
+    # fifth accent that quietly makes the wordmark worse fails here.
+    ".brand .tld":   ("#FF5A00", 3.13),
 }
 ALLOWED = []
 

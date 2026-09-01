@@ -83,7 +83,7 @@ export async function sendMail(msg: {
  * so the tokens are resolved here rather than referenced.
  */
 const NAVY = "#12202E";
-const ORANGE = "#C65A1E";
+const ORANGE = "#FF5A00";
 const GROUND = "#FFFFFF";
 
 export function wrap(body: string, opts: { preheader?: string } = {}) {
@@ -145,7 +145,7 @@ export async function sendInvite({
     html: wrap(
       `<p style="margin:0 0 16px">You've been added to <strong>${escapeHtml(orgName)}</strong> on PotatoFarm.io.</p>` +
         `<p style="margin:0 0 20px"><a href="${link}" style="display:inline-block;` +
-        `background:${ORANGE};border:1px solid #C65A1E;color:#FFFFFF;text-decoration:none;` +
+        `background:${ORANGE};border:1px solid #FF5A00;color:#FFFFFF;text-decoration:none;` +
         `font-weight:600;padding:12px 20px;border-radius:8px">Open PotatoFarm.io</a></p>` +
         `<p style="margin:0;color:#4A4A4A">The link works for seven days. If you weren't ` +
         `expecting this, ignore it — nothing happens until you open it.</p>`,

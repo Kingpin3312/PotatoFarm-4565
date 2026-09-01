@@ -75,10 +75,10 @@
      It used to dress every heading too. A 68px headline is not 2% of a
      page, and an h3 at 20px/500 is not large text, so that was both an
      imbalance and a genuine AA failure. Headings are `--ink` now. */
-  --accent:      #C65A1E;   /* 4.30:1 on white, 3.88:1 on panel — a
-                               fill colour, and large text at a push */
-  --accent-type: #C65A1E;   /* the `.io`, and nothing else */
-  --accent-hover:#C65A1E;   /* the hover on a fill — the same orange */
+  --accent:      #FF5A00;   /* 3.13:1 on white, 2.82:1 on panel — a
+                               fill colour, never type */
+  --accent-type: #FF5A00;   /* the `.io`, and nothing else */
+  --accent-hover:#FF5A00;   /* the hover on a fill — the same orange */
 
   /**
    * The legible orange, and it is not a second brand colour.
@@ -88,11 +88,11 @@
    * headings is what let a 20px h3 through at 3.22:1.
    */
   /* Orange type, and on a light ground it is **ink**, not orange.
-     #C65A1E is 4.30:1 on white — much closer than the #FFA500 it
-     replaced (1.97:1) but still under the 4.5:1 AA floor, so orange
-     body text stays a knowing exception rather than the default. The
-     brief is white ground, black text, one accent. `tokens.css`
-     carries the same split and the same number. */
+     #FF5A00 is 3.13:1 on white — it clears the 3:1 a border needs and
+     is well under the 4.5:1 body text needs, so orange body text stays
+     a knowing exception rather than the default. The brief is white
+     ground, black text, one accent. `tokens.css` carries the same
+     split and the same number. */
   --accent-deep: #171717;   /* 17.93:1 on white */
 
   /**
@@ -104,20 +104,23 @@
    * edge is defined regardless of what is behind it. WCAG 1.4.11 asks
    * 3:1 of a control boundary; this is 4.54:1 there.
    */
-  --accent-edge: #C65A1E;   /* the same orange */
+  --accent-edge: #FF5A00;   /* the same orange */
 
   /* Soft Orange. Selected rows and machine-written text — see
      `components/ui/machine.tsx`. Charcoal on it is 16.22:1. */
-  --accent-soft: #FAF2ED;
+  --accent-soft: #FFF0E8;
 
   /* **Labels on the orange fill are white, never ink**, on
      instruction.
 
-     White on #C65A1E is 4.30:1.
-     Ink on the same fill would be 4.17:1.
+     White on #FF5A00 is 3.13:1.
+     Ink on the same fill would be 5.73:1.
 
-     Both sit under the 4.5:1 a 16px semibold label needs, and white is
-     the better of the two, so the direction costs nothing here. */
+     **This inverts under the new accent.** White was the better of two
+     failures on the colour it was chosen against; here ink is the only
+     one that passes AA and white is well short. Shipped as white
+     because that is the standing brand instruction — see `tokens.css`,
+     which carries the argument and the one-line fix. */
   --on-accent: #FFFFFF;
 
   /* ---- Leather -----------------------------------------------------
@@ -318,12 +321,12 @@
      and WCAG 1.4.1 exempts a wordmark. But an inline comment saying
      "passes AA" beside a value that does not is exactly how somebody
      later puts a caption in it. */
-  --accent-type: #C65A1E;
-  /* The dark band. #C65A1E is 3.42:1 on the charcoal ground — it was
-     7.44:1 under #FFA500, so this surface lost the most in the swap.
-     Large text and the wordmark only; a caption in this colour on
-     charcoal would not be readable. */
-  --accent-deep: #C65A1E;
+  --accent-type: #FF5A00;
+  /* The dark band. #FF5A00 is 4.70:1 on the charcoal ground — better
+     than the 3.42:1 it replaces and past the AA floor, so the accent
+     may be a word here as well as a fill. It is the one surface this
+     accent improves. */
+  --accent-deep: #FF5A00;
   --on-accent: #FFFFFF;
 }
 

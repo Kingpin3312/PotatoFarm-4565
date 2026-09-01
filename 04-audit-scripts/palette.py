@@ -42,14 +42,19 @@ ROOT = sys.argv[1] if len(sys.argv) > 1 else "."
 #     on white          as type   black on the fill
 #     #E86A2C            3.22:1        5.57:1
 #     #FFA500            1.97:1        9.08:1
-#     #C65A1E            4.30:1        4.17:1   <- current
+#     #C65A1E            4.30:1        4.17:1
+#     #FF5A00            3.13:1        5.73:1   <- current
 #
-# #C65A1E is the best *type* colour of the three and the worst *fill* to
-# put a label on — it is a mid-tone, so nothing contrasts well with it
-# in either direction. The rule the palette runs on is unchanged (orange
-# fills, black type) because 4.30 is still under the 4.5 that body text
-# needs; see `tokens.css` for the button-label exception this forces.
-ACCENT = "#C65A1E"
+# The rule the palette runs on is unchanged through all four — orange
+# fills, black type — because no accent yet has cleared 4.5:1 as text.
+#
+# What #FF5A00 does change is the *label*: it is the first accent since
+# #E86A2C where ink on the fill passes AA and white does not, which
+# reverses the standing white-on-orange instruction on the numbers. The
+# instruction is kept and the conflict is recorded in `tokens.css`
+# rather than resolved here — a palette audit measures, it does not
+# overrule a brand decision.
+ACCENT = "#FF5A00"
 
 # Deliberately not a hue tolerance any more.
 #
