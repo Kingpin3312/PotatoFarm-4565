@@ -1,7 +1,13 @@
 # The palette
 
-**Three colours: `#E86A2C`, `#12202E` and charcoal.** The orange was
-set by the owner. The navy arrived with the supplied logo artwork and
+**Three colours: `#FF5A00`, `#12202E` and charcoal.** The orange was
+set by the owner, and has been set by the owner four times — `#E86A2C`,
+`#FFA500`, `#C65A1E`, and now `#FF5A00`. Where a number below is
+measured against an earlier value it says so; where it is present tense
+it has been re-measured against `#FF5A00`. **The authority is
+`tokens.css`, not this file.** A document that restates a hex is a
+document that will one day disagree with the product, and this one
+did — for three accents. The navy arrived with the supplied logo artwork and
 dresses the wordmark only — it is not an interface colour, and `--ink`
 stays neutral. There is no fourth hue anywhere in the product.
 
@@ -50,20 +56,26 @@ paragraph above says this file exists to prevent.
 
 | Role | Hex | On ground `#FFFFFF` | On panel `#F5F3F0` | Where |
 |---|---|---|---|---|
-| **Brand** | **`#E86A2C`** | **3.22:1** | 2.90:1 | Fills, focus, active state, selected, `.io` — **never type** |
+| **Brand** | **`#FF5A00`** | **3.13:1** | 2.82:1 | Fills, focus, active state, selected, `.io` — **never type** |
 | **Wordmark navy** | **`#12202E`** | **16.51:1** | 14.91:1 | "PotatoFarm", and nothing else |
-| Hover / shade | `#CF5A22` | 4.09:1 | 3.69:1 | Hover on a fill — never type |
-| Edge | `#B94E1F` | 5.03:1 | **4.54:1** | The hairline on every orange fill |
-| Deep | `#A0431B` | **6.34:1** | 5.72:1 | Orange type at any size — captions, links, labels |
-| Soft | `#FFF1E8` | — | — | The tint on machine-written text and selected rows |
+| Hover / shade | `#FF5A00` | 3.13:1 | 2.82:1 | The same orange — the ramp is gone |
+| Edge | `#FF5A00` | 3.13:1 | 2.82:1 | The same orange |
+| Deep | `#171717` | **17.93:1** | 16.19:1 | Orange type on a light ground is ink — see below |
+| Soft | `#FFF0E8` | — | — | The tint on machine-written text and selected rows |
 | Ink | `#171717` | **17.93:1** | 16.19:1 | Headings, body, button labels, figures, tables |
 | Ink-2 | `#4A4A4A` | 8.86:1 | 8.00:1 | Secondary body |
 | Ink-3 | `#6B6B6B` | 5.33:1 | 4.81:1 | Captions and 10px labels |
 | Rule | `#E7E5E2` | 1.26:1 | — | Separators — decorative only |
 | Rule-strong | `#918A82` | 3.41:1 | 3.08:1 | Form-control boundaries (WCAG 1.4.11) |
 
-`#171717` on `#E86A2C` is **5.57:1**; white on it is **3.22:1** and
-fails. Every label on a fill takes `--on-accent`, which is charcoal.
+**Every label on a fill takes `--on-accent`, which is white.**
+
+`#171717` on `#FF5A00` is 5.73:1; `#FFFFFF` on `#FF5A00` is 3.13:1.
+So the readable choice is ink and the brand's choice is white. This token was briefly
+ink on exactly that reading and was changed back by the brand owner
+with the measurement in front of them, which is what makes it a
+decision rather than an oversight. The cost is recorded beside the
+token in `tokens.css` and is not re-argued here.
 
 ### The dark surfaces are charcoal, not black
 
@@ -101,10 +113,10 @@ every heading and every button label charcoal too.
 | Role | Hex | Where |
 |---|---|---|
 | Gradient high | `#F39263` | The lit top-left. A tint of the accent, hue 19.8 |
-| Gradient mid | `#E86A2C` | The body — `--accent`, the `.io` orange itself |
-| Gradient low | `#CF5A22` | The lower right — `--accent-hover` |
-| Rim | `#B94E1F` | The darker edge — `--accent-edge` |
-| Crease | `#CF5A22` | The cheek line and surface marks — `--accent-hover` |
+| Gradient mid | `#FF5A00` | The body — `--accent`, the `.io` orange itself |
+| Gradient low | `#FF5A00` | The lower right — the same orange, so the gradient is flat |
+| Rim | `#FF5A00` | The edge — the same orange |
+| Crease | `#FF5A00` | The cheek line and surface marks — the same orange |
 
 **One orange.** Four of the five above are literally the interface
 tokens; only the highlight is a tint, because the ramp does not go up
@@ -128,7 +140,7 @@ by `--apply`.
 **Nothing, now.** That sentence used to read differently, and the
 change is the point of this section.
 
-`#E86A2C` as text on white is **3.22:1**. WCAG AA asks 4.5:1 for normal
+`#FF5A00` as text on white is **3.13:1**. WCAG AA asks 4.5:1 for normal
 text and 3:1 for large. It clears the second and not the first — so as
 long as the orange is a *surface* colour, and orange type steps down
 the same hue until it is readable, nothing in this product is below the
@@ -145,16 +157,25 @@ perceives as the brand colour anyway.
 
 ## The four rules that keep it usable
 
-- **A label on orange is ink, never white.** `#171717` on `#E86A2C` is
-  **5.57:1** and passes. White is **3.22:1** and does not — a 16px
-  semibold button label is not "large text", which starts at 18.66px
-  bold. Every button takes `--on-accent`, which is ink.
-- **Every orange fill carries a `#B94E1F` hairline.** The fill is
-  2.90:1 against a panel, so the border is what makes the button's edge
-  discernible against what is behind it. WCAG 1.4.11 asks 3:1 of a
-  control boundary; the edge is 4.54:1 there. Not decoration, not
-  optional.
-- **Orange type is `--accent-deep` (`#A0431B`, 6.34:1) at every size.**
+- **A label on orange is white, never ink.** Every button takes
+  `--on-accent`, which is `#FFFFFF`. The measurement runs the other way
+  and is stated rather than hidden.
+  `#171717` on `#FF5A00` is **5.73:1** and passes.
+  `#FFFFFF` on `#FF5A00` is **3.13:1** and does not — a 16px semibold
+  button
+  label is not "large text", which starts at 18.66px bold. This token
+  was ink for exactly that reason and was changed back by the brand
+  owner with the number in front of them. The two ways to keep white
+  *and* the contrast — darken the orange, or set labels at 18.66px bold
+  — are recorded beside the token for whoever revisits it.
+- **Every orange fill carries a hairline in the same orange.** The fill
+  is 2.82:1 against a panel, and `--accent-edge` is the same `#FF5A00`.
+  It used to be a darker step, `#B94E1F` at 4.54:1, and that step went
+  with the rest of the ramp: the direction is one colour. The border
+  still separates the control from what is behind it, and on a white
+  ground the fill's 3.13:1 clears the 3:1 WCAG 1.4.11 asks of a control
+  boundary.
+- **Orange type on a light ground is not orange: `--accent-deep` is `#171717`.**
   Not "small orange type" — every size. That distinction used to carve
   out headings and it is what let a 20px h3 through at 3.22:1.
   `browser:option1` opens thirteen screens and measures computed colour
@@ -162,14 +183,17 @@ perceives as the brand colour anyway.
   how the wrong ones get found.
 - **Colour is never the only signal for a state.** This became load-
   bearing when the green and the red were removed — see below. It
-  applies to the soft orange too: `#FFF1E8` on `#FFFFFF` is a 1.11:1
+  applies to the soft orange too: `#FFF0E8` on `#FFFFFF` is a 1.11:1
   tint, which is a reinforcement and not a signal, so every panel it
   marks carries a word as well.
 
 ## State is no longer a colour
 
 `--success` was `#1F7A4C` and `--danger` was `#B3261E`. Both are gone:
-success is now ink, danger is `--accent-deep`.
+success is now ink, and danger is the accent itself — `#FF5A00`, the
+same orange as a primary action, because an error still has to pull the
+eye and there is only one colour left to pull it with. A confirmation
+that has already happened does not need to shout.
 
 **This was checked before it was done.** All 32 places that used them
 already carried the word beside the colour — "Sent.", "PAID", "Reply

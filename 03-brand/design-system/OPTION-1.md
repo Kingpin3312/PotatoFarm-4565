@@ -18,9 +18,9 @@ resolves in a browser, asserted by `npm run browser:option1`.
 
 | Direction's name | Token | Hex |
 |---|---|---|
-| Primary orange | `--accent` | `#E86A2C` |
-| Deep orange | `--accent-edge` | `#B94E1F` |
-| Soft orange | `--accent-soft` | `#FFF1E8` |
+| Primary orange | `--accent` | `#FF5A00` |
+| Deep orange | `--accent-edge` | `#FF5A00` |
+| Soft orange | `--accent-soft` | `#FFF0E8` |
 | Charcoal | `--ink` | `#171717` |
 | White | `--ground` | `#FFFFFF` |
 | Warm grey | `--panel` | `#F5F3F0` |
@@ -33,13 +33,23 @@ than as a second set — this codebase has called them `--accent` and
 surfaces, and two independent sets is how a palette comes to disagree
 with itself. Either name works.
 
-Three steps were added that the direction does not name, all derived
-from its own two oranges, and all for one reason: **`#E86A2C` is 3.22:1
-on white.** That clears the 3:1 a border, icon or focus ring needs and
-falls short of the 4.5:1 text needs. So the orange is a surface colour,
-and orange type steps down the same hue until it is readable —
-`--accent-hover` at 4.09:1, `--accent-edge` at 5.03:1, `--accent-deep`
-at 6.34:1.
+Three steps were once added that the direction does not name, all
+derived from its own two oranges, and all for one reason: **the accent
+is 3.13:1 on white** (`#FF5A00`; the four accents this project has had
+measured 3.22, 1.97, 4.30 and 3.13). That clears the 3:1 a border, icon
+or focus ring needs and falls short of the 4.5:1 text needs. So the
+orange is a surface colour, and orange type used to step down the same
+hue until it was readable — `--accent-hover` at 4.09:1, `--accent-edge`
+at 5.03:1, `--accent-deep` at 6.34:1.
+
+**That ramp is gone.** The direction is one colour, so `--accent`,
+`--accent-hover` and `--accent-edge` are all `#FF5A00`, and the names
+survive only so a future decision has somewhere to land. Orange type on
+a light ground is not orange at all: `--accent-deep` is `#171717`.
+Labels on an orange fill are white, at 3.13:1 — below AA, and a
+decision the brand owner took with the number in front of them.
+`tokens.css` is the authority for every value here; this file describes
+the direction.
 
 ## 2. The 70/20/8/2 balance
 
@@ -134,7 +144,7 @@ is about to repeat to them, and `guardrails.ts` catches an invented
 price but not a plausible one attributed to the wrong building. The
 person reading the screen is the check after that.
 
-The label is not optional — `#FFF1E8` on `#FFFFFF` is a 1.11:1 tint,
+The label is not optional — `#FFF0E8` on `#FFFFFF` is a 1.11:1 tint,
 which is reinforcement, not a signal. Applied to the assistant's
 outcome, its clarifying question, and the listing draft (where the tint
 marks the *unread* state and the first keystroke clears it).
