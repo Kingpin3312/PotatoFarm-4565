@@ -7,10 +7,10 @@ import { sessionCookies } from "./lib/session-cookie.mjs";
  *
  * The assertion that matters is not that the form submits — it is that
  * the screen tells the truth about a half-connected channel. Inbound
- * works the moment the row exists; sending needs a token that is
- * deliberately not stored in the database. A screen that showed those
- * two states as one would send an agent to type a reply that silently
- * never goes.
+ * works the moment the row exists; sending needs an access token, which
+ * is optional on this form and sealed in the vault when given. A screen
+ * that showed those two states as one would send an agent to type a
+ * reply that silently never goes.
  *
  *     npm run dev
  *     npm run browser:connect-channel
@@ -44,9 +44,25 @@ ok("no input under 16px", await p.evaluate(()=>{
 }));
 ok("the identifier field is named the way Meta names it",
    /Phone number ID/i.test(await p.evaluate(()=>document.querySelector("dialog[open]").innerText)));
-ok("and it never asks for the access token",
-   !/access token/i.test(await p.evaluate(()=>
-     [...document.querySelectorAll("dialog[open] label")].map(l=>l.innerText).join(" "))));
+/**
+ * This asserted the opposite — "it never asks for the access token" —
+ * and it was right until `lib/secrets/vault.ts` shipped. Before the
+ * vault there was nowhere to put a token, so connecting a number meant
+ * setting `SECRET_wa_…` in the environment and redeploying, per
+ * brokerage, per channel. The form takes one now and seals it with
+ * `SECRETS_KEY`, which lives outside the database.
+ *
+ * A check left asserting the absence of a shipped feature is not a
+ * neutral stale check: it is an instruction to somebody to remove the
+ * feature. So it now asserts the thing that actually has to stay true —
+ * the field exists, and it is a password field, so a token is never
+ * sitting in plain text on a shared screen.
+ */
+ok("it takes the access token, and masks it",
+   await p.evaluate(() => {
+     const el = document.querySelector('dialog[open] input[name=accessToken]');
+     return !!el && el.type === "password";
+   }));
 
 await p.fill('dialog[open] input[name=label]', "Test sales number");
 await p.fill('dialog[open] input[name=identifier]', NUM);
@@ -57,8 +73,20 @@ await p.waitForFunction(()=>/is connected/i.test(document.querySelector("dialog[
 console.log("\n=== it says what is still needed ===");
 const after = await p.evaluate(()=>document.querySelector("dialog[open]")?.innerText ?? "");
 ok("it confirms inbound works now", /incoming messages will now reach/i.test(after), JSON.stringify(after.slice(0,70)));
-ok("and names the exact environment variable", /SECRET_wa_[0-9a-f]+=/.test(after),
-   (after.match(/SECRET_\S+/) ?? ["none"])[0]);
+/**
+ * And this asked the confirmation to print an environment variable
+ * name — `SECRET_wa_…=` — which was the pre-vault instruction to the
+ * person deploying. There is no variable to name any more.
+ *
+ * This submit deliberately leaves the token blank, which is still a
+ * real state and now a choice rather than the product's limitation. So
+ * what the confirmation has to do is say the number cannot reply yet
+ * **and** how to change that. "Connected" with no such sentence is the
+ * screen that sends an agent to type a reply that never goes, which is
+ * the failure this whole file exists to catch.
+ */
+ok("and says replies will not send until a token is added",
+   /will not send|access token is added/i.test(after), JSON.stringify(after.slice(0, 120)));
 await p.click('dialog[open] button:has-text("Done")');
 await p.waitForTimeout(1200);
 

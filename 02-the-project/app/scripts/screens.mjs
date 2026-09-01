@@ -57,11 +57,22 @@ const db = new PrismaClient({ datasources:{db:{url:process.env.DATABASE_URL_UNSC
 const org = await db.organisation.findFirst({ where:{deletedAt:null}, select:{id:true} });
 
 /** Real ids, so a dynamic route is exercised rather than skipped. */
-const [lead, kyc, listing, convo] = await Promise.all([
+const [lead, kyc, listing, convo, orgSlug, publicListing] = await Promise.all([
   db.lead.findFirst({ where: { orgId: org.id, deletedAt: null }, select: { id: true } }),
   db.kycRecord.findFirst({ where: { orgId: org.id }, select: { id: true } }),
   db.listing.findFirst({ where: { orgId: org.id, deletedAt: null }, select: { id: true } }),
   db.conversation.findFirst({ where: { orgId: org.id }, select: { id: true } }),
+  db.organisation.findFirst({ where: { id: org.id }, select: { slug: true } }),
+  /**
+   * The public property page needs a listing `publicListing()` will
+   * actually return — available, and carrying a permit. Any listing
+   * would render the 404 this sweep is meant to distinguish from a
+   * broken screen.
+   */
+  db.listing.findFirst({
+    where: { orgId: org.id, deletedAt: null, status: "AVAILABLE", permitNumber: { not: null } },
+    select: { reference: true },
+  }),
 ]);
 
 /**
@@ -81,6 +92,10 @@ const SUBST = {
   "[kycId]": kyc?.id,
   "[listingId]": listing?.id,
   "[conversationId]": convo?.id,
+  // The public property page, which is outside the app shell and
+  // reached with no session at all.
+  "[slug]": orgSlug?.slug,
+  "[reference]": publicListing?.reference,
 };
 
 const all = routes();
@@ -98,8 +113,26 @@ for (const r of all) {
   }
   // Named, never silently dropped: a dynamic route nobody could build a
   // URL for is exactly the kind of screen that rots unnoticed.
-  if (missing) skipped.push(`${r} (no row to fill ${missing})`);
-  else targets.push(filled);
+  if (missing) {
+    // In the map, but the database has no row for it today.
+    skipped.push(`${r} (no row to fill ${missing})`);
+    continue;
+  }
+  /**
+   * A token the map has never heard of, which is a different fault and
+   * used to be silent. `filled` still held `[slug]` and `[reference]`
+   * verbatim, so the sweep requested a literal `/p/[slug]/[reference]`,
+   * got a 404, and reported the new public property page as a broken
+   * screen. It has to come *after* the `missing` branch: checked first
+   * it relabels every legitimately unfillable route as an unknown
+   * token, which is how it first mislabelled `/compliance/[kycId]`.
+   */
+  const unknown = filled.match(/\[[^\]]+\]/);
+  if (unknown) {
+    skipped.push(`${r} (no substitution for ${unknown[0]} — add it to SUBST)`);
+    continue;
+  }
+  targets.push(filled);
 }
 
 const b = await pw.chromium.launch({ executablePath: cp() });

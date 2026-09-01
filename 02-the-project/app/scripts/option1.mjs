@@ -29,10 +29,59 @@ const failures=[];
 const ok=(l,p,d="")=>{console.log(`  ${p?"✓":"✗"} ${l}${d?"  — "+d:""}`);
   if(!p){bad++;failures.push(d?`${l}  — ${d}`:l);}};
 
-const WHITE  = "rgb(255, 255, 255)";
-const PANEL  = "rgb(245, 243, 240)";
-const INK    = "rgb(23, 23, 23)";
-const ORANGE = "rgb(232, 106, 44)";
+/**
+ * The expected values are read out of `tokens.css`, not typed here.
+ *
+ * They were typed here, and they were the *first* palette this project
+ * had — `#E86A2C`, `#FFF1E8`, `#A0431B`. Three accents later this check
+ * failed seven assertions in a row while reporting the correct current
+ * values beside every one of them, which is a check asserting the past.
+ *
+ * `ORANGE` was the worse half. It is the fill this file looks for to
+ * find a primary button, so a stale value did not fail loudly — it found
+ * **zero buttons across four screens** and then had nothing to measure,
+ * so the label-colour and contrast assertions below it were inspecting
+ * an empty list. That is CLAUDE.md's "a check that cannot fail".
+ *
+ * Reading the stylesheet turns the question into the one worth asking:
+ * does the browser resolve what the design system declares? That cannot
+ * go stale, because there is no second copy of the answer.
+ */
+const TOKENS = "src/styles/tokens.css";
+const declared = (() => {
+  const css = fs.readFileSync(TOKENS, "utf8");
+  // `:root` only — `.on-leather` redefines several of these for the dark
+  // band, and picking up its override would assert the wrong ground.
+  const root = css.slice(css.indexOf(":root"), css.indexOf("\n}", css.indexOf(":root")));
+  const out = {};
+  for (const m of root.matchAll(/--([a-z0-9-]+):\s*(#[0-9A-Fa-f]{3,6})\b/g)) {
+    out[`--${m[1]}`] = m[2];
+  }
+  if (Object.keys(out).length === 0) {
+    console.error(`No tokens parsed out of ${TOKENS} — this run would assert nothing. Aborting.`);
+    process.exit(1);
+  }
+  return out;
+})();
+
+/** `#FFF` and `#FFFFFF` are the same colour; a string comparison is not. */
+function hex6(v) {
+  const h = String(v).trim().replace("#", "");
+  const full = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
+  return "#" + full.toUpperCase();
+}
+const token = (n) => hex6(declared[n] ?? "#000000");
+const rgbOf = (n) => {
+  const h = token(n).slice(1);
+  const [r, g, b] = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
+  return `rgb(${r}, ${g}, ${b})`;
+};
+
+const WHITE  = rgbOf("--ground");
+const PANEL  = rgbOf("--panel");
+const INK    = rgbOf("--ink");
+const ORANGE = rgbOf("--accent");
+const ON_ACCENT = rgbOf("--on-accent");
 
 const b=await pw.chromium.launch({executablePath:cp()});
 const ctx=await b.newContext({viewport:{width:1280,height:900}});
@@ -60,15 +109,17 @@ console.log("\n=== the tokens resolve, and to the approved values ===");
       alias: g("--color-primary"),
     };
   });
-  ok("--ground is white", t.ground === "#FFFFFF", t.ground);
-  ok("--panel is the warm grey", t.panel === "#F5F3F0", t.panel);
-  ok("--ink is deep charcoal", t.ink === "#171717", t.ink);
-  ok("--accent is the brand orange", t.accent === "#E86A2C", t.accent);
-  ok("--accent-soft is the soft orange", t.soft === "#FFF1E8", t.soft);
-  ok("--accent-deep carries readable orange type", t.deep === "#A0431B", t.deep);
-  ok("--rule-strong clears 3:1 for a control", t.ruleStrong === "#918A82", t.ruleStrong);
+  const same = (got, name) => hex6(got) === token(name);
+  ok("--ground is white", same(t.ground, "--ground"), t.ground);
+  ok("--panel is the warm grey", same(t.panel, "--panel"), t.panel);
+  ok("--ink is deep charcoal", same(t.ink, "--ink"), t.ink);
+  ok("--accent is the brand orange", same(t.accent, "--accent"), t.accent);
+  ok("--accent-soft is the soft orange", same(t.soft, "--accent-soft"), t.soft);
+  ok("--accent-deep carries readable orange type", same(t.deep, "--accent-deep"), t.deep);
+  ok("--rule-strong clears 3:1 for a control", same(t.ruleStrong, "--rule-strong"), t.ruleStrong);
   ok("the direction's own token name resolves",
-     t.alias.toUpperCase() === "#E86A2C", t.alias || "empty — the alias generated nothing");
+     t.alias ? same(t.alias, "--accent") : false,
+     t.alias || "empty — the alias generated nothing");
 }
 
 console.log("\n=== the page is painted white, not cream ===");
@@ -138,11 +189,18 @@ console.log("\n=== a primary button's label is readable on it ===");
   }
   ok("primary buttons exist to measure", btns.length > 0,
      `${btns.length} across 4 screens`);
-  // Charcoal at 5.57:1. White would be 3.22:1 and fail for a label this
-  // size, which is the one deviation from the written spec.
-  const pale = btns.filter((b) => b.fg !== INK);
-  ok("every primary label is charcoal, not white", pale.length === 0,
-     pale.map((b) => `${b.url} "${b.label}" ${b.fg}`).join(" | ") || "all charcoal");
+  /**
+   * The label takes `--on-accent`, whatever the design system says that
+   * is — white today, and this assertion said "charcoal, not white" with
+   * the number 5.57:1 beside it. That number was right about the first
+   * accent and the instruction is white on orange everywhere, taken by
+   * the brand owner with the current 3.13:1 in front of them. A check
+   * that contradicts a recorded decision is one somebody will change the
+   * product to satisfy, so it reads the token rather than an opinion.
+   */
+  const wrong = btns.filter((b) => b.fg !== ON_ACCENT);
+  ok(`every primary label is --on-accent (${ON_ACCENT})`, wrong.length === 0,
+     wrong.map((b) => `${b.url} "${b.label}" ${b.fg}`).join(" | ") || "all correct");
 }
 
 console.log("\n=== the soft orange reaches a screen ===");
@@ -171,10 +229,13 @@ console.log("\n=== the soft orange reaches a screen ===");
     el.remove();
     return out;
   });
-  ok("`bg-accent-soft` generates a rule", r.bg === "rgb(255, 241, 232)", r.bg);
-  // #6B6B6B on #FFF1E8 is 4.82:1 — the label that carries the meaning
-  // when the tint is invisible has to be readable on the tint too.
-  ok("the label on it is readable", r.fg === "rgb(107, 107, 107)", r.fg);
+  // Against the stylesheet, not a literal — this was pinned to
+  // `rgb(255, 241, 232)`, the tint of the first accent, and failed while
+  // printing the correct current value beside itself.
+  ok("`bg-accent-soft` generates a rule", r.bg === rgbOf("--accent-soft"), r.bg);
+  // The label that carries the meaning when the tint is invisible has to
+  // be readable on the tint too.
+  ok("the label on it is readable", r.fg === rgbOf("--ink-3"), r.fg);
 }
 
 console.log("\n=== orange type is only ever large enough for it ===");

@@ -14,20 +14,28 @@ import { Button } from "@/components/ui/button";
  * number" and dropped, and the inbox, the assistant and the whole lead
  * intake path sat downstream of a table nobody could write to.
  *
- * ## Why there is no box for the access token
+ * ## The box for the access token, and why there once was not one
  *
  * `lib/secrets.ts` is explicit that tokens never go into Postgres, so a
  * database dump carries nothing that can message a brokerage's
- * customers. No secrets provider is wired up yet, so there is nowhere
- * for this form to put one. Adding a column would have quietly
- * overturned a load-bearing security decision to save an owner a single
- * deploy.
+ * customers. That rule has not moved. What changed is how it is kept:
+ * before `lib/secrets/vault.ts` existed there was nowhere to put a
+ * token, so this form deliberately had no field for one and connecting
+ * a number meant setting `SECRET_wa_…` in the environment and
+ * redeploying — per brokerage, per channel.
  *
- * So connecting has two halves, and the screen says so plainly rather
- * than looking finished and failing later. The useful half is
- * immediate: **inbound works the moment the channel exists**, because
- * the webhook is verified with the app-wide secret and routed by
- * number. Only sending waits.
+ * The vault stores ciphertext sealed with `SECRETS_KEY`, which lives
+ * only in the environment, so a dump still carries nothing able to
+ * message anybody. The field below is a password input for the ordinary
+ * reason: a token should not sit in plain text on a screen somebody is
+ * sharing.
+ *
+ * **The token is still optional, and that is the part worth keeping.**
+ * Connecting has two halves and the screen says so rather than looking
+ * finished and failing later. The useful half is immediate — inbound
+ * works the moment the channel exists, because the webhook is verified
+ * with the app-wide secret and routed by number. Only sending needs the
+ * token.
  */
 const TYPES = [
   ["WHATSAPP", "WhatsApp"],
