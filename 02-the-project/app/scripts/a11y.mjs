@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import pw from "playwright";
+import { sessionCookies } from "./lib/session-cookie.mjs";
 
 /**
  * Find Chromium without hardcoding a build number.
@@ -30,8 +31,7 @@ let bad = 0;
 const ok = (l, p, d = "") => { console.log(`  ${p ? "✓" : "✗"} ${l}${d ? `  — ${d}` : ""}`); if (!p) bad++; };
 
 const ctx = await b.newContext({ viewport: { width: 1280, height: 900 } });
-await ctx.addCookies([{ name: "authjs.session-token", value: "dev-session-token-ask-history",
-  domain: "localhost", path: "/", httpOnly: true, sameSite: "Lax" }]);
+await ctx.addCookies([...sessionCookies("dev-session-token-ask-history")]);
 const page = await ctx.newPage();
 
 /* ============ 1. KEYBOARD ONLY — no mouse touches anything ============ */
@@ -176,8 +176,7 @@ ok("state pills carry words, not just colour",
 console.log("\n=== 200% zoom, and 200% text ===");
 for (const [label, w, h] of [["200% zoom", 640, 450]]) {
   const c2 = await b.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 2 });
-  await c2.addCookies([{ name: "authjs.session-token", value: "dev-session-token-ask-history",
-    domain: "localhost", path: "/", httpOnly: true, sameSite: "Lax" }]);
+  await c2.addCookies([...sessionCookies("dev-session-token-ask-history")]);
   const p2 = await c2.newPage();
   await p2.goto("http://localhost:3000/today", { waitUntil: "networkidle" });
   await p2.waitForTimeout(1200);
@@ -204,8 +203,7 @@ ok("doubled text size does not break the layout sideways", !big.sideways, `${big
 console.log("\n=== Preferences respected ===");
 for (const scheme of ["dark", "light"]) {
   const c3 = await b.newContext({ viewport: { width: 1280, height: 900 }, colorScheme: scheme });
-  await c3.addCookies([{ name: "authjs.session-token", value: "dev-session-token-ask-history",
-    domain: "localhost", path: "/", httpOnly: true, sameSite: "Lax" }]);
+  await c3.addCookies([...sessionCookies("dev-session-token-ask-history")]);
   const p3 = await c3.newPage();
   await p3.goto("http://localhost:3000/today", { waitUntil: "networkidle" });
   await p3.waitForTimeout(1200);

@@ -90,6 +90,31 @@ for line in schema.splitlines():
 
 # 6. Env vars read vs documented.
 env_used = set(re.findall(r'process\.env\.([A-Z0-9_]+)', allsrc))
+
+# ---- the two directions do not share a corpus, and that is the point --
+#
+# `scripts/` reads env as well, and `preflight.mjs` is not a lesser
+# reader: it is the check an operator runs against the real deployment.
+# Scanning only `src/` reported `POOLER_CONFIRMED` as dead configuration
+# while `preflight.mjs` was reading it on line 105 — an invitation to
+# delete the override that lets a pooler with an unfamiliar hostname
+# pass.
+#
+# But widening **both** directions was wrong, and the first run said so:
+# it demanded `.env.example` document `PROVE_RED`, `SCALE`, `SETTLE_MS`,
+# `STRIPE_TEST_CUSTOMER` and `VERCEL_PLAN` — switches that exist to make
+# a local check do something different, which nobody deploying this will
+# ever set. `.env.example` is the operator's list; padding it with
+# harness knobs is the same dilution the file was cleaned up to end.
+#
+# So: a script read keeps a documented variable alive, and never adds a
+# requirement. Only `src/` can do that.
+env_readers = allsrc + "\n" + "\n".join(
+    read(f) for ext in ("*.mjs", "*.ts")
+    for f in glob.glob(os.path.join(ROOT, "scripts", "**", ext), recursive=True)
+)
+env_read_anywhere = set(re.findall(r'process\.env\.([A-Z0-9_]+)', env_readers))
+env_read_anywhere |= set(re.findall(r'\benv\("([A-Z0-9_]+)"\)', env_readers))
 # The app's own .env.example. This pointed at `../potato-prod/.env.example`,
 # a directory that has never existed in this repository — so `documented`
 # was always empty and **every** variable read anywhere was reported as
@@ -163,7 +188,7 @@ for e in sorted(env_used - documented - FRAMEWORK):
 # A warning rather than a failure because a variable can legitimately
 # lead its implementation by a commit or two.
 # ---------------------------------------------------------------------
-for e in sorted(documented - env_used - schema_env - FRAMEWORK - LIBRARY_READ):
+for e in sorted(documented - env_read_anywhere - schema_env - FRAMEWORK - LIBRARY_READ):
     warn(f"env var {e} is in .env.example and nothing reads it — "
          f"dead configuration invites somebody to provision it")
 

@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import pw from "playwright";
 import { PrismaClient } from "@prisma/client";
+import { sessionCookies } from "./lib/session-cookie.mjs";
 
 /**
  * The document register, from the form to the nightly alarm.
@@ -60,8 +61,7 @@ await db.notification.deleteMany({ where: { orgId: org.id, kind: "PERMIT_EXPIRIN
 
 const b=await pw.chromium.launch({executablePath:cp()});
 const ctx=await b.newContext({viewport:{width:1280,height:900}});
-await ctx.addCookies([{name:"authjs.session-token",value:"dev-session-token-ask-history",
-  domain:"localhost",path:"/",httpOnly:true,sameSite:"Lax"}]);
+await ctx.addCookies([...sessionCookies("dev-session-token-ask-history")]);
 const p=await ctx.newPage();
 
 /** The date input wants `yyyy-mm-dd`, and the assertions want the days. */

@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import pw from "playwright";
+import { sessionCookies } from "./lib/session-cookie.mjs";
 
 /**
  * The pipeline board's optimistic move, both halves.
@@ -21,12 +22,11 @@ function cp(){const r="/opt/pw-browsers";if(fs.existsSync(`${r}/chromium`))retur
 let bad=0;
 const ok=(l,p,d="")=>{console.log(`  ${p?"✓":"✗"} ${l}${d?"  — "+d:""}`);if(!p)bad++;};
 const b=await pw.chromium.launch({executablePath:cp()});
-const COOKIE={name:"authjs.session-token",value:"dev-session-token-ask-history",
-  domain:"localhost",path:"/",httpOnly:true,sameSite:"Lax"};
+const COOKIES=sessionCookies("dev-session-token-ask-history");
 
 async function board(delayMs, failIt) {
   const ctx=await b.newContext({viewport:{width:1400,height:900}});
-  await ctx.addCookies([COOKIE]);
+  await ctx.addCookies(COOKIES);
   const p=await ctx.newPage();
   await p.route("**/api/trpc/pipeline.move**", async (route) => {
     await new Promise(r=>setTimeout(r, delayMs));

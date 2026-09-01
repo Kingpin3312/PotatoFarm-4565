@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import pw from "playwright";
+import { sessionCookies } from "./lib/session-cookie.mjs";
 
 /**
  * Find Chromium without hardcoding a build number.
@@ -24,18 +25,59 @@ function chromePath() {
   return undefined;   // let Playwright use its own default
 }
 
+/**
+ * The colours the design system actually declares.
+ *
+ * The hue window below is a good proxy for "is this our orange?" and it
+ * was right about every colour in the product except one. `--brand-navy`
+ * (#12202E, hue 210) dresses the wordmark and nothing else — a deliberate
+ * brand colour, documented in `tokens.css`, sampled off the supplied
+ * logo. The window flagged it on all 21 screens, which is a check
+ * reporting the brand as a fault.
+ *
+ * The exemption is read out of `tokens.css` rather than typed here. A hex
+ * pinned into a check goes quiet the moment the brand moves, which is the
+ * failure this repository has already had. Only exact matches are exempt:
+ * a tint or a 50%-opacity composite of a declared colour still has to
+ * satisfy the hue window, which is what stops this becoming "anything
+ * goes".
+ */
+const TOKENS = "src/styles/tokens.css";
+const DECLARED = new Map();
+for (const m of fs.readFileSync(TOKENS, "utf8").matchAll(/--([a-z0-9-]+):\s*#([0-9A-Fa-f]{6})\b/g)) {
+  const [r, g, bl] = [1, 3, 5].map((i) => parseInt(m[2].slice(i - 1, i + 1), 16));
+  DECLARED.set(`rgb(${r}, ${g}, ${bl})`, `--${m[1]}`);
+}
+if (DECLARED.size === 0) {
+  console.error(`No colours parsed out of ${TOKENS} — this run would exempt nothing and prove nothing. Aborting.`);
+  process.exit(1);
+}
+
+/**
+ * `PROVE_RED=1` paints one undeclared blue onto every screen before
+ * scanning. A check nobody has seen fail is decoration; this is how to
+ * see it fail without editing the product.
+ */
+const PROVE = process.env.PROVE_RED === "1";
+
 const b = await pw.chromium.launch({ executablePath: chromePath() });
 const SCREENS = ["/today","/inbox","/pipeline","/leads","/listings","/viewings","/offers",
   "/deals","/commission","/compliance","/blackbook","/vendors/new","/team","/activity",
   "/ask","/search","/reports","/settings","/settings/billing","/setup","/me"];
 const ctx = await b.newContext({ viewport: { width: 1280, height: 1000 } });
-await ctx.addCookies([{ name:"authjs.session-token", value:"dev-session-token-ask-history", domain:"localhost", path:"/", httpOnly:true, sameSite:"Lax" }]);
+await ctx.addCookies([...sessionCookies("dev-session-token-ask-history")]);
 const p = await ctx.newPage();
 let offenders = 0, blueLinks = 0, scanned = 0, redirected = 0, unreachable = 0;
 for (const s of SCREENS) {
   await p.goto("http://localhost:3000"+s, { waitUntil:"networkidle" }).catch(()=>{});
   await p.waitForTimeout(700);
-  const r = await p.evaluate(() => {
+  if (PROVE) await p.evaluate(() => {
+    const el = document.createElement("span");
+    el.style.color = "rgb(59, 130, 246)";   // a blue no token declares
+    el.textContent = "prove-red";
+    document.body.appendChild(el);
+  });
+  const r = await p.evaluate((allowed) => {
     const off = new Map(); let blue = [];
     for (const el of document.querySelectorAll("*")) {
       const c = getComputedStyle(el);
@@ -50,11 +92,12 @@ for (const s of SCREENS) {
         const d=mx-mn; let h;
         if (mx===rr) h=((gg-bb)/d)%6; else if (mx===gg) h=(bb-rr)/d+2; else h=(rr-gg)/d+4;
         h=Math.round(h*60+360)%360;
-        if (h < 8 || h > 45) off.set(v, (el.tagName+"."+(el.className||"").toString().slice(0,30)));
+        if ((h < 8 || h > 45) && !allowed.includes(v))
+          off.set(v, (el.tagName+"."+(el.className||"").toString().slice(0,30)));
       }
     }
     return { off:[...off.entries()], blue };
-  });
+  }, [...DECLARED.keys()]);
   const real = await p.evaluate(() => ({
     url: location.pathname,
     h1: (document.querySelector("h1")?.textContent||"").trim().slice(0,40),

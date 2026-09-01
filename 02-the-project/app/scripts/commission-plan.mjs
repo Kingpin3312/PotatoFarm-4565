@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import pw from "playwright";
 import { PrismaClient } from "@prisma/client";
+import { sessionCookies } from "./lib/session-cookie.mjs";
 
 /**
  * Setting a commission plan, and the two things that make it safe.
@@ -32,8 +33,7 @@ const ok=(l,p,d="")=>{console.log(`  ${p?"✓":"✗"} ${l}${d?"  — "+d:""}`);i
 const db = new PrismaClient({ datasources:{db:{url:process.env.DATABASE_URL_UNSCOPED}} });
 const b=await pw.chromium.launch({executablePath:cp()});
 const ctx=await b.newContext({viewport:{width:1280,height:900}});
-await ctx.addCookies([{name:"authjs.session-token",value:"dev-session-token-ask-history",
-  domain:"localhost",path:"/",httpOnly:true,sameSite:"Lax"}]);
+await ctx.addCookies([...sessionCookies("dev-session-token-ask-history")]);
 const p=await ctx.newPage();
 
 // Start from nothing, so "no plan" is the state under test rather than

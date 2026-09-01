@@ -2,6 +2,7 @@
 
 import { KillSwitch } from "./kill-switch";
 import { CalendarFeed } from "./calendar";
+import { ListingFeed } from "./listing-feed";
 import { LanguageChoice } from "./language";
 import { api } from "@/lib/trpc";
 import { QueryError } from "@/components/ui/query-state";
@@ -27,6 +28,8 @@ export default function SettingsPage() {
       <div className="mt-7"><KillSwitch /></div>
 
       <CalendarFeed />
+
+      <ListingFeed />
 
       <LanguageChoice />
 

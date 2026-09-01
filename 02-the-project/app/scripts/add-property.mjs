@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import pw from "playwright";
+import { sessionCookies } from "./lib/session-cookie.mjs";
 
 /**
  * Adding a property, through the browser, against a real database.
@@ -23,8 +24,7 @@ const ok=(l,p,d="")=>{console.log(`  ${p?"✓":"✗"} ${l}${d?"  — "+d:""}`);i
 const REF = `TEST-${Date.now().toString(36).toUpperCase()}`;
 const b=await pw.chromium.launch({executablePath:cp()});
 const ctx=await b.newContext({viewport:{width:1280,height:900}});
-await ctx.addCookies([{name:"authjs.session-token",value:"dev-session-token-ask-history",
-  domain:"localhost",path:"/",httpOnly:true,sameSite:"Lax"}]);
+await ctx.addCookies([...sessionCookies("dev-session-token-ask-history")]);
 const p=await ctx.newPage();
 await p.goto("http://localhost:3000/listings",{waitUntil:"networkidle"});
 await p.waitForFunction(()=>document.body.innerText.length>300,null,{timeout:25000});

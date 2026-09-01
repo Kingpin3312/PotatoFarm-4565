@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import pw from "playwright";
 import { PrismaClient } from "@prisma/client";
+import { sessionCookies } from "./lib/session-cookie.mjs";
 
 /**
  * A lapsed broker card stops a deal, and nothing else does.
@@ -77,8 +78,7 @@ function cp(){const r="/opt/pw-browsers";if(fs.existsSync(`${r}/chromium`))retur
    const p=`${r}/${d}/chrome-linux/chrome`;if(fs.existsSync(p))return p;}}
 const b=await pw.chromium.launch({executablePath:cp()});
 const ctx=await b.newContext({viewport:{width:1280,height:900}});
-await ctx.addCookies([{name:"authjs.session-token",value:"dev-session-token-ask-history",
-  domain:"localhost",path:"/",httpOnly:true,sameSite:"Lax"}]);
+await ctx.addCookies([...sessionCookies("dev-session-token-ask-history")]);
 const p=await ctx.newPage();
 
 /** Open the deal and expand it, returning what the detail panel says. */

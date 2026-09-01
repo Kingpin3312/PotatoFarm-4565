@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import pw from "playwright";
+import { sessionCookies } from "./lib/session-cookie.mjs";
 
 /**
  * Does the optimistic update actually work, and does it fail safely?
@@ -21,12 +22,12 @@ function cp(){const r="/opt/pw-browsers";if(fs.existsSync(`${r}/chromium`))retur
  for(const d of fs.readdirSync(r).filter(x=>x.startsWith("chromium")).sort().reverse()){
    const p=`${r}/${d}/chrome-linux/chrome`;if(fs.existsSync(p))return p;}}
 const b=await pw.chromium.launch({executablePath:cp()});
-const COOKIE={name:"authjs.session-token",value:"dev-session-token-ask-history",domain:"localhost",path:"/",httpOnly:true,sameSite:"Lax"};
+const COOKIES=sessionCookies("dev-session-token-ask-history");
 const ok=(l,p,d="")=>console.log(`  ${p?"✓":"✗"} ${l}${d?"  — "+d:""}`);
 
 async function page(delayMs, failIt) {
   const ctx=await b.newContext({viewport:{width:1280,height:900}});
-  await ctx.addCookies([COOKIE]);
+  await ctx.addCookies(COOKIES);
   const p=await ctx.newPage();
   // Hold the mutation so the optimistic removal is observable, and
   // optionally fail it so the rollback path is exercised for real.

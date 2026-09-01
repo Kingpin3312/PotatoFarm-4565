@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import pw from "playwright";
+import { sessionCookies } from "./lib/session-cookie.mjs";
 
 /**
  * Find Chromium without hardcoding a build number.
@@ -141,8 +142,7 @@ const pages = fs.readdirSync(`${R}/02-the-project/website`).filter(f => f.endsWi
 console.log("\n████ APP — chaos\n");
 {
   const ctx = await b.newContext({ viewport: { width: 1280, height: 900 } });
-  await ctx.addCookies([{ name: "authjs.session-token", value: "dev-session-token-ask-history",
-    domain: "localhost", path: "/", httpOnly: true, sameSite: "Lax" }]);
+  await ctx.addCookies([...sessionCookies("dev-session-token-ask-history")]);
   const p = await ctx.newPage();
   const errs = [];
   p.on("pageerror", e => errs.push(String(e).slice(0, 140)));
@@ -242,8 +242,7 @@ console.log("\n████ AUTH\n");
     chk("security","critical",`logged out ${url} → sign-in`, /sign-in/.test(landed), landed.replace("http://localhost:3000",""));
   }
   // An invalid session cookie must not be treated as valid.
-  await ctx.addCookies([{ name:"authjs.session-token", value:"totally-made-up",
-    domain:"localhost", path:"/", httpOnly:true, sameSite:"Lax" }]);
+  await ctx.addCookies([...sessionCookies("totally-made-up")]);
   await p.goto("http://localhost:3000/today", { waitUntil:"domcontentloaded" }).catch(()=>{});
   await p.waitForTimeout(700);
   // NOT "must redirect". The middleware is documented as a redirect for

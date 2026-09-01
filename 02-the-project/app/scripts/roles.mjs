@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import pw from "playwright";
+import { sessionCookies } from "./lib/session-cookie.mjs";
 
 /**
  * What each role actually meets on each screen.
@@ -202,10 +203,7 @@ async function settle(p) {
  */
 {
   const warm = await b.newContext({ viewport: { width: 1280, height: 900 } });
-  await warm.addCookies([{
-    name: "authjs.session-token", value: EXPECT[0].token,
-    domain: "localhost", path: "/", httpOnly: true, sameSite: "Lax",
-  }]);
+  await warm.addCookies([...sessionCookies(EXPECT[0].token)]);
   const wp = await warm.newPage();
   const screens = [...new Set(EXPECT.flatMap((e) => [...e.allowed, ...e.refused]))];
   process.stdout.write(`warming ${screens.length} routes`);
@@ -221,10 +219,7 @@ async function settle(p) {
 
 for (const { role, token, refused, allowed } of EXPECT) {
   const ctx = await b.newContext({ viewport: { width: 1280, height: 900 } });
-  await ctx.addCookies([{
-    name: "authjs.session-token", value: token,
-    domain: "localhost", path: "/", httpOnly: true, sameSite: "Lax",
-  }]);
+  await ctx.addCookies([...sessionCookies(token)]);
   const p = await ctx.newPage();
   await p.addInitScript(() => {
     const w = /** @type {any} */ (window);

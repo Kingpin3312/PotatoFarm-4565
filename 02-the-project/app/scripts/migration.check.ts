@@ -148,7 +148,19 @@ console.log("\n=== the router itself refuses, not just the count ===");
       method: "POST",
       headers: {
         "content-type": "application/json",
-        cookie: "authjs.session-token=dev-session-token-ask-history",
+        /**
+         * Both names, because `useSecureCookies` is on in production and
+         * off in development, so NextAuth reads `__Secure-…` under
+         * `next start` and the bare name under `next dev`. Sending only
+         * the development name against a production build returns 401
+         * from every call — which this check reported as the router
+         * refusing an invalid transition, three assertions passing for
+         * the wrong reason inverted into three failures. The server
+         * reads the one it is configured for and ignores the other.
+         */
+        cookie:
+          "authjs.session-token=dev-session-token-ask-history; " +
+          "__Secure-authjs.session-token=dev-session-token-ask-history",
       },
       body: JSON.stringify({ 0: { json } }),
     });

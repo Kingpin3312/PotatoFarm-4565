@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import pw from "playwright";
 import { PrismaClient } from "@prisma/client";
+import { sessionCookies } from "./lib/session-cookie.mjs";
 
 /**
  * Every screen, opened in a real browser, and what it actually does.
@@ -103,8 +104,7 @@ for (const r of all) {
 
 const b = await pw.chromium.launch({ executablePath: cp() });
 const ctx = await b.newContext({ viewport: { width: 1280, height: 900 } });
-await ctx.addCookies([{ name: "authjs.session-token", value: "dev-session-token-ask-history",
-  domain: "localhost", path: "/", httpOnly: true, sameSite: "Lax" }]);
+await ctx.addCookies([...sessionCookies("dev-session-token-ask-history")]);
 
 const rows = [];
 for (const route of targets) {

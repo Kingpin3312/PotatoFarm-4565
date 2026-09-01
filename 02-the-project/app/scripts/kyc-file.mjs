@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import pw from "playwright";
 import { PrismaClient } from "@prisma/client";
+import { sessionCookies, sessionCookieHeader } from "./lib/session-cookie.mjs";
 
 /**
  * Opening a due diligence file, both ways.
@@ -49,8 +50,7 @@ await db.kycRecord.deleteMany({ where: { leadId: convo.leadId } });
 
 const b=await pw.chromium.launch({executablePath:cp()});
 const ctx=await b.newContext({viewport:{width:1280,height:900}});
-await ctx.addCookies([{name:"authjs.session-token",value:"dev-session-token-ask-history",
-  domain:"localhost",path:"/",httpOnly:true,sameSite:"Lax"}]);
+await ctx.addCookies([...sessionCookies("dev-session-token-ask-history")]);
 const p=await ctx.newPage();
 
 console.log("\n=== the panel is on the screen at all ===");
@@ -111,7 +111,7 @@ console.log("\n=== an accepted offer opens one on its own ===");
   const res = await fetch("http://localhost:3000/api/trpc/offers.accept?batch=1", {
     method: "POST",
     headers: { "content-type": "application/json",
-               cookie: "authjs.session-token=dev-session-token-ask-history" },
+               cookie: sessionCookieHeader("dev-session-token-ask-history") },
     body: JSON.stringify({ 0: { json: { offerId: offer.id } } }),
   });
   const text = await res.text();
