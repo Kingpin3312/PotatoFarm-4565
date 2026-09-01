@@ -149,6 +149,21 @@ RASTERS = [
 # defence for those is the runbook below rather than a number here.
 RASTER_EXT = {".png", ".ico"}
 
+# Archives. A packaged copy of a surface is a surface.
+#
+# `potatofarm-site.zip` sat in the repository root holding a complete
+# marketing site on **#FF6B35 with black button labels** — the accent
+# from *five* generations ago — while every source file and every loose
+# asset measured correct. It was also missing ten files the live site
+# had, including the favicon and all four product screenshots.
+#
+# Nothing could see it. This audit read source and loose images; a zip
+# is neither. And it is the worst possible thing to be stale, because a
+# package exists precisely to be handed to somebody or deployed — it is
+# the copy that gets *used*, which is how "the .io is the wrong colour"
+# was true and unfindable at the same time.
+ARCHIVES = ["potatofarm-site.zip"]
+
 # Regenerated whenever the palette moves. Named here because both were
 # missed: `og.mjs` had not run in three accent changes, and `shots.mjs`
 # was carrying screenshots of an older product.
@@ -305,6 +320,48 @@ else:
     print(f"\n  {checked} lossless asset(s) scanned")
     print("  (WebP and JPEG are not checked — see RASTER_EXT for why;")
     print("   regenerate them with the commands in REGENERATORS)")
+
+# ---- packaged copies -----------------------------------------------
+import zipfile
+archive_fails = []
+for rel in ARCHIVES:
+    path = os.path.join(ROOT, rel)
+    if not os.path.exists(path):
+        continue
+    try:
+        z = zipfile.ZipFile(path)
+    except Exception as e:
+        archive_fails.append(f"{rel} could not be read ({e})")
+        continue
+    seen_in_zip = {}
+    for info in z.infolist():
+        if info.is_dir():
+            continue
+        ext = os.path.splitext(info.filename)[1].lower()
+        if ext not in {".css", ".html", ".svg", ".webmanifest", ".json", ".js"}:
+            continue
+        try:
+            text = strip_comments(z.read(info).decode("utf-8", "ignore"))
+        except Exception:
+            continue
+        for m in HEX.finditer(text):
+            hx = "#" + m.group(1).upper()
+            h, l, s = hls(hx)
+            if not warm_enough(h, l, s) or hx in EXCEPTIONS or hx == ACCENT:
+                continue
+            seen_in_zip.setdefault(hx, set()).add(info.filename)
+    for hx, files in sorted(seen_in_zip.items()):
+        where = ", ".join(sorted(files)[:2])
+        archive_fails.append(f"{hx} is declared inside {rel} ({where})")
+    print(f"  {len(z.infolist())} file(s) inside {rel} checked")
+
+if archive_fails:
+    print(f"\n  {len(archive_fails)} stale colour(s) inside a packaged copy:\n")
+    for f in archive_fails:
+        print(f"    x {f}")
+    print("\n  A package is the copy that gets handed to somebody. Rebuild it")
+    print("  from the live directory rather than editing it in place.\n")
+    fails += archive_fails
 
 if raster_fails:
     print(f"\n  {len(raster_fails)} rendered asset(s) on the wrong orange:\n")
