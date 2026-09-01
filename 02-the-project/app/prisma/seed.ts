@@ -2,6 +2,7 @@ import { PrismaClient, type LeadSource, type LeadStatus, type Role } from "@pris
 import { seedStages, DEFAULT_STAGES } from "../src/server/lib/pipeline/defaults";
 import { seedHours } from "../src/server/lib/hours/defaults";
 import { seedQualification } from "../src/server/lib/assistant/qualification";
+import { seedRoutingRule } from "../src/server/lib/routing/apply";
 
 /**
  * A development brokerage, from nothing — or the one already there.
@@ -165,7 +166,7 @@ async function main() {
   }
 
   /**
-   * The three things signup does, done by signup's own code.
+   * The four things signup does, done by signup's own code.
    *
    * This file first hand-rolled the six stages, and they were wrong in
    * a way nothing would have reported: `position: 0..5` where the real
@@ -179,14 +180,25 @@ async function main() {
    * brokerage no signup could produce. So the seed calls the same
    * functions `billing/signup.ts` calls, and they own the content.
    *
-   * All three are idempotent by their own keys — `seedStages` uses
+   * All four are idempotent by their own keys — `seedStages` uses
    * `skipDuplicates`, `seedQualification` returns early on an active
-   * profile — which is what lets this run against a brokerage that is
-   * already half configured, and fill only the half that is missing.
+   * profile, `seedRoutingRule` returns early when any rule exists —
+   * which is what lets this run against a brokerage that is already
+   * half configured, and fill only the half that is missing.
+   *
+   * **`seedRoutingRule` was the one that got left out**, and it cost
+   * exactly what this comment predicts. Signup calls four; this file
+   * called three; so the development brokerage was the one brokerage in
+   * existence with no assignment rule. `assignmentFor` did the right
+   * thing with that — "no routing rule matched", straight to the shared
+   * pool — and the result was that every WhatsApp lead in the demo
+   * arrived belonging to nobody, with no `LeadOwnership` row to explain
+   * why. `check:routing` says so in five assertions.
    */
   await db.$transaction(async (tx) => {
     await seedStages(tx, org.id);
     await seedHours(tx, org.id);
+    await seedRoutingRule(tx, org.id);
     await seedQualification(tx, org.id);
   });
 
