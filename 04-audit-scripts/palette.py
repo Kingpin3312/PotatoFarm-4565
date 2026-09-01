@@ -71,6 +71,13 @@ EXCEPTIONS = {
     # that nobody calls it orange, and it is what keeps the potato's face
     # readable now that the body is a flat fill.
     "#3B2416",
+    # The shadow tint, written as `rgb(43 30 23 / .06)` and friends. It
+    # is warm on purpose — a neutral grey shadow under a warm palette
+    # reads as dirt — and it only ever ships at 5-18% opacity, so it is a
+    # shadow rather than a colour anybody sees. Hue 21.0 against the
+    # accent's 21.2: tuned to it, not competing with it. It becomes
+    # visible to this check only now that rgb() notation is read.
+    "#2B1E17",
 }
 
 # Where a colour that ships lives. Deliberately not the whole repo:
@@ -182,6 +189,43 @@ SKIP_EXT = {".png", ".ico", ".webp", ".jpg", ".zip", ".md"}
 
 HEX = re.compile(r"#([0-9A-Fa-f]{6})\b")
 
+# ---------------------------------------------------------------------
+# CSS does not only write colour in hex, and this check only read hex.
+#
+# `--ring: 0 0 0 3px rgb(232 106 44 / .40)` sat in `tokens.css` through
+# four accents. #E86A2C is the first orange this project ever had, and it
+# was painting every keyboard focus ring in the CRM. The website, the
+# mobile preview and both design-system pages carried
+# `rgb(217 119 87 / .40)` — #D97757, a terracotta that was never one of
+# this project's accents at all.
+#
+# Five surfaces, two wrong oranges, and nothing could see any of them:
+# `recolour.py` rewrites hex, this file scanned hex, and `browser:palette`
+# measures hue — 19.8 and 14.8 both sit inside its 8-45 orange window, so
+# all three passed a colour none of them had ever read. It took an
+# accessibility check printing the focus shadow verbatim to find it.
+#
+# Both notations are covered: the legacy comma form `rgb(232, 106, 44)`
+# and `rgba(...)`, and the modern space form with an optional `/ alpha`.
+# The alpha is not part of the colour and is discarded — a wrong orange
+# at 40% opacity is still a wrong orange.
+# ---------------------------------------------------------------------
+RGB = re.compile(
+    r"\brgba?\(\s*(\d{1,3})\s*[, ]\s*(\d{1,3})\s*[, ]\s*(\d{1,3})"
+    r"\s*(?:[,/]\s*[\d.%]+\s*)?\)"
+)
+
+
+def colours_in(text):
+    """Every colour the file ships, whichever notation it is written in."""
+    for m in HEX.finditer(text):
+        yield "#" + m.group(1).upper()
+    for m in RGB.finditer(text):
+        r, g, b = (int(m.group(i)) for i in (1, 2, 3))
+        if r > 255 or g > 255 or b > 255:
+            continue          # not a colour; some other three numbers
+        yield f"#{r:02X}{g:02X}{b:02X}"
+
 
 def strip_comments(t):
     """Prose is not a shipped colour.
@@ -238,8 +282,7 @@ for base in LIVE:
         except (OSError, UnicodeDecodeError):
             continue
         text = strip_comments(text)
-        for m in HEX.finditer(text):
-            hx = "#" + m.group(1).upper()
+        for hx in colours_in(text):
             h, l, s = hls(hx)
             if not warm_enough(h, l, s):
                 continue
@@ -344,8 +387,7 @@ for rel in ARCHIVES:
             text = strip_comments(z.read(info).decode("utf-8", "ignore"))
         except Exception:
             continue
-        for m in HEX.finditer(text):
-            hx = "#" + m.group(1).upper()
+        for hx in colours_in(text):
             h, l, s = hls(hx)
             if not warm_enough(h, l, s) or hx in EXCEPTIONS or hx == ACCENT:
                 continue

@@ -292,7 +292,20 @@
   /* Warmer and shallower than a neutral shadow. A grey shadow on a
      cream ground looks like dirt. */
   --lift: 0 1px 2px rgb(43 30 23 / .05), 0 6px 20px rgb(43 30 23 / .06);
-  --ring: 0 0 0 3px rgb(217 119 87 / .40);
+  /* The focus ring, and why it is written out in numbers.
+     It was `rgb(232 106 44 / .40)` in the CRM and `rgb(217 119 87 / .40)`
+     on the website, the mobile preview and both design-system pages —
+     the first accent this project ever had, and a terracotta that was
+     never one of its accents at all. Two wrong oranges, on every
+     keyboard focus ring across five surfaces, surviving four palette
+     changes. Nothing could see them: `recolour.py` rewrites hex,
+     `palette.py` scanned for hex, and `browser:palette` measures hue —
+     19.8 and 14.8 both sit inside its 8–45 orange window, so all three
+     passed a colour none of them had ever read. It took an
+     accessibility check printing the focus shadow verbatim to find it.
+     `palette.py` now reads rgb() notation as well, which is what makes
+     this the last time. */
+  --ring: 0 0 0 3px rgb(255 90 0 / .40);
 }
 
 /* The inverted section. Leather, not black — a pure black band under a
