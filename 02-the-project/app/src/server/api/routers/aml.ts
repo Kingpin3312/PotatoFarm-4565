@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { router, orgProcedure, requirePermission } from "../trpc";
-import { assessRisk, assessRear, reviewIntervalMonths, TIPPING_OFF_RULES } from "@/server/lib/aml/rules";
+import { assessRisk, assessRear, reviewIntervalMonths, REAR_CASH_THRESHOLD_FILS, TIPPING_OFF_RULES } from "@/server/lib/aml/rules";
 import { interpret, AGENT_VISIBLE_STATE } from "@/server/lib/aml/screening";
 import { requestMessage } from "@/server/lib/aml/collect";
 import { audit } from "@/server/lib/audit";
@@ -272,6 +272,101 @@ export const amlRouter = router({
    * screening was held is exactly what must never be visible on the
    * floor: tipping off is an offence in itself.
    */
+  /**
+   * Transactions that owe the FIU a Real Estate Activity Report.
+   *
+   * ## The panel this restores
+   *
+   * `compliance/page.tsx` carried a REAR section and it was removed, for
+   * a reason recorded honestly in the file: `checkRear` is a pure
+   * calculation over an array of payments, and **there was no payments
+   * model**, so nothing could supply the array. The panel could only
+   * ever have rendered from data that did not exist.
+   *
+   * That comment named the precondition — "reinstating it needs the
+   * payment record first" — and `DealPayment` is now that record. So the
+   * panel comes back, reading real rows.
+   *
+   * ## An empty list here means something now
+   *
+   * The removal note made the argument better than this one could: a
+   * compliance officer seeing an empty REAR panel would reasonably
+   * conclude there were no reportable transactions, and that is the one
+   * screen in the product where absence of an alert must not be mistaken
+   * for an all-clear.
+   *
+   * Empty is now a true statement rather than a vacuous one — every deal
+   * with payments recorded against it has been assessed. The screen says
+   * how many were looked at, so "nothing reportable" can be told apart
+   * from "nothing recorded", which are very different facts about a
+   * brokerage.
+   *
+   * Assessed on read, because the ninety-day linked window moves with
+   * the calendar and a stored verdict is right only on the day it was
+   * written.
+   */
+  reportable: requirePermission("compliance:read").query(async ({ ctx }) => {
+    const deals = await ctx.db.deal.findMany({
+      where: { payments: { some: {} } },
+      select: {
+        id: true, reference: true, valueFils: true, stage: true, leadId: true,
+        payments: {
+          select: { amountFils: true, method: true, receivedAt: true },
+          orderBy: { receivedAt: "desc" },
+        },
+      },
+    });
+
+    /**
+     * Names in a second query, because `Deal.leadId` is a bare column.
+     *
+     * Most of this schema carries foreign keys without a Prisma relation
+     * — the tenant boundary is row-level security rather than referential
+     * integrity — so there is no `deal.lead` to select through. One query
+     * for the names beats one per deal, and adding a relation to the
+     * schema for a label on a panel would be a migration in service of
+     * nothing.
+     */
+    const leadIds = deals.map((d) => d.leadId).filter((v): v is string => !!v);
+    const names = new Map(
+      (leadIds.length
+        ? await ctx.db.lead.findMany({
+            where: { id: { in: leadIds } },
+            select: { id: true, name: true },
+          })
+        : []
+      ).map((l) => [l.id, l.name]),
+    );
+
+    const assessed = deals.map((d) => ({
+      dealId: d.id,
+      reference: d.reference,
+      counterparty: d.leadId ? names.get(d.leadId) ?? null : null,
+      valueFils: d.valueFils,
+      stage: d.stage,
+      lastPaymentAt: d.payments[0]?.receivedAt ?? null,
+      rear: assessRear(d.payments.map((p) => ({
+        amountFils: p.amountFils, method: p.method, at: p.receivedAt,
+      }))),
+    }));
+
+    return {
+      /** Only the ones that owe a report. The rest are context, below. */
+      reportable: assessed
+        .filter((a) => a.rear.required)
+        .sort((a, b) => (b.lastPaymentAt?.getTime() ?? 0) - (a.lastPaymentAt?.getTime() ?? 0)),
+      /**
+       * How many were examined at all.
+       *
+       * Without this the panel cannot distinguish "we checked eleven
+       * transactions and none are reportable" from "nobody has recorded
+       * a payment yet", and on this screen those must not look alike.
+       */
+      dealsWithPayments: deals.length,
+      thresholdFils: REAR_CASH_THRESHOLD_FILS,
+    };
+  }),
+
   reports: requirePermission("compliance:read").query(async ({ ctx }) => {
     const now = new Date();
 
@@ -395,6 +490,22 @@ export const amlRouter = router({
     }),
 
   /** Does this transaction trigger a REAR? */
+  /**
+   * The same rule, as a calculator with nothing behind it.
+   *
+   * This takes payments as an argument and reads nothing, which is why
+   * no screen has ever called it: there was no payments model, so
+   * nothing could build the array. `deals.payments` and `aml.reportable`
+   * both read `DealPayment` rows and call `assessRear` directly, which
+   * is the version with data behind it.
+   *
+   * Kept because a caller with payments in hand — an import, a
+   * what-if before a deposit is accepted — has a legitimate use for the
+   * rule without a deal to hang it on. **But it is now the second path
+   * to one answer**, and the same warning applies as on `leads.assign`:
+   * if the rule ever changes, it changes in `rules.ts` where all three
+   * callers read it, and never in one of them.
+   */
   checkRear: requirePermission("compliance:read")
     .input(z.object({
       payments: z.array(z.object({

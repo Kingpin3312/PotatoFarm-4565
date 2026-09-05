@@ -49,6 +49,29 @@ async function call(proc: string, json: unknown) {
   });
   return { status: r.status, body: await r.text() };
 }
+/**
+ * The compliance officer, who is a different person on purpose.
+ *
+ * `aml.reportable` takes `compliance:read`, which an owner does not
+ * have — telling a client a report was filed is an offence and the
+ * separation is a legal requirement rather than a permissions
+ * preference. A check that read this desk as the owner would be
+ * asserting against a role that must never see it.
+ */
+const OFFICER =
+  "authjs.session-token=dev-session-compliance_officer; " +
+  "__Secure-authjs.session-token=dev-session-compliance_officer";
+
+async function reportable() {
+  const r = await fetch(`${APP}/api/trpc/aml.reportable?batch=1`, { headers: { cookie: OFFICER } });
+  const text = await r.text();
+  if (r.status !== 200) throw new Error(`aml.reportable HTTP ${r.status}: ${text.slice(0, 200)}`);
+  return JSON.parse(text)[0].result.data.json as {
+    reportable: { reference: string; rear: { reason?: string } }[];
+    dealsWithPayments: number;
+  };
+}
+
 async function read(dealId: string) {
   const q = encodeURIComponent(JSON.stringify({ 0: { json: { dealId } } }));
   const r = await fetch(`${APP}/api/trpc/deals.payments?batch=1&input=${q}`, {
@@ -162,6 +185,31 @@ async function main() {
   ok("a payment dated in the future is refused",
      future.status !== 200 || future.body.includes('"error"'),
      "outside the window, it would silently suppress a mandatory report");
+
+  /**
+   * The compliance desk, and the distinction its panel exists to make.
+   *
+   * The REAR section was removed from that screen once, and the note
+   * left behind made the argument: an officer seeing an empty list would
+   * reasonably read it as "nothing reportable", and this is the one
+   * screen where absence of an alert must not be mistaken for an
+   * all-clear. So the panel never prints an empty list on its own — it
+   * carries how many transactions were examined to reach it.
+   *
+   * These two assertions are that distinction. If they ever collapse
+   * into each other, the screen has started lying in the most expensive
+   * direction available to it.
+   */
+  console.log("");
+  const desk = await reportable();
+  ok("the compliance desk sees the reportable ones",
+     desk.reportable.some((r) => r.reference.includes(`RS-${tag}`)),
+     `${desk.reportable.length} listed`);
+  ok("and counts what it examined, so empty is not mistaken for all-clear",
+     desk.dealsWithPayments >= 5, `${desk.dealsWithPayments} transaction(s) assessed`);
+  ok("a transfer-only transaction is examined but not listed",
+     desk.reportable.every((r) => !r.reference.includes(`RT-${tag}`)),
+     "examined and cleared is a different fact from never looked at");
 
   await db.dealPayment.deleteMany({ where: { dealId: { in: made } } });
   await db.deal.deleteMany({ where: { id: { in: made } } });

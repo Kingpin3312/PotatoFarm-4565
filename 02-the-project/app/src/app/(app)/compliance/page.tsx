@@ -24,10 +24,13 @@ import { sentence } from "@/lib/sentence";
  */
 export default function Compliance() {
   const { data, isLoading, isError, refetch, error } = api.aml.reports.useQuery();
+  const { data: rearData } = api.aml.reportable.useQuery();
 
   if (isError) return <QueryError retry={() => void refetch()} what="the compliance file" error={error} />;
   if (isLoading) return <div className="max-w-[760px] mx-auto px-6 pt-10"><div className="h-64 bg-sunk rounded-sm" aria-busy /></div>;
 
+  const rear = rearData?.reportable ?? [];
+  const examined = rearData?.dealsWithPayments ?? 0;
   const pending = data?.pending ?? [];
   const due = data?.reviewsDue ?? [];
 
@@ -49,28 +52,51 @@ export default function Compliance() {
       </header>
 
       {/*
-        The cash-threshold section that stood here has been removed, and
-        this is the honest reason.
+        The cash-threshold section that stood here was removed once, and
+        this is what brought it back.
 
-        It listed "cash transactions over the threshold" with an amount, a
-        reference and a countdown, read from `aml.checkRear`. But
-        `checkRear` is a pure calculation: it takes an array of payments
-        as its input and works out whether they trigger a REAR. It reads
-        nothing. **There is no payments model in this schema** — no record
-        of what a client paid, in what form, or when — so nothing anywhere
-        could supply that array, and the section could only ever have
-        rendered from data that does not exist.
+        The removal note was right: it read from `aml.checkRear`, which is
+        a pure calculation over an array of payments, and there was no
+        payments model — so nothing could supply the array and the panel
+        could only ever have rendered from data that did not exist. It
+        named the precondition, "reinstating it needs the payment record
+        first", and `DealPayment` is now that record.
 
-        Reinstating it needs the payment record first. Until then a
-        compliance officer seeing an empty REAR panel would reasonably
-        conclude there were no reportable transactions, which is a
-        materially worse outcome than not showing the panel: this is the
+        The note's other argument is the one this panel is built around:
+        a compliance officer seeing an empty REAR list would reasonably
+        conclude there were no reportable transactions, and this is the
         one screen in the product where absence of an alert must not be
-        mistaken for an all-clear.
-
-        `checkRear` itself is unchanged and still correct — it is called
-        with payments from the screening flow.
+        mistaken for an all-clear. So an empty list is never printed on
+        its own — it always carries how many transactions were examined
+        to reach it. "None of 4 reportable" and "no payments recorded
+        anywhere" are very different facts about a brokerage.
       */}
+      <h2 className="font-sans font-semibold text-body-lg text-ink mb-3">
+        Reportable transactions
+      </h2>
+      {rear.length > 0 ? (
+        <div className="border-t border-ink mb-8">
+          {rear.map((r) => (
+            <a key={r.dealId} href="/deals"
+               className="block border-b border-rule py-3 no-underline">
+              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                <span className="font-mono text-label text-ink-3">{r.reference}</span>
+                <span className="text-ui text-ink">{r.counterparty ?? "—"}</span>
+                <span className="ms-auto t-label text-accent-deep">REAR due</span>
+              </div>
+              <p className="mt-1 max-w-[56ch] text-note leading-snug text-ink-2">
+                {r.rear.reason}
+              </p>
+            </a>
+          ))}
+        </div>
+      ) : (
+        <p className="mb-8 max-w-[52ch] border-t border-rule pt-4 text-sm leading-snug text-ink-2">
+          {examined === 0
+            ? "No payments have been recorded against any transaction, so nothing has been assessed. This is not an all-clear."
+            : `Nothing reportable. ${examined} transaction${examined === 1 ? "" : "s"} with payments recorded ${examined === 1 ? "has" : "have"} been assessed against the AED 55,000 cash threshold.`}
+        </p>
+      )}
 
       <h2 className="font-sans font-semibold text-body-lg text-ink mb-3">
         Waiting on a decision
