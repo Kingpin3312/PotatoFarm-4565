@@ -156,6 +156,72 @@ async function main() {
     check("A sees none of B's recommendations", recs.map((r) => r.headline), []);
   }
 
+  /**
+   * Every tenant table, not the ones this file happens to name.
+   *
+   * Everything above proves isolation for tables somebody thought to
+   * write an assertion for — Lead, ClientFact, BlackbookEntry,
+   * Recommendation. That is a list, and a list goes quiet exactly when
+   * something is added to the schema.
+   *
+   * The init migration got this right: it loops over every table with an
+   * `orgId` column and applies the policy. But that loop ran **once**, at
+   * init. A table added by a later migration is not covered by it, and
+   * nothing here would have noticed — the new table would pass this
+   * check by not being in it, and one brokerage would read another's
+   * rows out of the newest and least-examined table in the product.
+   *
+   * So this asks the database rather than a list: for every base table
+   * carrying an `orgId`, is row-level security enabled, is it FORCED,
+   * and is there a `tenant_isolation` policy on it? The rule names no
+   * tables, so it cannot go stale, and adding a tenant model without a
+   * policy is now a failed build rather than a silent leak.
+   *
+   * FORCE matters as much as ENABLE: without it the policy does not
+   * apply to the table's owner, and the migration role is the owner.
+   */
+  console.log("\nEvery table with an orgId is actually covered:");
+  {
+    const rows = await root.$queryRaw<{
+      table_name: string; enabled: boolean; forced: boolean; policies: bigint;
+    }[]>`
+      SELECT c.relname                       AS table_name,
+             c.relrowsecurity                AS enabled,
+             c.relforcerowsecurity           AS forced,
+             count(p.polname) FILTER (WHERE p.polname = 'tenant_isolation') AS policies
+        FROM information_schema.columns col
+        JOIN pg_class c  ON c.relname = col.table_name
+        JOIN pg_namespace n ON n.oid = c.relnamespace AND n.nspname = 'public'
+        LEFT JOIN pg_policy p ON p.polrelid = c.oid
+       WHERE col.table_schema = 'public'
+         AND col.column_name  = 'orgId'
+         AND c.relkind        = 'r'
+       GROUP BY c.relname, c.relrowsecurity, c.relforcerowsecurity
+       ORDER BY c.relname;
+    `;
+
+    // A query that matches nothing must not read as "all covered". That
+    // is the shape of failure this whole file exists to catch.
+    if (rows.length === 0) {
+      fails.push("no tables with an orgId were found — this run proved nothing");
+      console.log("  ✗ no tables with an orgId were found — this run proved nothing");
+    }
+
+    const bad = rows.filter((r) => !r.enabled || !r.forced || Number(r.policies) === 0);
+    const ok = bad.length === 0;
+    console.log(`  ${ok ? "✓" : "✗"} ${rows.length} tenant table(s) checked` +
+                (ok ? ", every one enabled, forced and policied" : ""));
+    for (const b of bad) {
+      const why = [
+        !b.enabled ? "RLS not enabled" : null,
+        !b.forced ? "not FORCED, so the owner bypasses it" : null,
+        Number(b.policies) === 0 ? "no tenant_isolation policy" : null,
+      ].filter(Boolean).join("; ");
+      console.log(`      x ${b.table_name} — ${why}`);
+      fails.push(`${b.table_name}: ${why}`);
+    }
+  }
+
   console.log("\nA write cannot cross either:");
   const stolen = await forOrg(a.id).lead.updateMany({
     where: { phone: `${TAG}00003` },          // B's lead, from A's client
