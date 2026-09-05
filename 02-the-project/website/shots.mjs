@@ -73,6 +73,23 @@ for (const s of SHOTS) {
   await ctx.addCookies([{
     name: "authjs.session-token", value: SESSION,
     domain: "localhost", path: "/", httpOnly: true, sameSite: "Lax",
+  }, {
+    /**
+     * The same session under the name a production build reads.
+     *
+     * `useSecureCookies` is on when NODE_ENV is production, so `next
+     * start` looks for `__Secure-authjs.session-token` and ignores the
+     * bare one. Sending only the development name produced a signed-out
+     * shell — and this script did the right thing with that, refusing to
+     * photograph a page that rendered 238 characters rather than
+     * shipping a blank screenshot to the marketing site.
+     *
+     * `secure: true` is required or Chromium rejects the prefix
+     * outright; it still reaches http://localhost because browsers treat
+     * localhost as a trustworthy origin.
+     */
+    name: "__Secure-authjs.session-token", value: SESSION, secure: true,
+    domain: "localhost", path: "/", httpOnly: true, sameSite: "Lax",
   }]);
   const p = await ctx.newPage();
   await p.goto(APP + s.path, { waitUntil: "networkidle" });

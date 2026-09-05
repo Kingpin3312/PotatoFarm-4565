@@ -105,8 +105,8 @@ token, which the web app cannot do. Treat it as a design sketch.
 
 ## 4. What is built
 
-**74 database models · 61 enums · 27 API routers · 151 procedures ·
-43 screens · 28 scheduled jobs · 18 audit scripts · 28 check suites.**
+**75 database models · 62 enums · 27 API routers · 153 procedures ·
+43 screens · 28 scheduled jobs · 18 audit scripts · 30 check suites.**
 
 **Eight procedures have no screen.** Seven are deliberate:
 `migration.abandon`, `aml.updateFile`, `aml.checkRear`,
@@ -774,7 +774,7 @@ Full spec: `03-brand/logo/SPEC.md`.
 
 ## 10. Database, API, auth, integrations
 
-**Database:** PostgreSQL via Prisma. `app/prisma/schema.prisma`, 74
+**Database:** PostgreSQL via Prisma. `app/prisma/schema.prisma`, 75
 models. Six migrations in `app/prisma/migrations/`. **`rls.sql` is
 appended to the init migration** — it is not a file somebody has to
 remember to run, because the tenant boundary is not something to leave to

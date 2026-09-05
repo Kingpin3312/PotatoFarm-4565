@@ -7,6 +7,7 @@ import { aedShort } from "@/lib/money";
 import { sentence } from "@/lib/sentence";
 import type { StepStage } from "@/server/lib/deals/risk";
 import { QueryError } from "@/components/ui/query-state";
+import { Payments } from "./payments";
 
 /**
  * Deals, which nobody could see until now.
@@ -310,6 +311,8 @@ function Detail({ id }: { id: string }) {
           </div>
         </div>
       )}
+
+      <Payments dealId={id} />
     </div>
   );
 }
