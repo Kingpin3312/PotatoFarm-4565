@@ -145,14 +145,29 @@ export default function Leads() {
           </span>
           <label htmlFor="assign-to" className="sr-only">Assign to</label>
           <select id="assign-to"
-            onChange={(e) => e.target.value &&
-              assign.mutate({ leadIds: [...picked], agentId: e.target.value })}
+            onChange={(e) => {
+              if (!e.target.value) return;
+              // `__pool__` rather than an empty string: the empty option
+              // is the placeholder, and a select cannot tell "chose
+              // nothing" from "chose nobody" if both are "".
+              assign.mutate({
+                leadIds: [...picked],
+                agentId: e.target.value === "__pool__" ? null : e.target.value,
+              });
+            }}
             className="min-h-11 px-3 text-control text-ink bg-raised border border-rule rounded-lg">
             <option value="">Assign to…</option>
             {(team?.members ?? []).map((m) => (
               // `m.id` is the membership id; assignment wants the user.
               <option key={m.id} value={m.user.id}>{m.user.name ?? m.user.email}</option>
             ))}
+            {/* Taking a lead off somebody is a different act from giving
+                it to somebody else, and until now only the second was
+                possible. A manager covering for an agent who is away had
+                to hand the lead to a named person or leave it where it
+                was. The rule below separates it from the names. */}
+            <option disabled>──────────</option>
+            <option value="__pool__">Nobody — return to the pool</option>
           </select>
           <button className="btn-inline ms-auto" onClick={() => setPicked(new Set())}>
             Clear

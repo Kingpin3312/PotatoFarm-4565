@@ -275,6 +275,24 @@ export const leadsRouter = router({
       };
     }),
 
+  /**
+   * Assign one lead.
+   *
+   * **`pipeline.bulkAssign` does the same work and is the one with a
+   * screen** — the selection bar on `/leads` posts to it for one lead as
+   * readily as for two hundred, including the "return to the pool"
+   * option. This procedure has no caller in the application.
+   *
+   * It is kept rather than deleted because it is the single-lead form a
+   * detail screen or the mobile client would reach for, and because
+   * deleting a permission-gated, audited mutation is a bigger decision
+   * than tidiness justifies. But the duplication is the risk worth
+   * naming: both write the same `LeadOwnership` rows, and both had to be
+   * changed to start writing them. **If one is fixed and the other is
+   * not, the trail is complete or missing depending on which button
+   * somebody pressed** — so change them together or make this one call
+   * into the other.
+   */
   assign: requirePermission("lead:assign")
     .input(z.object({ leadId: z.string(), agentId: z.string().nullable() }))
     .mutation(async ({ ctx, input }) => {
@@ -309,6 +327,52 @@ export const leadsRouter = router({
           where: { id: input.leadId },
           data: { assignedToId: input.agentId, assignedAt: input.agentId ? new Date() : null },
         });
+
+        /**
+         * The ownership trail, which had a hole exactly where a person
+         * made the decision.
+         *
+         * `LeadOwnership` is what answers "why did that lead not come to
+         * me", and three code paths wrote to it — first assignment, a
+         * routing rule, and claiming from the pool. All three are the
+         * machine explaining itself. **A manager moving a lead by hand
+         * wrote nothing**, so the one case people actually argue about
+         * was the one case with no record.
+         *
+         * `routing.dispute` already renders `REASSIGNED` as "a manager
+         * moved it" and `MANUAL` as "a manager assigned it" — an English
+         * translation table for two reasons nothing could produce. A
+         * declared value that changes no behaviour is the same shape as
+         * a module nothing calls, and this is that shape in an enum.
+         *
+         * The distinction between the two is real and worth keeping:
+         * taking a lead off somebody is a different act from giving out
+         * one that was in the pool, and only the first has a person on
+         * the other end of it. `fromUserId` records who lost it, which
+         * is the half a dispute turns on.
+         *
+         * The previous row is closed rather than left open. An ownership
+         * history where two rows both claim to be current cannot be read
+         * in either direction.
+         */
+        if (before.assignedToId !== input.agentId) {
+          await tx.leadOwnership.updateMany({
+            where: { orgId: ctx.orgId, leadId: input.leadId, endedAt: null },
+            data: { endedAt: new Date() },
+          });
+          if (input.agentId) {
+            await tx.leadOwnership.create({
+              data: {
+                orgId: ctx.orgId,
+                leadId: input.leadId,
+                userId: input.agentId,
+                fromUserId: before.assignedToId,
+                reason: before.assignedToId ? "REASSIGNED" : "MANUAL",
+                actorId: ctx.userId,
+              },
+            });
+          }
+        }
 
         await audit(tx, ctx.orgId, {
           actorId: ctx.userId,
