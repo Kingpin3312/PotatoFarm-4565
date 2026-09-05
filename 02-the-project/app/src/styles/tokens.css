@@ -1,0 +1,469 @@
+/* ============================================================
+   PotatoFarm.io — design tokens
+   OPTION 1: white, deep charcoal, and a controlled orange.
+   ============================================================
+
+   Every ratio below is measured, not estimated. Where a value fails a
+   threshold it says so rather than being rounded up — a palette file
+   that flatters itself is how a real failure gets waved through later.
+
+   ## What changed from v4, and why the old comments are gone
+
+   v4 argued for warm cream over pure white: "Hermes does not put orange
+   on #FFFFFF." That was a real argument and it lost to a decision.
+   Option 1 sets a predominantly white product at roughly 70% white,
+   20% warm neutral, 8% charcoal and 2% orange, and the warmth now lives
+   in `--panel` rather than in the ground.
+
+   The accent moved with it — and this is worth noting, because it moved
+   *towards* the artwork. Sampled off the supplied logo, the `.io` runs
+   between #E66308 and #ED8037. #FF6B35 sat outside that; #E86A2C sits
+   inside it.
+   ============================================================ */
+
+:root{
+  /* ---- The ground ------------------------------------------------
+     White dominates and the warm grey does the separating. `--raised`
+     is the same white as the ground on purpose: a card is defined by
+     its border and its spacing, not by being a different colour, which
+     is what §11 and §18 of the direction ask for. On a `--panel`
+     section a white card separates itself. */
+  --ground: #FFFFFF;
+  --panel:  #F5F3F0;   /* Warm Grey — secondary sections, inputs */
+  --raised: #FFFFFF;
+
+  /* ---- Ink ----------------------------------------------------------
+     Deep charcoal rather than pure black, which the direction asks for
+     and which is also the older palette's instinct. */
+  --ink:   #171717;   /* 17.93:1 on white, 16.19:1 on panel */
+  --ink-2: #4A4A4A;   /*  8.86:1 on white — body */
+  --ink-3: #6B6B6B;   /*  5.33:1 on white, 4.81:1 on panel — Medium Grey */
+
+  /* ---- Rules, and why there are two ---------------------------------
+     `--rule` is the direction's border and it is a hairline: 1.26:1,
+     which is right for a line between two table rows and wrong for the
+     edge of a text input.
+
+     WCAG 1.4.11 wants the boundary of a form control at 3:1 against
+     what is behind it, so the second step exists. Derived from the same
+     warm neutral rather than introduced — it is the grey the panel
+     would be if you kept going. */
+  --rule:        #E7E5E2;   /* 1.26:1 — separators, decorative */
+  --rule-strong: #918A82;   /* 3.41:1 on white, 3.08:1 on panel — controls */
+
+  /* ---- Orange, and the discipline it needs ---------------------------
+     One orange, at roughly 2% of the surface. It is the accent and not
+     the interface: primary actions, active navigation, selected state,
+     focus, the `.io`, and the AI moments. Not backgrounds, not headings
+     at body size, not decoration.
+
+     **The measurement that governs everything else here: #E86A2C is
+     3.22:1 on white.** That clears the 3:1 needed for a focus ring, an
+     icon or a border, and it is below the 4.5:1 needed for text. So the
+     orange is a *surface* colour by default, and orange type steps down
+     the same hue until it is readable. Three steps, all from the
+     direction's own two values. */
+/* ------------------------------------------------------------------
+     ONE ORANGE. #E86A2C, everywhere, exactly.
+
+     This used to be a four-step ramp — #E86A2C, #CF5A22, #B94E1F,
+     #A0431B — chosen so that orange *type* could reach 4.5:1 and orange
+     hairlines could sit on an orange fill. Every step was a different
+     hex, and to anybody looking at the product they were simply
+     different oranges: a button one shade, its hover another, a link a
+     third.
+
+     The direction is one colour. Every link, every button, every border,
+     every hover, every fill is now the same value, and the tokens are
+     kept as separate names only so that a future decision has somewhere
+     to land.
+
+     **The consequence, stated plainly:** #E86A2C is 3.22:1 on white.
+     That is fine for a fill, a border or an icon, which WCAG measures at
+     3:1. It is below the 4.5:1 that body-size text needs, so orange
+     *text* — a link in a paragraph — no longer meets AA on contrast
+     alone. Links carry an underline for that reason: it is the
+     non-colour signal that keeps them findable.
+     ------------------------------------------------------------------ */
+  --accent:      #FF5A00;   /* fills, focus, active state, .io */
+  --accent-hover:#FF5A00;   /* the hover on a fill — the same orange */
+  --accent-edge: #FF5A00;   /* hairline on a fill — the same orange */
+
+  /**
+   * Orange type on a light surface, and it is **not orange any more.**
+   *
+   * Kept as ink through three accents now, and the reason has shifted
+   * rather than disappeared. #FF5A00 is **3.13:1** on white — it
+   * clears the 3:1 a border or an icon needs and is well under the
+   * 4.5:1 body text needs, so orange words stay a knowing exception
+   * rather than a safe default. The three accents before it measured
+   * 3.22, 1.97 and 4.30, and this token has been ink through all four.
+   *
+   * The brief is white ground, black text, one accent, and this is the
+   * line that keeps the middle clause true. If orange type is wanted
+   * back, this is the one token to change, and 3.13:1 is the number to
+   * take the decision on.
+   *
+   * `.on-leather` puts the orange back, because on charcoal the same
+   * value is 7.44:1 and reads perfectly.
+   */
+  --accent-deep: #171717;   /* 17.93:1 — orange type would be 3.13:1 */
+
+  /**
+   * The brand orange used as type. The `.io`, and nothing else.
+   *
+   * It dressed every heading until the 70/20/8/2 balance was measured
+   * rather than assumed. A 68px headline is not 2% of a page: on a
+   * phone the marketing hero came out majority orange and the one
+   * button that should have pulled the eye competed with the sentence
+   * above it. Headings are `--ink` now, at 17.93:1.
+   *
+   * The name is kept because the on-leather block below overrides it,
+   * and because the `.io` is genuinely orange type. Renaming it to
+   * `--brand-tld` would be a diff across three surfaces that changes
+   * no pixel.
+   */
+  --accent-type: #FF5A00;
+
+  /* Soft Orange. Selected rows, AI insight panels, highlight cards.
+     A tint of the accent, so it moved with it: the old #FFF1E8 was a
+     tint of #E86A2C and sat at hue 23.5 against the new accent's 38.8,
+     which is the "two oranges" complaint in its quietest form — a peach
+     panel behind an amber button. Same lightness (95.5), so nothing
+     else about the surface changes. Ink on it is 16.84:1. */
+  --accent-soft: #FFF0E8;
+
+  /**
+   * The label on an orange fill.
+   *
+   * **White. Confirmed by the brand owner after the measurement was put
+   * in front of them, which is what makes it a decision rather than an
+   * oversight.**
+   *
+   *     white on the fill    3.13:1   below the 4.5:1 AA floor
+   *     ink on the fill      5.73:1   passes
+   *
+   * It was briefly ink on exactly that reading. The instruction is
+   * white on orange everywhere, the number is known, and the number
+   * does not get to overrule the brand — so this is white and the cost
+   * is recorded here rather than argued about again.
+   *
+   * **The cost, stated once:** a 16px semibold label at 3.13:1 is
+   * legible indoors and soft in direct sun, which is where UAE agents
+   * work. The two ways to keep white *and* the contrast are to darken
+   * the fill to about L 38, or to make button labels large text
+   * (18.66px bold), where 3:1 is the standard and this passes.
+   *
+   * Do not "fix" this to ink. It has been changed back once already.
+   *
+   * Four accents, and the label has now been ink, ink, white and ink.
+   * That is not indecision: the fill kept moving and the readable
+   * answer moved with it. `--on-accent` existing at all is what makes
+   * each of those a one-line change rather than a hunt through 19 call
+   * sites, the native palette and an inline-styled email.
+   *
+   * Every label on an orange fill reads this one token — 19 call sites
+   * across the app, plus the native palette and the email button, which
+   * is inline-styled and the only one that does not. So this line is
+   * the whole rule, and the email is the file to remember.
+   */
+  --on-accent: #FFFFFF;
+
+  /* ---- The direction's own token names -------------------------------
+     Aliases, not second definitions. The direction names its tokens
+     `--color-primary`, `--color-background` and so on; this codebase
+     has called them `--accent` and `--ground` since before it, and 40+
+     screens and two other surfaces read those names.
+     
+     Renaming them everywhere would be a large diff that changes no
+     pixel, and keeping two independent sets is how a palette comes to
+     disagree with itself. So the direction's names resolve to the same
+     values, and either can be used. */
+  --color-primary:            var(--accent);
+  --color-primary-hover:      var(--accent-hover);
+  --color-primary-soft:       var(--accent-soft);
+  --color-primary-strong:     var(--accent-deep);
+  --color-on-primary:         var(--on-accent);
+  --color-background:         var(--ground);
+  --color-background-secondary: var(--panel);
+  --color-text-primary:       var(--ink);
+  --color-text-secondary:     var(--ink-3);
+  --color-border:             var(--rule);
+  --color-border-strong:      var(--rule-strong);
+
+  /**
+   * ---- The wordmark navy --------------------------------------------
+   *
+   * The one colour the supplied logo has that this product did not.
+   * "PotatoFarm" in the artwork is a deep blue-black, not the neutral
+   * `--ink` the wordmark had been rendered in; sampled off the flat
+   * interior of the thick strokes it reads #0E1822, with blue leading
+   * red by eleven points. That is a decision, not compression noise.
+   *
+   * **It is a brand colour, not an interface colour.** It dresses the
+   * wordmark and nothing else. Repainting `--ink` navy would have
+   * recoloured every heading, table and caption in the product on the
+   * strength of a logo, which is a different job from the one asked
+   * for and would have moved thirty measured contrast ratios at once.
+   *
+   * **16.51:1 on the ground, re-measured under Option 1.** It said
+   * 14.88:1 here, and that number was correct against the cream
+   * #F4F3F0 this palette replaced — carried forward rather than taken
+   * again when the ground went white. Exactly the drift the header of
+   * this file warns about, in the file that warns about it.
+   *
+   * It sits a shade below the 17.93:1 of the neutral ink it replaces in
+   * that one place — navy is a colour, and a colour is never quite as
+   * dark as black — and both are so far above the 4.5:1 threshold that
+   * the difference is arithmetic rather than legibility.
+   *
+   * `--brand-navy-ink` is the reversed pairing: on charcoal and on the
+   * dark lockup the navy disappears, so the wordmark goes to the light
+   * type colour and only the `.io` stays orange. Both are here rather
+   * than inline so the whole brand can be moved from one file.
+   */
+  --brand-navy:     #12202E;   /* 16.51:1 on ground — "PotatoFarm" */
+  --brand-navy-ink: #F5F3F0;   /* the same word, reversed out on dark */
+  --brand-orange:   #FF5A00;   /* the ".io", and it is `--accent` by design */
+
+  /* ---- Leather -----------------------------------------------------
+     The anchor. Orange without a dark warm neutral beneath it floats;
+     this is the belt and the box. */
+  --leather:      #34322F;   /* raised inside the dark band */
+  --leather-deep: #2A2825;   /* charcoal, not black — see charcoal.py */
+  /* The type that sits on leather, named at the root rather than only
+     inside `.on-leather`. The footer is on leather and outside that
+     class, so without these it gets literals — which is exactly what
+     happened, three times. */
+  --leather-ink:   #F5F3F0;   /* 13.27:1 on leather-deep */
+  --leather-ink-2: #B5B5B5;   /*  7.17:1 */
+  --leather-ink-3: #9A9A96;   /*  5.21:1 on charcoal — #8A8A8A fell to 4.03 */
+
+  /* ---- State, and why it is no longer a colour ---------------------
+     The green and the red are gone. The product is two colours by
+     brand decision, so state cannot be carried by hue any more.
+
+     **This was checked before it was done, not after.** Every one of
+     the 32 places that used `--success` or `--danger` already said the
+     thing in words next to the colour — "Sent.", "PAID", "Reply window
+     closed", or the error sentence itself inside a `role="alert"`. The
+     hue was reinforcement, not the message, so removing it removes
+     nothing a person or a screen reader was relying on.
+
+     Two places were the exception — a status dot in the kill switch and
+     one in the reply-window badge, where the colour genuinely *was* the
+     only difference. Those are now filled versus hollow, which is a
+     difference in shape and survives both this change and colour
+     blindness. They would have been the bug in this change.
+
+     Danger keeps the accent, in its readable step, because an error
+     still has to pull the eye. Success drops to ink: a confirmation
+     that has already happened does not need to shout. */
+  --success:      #171717;   /* black — the word carries it */
+  /* The same orange. These were #A0431B — a darker shade so that error
+     text could reach 6.34:1 and so that a warning did not look like a
+     link. Both of those were real, and the direction is one colour, so
+     both are gone. If an error needs to be distinguishable from a link
+     again, the answer is a red, not another orange. */
+  --danger:       #FF5A00;
+  --warning:      #FF5A00;
+
+  /* ---- Type ---------------------------------------------------------
+     One scale, Apple's proportions, two registers.
+
+     ## The stack, and the one name that left it
+
+     `Inter` was third in the list and it is the change that matters.
+     On a Mac it never won — `-apple-system` matched first — so nobody
+     working on this saw it. On Windows and Linux with Inter installed
+     it won every time, and Inter is a different voice: a larger
+     x-height, flatter terminals, more geometric. Half the users were
+     reading a different product from the other half and no screenshot
+     ever showed it.
+
+     `-apple-system` and `BlinkMacSystemFont` resolve to San Francisco,
+     which is an optical-size family: the browser picks SF Pro Display
+     above roughly 20px and SF Pro Text below it, adjusting aperture and
+     spacing as it goes. That switch is most of what "Apple typography"
+     actually is, and it is free — it needs no webfont, no download and
+     no licence. The two quoted SF names after them are for the handful
+     of environments that have the fonts installed but not the keyword.
+
+     `"Segoe UI", Roboto` are kept, and this is a deliberate departure
+     from the brief's literal stack, which goes from Helvetica Neue
+     straight to Helvetica and Arial. On Windows that resolves to Arial
+     — a 1982 face with no optical sizing — for the entire product. The
+     brief's own principle is to "prioritise the native system
+     rendering"; Segoe UI *is* that on Windows and Roboto is on Android.
+     On Apple hardware this stack is byte-identical to the brief's.
+
+     No webfont is loaded anywhere. Nothing here is Apple's property. */
+  --sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
+          "Segoe UI", Roboto, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  /* Kept for one thing: figures in a column that must not jitter. It is
+     no longer a *label* face — see `--t-label` below. */
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+
+  /* ---- Weight -------------------------------------------------------
+     Three, and 700 is not one of them.
+
+     The product had 184 `font-semibold`, 11 `font-medium` and one
+     `font-normal` — effectively a binary, 600 or 400, with nothing in
+     between doing the work that 500 does on every Apple surface. A
+     button, a nav item and a table header are all "a bit heavier than
+     body", and reaching for 600 in all three is what makes an interface
+     look shouted. */
+  --w-regular:  400;
+  --w-medium:   500;
+  --w-semibold: 600;
+
+  /* ---- Tracking -----------------------------------------------------
+     The brief's three anchors. Each step below carries its own value
+     derived from them, because tracking is a function of size: type
+     tightens as it grows and needs air as it shrinks. Applying one
+     number at every size is the thing that reads as templated. */
+  --track-tight:  -0.02em;
+  --track-normal: 0;
+  --track-wide:   0.01em;
+
+  /* ---- The editorial register: the marketing site -------------------
+     Apple's own site proportions. Display sizes are fluid so a hero
+     never overflows a phone and never looks stranded at 1920. */
+  --display: clamp(2.75rem, 1.9rem + 4.2vw, 5rem);      /* 44 → 80 */
+  --h1:      clamp(2rem, 1.5rem + 2.4vw, 3rem);         /* 32 → 48 */
+  --h2:      clamp(1.625rem, 1.35rem + 1.4vw, 2rem);    /* 26 → 32 */
+  --h3:      1.5rem;                                    /* 24 */
+  --lead:    1.3125rem;                                 /* 21 */
+  --body-lg: 1.1875rem;                                 /* 19 */
+  --body:    1.0625rem;                                 /* 17 — Apple's */
+
+  /* ---- The interface register: the CRM ------------------------------
+     Deliberately not the same numbers, and this is the decision most
+     worth arguing with.
+
+     Apple does not use one scale for apple.com and for a working tool.
+     Their own guidance puts 17pt body on an iOS screen and 13pt on a
+     macOS window, because a marketing page is read once and a pipeline
+     is scanned four hundred times a day. Setting a CRM table at the
+     site's 17px body would push perhaps two rows below the fold on a
+     laptop and force a horizontal scroll on the wider tables.
+
+     So the interface keeps its density and takes everything else —
+     the face, the weights, the optical tracking, the line heights. */
+  /* The screen title. Fluid, because a fixed 40px headline on a 375px
+     phone is the single most common way a CRM overflows. There were
+     four different clamps in the app for this one thing — 32→40,
+     32→44, 28→36 and 30→40 — picked per screen. */
+  --t-page:    clamp(2rem, 1.5rem + 2vw, 2.5rem);   /* 32 → 40 */
+  --t-title:   1.75rem;      /* 28 — a card or panel heading */
+  --t-section: 1.3125rem;    /* 21 — a section heading (was 22) */
+  --t-sub:     1.0625rem;    /* 17 — a card or row title */
+  --t-ui:      0.9375rem;    /* 15 — body, list rows */
+  --t-control: 1rem;         /* 16 — inputs. Below this iOS zooms the
+                                page on focus, which is a layout bug
+                                that presents as a typography choice. */
+  --t-note:    0.8125rem;    /* 13 — secondary and helper text */
+  --t-label:   0.75rem;      /* 12 — the floor. Nothing renders under it. */
+
+  /* Figures that head a screen. Between title and h2 on purpose: a
+     number is read as a shape, not as words, and carries at a size
+     where a sentence would shout. */
+  --stat:      1.875rem;     /* 30 */
+
+  /* ---- Line height --------------------------------------------------
+     Tight for display, generous for anything read in sentences. */
+  --lh-display: 1.05;
+  --lh-heading: 1.12;
+  --lh-title:   1.2;
+  --lh-body:    1.5;
+  --lh-ui:      1.45;
+  --lh-tight:   1.3;
+
+  /* ---- Per-step tracking --------------------------------------------
+     Measured off the same curve rather than picked. The product had
+     three different values — 0.10em, 0.12em and 0.14em — on what was
+     visually one label, which is the sort of drift a scale exists to
+     stop. */
+  --track-display: -0.022em;
+  --track-h1:      -0.02em;
+  --track-h2:      -0.018em;
+  --track-h3:      -0.014em;
+  --track-title:   -0.018em;
+  --track-section: -0.012em;
+  --track-sub:     -0.01em;
+  --track-ui:      -0.006em;
+  --track-note:    -0.004em;
+  /* A touch of air on a 12px label. It was 0.06em while these were
+     uppercase, which capitals genuinely need; sentence case does not,
+     and the wider value made a two-word label look spaced out. */
+  --track-label:   0.02em;
+
+  --section: clamp(72px, 9vw, 128px);
+  --measure: 34rem;
+
+  --r-xs: 4px;
+  --r-sm: 6px;
+  --r:    8px;
+  --r-lg: 14px;
+  --r-xl: 999px;
+
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Warmer and shallower than a neutral shadow. A grey shadow on a
+     cream ground looks like dirt. */
+  --lift: 0 1px 2px rgb(43 30 23 / .05), 0 6px 20px rgb(43 30 23 / .06);
+  /* The focus ring, and why it is written out in numbers.
+     It was `rgb(232 106 44 / .40)` in the CRM and `rgb(217 119 87 / .40)`
+     on the website, the mobile preview and both design-system pages —
+     the first accent this project ever had, and a terracotta that was
+     never one of its accents at all. Two wrong oranges, on every
+     keyboard focus ring across five surfaces, surviving four palette
+     changes. Nothing could see them: `recolour.py` rewrites hex,
+     `palette.py` scanned for hex, and `browser:palette` measures hue —
+     19.8 and 14.8 both sit inside its 8–45 orange window, so all three
+     passed a colour none of them had ever read. It took an
+     accessibility check printing the focus shadow verbatim to find it.
+     `palette.py` now reads rgb() notation as well, which is what makes
+     this the last time. */
+  --ring: 0 0 0 3px rgb(255 90 0 / .40);
+}
+
+/* The inverted section. Leather, not black — a pure black band under a
+   white page is a hole in it.
+
+   The app is white by default and leather is the inverted case: the
+   sidebar, and any band that needs to break a long page. Both surfaces
+   are the same way round. That was not true two palettes ago — navy was
+   the site's ground and light was the app's, and keeping two opposite
+   polarities in one product was a seam nobody wanted. */
+.on-leather{
+  --ground: var(--leather-deep); --panel: var(--leather); --raised: var(--leather);
+  --ink: var(--leather-ink); --ink-2: var(--leather-ink-2); --ink-3: var(--leather-ink-3);
+  --rule: #42403D;
+  /* On charcoal the orange genuinely works as type: #FFA500 is 7.44:1
+     on `--leather-deep`. So the dark band is the one surface where the
+     accent may be a word, and `--accent-deep` goes back to it. */
+  --accent-deep: #FF5A00;
+  /* The brand orange on the dark band. **4.57:1 on `--leather-deep`,
+     which passes AA — and 3.97:1 on `--leather`, the raised step, which
+     does not.**
+
+     It said "5.18:1 — passes AA", and the number was measured against a
+     charcoal two palettes ago. Both halves were wrong: the figure, and
+     the claim that it holds everywhere in the band.
+
+     It is not a fault, because since headings went to `--ink` the only
+     thing wearing this on a dark surface is the `.io` in the wordmark,
+     and WCAG 1.4.1 exempts a wordmark. But an inline comment saying
+     "passes AA" beside a value that does not is exactly how somebody
+     later puts a caption in it. */
+  --accent-type: #FF5A00;
+  /* White here too. The fill is the same colour on either ground, so
+     the label on it is the same decision — and the same 3.13:1. */
+  --on-accent: #FFFFFF;
+}
+
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important;
+    scroll-behavior:auto!important}
+}

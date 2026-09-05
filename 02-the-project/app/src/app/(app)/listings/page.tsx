@@ -1,0 +1,258 @@
+"use client";
+
+import { Suspense } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { cn } from "@/lib/cn";
+import { api } from "@/lib/trpc";
+import { QueryError } from "@/components/ui/query-state";
+import { aedWhole } from "@/lib/money";
+import { PublishCheck } from "./publish-check";
+import { WhoWantsIt } from "./who-wants-it";
+import { AddProperty } from "./add-property";
+import { EditListing } from "./edit-listing";
+import { CheckCopy } from "./check-copy";
+
+/**
+ * Listings.
+ *
+ * Two things on this screen are the whole point, and both are silent
+ * failures anywhere else: a Trakheesi permit about to lapse, and a
+ * portal that has quietly refused a listing.
+ */
+/**
+ * The Suspense boundary is required, not decorative.
+ *
+ * `useSearchParams` in a client component makes the route
+ * unprerenderable, and Next 15 fails the production build rather than
+ * shipping it — `npm run build` says so in as many words. Wrapping is
+ * the fix; the fallback is what a reader sees for the instant before
+ * hydration.
+ */
+export default function ListingsPage() {
+  return (
+    <Suspense fallback={<div className="max-w-[1080px] mx-auto px-6 pt-8"><RowsSkeleton /></div>}>
+      <Listings />
+    </Suspense>
+  );
+}
+
+function Listings() {
+  /**
+   * The search this router always supported and nothing ever called.
+   *
+   * `listings.list` has taken a `search` input since it was written, and
+   * no screen passed one — the light switch wired to nothing, again.
+   * Global search now links here with `?q=DH-101`, so a property found
+   * by asking a question in English lands on the list filtered to it.
+   */
+  const params = useSearchParams();
+  const q = params.get("q")?.trim() ?? "";
+
+  const { data, isLoading } = api.listings.list.useInfiniteQuery(
+    { limit: 25, ...(q ? { search: q } : {}) },
+    { getNextPageParam: (l) => l.nextCursor }
+  );
+  const { data: expiring , isError, refetch } = api.listings.expiringPermits.useQuery({ withinDays: 14 });
+  const { data: rejections } = api.listings.rejections.useQuery();
+
+  const rows = data?.pages.flatMap((p) => p.rows) ?? [];
+
+  return (
+    <div className="max-w-[1080px] mx-auto px-6 pb-24">
+      <header className="pt-8 pb-1 flex items-end gap-5 flex-wrap">
+        <div>
+          <span className="t-label text-ink-3 block mb-3">
+            Listings
+          </span>
+          <h1 className="font-sans text-page text-ink">
+            {isLoading ? "—" : `${rows.length} live`}
+          </h1>
+        </div>
+
+        {/* A filter with no way out of it is a screen that looks broken.
+            Arriving from search has to be visibly a filtered view. */}
+        {q && (
+          <p className="text-sm text-ink-2">
+            Filtered to &ldquo;{q}&rdquo;{" "}
+            <Link href="/listings" className="btn-inline">Show all</Link>
+          </p>
+        )}
+
+        {/* `ms-auto` so it sits at the end of the header on a desktop
+            and wraps under the heading on a phone, where the flex-wrap
+            above puts it on its own line at full reach of a thumb. */}
+        <div className="ms-auto"><AddProperty /></div>
+      </header>
+
+      {/* The two failures that are otherwise invisible. Shown before the
+          list, because a permit nobody sees becomes a permit that lapses. */}
+      <div className="grid grid-cols-2 max-[720px]:grid-cols-1 border-t border-ink mt-6">
+        <Alert
+          count={expiring?.length ?? 0}
+          title="Permits expiring inside 14 days"
+          detail="An expired Trakheesi permit means the listing is pulled and you're advertising illegally until someone notices."
+        />
+        <Alert
+          count={rejections?.length ?? 0}
+          title="Rejected by a portal"
+          detail="Rejections are silent from your side — the listing just never appears."
+          last
+        />
+      </div>
+
+      <div className="border-t border-ink mt-9">
+        <div className="grid grid-cols-[1.6fr_140px_1fr_120px_auto] gap-4 py-3.5 px-1 border-b border-ink t-label text-ink-3 max-[820px]:hidden">
+          <span>Property</span><span>Price</span><span>Portals</span><span>Permit</span><span />
+        </div>
+
+        {isLoading && <RowsSkeleton />}
+
+        {rows.map((l) => (
+          <div
+            key={l.id}
+            // Same handle the pipeline board uses on a card. It is what
+            // lets a check assert against *this* row rather than against
+            // the page — the browser test for adding a property passed
+            // with the price parsing deliberately broken, because it was
+            // reading a matching number off a different listing.
+            data-listing={l.reference}
+            className="grid grid-cols-[1.6fr_140px_1fr_120px_auto] gap-4 items-center py-3.5 px-1 border-b border-rule hover:bg-raised max-[820px]:grid-cols-1 max-[820px]:gap-2"
+          >
+            <div>
+              <div className="font-mono text-label text-ink-3">{l.reference}</div>
+              <div className="text-ui font-medium text-ink mt-0.5">{l.title}</div>
+            </div>
+
+            <div className="font-mono text-note text-ink">
+              {/* Whole dirhams. `money.ts` says so in as many words —
+                  "nobody says the fils on a flat, and `.00` on the end
+                  of a seven-figure number reads as a system that has
+                  not been thought about" — and this screen was the one
+                  place still calling `aed()`. It was also overflowing:
+                  "AED 11,500,000.00" does not fit a 92px column, so
+                  every price wrapped with AED alone on the first line. */}
+              {aedWhole(l.priceFils)}
+            </div>
+
+            <div className="flex gap-1.5 flex-wrap">
+              {l.publications.map((p) => (
+                <span
+                  key={p.channelId}
+                  title={p.rejection ?? undefined}
+                  className={cn(
+                    "t-label border rounded-[2px] px-1.5 py-0.5",
+                    p.state === "PUBLISHED" && "text-success border-success",
+                    p.state === "REJECTED" && "text-accent-deep border-accent",
+                    p.state === "PENDING" && "text-ink-3 border-rule border-dashed",
+                    p.state === "FAILED" && "text-accent-deep border-accent border-dashed",
+                    /* Quiet, not alarming. Nothing is wrong with this
+                       listing and there is nothing for the agent to do
+                       — the portal is not connected yet. Wearing the
+                       accent here would put a listing that is fine on
+                       the same footing as one a portal refused. */
+                    p.state === "NOT_CONNECTED" && "text-ink-3 border-rule"
+                  )}
+                >
+                  {p.state === "PUBLISHED"
+                    ? "Live"
+                    : p.state === "NOT_CONNECTED"
+                      /* Not "not_connected". Every other state is one
+                         word and lowercases cleanly; this one does not,
+                         and a screen reading "not_connected" is the tell
+                         that a label was derived rather than written. */
+                      ? "not connected"
+                      : p.state.toLowerCase()}
+                </span>
+              ))}
+            </div>
+
+            <div
+              className={cn(
+                "font-mono text-label",
+                l.permitDaysLeft === null && "text-ink-3",
+                l.permitDaysLeft !== null && l.permitDaysLeft < 0 && "text-accent-deep font-medium",
+                l.permitDaysLeft !== null && l.permitDaysLeft >= 0 && l.permitDaysLeft <= 14 && "text-accent-deep",
+                l.permitDaysLeft !== null && l.permitDaysLeft > 14 && "text-ink-2"
+              )}
+            >
+              {permit(l.permitDaysLeft)}
+            </div>
+
+            <div className="justify-self-end flex gap-2 flex-wrap justify-end max-[820px]:justify-self-start max-[820px]:justify-start">
+              <EditListing listing={l} />
+              <CheckCopy listingId={l.id} />
+              <WhoWantsIt listingId={l.id} reference={l.reference} />
+              <PublishCheck
+                listingId={l.id}
+                reference={l.reference}
+                channelIds={l.publications.map((p) => p.channelId)}
+              />
+            </div>
+          </div>
+        ))}
+
+        {/* This said "Import a feed or add one, and it appears here."
+            when neither was possible: nothing in the product could
+            create a listing, and portal import still cannot. An empty
+            state that names two routes a brokerage does not have reads
+            as "you have missed a setting" and sends them looking. It
+            now names the one that works. */}
+        {!isLoading && rows.length === 0 && !q && (
+          <div className="py-10 max-w-[46ch]">
+            <p className="text-sub font-medium text-ink">No properties yet.</p>
+            <p className="text-sm text-ink-2 mt-2">
+              Add the first one and it appears here, ready to match against your
+              buyers. A reference and a name are enough — the permit can follow.
+            </p>
+            <div className="mt-4"><AddProperty /></div>
+          </div>
+        )}
+
+        {/* A search that matched nothing is a different sentence. The
+            shared one used to tell somebody whose "DH-9" found nothing
+            that they had no properties at all. */}
+        {!isLoading && rows.length === 0 && q && (
+          <p className="py-8 text-sm text-ink-3">
+            Nothing matches &ldquo;{q}&rdquo;.{" "}
+            <Link href="/listings" className="btn-inline">Show all</Link>
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Alert({ count, title, detail, last }: { count: number; title: string; detail: string; last?: boolean }) {
+  return (
+    <div className={cn("px-5 py-5 border-b border-rule", !last && "border-e border-rule max-[720px]:border-e-0")}>
+      <div className={cn("font-sans font-semibold text-h2 leading-none", count ? "text-accent-deep" : "text-ink-3")}>
+        {count}
+      </div>
+      <div className="text-ui font-medium text-ink mt-2">{title}</div>
+      <p className="text-sm text-ink-2 mt-1 max-w-[44ch]">{detail}</p>
+    </div>
+  );
+}
+
+function RowsSkeleton() {
+  return (
+    <div aria-busy>
+      <span className="sr-only">Loading listings</span>
+      {[...Array(5)].map((_, i) => (
+        <div key={i} className="py-4 border-b border-rule">
+          <div className="h-2.5 w-20 bg-sunk rounded-sm" />
+          <div className="h-3.5 w-64 bg-sunk rounded-sm mt-2" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Days, said the way somebody would say them. */
+function permit(days: number | null) {
+  if (days === null) return "No permit";
+  if (days < 0) return `Expired ${Math.abs(days)}d ago`;
+  if (days === 0) return "Expires today";
+  return `${days} days left`;
+}

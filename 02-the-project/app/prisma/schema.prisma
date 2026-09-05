@@ -1,0 +1,3266 @@
+// Potato CRM — data model
+//
+// Two decisions shape everything below.
+//
+// 1. Every tenant-owned row carries `orgId`, and Postgres row-level
+//    security enforces it. Application-level filtering alone means one
+//    forgotten `where` clause leaks another brokerage's client list. The
+//    security page promises this does not happen; RLS is what makes that
+//    promise true rather than aspirational. See src/server/db/rls.sql.
+//
+// 2. WhatsApp is not email. Meta's Business Platform only lets you send
+//    freely inside a 24-hour window from the customer's last inbound
+//    message. Outside it you need a pre-approved template. That constraint
+//    is in the model (`lastInboundAt`), not left for someone to discover
+//    in production when the follow-ups stop sending.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+
+  /// Migrations cannot run through a transaction-mode pooler.
+  ///
+  /// `DATABASE_URL` in production points at PgBouncer or the platform's
+  /// pooled endpoint, because every serverless instance opening its own
+  /// pool against 23 concurrent crons exhausts Postgres. But a pooler in
+  /// transaction mode gives each statement a different backend, and
+  /// `prisma migrate` needs advisory locks and DDL that must all land on
+  /// one — including the RLS policies in rls.sql, where getting half of
+  /// them applied is the worst possible outcome.
+  ///
+  /// So: the pooled URL for the application, the direct one for
+  /// migrations.
+  ///
+  /// Prisma has no fallback for this — declaring it makes it required,
+  /// including in development where there is no pooler and both are the
+  /// same string. That is the right way round. The alternative is a
+  /// production deployment quietly running its migrations through the
+  /// pooler and failing halfway through the RLS policies, and a variable
+  /// somebody has to copy once is cheaper than finding that out.
+  directUrl = env("DATABASE_URL_DIRECT")
+}
+
+// ---------------------------------------------------------------- tenancy
+
+model Organisation {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  timezone  String   @default("Asia/Dubai")
+  currency  String   @default("AED")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Soft delete. A brokerage that leaves must be recoverable for the
+  // retention period, then hard-deleted on a schedule.
+  deletedAt DateTime?
+
+  memberships   Membership[]
+  invitations   Invitation[]
+
+  // The intelligence layer. See the block at the foot of this file.
+  clientFacts     ClientFact[]
+  recommendations Recommendation[]
+  leadScores      LeadScoreEvent[]
+  aiActions       AiAction[]
+  leads         Lead[]
+  listings      Listing[]
+  conversations Conversation[]
+  viewings      Viewing[]
+  channels      Channel[]
+  profiles      QualificationProfile[]
+  stages        PipelineStage[]
+  workingHours  WorkingHours[]
+  assistant     AssistantSettings?
+  assistantUsage AssistantUsage[]
+  auditLogs     AuditLog[]
+
+  @@index([deletedAt])
+  /// The listing feed's URL secret, at brokerage level rather than per
+  /// user — a portal fetches the firm's inventory, not one agent's.
+  ///
+  /// Null until somebody generates one, and **generating it is what
+  /// turns the feed on**. There is no separate enabled flag: a feed
+  /// nobody has a URL for is off, and a second boolean beside a
+  /// nullable token is two sources of truth for one fact.
+  ///
+  /// Rotating it is the revocation mechanism. That is why the timestamp
+  /// is kept — a portal that stops fetching after a rotation is a
+  /// question somebody has to be able to answer.
+  feedToken     String?   @unique
+  feedTokenAt   DateTime?
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+
+  /**
+   * Optional, because sign-in cannot supply it.
+   *
+   * This was required. The magic-link provider creates a user from an
+   * email address and nothing else — there is no name to give until the
+   * person tells us one — so `createUser` inserted a null into a NOT NULL
+   * column and **every first sign-in would have failed with a database
+   * error**, on the only route into the product.
+   *
+   * The screens already expect it: `m.user.name ?? m.user.email` is the
+   * pattern in the team list and the assignment picker.
+   */
+  name          String?
+
+  phone         String?
+
+  /**
+   * Named `image` because the adapter names it `image`.
+   *
+   * `@auth/prisma-adapter` writes a fixed shape — id, name, email,
+   * emailVerified, image — and this model called the column
+   * `avatarUrl`, so the adapter's insert would have been rejected for an
+   * unknown argument. The column keeps its old name through `@map`, so
+   * the fix costs nothing in the database. Nothing in the application
+   * read it.
+   */
+  image         String?   @map("avatarUrl")
+
+  emailVerified DateTime?
+  createdAt     DateTime  @default(now())
+  lastSeenAt    DateTime?
+
+  memberships   Membership[]
+  assignedLeads Lead[]       @relation("AssignedAgent")
+  viewings      Viewing[]
+  auditLogs     AuditLog[]
+  accounts      Account[]
+  sessions      Session[]
+}
+
+/// A user's place in one brokerage. Users can belong to several — agents
+/// move between agencies constantly in this market, and a model that
+/// assumes one org per user forces them to keep two logins.
+model Membership {
+  id        String   @id @default(cuid())
+  orgId     String
+  userId    String
+  role      Role     @default(AGENT)
+  createdAt DateTime @default(now())
+
+  /// The agent's calendar feed token, and it is a capability URL.
+  ///
+  /// A calendar client cannot sign in — Apple Calendar and Google both
+  /// fetch an unauthenticated URL on a schedule — so the secret has to
+  /// be in the address. That means it leaks the way addresses leak:
+  /// browser history, a screenshot in a group chat, a proxy log.
+  ///
+  /// Which is why it lives here rather than being derived from the user
+  /// id: it is **rotatable**. An agent who has shared it by accident
+  /// presses one button and the old URL is dead. Null means they have
+  /// never asked for a feed, which is the default.
+  ///
+  /// Per membership, not per user: the feed is one brokerage's viewings,
+  /// and somebody in two brokerages gets two calendars.
+  calendarToken     String?   @unique
+  calendarTokenAt   DateTime?
+  calendarLastReadAt DateTime?
+
+  org  Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, userId])
+  @@index([orgId])
+}
+
+/// How much of the team's numbers each agent can see.
+///
+/// The first agent test: *"if I can see my own numbers before my manager
+/// does, it's a tool. If he sees them first, it's surveillance."* This
+/// is the setting that decides which one it is, and the default matters
+/// more than the option.
+enum VisibilityMode {
+  /// Everyone sees the full board. Agents are competitive and most
+  /// brokerages land here — but it should be a decision, not a default.
+  OPEN
+  /// You see your own figures and where you rank, not everyone else's.
+  /// The default: enough to compete, not enough to humiliate.
+  RANKED
+  /// Your own figures only. For a brokerage that has been burned.
+  PRIVATE
+}
+
+enum Role {
+  OWNER   // billing, deletion, everything
+  ADMIN   // settings, members, all leads
+  MANAGER // all leads in the org, no billing
+  AGENT   // own leads only
+  VIEWER  // read only — for accountants and auditors
+
+  /// Required by UAE AML law: every DNFBP appoints one. Deliberately not
+  /// a superset of ADMIN — a compliance officer sees the AML file and the
+  /// reports, and does not need to be able to change billing or delete
+  /// the organisation. Separating them is the point.
+  COMPLIANCE_OFFICER
+}
+
+model Invitation {
+  id         String    @id @default(cuid())
+  orgId      String
+  email      String
+  role       Role      @default(AGENT)
+  /// SHA-256 of the token, never the token itself. The plaintext exists
+  /// only in the email that was sent. Storing it means read access to the
+  /// database is enough to join any brokerage.
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  invitedById String?
+  acceptedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  org Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, email])
+  @@index([orgId])
+}
+
+// ---------------------------------------------------------------- leads
+
+model Lead {
+  id       String @id @default(cuid())
+  orgId    String
+  /// E.164. This is the identity in a WhatsApp-first product — not email.
+  phone    String
+  name     String?
+  email    String?
+  language String @default("en")
+
+  /// Coarse, system-owned state. Drives automation and reporting, and is
+  /// the same in every brokerage so cross-org benchmarks mean something.
+  status  LeadStatus @default(NEW)
+
+  /// The brokerage's own board column. Configurable, because a rental
+  /// team and an off-plan team do not run the same pipeline.
+  stageId String?
+  /// Fractional index for ordering within a column, as an unbounded
+  /// Postgres NUMERIC. A plain integer would mean rewriting every row
+  /// below it on every drag; halving a NUMERIC is exact and never runs
+  /// out of precision. The midpoint is computed in SQL, never in JS —
+  /// see routers/pipeline.ts.
+  position Decimal @default(0) @db.Decimal
+  /// When it entered the current column. This is what makes "sitting
+  /// untouched for nine days" answerable without a full history scan.
+  stageEnteredAt DateTime @default(now())
+
+  score   Int?
+  source  LeadSource @default(UNKNOWN)
+
+  // Qualification results, captured by the assistant.
+  /// Fils, not AED. Every money value in this schema is fils — see the
+  /// note on Money below. Two units for one quantity is how a match ends
+  /// up out by a factor of a hundred.
+  budgetMinFils BigInt?
+  budgetMaxFils BigInt?
+  intent     Intent?
+  timeframe  String?
+  financing  String?
+  notes      String?
+
+  assignedToId String?
+  assignedAt   DateTime?
+
+  /// UAE residency visa expiry, if the buyer has ever mentioned it.
+  ///
+  /// Never asked for directly — an agent hears it in passing ("my visa
+  /// renews in March, I want to be settled before then") and there was
+  /// nowhere to put it. A resident deciding whether to renew is a
+  /// resident deciding whether to buy, and it is a real trigger nobody
+  /// else in this market uses.
+  ///
+  /// A date of birth, not a government ID number or a scan — see
+  /// PRIVACY.md in this folder for why the distinction matters here.
+  visaExpiresAt DateTime?
+  /// The last time a visa nudge went out, so the sweep does not repeat
+  /// itself every day once inside the window.
+  visaNudgedAt  DateTime?
+
+  // Attribution. Carried from the enquiry so reporting can answer "what
+  // does a Bayut lead actually cost us" without a spreadsheet.
+  utmSource   String?
+  utmMedium   String?
+  utmCampaign String?
+
+  /// Proactive outbound. Separate from the conversation: somebody who
+  /// says stop to property alerts still expects a reply when they ask a
+  /// question, and conflating the two is how you either spam them or go
+  /// silent on a live enquiry.
+  optedOutOfOutreach Boolean   @default(false)
+  optedOutAt         DateTime?
+  lastOutreachAt     DateTime?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  org          Organisation  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  stageRef     PipelineStage? @relation(fields: [stageId], references: [id], onDelete: SetNull)
+  assignedTo   User?         @relation("AssignedAgent", fields: [assignedToId], references: [id], onDelete: SetNull)
+  conversation Conversation?
+  enquiries    Enquiry[]
+  viewings     Viewing[]
+  answers      Answer[]
+  /// Declared here and on Requirement. The foreign key column existed on
+  /// Requirement from the start but neither side ever named the relation,
+  /// so `include: { lead: … }` in the matching job typed `r.lead` as
+  /// `never` and every field read off it was an error.
+  requirements Requirement[]
+
+  /// One lead per phone number per brokerage. The same person enquiring
+  /// with two agencies is two leads; enquiring twice with one is one.
+  @@unique([orgId, phone])
+  @@index([orgId, status])
+  @@index([orgId, assignedToId])
+  @@index([orgId, createdAt])
+  /// Covers the board query: one column, ordered, paginated.
+  @@index([orgId, stageId, position])
+  @@index([orgId, stageId, stageEnteredAt])
+}
+
+/// A column on the board. Owned by the brokerage.
+model PipelineStage {
+  id       String  @id @default(cuid())
+  orgId    String
+  name     String
+  position Int
+  /// Which system status a lead takes when it lands here. Keeps the
+  /// configurable board tied to the fixed reporting model.
+  maps     LeadStatus
+  /// Days before a lead in this column is flagged as going cold. Null
+  /// means never — appropriate for Won and Lost, not for anything else.
+  staleAfterDays Int?
+  isWon    Boolean @default(false)
+  isLost   Boolean @default(false)
+  archived Boolean @default(false)
+
+  org   Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  leads Lead[]
+
+  @@unique([orgId, name])
+  @@index([orgId, position])
+}
+
+enum LeadStatus {
+  NEW
+  QUALIFYING
+  QUALIFIED
+  VIEWING_BOOKED
+  NEGOTIATING
+  WON
+  LOST
+  UNRESPONSIVE
+}
+
+enum LeadSource {
+  PROPERTY_FINDER
+  BAYUT
+  DUBIZZLE
+  WEBSITE
+  /// Distinct from WHATSAPP_AD: that is a click-to-WhatsApp ad, this is
+  /// an instant lead form filled in without leaving Facebook or Instagram.
+  META_LEAD_ADS
+  WHATSAPP_AD
+  REFERRAL
+  WALK_IN
+  UNKNOWN
+}
+
+enum Intent {
+  BUY_TO_LIVE
+  BUY_TO_INVEST
+  RENT
+  SELL
+  LIST
+}
+
+// ------------------------------------------------------------ messaging
+
+model Conversation {
+  id     String @id @default(cuid())
+  orgId  String
+  leadId String @unique
+
+  channelId String
+
+  /// The 24-hour clock. Meta only allows free-form messages within 24
+  /// hours of this timestamp; after that a pre-approved template is the
+  /// only way to reopen the thread. Every send path checks it.
+  lastInboundAt  DateTime?
+  lastOutboundAt DateTime?
+
+  /// Set when a lead asks for a person, or a rule escalates. While true
+  /// the assistant does not send anything.
+  humanHandover   Boolean   @default(false)
+  handoverAt      DateTime?
+  handoverReason  String?
+
+  /// Per-conversation mute, and it is not the same thing as handover.
+  ///
+  /// Handover says a person has taken this one over. Mute says an agent
+  /// wants the assistant quiet on this thread specifically — usually
+  /// because a negotiation just got delicate — while the assistant keeps
+  /// working every other conversation in the brokerage.
+  ///
+  /// `controls.ts` reads this before every model call and deliberately
+  /// does not cache it, for the same reason the kill switch is not
+  /// cached. The columns were missing entirely: the router wrote all
+  /// three and the assistant read the first, against a model that had
+  /// none of them, so a documented safety control did not exist.
+  assistantMuted   Boolean   @default(false)
+  assistantMutedBy String?
+  assistantMutedAt DateTime?
+
+  unreadCount Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  org      Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  lead     Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  channel  Channel      @relation(fields: [channelId], references: [id])
+  messages Message[]
+
+  @@index([orgId, updatedAt])
+  @@index([orgId, humanHandover])
+}
+
+model Message {
+  id             String    @id @default(cuid())
+  orgId          String
+  conversationId String
+
+  direction Direction
+  /// Who actually sent it. A lead can tell the difference and so should
+  /// the audit trail.
+  author    Author
+  authorId  String?
+
+  body        String
+  mediaUrl    String?
+  templateName String?
+
+  /// Meta's message id. Unique so a redelivered webhook cannot double-write.
+  externalId String?       @unique
+  status     MessageStatus @default(PENDING)
+  failure    String?
+
+  sentAt      DateTime  @default(now())
+  deliveredAt DateTime?
+  readAt      DateTime?
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, conversationId, sentAt])
+}
+
+enum Direction {
+  INBOUND
+  OUTBOUND
+}
+enum Author {
+  LEAD
+  ASSISTANT
+  AGENT
+  SYSTEM
+}
+enum MessageStatus {
+  PENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+// ------------------------------------------------------------- channels
+
+/// A connected WhatsApp number or portal feed. Credentials are never
+/// stored here in plaintext — `secretRef` points at the secrets manager.
+/// An encrypted secret, and the reason this table can exist at all.
+///
+/// `lib/secrets.ts` has always said tokens never go into Postgres,
+/// because a database dump is the likeliest thing to leak and must not
+/// carry anything able to message a brokerage's customers. That rule
+/// stands. What is stored here is **ciphertext**, sealed with a key that
+/// lives only in the environment — a dump without `SECRETS_KEY` is a
+/// column of noise.
+///
+/// The alternative was what shipped: `readSecret` reads
+/// `process.env["SECRET_" + ref]` and throws otherwise, so connecting a
+/// brokerage's WhatsApp number meant setting an environment variable and
+/// redeploying. That is not a multi-tenant product, and the honest
+/// version of "we never store tokens" was "we cannot onboard a customer".
+model Secret {
+  id    String @id @default(cuid())
+  orgId String
+
+  /// The pointer held by `Channel.secretRef`, `EmailAccount.secretRef`
+  /// and the portal feeds. Globally unique, because the reader is given
+  /// a ref and nothing else.
+  ref   String @unique
+
+  /// AES-256-GCM. The nonce and tag are stored beside the ciphertext
+  /// because they are not secret and are useless without the key.
+  ciphertext String
+  iv         String
+  tag        String
+  /// Which master key sealed it, so a rotation can re-wrap without
+  /// guessing. There is no way to tell from ciphertext alone.
+  keyVersion Int    @default(1)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  /// Set when the value was last replaced, so a screen can say how old
+  /// a token is without ever reading it.
+  rotatedAt DateTime?
+
+  @@index([orgId])
+}
+
+model Channel {
+  id        String      @id @default(cuid())
+  orgId     String
+  type      ChannelType
+  label     String
+  /// WhatsApp: the display number. Portal: the account identifier.
+  identifier String
+  secretRef  String?
+
+  /**
+   * The token in the portal's webhook URL, and it is deliberately not
+   * `secretRef`.
+   *
+   * `/api/webhooks/portals/[portal]?t=…` looked the channel up by
+   * `secretRef` — the pointer into the secrets manager. That put a
+   * credential reference into a URL handed to a third party, where it
+   * lands in their logs, in ours, in any proxy in between, and in a
+   * Referer header if a page is ever served from it. Two different jobs
+   * wearing one value: knowing which channel a delivery is for, and
+   * naming where that channel's access token is kept.
+   *
+   * Separate now. This one is a public routing identifier that can be
+   * rotated by issuing a new URL, and it grants nothing on its own — the
+   * signature check still has to pass.
+   */
+  webhookToken String? @unique
+
+  active     Boolean    @default(true)
+  lastSyncAt DateTime?
+  lastError  String?
+  createdAt  DateTime   @default(now())
+
+  org           Organisation   @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  conversations Conversation[]
+  enquiries     Enquiry[]
+
+  @@unique([orgId, type, identifier])
+  @@index([orgId, active])
+
+  /// **There is a second uniqueness rule on this table that Prisma
+  /// cannot express, and it is the tenancy boundary for everything
+  /// inbound.**
+  ///
+  ///     CREATE UNIQUE INDEX "Channel_type_identifier_active_key"
+  ///       ON "Channel" ("type", "identifier") WHERE "active";
+  ///
+  /// It lives in `migrations/20260811210000_channel_global_identity`
+  /// because a partial index has no schema syntax — which means
+  /// `prisma db push` against a fresh database will not create it, and
+  /// nothing here would tell you.
+  ///
+  /// Why it matters: a Meta webhook carries no organisation id, so
+  /// `lib/ingest.ts` finds the brokerage by searching every tenant for
+  /// an active channel with that phone number. The `@@unique` above is
+  /// scoped to one organisation, so without the partial index two
+  /// brokerages can claim the same number and `findFirst` picks between
+  /// them arbitrarily — one brokerage receiving another's customer
+  /// messages. Partial on `active` so a number can be released and
+  /// legitimately reconnected elsewhere.
+}
+
+enum ChannelType {
+  WHATSAPP
+  PROPERTY_FINDER
+  BAYUT
+  DUBIZZLE
+  WEBSITE_FORM
+  /// Facebook and Instagram lead forms. The webhook, the adapter and the
+  /// PortalKey union all had this from the start; the enum never did, so
+  /// `/api/webhooks/meta` queried Channel with `"META_LEAD_ADS" as never`
+  /// and no such channel could be stored in the first place.
+  META_LEAD_ADS
+}
+
+// ------------------------------------------------------------- listings
+
+model Listing {
+  id        String  @id @default(cuid())
+  orgId     String
+  reference String
+  title     String
+  community String?
+  building  String?
+  bedrooms  Int?
+  bathrooms Int?
+  areaSqft  Int?
+  /// Fils. See the note on Money.
+  priceFils BigInt?
+  purpose   Purpose  @default(SALE)
+  status    ListingStatus @default(AVAILABLE)
+
+  /// Dubai requires a Trakheesi permit number on every property
+  /// advertisement. Portals reject listings without one, and advertising
+  /// without a valid permit is a fineable offence for the brokerage — so
+  /// this is validated before publish, not after rejection.
+  /// Who instructed us. Optional because a listing can be entered
+  /// before the paperwork lands — but publishing without one should be
+  /// a question rather than a surprise.
+  vendorId  String?
+
+  permitNumber    String?
+  permitExpiresAt DateTime?
+  /// The RERA card of the agent the listing is advertised under.
+  reraBrokerCard  String?
+
+  /// Description and title in each language the brokerage advertises in.
+  /// Portals reject an Arabic listing with an English-only description.
+  descriptions Json?
+
+  publications ListingPublication[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  org       Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  enquiries Enquiry[]
+  viewings  Viewing[]
+  /// SetNull, not Cascade: losing an owner record must not delete the
+  /// property. The listing simply has no vendor attached until one is.
+  vendor    Vendor?      @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  deals     Deal[]
+
+  @@unique([orgId, reference])
+  @@index([orgId, status])
+  @@index([orgId, permitExpiresAt])
+}
+
+/// One row per listing per portal. Separate from the listing because the
+/// same property can be live on Bayut, rejected by Property Finder and
+/// still draft on the website — and a single JSON blob makes that state
+/// impossible to query, alert on, or fix.
+model ListingPublication {
+  id        String  @id @default(cuid())
+  orgId     String
+  listingId String
+  channelId String
+
+  state       PublishState @default(PENDING)
+  /// The portal's own id, once it has accepted the listing.
+  externalId  String?
+  /// Why it was rejected, in the portal's words. Kept verbatim — a
+  /// paraphrased rejection reason is useless to whoever has to fix it.
+  rejection   String?
+  publishedAt DateTime?
+  lastTriedAt DateTime?
+  attempts    Int      @default(0)
+
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@unique([listingId, channelId])
+  @@index([orgId, state])
+}
+
+enum PublishState {
+  PENDING       // queued, not yet sent
+  PUBLISHED     // live on the portal
+  REJECTED      // portal refused it — see rejection
+  WITHDRAWN     // pulled on purpose
+  FAILED        // transport failure, will retry
+  /// No publishing integration exists for that portal yet.
+  ///
+  /// Not a failure and not progress, which is why it is neither FAILED
+  /// nor PENDING. The listing is correct and the queue is working; what
+  /// is missing is a commercial agreement, and the thing that clears it
+  /// is a deployment rather than the passage of time.
+  ///
+  /// It used to be recorded as FAILED. That was honest about the
+  /// outcome and wrong about the cause, and it mattered in two places:
+  /// a demo, where a prospect clicking Publish saw a failure and read
+  /// it as a broken product; and the retry budget, because a FAILED row
+  /// burns an attempt each sweep and stops for ever after six — so the
+  /// day a portal was finally connected, every listing queued before it
+  /// would have been past its ceiling and would never have been sent.
+  NOT_CONNECTED
+}
+
+enum Purpose {
+  SALE
+  RENT
+}
+enum ListingStatus {
+  DRAFT
+  AVAILABLE
+  UNDER_OFFER
+  SOLD
+  LET
+  WITHDRAWN
+}
+
+/// A lead asking about a specific listing. One lead can enquire on several
+/// properties; the join carries which channel it arrived through, which is
+/// what makes cost-per-lead reporting possible.
+model Enquiry {
+  id        String   @id @default(cuid())
+  orgId     String
+  leadId    String
+  listingId String?
+  channelId String
+  /// The portal's own id. Unique per brokerage so a redelivered webhook
+  /// cannot become a second enquiry on the board.
+  externalId String?
+  message   String?
+  createdAt DateTime @default(now())
+
+  lead    Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  listing Listing? @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  channel Channel  @relation(fields: [channelId], references: [id])
+
+  @@unique([orgId, externalId])
+  @@index([orgId, leadId])
+  @@index([orgId, createdAt])
+  @@index([channelId, createdAt])
+}
+
+// ------------------------------------------------------------- viewings
+
+model Viewing {
+  id        String        @id @default(cuid())
+  orgId     String
+  leadId    String
+  listingId String?
+  agentId   String?
+  scheduledAt DateTime
+  durationMins Int         @default(30)
+  /// Generated column holding [scheduledAt, scheduledAt + duration). The
+  /// exclusion constraint in scheduling.sql is built on this — it is what
+  /// makes a double booking impossible rather than merely unlikely.
+  /// Managed by SQL; Prisma only reads it.
+  timespan  Unsupported("tstzrange")?
+  /// Where it actually is.
+  ///
+  /// Denormalised from the listing on purpose. A listing can be edited
+  /// or unpublished between booking and attending, and an agent standing
+  /// outside the wrong tower does not care which record was correct.
+  /// Marina alone has six towers with nearly the same name.
+  address   String?
+  building  String?
+  /// For a maps link. Null is fine — the address still opens a search.
+  lat       Float?
+  lng       Float?
+  /// Which entrance, which floor, where to park. The things a colleague
+  /// tells you on the phone and nobody writes down.
+  accessNote String?
+
+  status    ViewingStatus  @default(SCHEDULED)
+  outcome   String?
+
+  /// Slots the assistant has offered but nobody has accepted yet. Without
+  /// a hold, two leads offered the same 10:00 both take it.
+  heldUntil DateTime?
+
+  /// Reminder state. Nulls mean not yet sent; this is what stops a retry
+  /// sending the same reminder twice.
+  remindedLeadAt  DateTime?
+  remindedAgentAt DateTime?
+
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  org     Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  lead    Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  listing Listing?     @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  agent   User?        @relation(fields: [agentId], references: [id], onDelete: SetNull)
+
+  @@index([orgId, scheduledAt])
+  @@index([orgId, agentId, scheduledAt])
+  @@index([orgId, status, scheduledAt])
+}
+
+/// Working hours per brokerage. Not a constant, because the UAE working
+/// week is not the Monday-to-Friday one most scheduling code assumes —
+/// agents in this market do most of their viewings at the weekend.
+model WorkingHours {
+  id        String @id @default(cuid())
+  orgId     String
+  /// 0 = Sunday, matching Postgres DOW.
+  dayOfWeek Int
+  /// Minutes from midnight, in the brokerage's own timezone.
+  startMin  Int
+  endMin    Int
+  closed    Boolean @default(false)
+
+  org Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, dayOfWeek])
+}
+
+enum ViewingStatus {
+  SCHEDULED
+  CONFIRMED
+  COMPLETED
+  NO_SHOW
+  CANCELLED
+}
+
+// -------------------------------------------------------- qualification
+
+/// The questions the assistant asks. Owned by the brokerage, versioned,
+/// because changing them mid-campaign otherwise rewrites history.
+model QualificationProfile {
+  id        String   @id @default(cuid())
+  orgId     String
+  name      String
+  version   Int      @default(1)
+  active    Boolean  @default(false)
+  tone      String?
+  languages String[] @default(["en", "ar"])
+  createdAt DateTime @default(now())
+
+  org       Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  questions Question[]
+  answers   Answer[]
+
+  @@unique([orgId, name, version])
+  @@index([orgId, active])
+}
+
+model Question {
+  id        String       @id @default(cuid())
+  profileId String
+  order     Int
+  key       String
+  prompt    String
+  type      QuestionType @default(TEXT)
+  options   String[]
+  required  Boolean      @default(true)
+
+  profile QualificationProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  answers Answer[]
+
+  @@unique([profileId, key])
+}
+
+enum QuestionType {
+  TEXT
+  NUMBER
+  MONEY
+  CHOICE
+  DATE
+  BOOLEAN
+}
+
+model Answer {
+  id         String   @id @default(cuid())
+  orgId      String
+  leadId     String
+  questionId String
+  profileId  String
+  value      String
+  /// The assistant's confidence. Anything low gets flagged for an agent
+  /// rather than silently written into the pipeline as fact.
+  confidence Float?
+  createdAt  DateTime @default(now())
+
+  lead     Lead                 @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  question Question             @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  profile  QualificationProfile @relation(fields: [profileId], references: [id])
+
+  @@unique([leadId, questionId])
+  @@index([orgId, leadId])
+}
+
+// ------------------------------------------------------------ audit log
+
+/// Append only. No update, no delete — enforced by the RLS policy, not by
+/// convention. An audit log a developer can quietly edit is not one.
+model AuditLog {
+  id        String   @id @default(cuid())
+  orgId     String
+  actorId   String?
+  actorType Author   @default(AGENT)
+  action    String
+  entity    String
+  entityId  String
+  before    Json?
+  after     Json?
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  org   Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  actor User?        @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([orgId, createdAt])
+  @@index([orgId, entity, entityId])
+}
+
+// ------------------------------------------------------------------ auth
+// Auth.js adapter tables. No password column anywhere, on purpose: see
+// src/server/auth/config.ts.
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  /// Which brokerage this session is currently looking at. Held server
+  /// side so it cannot be edited by the client, and re-checked against
+  /// Membership on every request regardless.
+  activeOrgId  String?
+
+  createdAt    DateTime @default(now())
+  lastActiveAt DateTime @default(now())
+  ip           String?
+  userAgent    String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ------------------------------------------------------- assistant controls
+
+/// Per-brokerage control over the assistant. Separate from Organisation so
+/// it can be read on its own on every turn without pulling the whole row.
+/// Per-brokerage reporting policy.
+model TeamVisibility {
+  id    String @id @default(cuid())
+  orgId String @unique
+
+  mode  VisibilityMode @default(RANKED)
+
+  /// An agent sees their own numbers this many hours before a manager
+  /// can. Not a gimmick — it is the difference between "I know I had a
+  /// slow week" and "my manager told me I had a slow week", and that
+  /// difference decides whether people game the metric.
+  agentHeadStartHours Int @default(24)
+
+  updatedAt DateTime @updatedAt
+}
+
+model AssistantSettings {
+  orgId String @id
+
+  /// The kill switch. False means the assistant sends nothing for this
+  /// brokerage, immediately, with no deploy. Read on every single turn.
+  enabled       Boolean   @default(false)
+  pausedReason  String?
+  pausedAt      DateTime?
+  pausedById    String?
+
+  /// Hard ceiling on spend per calendar month, in fils to avoid float.
+  /// Null means no ceiling — only appropriate for internal test orgs.
+  monthlyBudgetFils BigInt?
+  /// Warn the brokerage at this fraction of the ceiling.
+  warnAtPercent     Int     @default(80)
+
+  /// Which prompt version this brokerage is on. Lets a change roll out to
+  /// one customer before all of them.
+  promptVersion String @default("current")
+
+  /// Escalate anything above this to a human before the assistant replies.
+  handoverAboveBudget Decimal? @db.Decimal(14, 2)
+
+  /**
+   * How much the product may do without being asked.
+   *
+   * Separate from `enabled`, which is the brake and stays a brake. This
+   * is the gearbox. A brokerage starts in COPILOT and moves up when it
+   * has watched the thing work for a fortnight — which is the only
+   * order that ever earns the trust, and why the default is the
+   * cautious one rather than the impressive one.
+   *
+   * It never overrides the per-action floor in `autonomy.ts`: sending a
+   * message to a customer needs a person at every mode, including
+   * AUTOPILOT.
+   */
+  autonomy AutonomyMode @default(COPILOT)
+
+  updatedAt DateTime @updatedAt
+
+  org Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+}
+
+/// Append-only usage ledger. One row per model call, so a bill can be
+/// explained rather than merely reported.
+model AssistantUsage {
+  id             String   @id @default(cuid())
+  orgId          String
+  conversationId String?
+  purpose        String   // "reply" | "extract"
+  model          String
+  promptVersion  String
+  inputTokens    Int
+  outputTokens   Int
+  /// Cost at the time of the call, in fils. Stored rather than computed
+  /// later, because pricing changes and a historical bill must not.
+  costFils       BigInt
+  latencyMs      Int
+  outcome        String   // "sent" | "handover" | "blocked" | "error"
+  createdAt      DateTime @default(now())
+
+  org Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, createdAt])
+}
+
+// ------------------------------------------------------------ notifying
+
+/// Per person, per brokerage. An agent who works weekends and a manager
+/// who does not should not share one setting.
+model NotificationPrefs {
+  id     String @id @default(cuid())
+  orgId  String
+  userId String
+
+  push  Boolean @default(true)
+  email Boolean @default(false)
+
+  /// Quiet hours in the brokerage's timezone, minutes from midnight.
+  /// Null means always available.
+  quietFromMin Int?
+  quietToMin   Int?
+  /// Days off, 0 = Sunday. Agents here often take Monday, not Sunday.
+  daysOff      Int[]  @default([])
+
+  /// The one thing that overrides quiet hours. Off by default, because a
+  /// setting that wakes someone should be opted into, not out of.
+  urgentOverridesQuiet Boolean @default(false)
+
+  @@unique([orgId, userId])
+}
+
+/// Sent notifications. Kept so escalation can tell whether the first
+/// person was actually told before it starts telling the second.
+model Notification {
+  id        String  @id @default(cuid())
+  orgId     String
+  userId    String
+  kind      NotificationKind
+  /// What it is about, so five enquiries from one lead collapse into one.
+  subjectId String
+  title     String
+  body      String
+  deeplink  String
+
+  sentAt     DateTime  @default(now())
+  readAt     DateTime?
+  actedAt    DateTime?
+  /// Which rung of the escalation ladder this was.
+  escalation Int       @default(0)
+  suppressed String?
+
+  @@unique([orgId, userId, kind, subjectId])
+  @@index([orgId, userId, readAt])
+  @@index([orgId, kind, subjectId, sentAt])
+}
+
+enum NotificationKind {
+  HANDOVER_WAITING     // the assistant stepped back and nobody has replied
+  QUALIFIED_UNCLAIMED  // a qualified lead with no agent
+  VIEWING_TOMORROW
+  VIEWING_SOON
+  OUTCOME_MISSING      // a viewing happened and nobody said what happened
+  PERMIT_EXPIRING
+  DEAL_AT_RISK
+  PORTAL_SILENT
+  ASSISTANT_STOPPED
+  /// A personal follow-up the agent set themselves, usually from a
+  /// voice note. Theirs, so it goes to them and nobody else.
+  FOLLOW_UP_DUE
+}
+
+// ----------------------------------------------------------- onboarding
+
+/// Per-brokerage setup state. A row per step rather than a JSON blob, so
+/// "how many customers are stuck on WhatsApp verification" is a query
+/// rather than an export.
+model OnboardingStep {
+  id     String @id @default(cuid())
+  orgId  String
+  key    String
+
+  state      StepState @default(TODO)
+  /// Meta's business verification is outside our control and takes days.
+  /// A step can be waiting on somebody else without being our problem or
+  /// the customer's fault, and the UI needs to say which.
+  blockedOn  String?
+  note       String?
+  startedAt  DateTime?
+  doneAt     DateTime?
+  doneById   String?
+
+  @@unique([orgId, key])
+  @@index([orgId, state])
+}
+
+enum StepState {
+  TODO
+  IN_PROGRESS
+  WAITING     // on a third party, not on the customer
+  DONE
+  SKIPPED
+}
+
+// -------------------------------------------------------- support access
+
+/// Time-boxed permission for a named Potato employee to look inside one
+/// brokerage. Granted by the customer, never by us.
+model SupportGrant {
+  id        String @id @default(cuid())
+  orgId     String
+
+  /// The employee. A grant is to a person, never to a role or a team —
+  /// "support can see your data" is not something a customer can consent
+  /// to meaningfully.
+  staffEmail String
+
+  /// Read is the default. Write is a separate, explicit decision.
+  canWrite   Boolean @default(false)
+
+  reason     String
+  /// Who at the brokerage agreed, so consent has a name against it.
+  grantedById String
+  grantedAt   DateTime @default(now())
+  /// Hard ceiling. There is no such thing as an open-ended grant.
+  expiresAt   DateTime
+  revokedAt   DateTime?
+  revokedById String?
+
+  @@index([orgId, expiresAt])
+  @@index([staffEmail, expiresAt])
+}
+
+// --------------------------------------------------------------- billing
+
+model Subscription {
+  id       String @id @default(cuid())
+  orgId    String @unique
+
+  plan     String
+  /// Fils per seat per month. Stored on the subscription, not looked up
+  /// from a price list, so a price change never silently reprices an
+  /// existing customer.
+  seatPriceFils BigInt
+
+  /// Answered conversations included per agent per month, and the price
+  /// of one beyond that.
+  ///
+  /// Per-seat alone charged by headcount and delivered value by
+  /// conversation, and in this market those are not correlated. An
+  /// eight-agent firm running heavy portal and Meta spend consumed more
+  /// than a forty-agent firm paying five times as much — 31% gross
+  /// margin against 90%.
+  ///
+  /// The headline stays $70. Only firms past the allowance pay more, so
+  /// no existing quote is invalidated and nobody's bill goes down.
+  includedPerSeat  Int    @default(60)
+  overageFils      BigInt @default(35)
+  currency      String @default("AED")
+
+  status        SubStatus @default(TRIALING)
+  trialEndsAt   DateTime?
+  currentFrom   DateTime
+  currentTo     DateTime
+
+  /// Provider references. No card data ever reaches this database.
+  providerCustomerId String?
+  providerSubId      String?
+
+  /// The customer's tax registration number, for a valid UAE tax invoice.
+  trn String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  invoices Invoice[]
+  seats    SeatEvent[]
+}
+
+enum SubStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE     // payment failed, still fully working
+  RESTRICTED   // degraded on purpose — see dunning.ts
+  CANCELLED
+}
+
+/// Append-only seat ledger.
+///
+/// Seats are not counted at a moment in time, because agents join and
+/// leave constantly in this market and a month-end headcount would either
+/// overcharge or undercharge everybody. Every change is an event, and the
+/// invoice is computed from seat-days.
+model SeatEvent {
+  id       String   @id @default(cuid())
+  orgId    String
+  subId    String
+  userId   String
+  change   Int      // +1 joined, -1 left
+  at       DateTime @default(now())
+  reason   String?
+
+  subscription Subscription @relation(fields: [subId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, at])
+  @@index([subId, at])
+}
+
+model Invoice {
+  id     String @id @default(cuid())
+  orgId  String
+  subId  String
+
+  number String @unique
+  periodFrom DateTime
+  periodTo   DateTime
+
+  /// Seat-days, and the arithmetic that produced the total. Kept so an
+  /// invoice can be explained line by line rather than merely presented.
+  seatDays     Int
+  seatDaysFull Int
+  /// Split out so an invoice can be read six months later without
+  /// recomputing anything — the allowance may have been renegotiated
+  /// since, and a document that changes retrospectively is not a tax
+  /// invoice.
+  seatFils              BigInt @default(0)
+  conversationsAnswered Int    @default(0)
+  conversationsIncluded Int    @default(0)
+  overageFils           BigInt @default(0)
+
+  subtotalFils BigInt
+  vatRateBp    Int    @default(500)  // 5.00% as basis points
+  vatFils      BigInt
+  totalFils    BigInt
+
+  /// The provider's own id for the charge. Unique, so a webhook that
+  /// arrives twice cannot settle the same invoice twice.
+  providerRef String? @unique
+
+  status    InvoiceStatus @default(OPEN)
+  issuedAt  DateTime      @default(now())
+  dueAt     DateTime
+  paidAt    DateTime?
+  attempts  Int           @default(0)
+  lastError String?
+
+  subscription Subscription @relation(fields: [subId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, issuedAt])
+}
+
+enum InvoiceStatus {
+  DRAFT
+  OPEN
+  PAID
+  FAILED
+  VOID
+}
+
+// ------------------------------------------------------------------ jobs
+
+/// A run of a scheduled job. Kept because a job that silently stops
+/// running is the same failure mode as everything else in this system —
+/// nothing errors, things just quietly stop happening.
+model JobRun {
+  id       String @id @default(cuid())
+  job      String
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  state      JobState  @default(RUNNING)
+  /// Whatever the job wants to report. Counts, not content.
+  result     Json?
+  error      String?
+  durationMs Int?
+
+  @@index([job, startedAt])
+  @@index([state, startedAt])
+}
+
+enum JobState {
+  RUNNING
+  SUCCEEDED
+  FAILED
+  SKIPPED
+}
+
+/// Every payment event we have processed, by the provider's event id.
+/// The idempotency key for webhooks — a provider that redelivers finds
+/// the row already there and does nothing.
+model PaymentEvent {
+  id         String   @id @default(cuid())
+  providerId String   @unique
+  provider   String
+  type       String
+  invoiceId  String?
+  handledAt  DateTime @default(now())
+  payload    Json?
+
+  @@index([invoiceId])
+}
+
+// ------------------------------------------------------------- alerting
+
+/// An open problem. One row per distinct issue, not one per detection —
+/// a check that fires every five minutes must not page every five minutes.
+model Alert {
+  id       String @id @default(cuid())
+  /// Stable across detections of the same problem. What makes dedupe work.
+  key      String @unique
+  orgId    String?
+
+  severity AlertSeverity
+  title    String
+  detail   String
+  runbook  String?
+
+  firstSeenAt DateTime  @default(now())
+  lastSeenAt  DateTime  @default(now())
+  /// How many consecutive checks have seen it. Used to suppress flapping.
+  seenCount   Int       @default(1)
+  notifiedAt  DateTime?
+  ackedAt     DateTime?
+  ackedBy     String?
+  resolvedAt  DateTime?
+
+  @@index([severity, resolvedAt])
+  @@index([orgId, resolvedAt])
+}
+
+enum AlertSeverity {
+  PAGE    // wake somebody — only if a human can fix it now
+  TICKET  // business hours
+  LOG     // recorded, nobody told
+}
+
+// ------------------------------------------------------------ mobile
+
+/// A device that can receive push. One row per install, not per user —
+/// an agent with a phone and a tablet gets both, and a wiped phone leaves
+/// a dead token that has to be cleaned up rather than retried forever.
+model PushDevice {
+  id     String @id @default(cuid())
+  orgId  String
+  userId String
+
+  token    String @unique
+  platform DevicePlatform
+  /// Expo pushes through its own service; the token format differs from
+  /// a raw APNs or FCM one and they are not interchangeable.
+  provider String @default("expo")
+
+  appVersion String?
+  lastSeenAt DateTime @default(now())
+  /// Set when the provider tells us the token is dead. Kept rather than
+  /// deleted so a reinstall can be distinguished from a first install.
+  failedAt   DateTime?
+  failReason String?
+
+  @@index([userId, failedAt])
+  @@index([orgId])
+}
+
+enum DevicePlatform {
+  IOS
+  ANDROID
+}
+
+// ---------------------------------------------------------------- money
+//
+// **Every money value in this schema is BigInt fils.** 1 AED = 100 fils.
+//
+// Not Decimal, and not a mix. Integer fils is what the commission
+// arithmetic depends on — splits are computed as basis points and the
+// remainder is allocated so the parts sum exactly to the whole, which
+// only works on integers.
+//
+// The earlier version had Lead.budgetMax and Listing.price as Decimal AED
+// while everything else was fils. Nothing converted between them, because
+// nothing yet joined the two. The first thing to join them would have been
+// out by a hundred, and it would have shown a buyer a property ten times
+// their budget.
+//
+// One unit. Format with `aed()` from lib/money.ts and nothing else.
+
+// ----------------------------------------------------------- commission
+
+/// A transaction that pays somebody. Separate from Lead because one lead
+/// can produce several deals over years, and a deal can have two sides.
+model Deal {
+  id     String @id @default(cuid())
+  orgId  String
+  leadId String?
+  listingId String?
+
+  reference String
+  type      DealType
+  /// The property price. Commission is derived from it, never typed in
+  /// separately — two numbers that should agree eventually will not.
+  valueFils BigInt
+  currency  String @default("AED")
+
+  /// Which side we acted for. In Dubai a brokerage is often on one side
+  /// only, and the commission differs.
+  side      DealSide @default(SELLER)
+
+  stage       DealStage @default(AGREED)
+  /// Cash and mortgage are materially different transactions — different
+  /// steps, and roughly three weeks' difference in how long they take.
+  financing   Financing @default(UNKNOWN)
+  /// Whether the seller has a mortgage to discharge. Adds a bank and
+  /// two to three weeks, and is the most commonly forgotten dependency.
+  sellerHasMortgage Boolean @default(false)
+
+  agreedAt    DateTime?
+  /// The completion date in the Form F. Contractual, not aspirational —
+  /// missing it can mean forfeiting the deposit, so everything is planned
+  /// backwards from here.
+  contractualCompletionAt DateTime?
+  expectedAt  DateTime?
+  completedAt DateTime?
+  collapsedAt DateTime?
+  collapseReason String?
+
+  commissions Commission[]
+  milestones  DealMilestone[]
+  payments    DealPayment[]
+  /// Walked by the comparables report, which reads the building, bed
+  /// count and area off the completed deal's property. SetNull so a
+  /// removed listing does not erase the deal that closed on it.
+  listing     Listing?       @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([orgId, reference])
+  @@index([orgId, stage])
+  @@index([orgId, expectedAt])
+}
+
+enum DealType {
+  SALE
+  RENTAL
+  OFF_PLAN
+}
+enum DealSide {
+  BUYER
+  SELLER
+  BOTH
+  LANDLORD
+  TENANT
+}
+
+/// The stages after the handshake. This is where deals actually die, and
+/// where the pipeline used to simply stop at "Won".
+enum DealStage {
+  AGREED            // terms agreed, nothing signed
+  MOU_SIGNED        // Form F executed — the contractual clock starts here
+  DEPOSIT_PAID
+  MORTGAGE_APPLIED  // mortgage path only
+  VALUATION_DONE    // mortgage path only
+  FINAL_OFFER       // mortgage path only
+  LIABILITY_LETTER  // when the seller has a mortgage to discharge
+  NOC_APPLIED       // developer NOC
+  NOC_RECEIVED
+  TRANSFER_BOOKED   // DLD trustee appointment
+  COMPLETED         // transferred, title issued
+  COLLAPSED
+}
+
+/// The brokerage's commission on a deal, before it is split.
+model Commission {
+  id     String @id @default(cuid())
+  orgId  String
+  dealId String
+
+  /// Basis points of the deal value. 200 = 2%, the Dubai norm.
+  rateBp     Int
+  grossFils  BigInt
+  /// UAE VAT on the commission itself, which brokerages routinely forget
+  /// until an invoice is rejected.
+  vatFils    BigInt
+  netFils    BigInt
+
+  status     CommissionStatus @default(FORECAST)
+  invoicedAt DateTime?
+  receivedAt DateTime?
+
+  deal   Deal              @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  splits CommissionSplit[]
+
+  @@index([orgId, status])
+}
+
+enum CommissionStatus {
+  FORECAST
+  INVOICED
+  RECEIVED
+  WRITTEN_OFF
+}
+
+/// Who gets what. Several rows per commission — listing agent, selling
+/// agent, referrer, and whatever the brokerage keeps.
+model CommissionSplit {
+  id           String @id @default(cuid())
+  orgId        String
+  commissionId String
+
+  userId String?
+  /// For an external referrer who is not a user.
+  externalName String?
+  role   SplitRole
+
+  /// Basis points of the net commission. Splits must total 10,000.
+  shareBp   Int
+  amountFils BigInt
+
+  paidAt   DateTime?
+  paidRef  String?
+
+  commission Commission @relation(fields: [commissionId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, userId, paidAt])
+}
+
+enum SplitRole {
+  LISTING_AGENT
+  SELLING_AGENT
+  REFERRER
+  MANAGER
+  BROKERAGE
+}
+
+/// Per-agent commission terms. Tiered, because most brokerages here pay a
+/// rising share once an agent passes a threshold.
+model CommissionPlan {
+  id     String @id @default(cuid())
+  orgId  String
+  userId String
+
+  /// Ordered bands. Below the first threshold the agent gets the first
+  /// share; past it, the next; and so on.
+  tiers Json
+
+  effectiveFrom DateTime @default(now())
+  effectiveTo   DateTime?
+
+  @@index([orgId, userId, effectiveFrom])
+}
+
+// ------------------------------------------------------------------ AML
+
+/// Customer due diligence. A legal obligation, not a feature: every
+/// brokerage concluding a sale is a DNFBP under UAE AML law.
+model KycRecord {
+  id     String @id @default(cuid())
+  orgId  String
+  leadId String  @unique
+
+  subjectType SubjectType @default(INDIVIDUAL)
+  legalName   String
+  nationality String?
+  /// For a company: the trade licence and the beneficial owners behind it.
+  tradeLicence String?
+
+  idType     IdDocType?
+  idNumber   String?
+  idExpiresAt DateTime?
+
+  /// Where the money comes from, and how it was earned. Two different
+  /// questions, and the guidance is explicit that both are required.
+  sourceOfFunds  String?
+  sourceOfWealth String?
+
+  riskRating   RiskRating @default(UNASSESSED)
+  riskReasons  String[]   @default([])
+  /// Politically exposed person. Triggers enhanced due diligence.
+  isPep        Boolean    @default(false)
+
+  status       KycStatus @default(NOT_STARTED)
+  completedAt  DateTime?
+  completedById String?
+  /// Re-checked periodically. High risk clients more often.
+  reviewDueAt  DateTime?
+
+  documents  KycDocument[]
+  screenings Screening[]
+  ubos       UltimateBeneficialOwner[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orgId, status])
+  @@index([orgId, riskRating])
+  @@index([orgId, reviewDueAt])
+}
+
+enum SubjectType {
+  INDIVIDUAL
+  COMPANY
+  TRUST
+}
+enum IdDocType {
+  PASSPORT
+  EMIRATES_ID
+  GCC_ID
+  TRADE_LICENCE
+}
+enum RiskRating {
+  UNASSESSED
+  LOW
+  MEDIUM
+  HIGH
+}
+enum KycStatus {
+  NOT_STARTED
+  COLLECTING
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+/// The natural person behind a corporate buyer. The whole point of the
+/// obligation — shell companies are the mechanism it exists to catch.
+model UltimateBeneficialOwner {
+  id     String @id @default(cuid())
+  orgId  String
+  kycId  String
+
+  fullName    String
+  nationality String?
+  ownershipBp Int?
+  idType      IdDocType?
+  idNumber    String?
+
+  kyc        KycRecord   @relation(fields: [kycId], references: [id], onDelete: Cascade)
+  screenings Screening[]
+
+  @@index([orgId, kycId])
+}
+
+model KycDocument {
+  id     String @id @default(cuid())
+  orgId  String
+  kycId  String
+
+  type      IdDocType
+  /// Pointer into object storage. The file never lives in Postgres.
+  storageRef String
+  fileName   String
+  expiresAt  DateTime?
+  /// How it arrived. Most will say WHATSAPP.
+  collectedVia String   @default("WHATSAPP")
+  verifiedAt   DateTime?
+  verifiedById String?
+  createdAt    DateTime @default(now())
+
+  kyc KycRecord @relation(fields: [kycId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, expiresAt])
+}
+
+/// Sanctions and PEP screening. Required before onboarding, and repeated —
+/// lists change, and a client who was clear in March may not be in June.
+model Screening {
+  id     String @id @default(cuid())
+  orgId  String
+  kycId  String?
+  uboId  String?
+
+  nameChecked String
+  /// UAE Local Terrorist List, UN Consolidated, and the provider's PEP set.
+  lists       String[]
+  provider    String
+  result      ScreeningResult
+  matches     Json?
+  screenedAt  DateTime @default(now())
+  clearedById String?
+  clearedNote String?
+
+  /// Optional on both sides, because `kycId` and `uboId` are both
+  /// optional scalars — a screening is of the subject or of a beneficial
+  /// owner. `kyc` was declared required against an optional `kycId`,
+  /// which Prisma rejects outright, and it is the reason nothing in this
+  /// schema had ever been generated.
+  kyc KycRecord?               @relation(fields: [kycId], references: [id], onDelete: Cascade)
+  ubo UltimateBeneficialOwner? @relation(fields: [uboId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, result, screenedAt])
+}
+
+enum ScreeningResult {
+  CLEAR
+  POSSIBLE_MATCH
+  CONFIRMED_MATCH
+  ERROR
+}
+
+/// A filing, or a decision not to file. Both matter — an inspector asks
+/// why you did not report as often as why you did.
+///
+/// Visibility is restricted to the compliance officer. Telling the client
+/// a report was filed is "tipping off" and is an offence in itself, so
+/// the agent handling the deal must not be able to see this.
+model ComplianceReport {
+  id     String @id @default(cuid())
+  orgId  String
+  dealId String?
+  kycId  String?
+
+  type       ReportType
+  /// Why it was triggered, in the compliance officer's words.
+  rationale  String
+  /// Cash amount that triggered a REAR, in fils.
+  cashFils   BigInt?
+  filedAt    DateTime?
+  /// The goAML reference once submitted.
+  goamlRef   String?
+  decidedById String
+  decidedAt   DateTime @default(now())
+  /// Set when a review concluded no filing was needed. Recorded, because
+  /// a decision not to file is a decision.
+  notFiledReason String?
+
+  @@index([orgId, type, decidedAt])
+}
+
+enum ReportType {
+  REAR   // Real Estate Activity Report — cash at or above the threshold
+  STR    // Suspicious Transaction Report
+  SAR    // Suspicious Activity Report
+  CNMR   // Confirmed Name Match Report
+  FFR    // Fund Freeze Report
+  NO_FILING
+}
+
+enum Financing {
+  UNKNOWN
+  CASH
+  MORTGAGE
+}
+
+/// How a payment on a transaction was made.
+///
+/// These four are the ones the Real Estate Activity Report turns on, and
+/// they are why this is an enum rather than free text: `assessRear`
+/// branches on CASH and VIRTUAL_ASSET, and a typo in a string reads as
+/// neither.
+enum DealPaymentMethod {
+  CASH
+  TRANSFER
+  CHEQUE
+  VIRTUAL_ASSET
+}
+
+/// Money the client actually paid, and when.
+///
+/// ## Why this table exists
+///
+/// `assessRear()` decides whether a transaction requires a **Real Estate
+/// Activity Report** — the filing a UAE brokerage owes the FIU when a
+/// deal is settled with AED 55,000 or more in cash, single or linked
+/// across ninety days, or with any virtual asset at any amount. It was
+/// written correctly, it is covered by unit tests, and **nothing could
+/// call it**, because the payments it takes as input had nowhere to be
+/// recorded. `PaymentEvent` is Stripe's — our own subscription billing,
+/// not the client's money.
+///
+/// So a brokerage could take sixty thousand dirhams in cash across three
+/// visits and the product, holding the code that knows that is
+/// reportable, would say nothing.
+///
+/// ## Fils, and an exact threshold
+///
+/// The threshold is 5,500,000 fils exactly. A rounding error either side
+/// of it is a report filed that should not have been or, far worse, one
+/// that should have been and was not.
+model DealPayment {
+  id     String @id @default(cuid())
+  orgId  String
+  dealId String
+
+  amountFils BigInt
+  method     DealPaymentMethod
+  /// When the client paid, not when somebody typed it in. The ninety-day
+  /// linked window is measured from this.
+  receivedAt DateTime
+  /// Cheque number, transfer reference, exchange house receipt.
+  reference  String?
+  note       String?
+
+  recordedById String?
+  createdAt    DateTime @default(now())
+
+  deal Deal @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, dealId, receivedAt])
+}
+
+/// One row per step in the transaction. A row rather than a status field
+/// because the useful questions are "when was this done, by whom, and
+/// what is attached" — none of which a single enum can answer.
+model DealMilestone {
+  id     String @id @default(cuid())
+  orgId  String
+  dealId String
+
+  stage      DealStage
+  /// Planned backwards from the contractual completion date.
+  dueAt      DateTime?
+  completedAt DateTime?
+  completedById String?
+
+  /// Set when this step slipped past its planned date. Kept after the
+  /// fact, because a deal that completed late still teaches you where the
+  /// process is slow.
+  slippedByDays Int?
+  blockedReason String?
+  note          String?
+
+  deal Deal @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  @@unique([dealId, stage])
+  @@index([orgId, dueAt, completedAt])
+}
+
+// ----------------------------------------------------------- requirements
+
+/// What a buyer is actually looking for.
+///
+/// A record rather than fields on the lead, because one person routinely
+/// wants two different things — "a two-bed to live in, or a studio to let
+/// out" — and a single set of columns cannot hold that without lying
+/// about one of them.
+model Requirement {
+  id     String @id @default(cuid())
+  orgId  String
+  leadId String
+
+  label   String?
+  purpose Purpose @default(SALE)
+  intent  Intent?
+
+  budgetMinFils BigInt?
+  budgetMaxFils BigInt?
+
+  /// Must-haves disqualify. Nice-to-haves only move the score. Keeping
+  /// them apart is what stops a system sending a one-bed to somebody who
+  /// said three and calling it a "partial match".
+  bedroomsMin Int?
+  bedroomsMax Int?
+  areaMinSqft Int?
+
+  /// Alternatives, not a single value. "Marina or JBR" is one
+  /// requirement, not two.
+  communities String[] @default([])
+  /// Free text, scored loosely. Sea view, high floor, furnished.
+  preferences String[] @default([])
+
+  /// Where this came from, and how much to trust it.
+  source     RequirementSource @default(ASSISTANT)
+  /// The assistant's confidence when it inferred this. Below the floor,
+  /// it informs an agent and never triggers an outbound message.
+  confidence Float?
+  confirmedById String?
+  confirmedAt   DateTime?
+
+  active    Boolean   @default(true)
+  /// Requirements go stale. Somebody looking six months ago has usually
+  /// bought — from us or from somebody else.
+  expiresAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, active, expiresAt])
+  @@index([orgId, leadId])
+}
+
+enum RequirementSource {
+  ASSISTANT   // inferred from conversation
+  AGENT       // typed in by a person
+  LEAD        // stated explicitly and unambiguously
+}
+
+// -------------------------------------------------------- lead ownership
+
+/// How new leads are routed. Per brokerage, because every one of them has
+/// a different opinion and all of them feel strongly about it.
+model AssignmentRule {
+  id     String @id @default(cuid())
+  orgId  String
+
+  name     String
+  priority Int
+  active   Boolean @default(true)
+
+  /// Conditions. All must match. Empty means it always matches, which is
+  /// what makes the lowest-priority rule the fallback.
+  sources     LeadSource[] @default([])
+  communities String[]     @default([])
+  languages   String[]     @default([])
+  minBudgetFils BigInt?
+  maxBudgetFils BigInt?
+
+  strategy AssignStrategy @default(ROUND_ROBIN)
+  /// The pool. Empty means everyone with the AGENT role.
+  userIds  String[] @default([])
+
+  @@index([orgId, active, priority])
+}
+
+enum AssignStrategy {
+  ROUND_ROBIN     // fair, and visibly so
+  LEAST_LOADED    // by open leads
+  FASTEST         // by median first-response time
+  SPECIFIC        // always this person
+  UNASSIGNED      // deliberately nobody — a shared pool anyone can claim
+}
+
+/// Every change of hands, kept forever.
+///
+/// The point is not the current owner — that is a field on the lead. The
+/// point is being able to answer "who had this, when, and who moved it"
+/// without anybody's memory being involved.
+model LeadOwnership {
+  id     String @id @default(cuid())
+  orgId  String
+  leadId String
+
+  userId    String?
+  fromUserId String?
+  reason    OwnershipReason
+  ruleId    String?
+  /// Who made the change, when a person did.
+  actorId   String?
+  note      String?
+
+  startedAt DateTime  @default(now())
+  endedAt   DateTime?
+
+  @@index([orgId, leadId, startedAt])
+  @@index([orgId, userId, endedAt])
+}
+
+enum OwnershipReason {
+  FIRST_ASSIGNMENT
+  RULE
+  MANUAL
+  CLAIMED          // taken from the shared pool
+  PROTECTION       // returning enquirer, still inside the window
+  PROTECTION_LAPSED
+  REASSIGNED       // manager moved it
+  AGENT_LEFT
+}
+
+/// Agent availability. Routing to somebody on leave is how a lead sits
+/// unanswered for three days while the system reports it as assigned.
+model AgentAvailability {
+  id     String @id @default(cuid())
+  orgId  String
+  userId String
+
+  acceptingLeads Boolean @default(true)
+  /// Soft cap on open leads. Past it, routing skips them rather than
+  /// piling on — a lead nobody has time for is worse than one in a pool.
+  capacity       Int     @default(40)
+
+  awayFrom DateTime?
+  awayTo   DateTime?
+  awayNote String?
+
+  languages   String[] @default([])
+  communities String[] @default([])
+
+  @@unique([orgId, userId])
+}
+
+// ------------------------------------------------------------- documents
+
+/// One store for everything with an expiry date.
+///
+/// Written after noticing the same idea had grown in three places:
+/// `KycDocument`, the permit fields on `Listing`, and the `requires` list
+/// on a deal milestone. Three implementations of "a file that expires and
+/// somebody needs telling about" is two too many, and the third one is
+/// always the one nobody wired up to an alert.
+///
+/// KycDocument stays as it is — an AML file has its own retention rules
+/// and its own access controls, and folding it in here would weaken both.
+model Document {
+  id     String @id @default(cuid())
+  orgId  String
+
+  /// What it belongs to. Polymorphic because the same document type
+  /// hangs off different things: a title deed off a listing, a RERA card
+  /// off a user, a trade licence off the organisation.
+  ownerType DocumentOwner
+  ownerId   String
+
+  type     DocumentType
+
+  /// The number on the document — a BRN, a licence number, a permit
+  /// number. What somebody quotes when they renew it, and the field they
+  /// otherwise type into the file name.
+  reference String?
+
+  /// Null when nothing has been uploaded. The register is a list of
+  /// dates and numbers first and a filing cabinet second.
+  fileName String?
+  /// Object storage. Never the file itself.
+  ///
+  /// Optional, because the thing this register is for is the **expiry
+  /// date**, and requiring a scan to record one means the alarm stays
+  /// silent until somebody has configured a bucket and found a
+  /// photocopier. A broker card number and the date it lapses is the
+  /// compliance-critical part; the image is evidence for an inspection
+  /// and can follow later.
+  storageRef String?
+  sizeBytes  Int?
+  mimeType   String?
+
+  issuedAt  DateTime?
+  expiresAt DateTime?
+  /// Set once somebody has actually looked at it. A stored document is
+  /// not a verified one.
+  verifiedAt   DateTime?
+  verifiedById String?
+
+  uploadedById String?
+  uploadedVia  String   @default("WEB")
+  supersededById String?
+
+  createdAt DateTime @default(now())
+
+  /// Covers the expiry sweep, which is the only query that runs often.
+  @@index([orgId, expiresAt, supersededById])
+  @@index([orgId, ownerType, ownerId])
+}
+
+enum DocumentOwner {
+  LEAD
+  LISTING
+  DEAL
+  USER
+  ORGANISATION
+}
+
+enum DocumentType {
+  // Client
+  PASSPORT
+  EMIRATES_ID
+  VISA
+  TRADE_LICENCE
+  // Property
+  TITLE_DEED
+  NOC
+  SERVICE_CHARGE_CLEARANCE
+  EJARI
+  TENANCY_CONTRACT
+  FORM_F
+  SPA
+  FLOOR_PLAN
+  // Agent and brokerage
+  RERA_BROKER_CARD
+  BROKERAGE_LICENCE
+  TRAKHEESI_PERMIT
+  OTHER
+}
+
+// ------------------------------------------------------------ task plans
+
+/// A sequence a contact is put on.
+///
+/// The gap this fills: a lead who says "we're looking in about six
+/// months" is currently a note in a field, and a note does nothing. In
+/// this market a meaningful share of enquiries are six to twelve months
+/// out, and the agency still politely in touch at month five wins them.
+model TaskPlan {
+  id     String @id @default(cuid())
+  orgId  String
+
+  name        String
+  description String?
+  /// What kind of contact this is for. A seller nurture and a buyer
+  /// nurture are not the same sequence with different words.
+  audience    PlanAudience
+  active      Boolean @default(true)
+
+  steps         PlanStep[]
+  subscriptions PlanSubscription[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([orgId, name])
+}
+
+enum PlanAudience {
+  BUYER
+  SELLER
+  LANDLORD
+  TENANT
+  PAST_CLIENT
+}
+
+model PlanStep {
+  id     String @id @default(cuid())
+  orgId  String
+  planId String
+
+  order    Int
+  /// Days after the previous step. The first step is days after
+  /// subscription.
+  afterDays Int
+
+  action   PlanAction
+  /// For MESSAGE: the template name, because these are almost always
+  /// outside the 24-hour window.
+  template String?
+  /// For TASK: what the agent is being asked to do, in their words.
+  taskTitle String?
+  note      String?
+
+  plan TaskPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@unique([planId, order])
+}
+
+enum PlanAction {
+  MESSAGE       // the assistant sends, on WhatsApp
+  TASK          // an agent is asked to do something
+  CHECK_MATCHES // run the matcher and message only if something fits
+  REVIEW        // prompt to decide whether to keep going
+}
+
+/// One contact on one plan.
+model PlanSubscription {
+  id     String @id @default(cuid())
+  orgId  String
+  planId String
+  leadId String
+
+  state     SubscriptionState @default(RUNNING)
+  currentStep Int    @default(0)
+  nextDueAt  DateTime?
+
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  /// Why it stopped. "They replied" is the good ending and the most
+  /// common one — a plan that runs to completion usually means nobody
+  /// engaged.
+  endedReason String?
+
+  plan TaskPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@unique([leadId, planId])
+  @@index([orgId, state, nextDueAt])
+}
+
+enum SubscriptionState {
+  RUNNING
+  PAUSED        // the lead replied — a human has it now
+  COMPLETED
+  STOPPED       // opted out, or an agent ended it
+}
+
+// -------------------------------------------------------------- feedback
+
+/// What a buyer thought, collected from the buyer rather than
+/// reconstructed from the agent's memory a week later.
+model ViewingFeedback {
+  id     String @id @default(cuid())
+  orgId  String
+  viewingId String @unique
+  leadId    String
+  listingId String?
+
+  /// One question, tapped. A survey gets five percent; one question with
+  /// four buttons gets most people.
+  verdict   Verdict?
+  /// Structured reasons, from a short list, so they can be counted across
+  /// viewings. Free text cannot be aggregated into anything useful.
+  reasons   FeedbackReason[] @default([])
+  /// Anything they typed. Never shown to the vendor verbatim — see the
+  /// report module for why.
+  comment   String?
+
+  askedAt    DateTime?
+  answeredAt DateTime?
+  /// Collected by the assistant, or typed in by the agent after a call.
+  source     String @default("WHATSAPP")
+
+  createdAt DateTime @default(now())
+
+  @@index([orgId, listingId, answeredAt])
+}
+
+enum Verdict {
+  OFFERING          // wants to make an offer
+  INTERESTED        // wants a second viewing or time to think
+  NOT_FOR_ME
+  WRONG_PROPERTY    // it was not what they expected from the listing
+}
+
+enum FeedbackReason {
+  PRICE_TOO_HIGH
+  TOO_SMALL
+  LAYOUT
+  CONDITION
+  LOCATION
+  VIEW
+  NOISE
+  PARKING
+  SERVICE_CHARGE
+  NOT_AS_ADVERTISED
+  BUYING_ELSEWHERE
+  OTHER
+}
+
+/// A report sent to the owner. Recorded because "have we updated the
+/// vendor" is a question every brokerage answers badly.
+model VendorReport {
+  id     String @id @default(cuid())
+  orgId  String
+  listingId String
+
+  periodFrom DateTime
+  periodTo   DateTime
+  viewings   Int
+  offers     Int
+  /// The counted reasons, so the report is evidence rather than opinion.
+  summary    Json
+  /// Set when the numbers say the price is the problem.
+  priceSignal String?
+
+  sentAt   DateTime?
+  sentVia  String?
+
+  createdAt DateTime @default(now())
+
+  @@index([orgId, listingId, createdAt])
+}
+
+// ------------------------------------------------------------- migration
+
+/// One attempt at moving a brokerage off whatever they were using.
+///
+/// A record rather than a script run, because a migration is not an
+/// event — it is a fortnight during which two systems are both live and
+/// somebody needs to be able to answer "where are we".
+model Migration {
+  id     String @id @default(cuid())
+  orgId  String
+
+  source      String   // "PropSpace", "Goyzer", "spreadsheet", "Reapit"
+  state       MigrationState @default(DRAFT)
+
+  /// Everything lands here first and is counted before anything is
+  /// written into the live tables.
+  stagedCounts Json?
+  /// What the source said it had. The two are compared, and a difference
+  /// is shown rather than resolved.
+  claimedCounts Json?
+
+  /// Where the export lives, so a rollback has something to go back to.
+  sourceArchiveRef String?
+
+  startedAt   DateTime  @default(now())
+  cutoverAt   DateTime?
+  completedAt DateTime?
+  abandonedAt DateTime?
+  abandonReason String?
+
+  issues MigrationIssue[]
+
+  @@index([orgId, state])
+}
+
+enum MigrationState {
+  DRAFT       // mapping being agreed
+  STAGED      // loaded, counted, not yet live
+  RECONCILED  // the brokerage has checked and signed off
+  PARALLEL    // live here, still live there
+  COMPLETE
+  ABANDONED
+}
+
+/// Something wrong with the incoming data. Surfaced, never silently
+/// fixed — a migration that quietly tidies somebody's database is a
+/// migration they cannot trust.
+model MigrationIssue {
+  id          String @id @default(cuid())
+  orgId       String
+  migrationId String
+
+  severity  IssueSeverity
+  kind      String
+  entity    String
+  /// The source's own identifier, so they can go and look at it.
+  sourceRef String?
+  detail    String
+  /// What we propose. Null when there is no safe default and a person
+  /// has to choose.
+  suggestion String?
+  decision   String?
+  decidedById String?
+
+  migration Migration @relation(fields: [migrationId], references: [id], onDelete: Cascade)
+
+  @@index([migrationId, severity])
+}
+
+enum IssueSeverity {
+  BLOCKER   // cannot import this record at all
+  DECISION  // needs a human to choose
+  NOTE      // imported, worth knowing
+}
+
+/// A file sent to a lead, or received from one.
+///
+/// Agents send brochures, floor plans and payment plans constantly. With
+/// no way to attach one, the first time a buyer asks the agent leaves
+/// for WhatsApp — and does not come back for the next thing either.
+model Attachment {
+  id     String @id @default(cuid())
+  orgId  String
+  messageId String?
+  /// Reusable library items — a brochure attached to a listing, sendable
+  /// to any lead without re-uploading.
+  listingId String?
+
+  kind      AttachmentKind
+  fileName  String
+  /// Object storage. The file never lives in Postgres.
+  storageRef String
+  mimeType   String
+  sizeBytes  Int
+
+  uploadedById String?
+  createdAt    DateTime @default(now())
+
+  @@index([orgId, listingId])
+  @@index([messageId])
+}
+
+enum AttachmentKind {
+  BROCHURE
+  FLOOR_PLAN
+  PAYMENT_PLAN
+  PHOTO
+  DOCUMENT
+  OTHER
+}
+
+/// One attempt at a rate-limited action.
+///
+/// Not tenant-scoped — it exists precisely for requests that arrive
+/// before a tenant is known. Swept daily; without that it becomes the
+/// largest table in the database, which is a silly way to run out of
+/// disk.
+/// An enquiry from the marketing website, before any brokerage exists.
+///
+/// **Not tenant-scoped, and it cannot be** — the person filling in the
+/// demo form has no `orgId` because they are not a customer yet. Same
+/// reason as `RateLimitHit` below.
+///
+/// ## Why this model exists at all
+///
+/// It did not, and the enquiry was emailed and nothing else. Two emails
+/// through Resend, `Promise.allSettled`, and a `log.error` if they
+/// failed — so an unset API key, an expired domain or a bad afternoon
+/// at the provider meant the enquiry was **gone**. No row, no queue,
+/// nothing to replay.
+///
+/// That was a defensible call at one request a day. It stops being
+/// defensible the moment demos begin, because this is the only path in
+/// the entire product that produces revenue, and it had a single point
+/// of failure with no durable record behind it.
+///
+/// The row is written *before* the emails now. If delivery fails the
+/// enquiry is still here, `emailedAt` is null, and it is findable.
+model WebsiteLead {
+  id        String   @id @default(cuid())
+  kind      WebsiteLeadKind
+  name      String?
+  email     String
+  phone     String?
+  company   String?
+  teamSize  String?
+  message   String?
+
+  /// Where they came from — utm parameters and referrer, as captured.
+  source    Json?
+  /// Consent evidence. Under the UAE's PDPL and under GDPR you have to
+  /// be able to show when consent was given and from where, and the
+  /// point of capture is the only place that ever holds up.
+  ip        String?
+  userAgent String?
+
+  /// Null until both emails have gone. **A null here on an old row is
+  /// the alarm**: it means somebody asked for a call and nobody was
+  /// told. `website.undelivered` sweeps for it.
+  emailedAt DateTime?
+  /// Why delivery failed, kept verbatim so it can be diagnosed rather
+  /// than guessed at.
+  emailError String?
+
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([emailedAt])
+}
+
+enum WebsiteLeadKind {
+  DEMO        // asked for a call
+  SUBSCRIBE   // asked for the guides
+}
+
+model RateLimitHit {
+  id     String   @id @default(cuid())
+  action String
+  key    String
+  at     DateTime @default(now())
+
+  @@index([action, key, at])
+  @@index([at])
+}
+
+/// The person who instructed us. The other half of every deal.
+///
+/// Absent until day one of a twenty-two-year agent, who found the
+/// VendorReport model we had already built and asked the obvious
+/// question: **there is nobody to send it to.**
+///
+/// Not folded into Lead. A lead enquired; a vendor employed us, and
+/// conflating them means every filter, report and routing rule has to
+/// remember which is which.
+model Vendor {
+  id    String @id @default(cuid())
+  orgId String
+
+  name  String
+  phone String?
+  email String?
+
+  /// How they want to hear from us. Getting this wrong is the fastest
+  /// way to lose an instruction — some owners want a call every
+  /// Thursday, some want nothing until there is an offer.
+  prefers    ContactPreference @default(WHATSAPP)
+  reportDay  Int?              @default(4)
+  reportsOff Boolean           @default(false)
+
+  /// An owner who is not the seller — a power of attorney, a family
+  /// member handling it, a company representative. Common here.
+  actingFor  String?
+
+  /// Stops two agents telling one vendor two different stories about
+  /// the same week.
+  lastReportedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// Declared because the code traverses it: the "what's happening with
+  /// my property" request finds a vendor by the building they own, which
+  /// is `listings: { some: … }` and needs the relation to exist.
+  ///
+  /// Most `xId` columns in this schema deliberately have no relation —
+  /// `orgId` in particular is a plain column on nearly every table
+  /// because row-level security, not a foreign key, is what enforces
+  /// tenancy. Relations are added where something actually walks them.
+  listings Listing[]
+
+  @@index([orgId])
+  @@index([orgId, phone])
+}
+
+enum ContactPreference {
+  WHATSAPP
+  CALL
+  EMAIL
+  /// A real instruction some owners give. Ignoring it loses the
+  /// property.
+  OFFERS_ONLY
+}
+
+/// An offer, and everything said after it.
+///
+/// This is the job. The product's answer to the most important twenty
+/// minutes of any deal was a listing status that said UNDER_OFFER.
+model Offer {
+  id        String @id @default(cuid())
+  orgId     String
+  listingId String
+  leadId    String?
+  vendorId  String?
+  agentId   String?
+
+  /// Fils. Never a float — see lib/money.ts.
+  amountFils BigInt
+
+  financing      Financing @default(UNKNOWN)
+  /// A pre-approval in principle is not a mortgage. Recorded separately
+  /// because a vendor choosing between two offers is entitled to know
+  /// which buyer can actually complete.
+  preApproved    Boolean   @default(false)
+  preApprovalRef String?
+
+  /// Subject to survey, subject to another sale, a fixed completion
+  /// date. The thing that turns a higher offer into a worse one.
+  conditions String?
+
+  /// Whether the SELLER has a mortgage on the property.
+  ///
+  /// The single biggest driver of how long a transfer takes here — a
+  /// mortgaged buyer against a mortgaged seller is roughly 47 working
+  /// days, and a 30-day Form F is about 22. Captured on the offer
+  /// because that is when an agent knows it, and carried onto the deal
+  /// so the timeline warning fires before anybody signs.
+  sellerHasMortgage Boolean @default(false)
+
+  status    OfferStatus @default(SUBMITTED)
+  /// Offers expire. An agent chasing an acceptance on one that lapsed
+  /// on Tuesday is an agent about to be embarrassed.
+  expiresAt DateTime?
+
+  submittedAt DateTime @default(now())
+  decidedAt   DateTime?
+
+  responses OfferResponse[]
+
+  @@index([orgId, listingId, submittedAt])
+  @@index([orgId, status])
+}
+
+enum OfferStatus {
+  SUBMITTED
+  /// Shown to the vendor. Distinct from submitted, because "did he see
+  /// it?" is the first question a buyer's agent asks.
+  PRESENTED
+  COUNTERED
+  ACCEPTED
+  REJECTED
+  WITHDRAWN
+  LAPSED
+}
+
+/// One turn of the negotiation.
+///
+/// A counter creates a row; it never edits the amount. Overwriting
+/// would erase the negotiation — the one record both sides argue about
+/// later, and the one an agent needs when a commission is disputed.
+model OfferResponse {
+  id      String @id @default(cuid())
+  orgId   String
+  offerId String
+  offer   Offer  @relation(fields: [offerId], references: [id], onDelete: Cascade)
+
+  by         OfferParty
+  kind       OfferResponseKind
+  /// Present on a counter, absent on an accept or reject.
+  amountFils BigInt?
+  note       String?
+
+  /// Who recorded it, which is not the same as who said it.
+  recordedById String?
+  at           DateTime @default(now())
+
+  @@index([orgId, offerId, at])
+}
+
+enum OfferParty {
+  BUYER
+  VENDOR
+  AGENT
+}
+enum OfferResponseKind {
+  COUNTER
+  ACCEPT
+  REJECT
+  WITHDRAW
+  QUERY
+}
+
+/// One billable conversation.
+///
+/// A conversation is billable when the assistant answered an inbound
+/// enquiry — not when a message was sent, and not when a lead was
+/// created.
+///
+/// That definition is the whole thing, so it is worth being exact:
+///
+///   - A buyer messaging twice in one day is **one** conversation. A
+///     brokerage billed twice for one buyer having second thoughts would
+///     be right to leave.
+///   - An agent replying by hand is **not** billable. We charge for work
+///     the product did, not for hosting a message box.
+///   - A proactive nudge the buyer never answers is **not** billable.
+///     Charging for an unanswered message is charging for failure.
+///
+/// Recorded per conversation per UTC day, so the unique constraint does
+/// the deduplication rather than application logic that can drift.
+model ConversationCharge {
+  id     String @id @default(cuid())
+  orgId  String
+  subId  String
+
+  conversationId String
+  /// The UTC day, truncated. The natural key for "once per day".
+  day            DateTime
+
+  createdAt DateTime @default(now())
+
+  @@unique([conversationId, day])
+  @@index([orgId, subId, day])
+}
+
+/// An agent's blackbook entry.
+///
+/// The competing product sells "your blackbook" to the agent, and the
+/// agent takes it with them when they change firm. That is honest to
+/// the agent and it means the brokerage's system of record is a record
+/// of nothing.
+///
+/// **This splits the two.** The relationship layer is the agent's — their
+/// notes, their nicknames, their sense of who this person is — and it
+/// exports with them. The transaction layer stays with the brokerage:
+/// the deal, the offer, the KYC file, the audit trail.
+///
+/// Neither party is being quietly done over, which is the only version
+/// of this that survives an agent actually leaving.
+model BlackbookEntry {
+  id      String @id @default(cuid())
+  orgId   String
+  agentId String
+
+  /// The person, wherever they already exist in the system. A blackbook
+  /// entry is a VIEW of somebody, not a second copy of them — a
+  /// duplicate contact store is how a CRM starts lying to itself.
+  leadId   String?
+  vendorId String?
+
+  /// Somebody who is neither yet. An agent's book is full of people who
+  /// have not enquired about anything: a mortgage broker, a conveyancer,
+  /// a developer's sales manager.
+  standaloneName  String?
+  standalonePhone String?
+  standaloneEmail String?
+
+  /// What the agent calls them, which is often not their legal name.
+  nickname String?
+  /// Free text. Theirs, exports with them, never shown to a manager.
+  privateNote String?
+  /// "mortgage broker", "Emaar", "school run friend" — an agent's own
+  /// taxonomy, not the brokerage's pipeline stages.
+  tags String[]
+
+  starred     Boolean   @default(false)
+  lastTouched DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([agentId, leadId])
+  @@unique([agentId, vendorId])
+  @@index([orgId, agentId, lastTouched])
+}
+
+/// A mailbox an agent has connected.
+///
+/// Tokens live in the secret store, never here — the same rule the
+/// WhatsApp channel follows.
+model EmailAccount {
+  id      String @id @default(cuid())
+  orgId   String
+  agentId String
+
+  provider  EmailProvider
+  address   String
+  secretRef String
+
+  /// Where the last sync got to. Providers give a cursor; storing it
+  /// means a resync fetches the delta rather than the mailbox.
+  cursor       String?
+  lastSyncedAt DateTime?
+  lastError    String?
+  active       Boolean @default(true)
+
+  createdAt DateTime @default(now())
+
+  @@unique([agentId, address])
+  @@index([orgId, active])
+}
+
+enum EmailProvider {
+  GOOGLE
+  MICROSOFT
+}
+
+/// One email, reduced to what a CRM actually needs.
+///
+/// Headers, a snippet and the participants — **not the body**. Storing
+/// full message bodies makes this a mail archive, which is a different
+/// product with different retention obligations and a much worse
+/// breach story. The body stays in the mailbox; we keep enough to show
+/// a timeline and to open the original.
+model EmailMessage {
+  id        String @id @default(cuid())
+  orgId     String
+  accountId String
+
+  externalId String
+  threadId   String
+  direction  Direction
+
+  fromAddress String
+  toAddresses String[]
+  subject     String?
+  /// First ~200 characters. Enough to recognise the message in a list.
+  snippet     String?
+
+  /// Matched to a person, if we could. Null is normal and fine.
+  leadId   String?
+  vendorId String?
+
+  sentAt   DateTime
+  /// A link back to the message in Gmail or Outlook.
+  webLink  String?
+
+  @@unique([accountId, externalId])
+  @@index([orgId, leadId, sentAt])
+  @@index([orgId, threadId])
+}
+
+/// A spoken or typed request from an agent.
+///
+/// The competing model puts a human advisor in every loop to check the
+/// output before it goes back. That caps throughput at headcount and
+/// adds hours of latency.
+///
+/// We use a **confidence gate** instead: the work is produced in
+/// seconds, and where the evidence is thin the deliverable says so in
+/// its own words rather than a person catching it later. A number an
+/// agent shows a seller is a number they get held to — being fast is
+/// worth nothing if it is wrong.
+model AgentRequest {
+  id      String @id @default(cuid())
+  orgId   String
+  agentId String
+
+  /// What they actually said or typed, kept verbatim. When a recipe is
+  /// classified wrongly this is the only way to find out why.
+  transcript String
+  /// Present when it arrived as audio.
+  audioRef   String?
+
+  recipe     Recipe
+  /// How sure the classifier was. Below the floor we ask rather than guess.
+  confidence Float
+
+  /// What it needs and what it found. A request naming a listing we do
+  /// not hold is answerable — but only by saying so.
+  listingId String?
+  leadId    String?
+  vendorId  String?
+
+  state    RequestState @default(QUEUED)
+  /// The finished thing, or the reason there isn't one.
+  outputRef String?
+  /// Stated on the deliverable itself, never only in a log.
+  caveats   String[]
+
+  /// Escalated to a person. Rare by design, and always for a named
+  /// reason — never "the model was unsure" with nothing after it.
+  escalatedTo     String?
+  escalationReason String?
+
+  createdAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  @@index([orgId, agentId, createdAt])
+  @@index([orgId, state])
+}
+
+/// The recipes. Deliberately a closed set.
+///
+/// The competing product runs 17 and calls them recipes. An open-ended
+/// "ask for anything" surface produces confident nonsense at the edges,
+/// and in this domain the edges are where somebody gets sued.
+enum Recipe {
+  /// The CMA equivalent. Dubai has no MLS, so this is built from DLD
+  /// transactions plus the brokerage's own completed deals.
+  COMPARABLES
+  /// A pitch for an instruction, using real viewing and offer activity.
+  LISTING_PITCH
+  /// This week for one owner. Already exists as a job; now callable.
+  VENDOR_UPDATE
+  /// Log a person met, with the follow-up already scheduled.
+  LOG_CONTACT
+  /// A viewing, from "book Tuesday afternoon at the Marina flat".
+  BOOK_VIEWING
+  /// Message a lead, respecting the reply window.
+  DRAFT_REPLY
+  /// What is happening today, spoken back.
+  DAY_BRIEF
+  /// Anything else — asked about rather than guessed at.
+  UNCLEAR
+}
+
+enum RequestState {
+  QUEUED
+  RUNNING
+  DONE
+  /// Could not be done, with a reason the agent can act on.
+  REFUSED
+  /// Handed to a person.
+  ESCALATED
+}
+
+/// A personal follow-up. "Ring Rashid on Thursday."
+///
+/// There was no model for this. `TaskPlan` is a sequence template
+/// applied to a pipeline, and `DealMilestone` belongs to a transaction —
+/// neither is "remind me about this person".
+///
+/// Added because the spoken-request flow promises a reminder when an
+/// agent logs somebody they met, and a promise with nowhere to store it
+/// is a lie in the interface.
+model FollowUp {
+  id      String @id @default(cuid())
+  orgId   String
+  agentId String
+
+  title String
+  /// Usually the agent's own words from the voice note. Better than
+  /// anything generated from them.
+  body  String?
+
+  /// What it is about, where there is something.
+  leadId          String?
+  vendorId        String?
+  blackbookEntryId String?
+
+  dueAt       DateTime
+  completedAt DateTime?
+  /// Set when the reminder actually went out, so a restart does not
+  /// send it twice.
+  notifiedAt  DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([orgId, agentId, dueAt, completedAt])
+  @@index([orgId, dueAt, notifiedAt])
+}
+
+// ---------------------------------------------------------- intelligence
+//
+// Four models that turn a system of record into something that has an
+// opinion. Added together because they are one idea: the product should
+// know things about a client, form a view, recommend an action, and be
+// accountable for every one of those it took on its own.
+//
+// Everything here carries `orgId` and is picked up by rls.sql, which
+// discovers tenant tables from information_schema rather than a hand
+// list — so these are inside the tenant boundary the moment they exist.
+
+/// Something true about a person that no column has a place for.
+///
+/// The CRM captures budget, bedrooms and timeframe because those are
+/// fields. It has nowhere for "wife is expecting in March, wants to be
+/// in before then", "walked away from the last one over service
+/// charges", or "does not answer the phone, only WhatsApp". Those are
+/// the things an agent with twenty years actually trades on, and they
+/// lived in one free-text `notes` column that nothing could query and
+/// the assistant could not retrieve selectively.
+///
+/// **Structured enough to retrieve, free enough to be true.** A rigid
+/// schema for human circumstances is a schema that loses the important
+/// half. So: a typed kind for retrieval, and the agent's own words for
+/// content.
+model ClientFact {
+  id    String @id @default(cuid())
+  orgId String
+
+  /// Exactly one of these. A fact belongs to a person, and in this
+  /// product a person is a buyer, an owner, or somebody in an agent's
+  /// private book. Enforced by a check constraint in rls.sql, because
+  /// Prisma cannot express it and a fact belonging to nobody is
+  /// invisible everywhere and reachable from nothing.
+  leadId           String?
+  vendorId         String?
+  blackbookEntryId String?
+
+  kind ClientFactKind
+
+  /// The fact, in the words it arrived in. Never a paraphrase: "needs to
+  /// be in before the baby comes in March" is worth more to the next
+  /// conversation than "TIMELINE: 2026-03".
+  body String
+
+  /// Where it came from, so a person can judge it. An inference drawn
+  /// from behaviour is not the same as something the client said, and
+  /// presenting the two identically is how an agent repeats a "fact"
+  /// back to a client who never said it.
+  source ClientFactSource @default(AGENT)
+
+  /// Present when the assistant or an extraction produced it. Below the
+  /// confidence floor nothing is written at all — see extract.ts.
+  confidence Float?
+
+  /// The conversation, request or message it came out of. The audit
+  /// trail for "where did you get that".
+  originRequestId String?
+
+  /// Facts go stale. A budget from eighteen months ago is not a budget.
+  /// Nothing deletes on this automatically — it weights retrieval, so
+  /// an old fact is shown as old rather than silently dropped.
+  statedAt   DateTime  @default(now())
+  supersededAt DateTime?
+  /// Set when an agent says it is wrong. Kept rather than deleted: a
+  /// correction is itself information, and the audit log has DELETE
+  /// revoked for the same reason.
+  retractedAt DateTime?
+  retractedById String?
+
+  createdAt DateTime @default(now())
+
+  org Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, leadId, retractedAt])
+  @@index([orgId, vendorId, retractedAt])
+  @@index([orgId, blackbookEntryId, retractedAt])
+  @@index([orgId, kind])
+}
+
+enum ClientFactKind {
+  /// Why they are moving at all. The strongest predictor in the set.
+  MOTIVATION
+  /// What is stopping them. Named objections are answerable; unnamed
+  /// ones lose the deal quietly.
+  OBJECTION
+  /// Household, children, schools, pets. Decides area more often than
+  /// budget does.
+  CIRCUMSTANCE
+  /// Taste rather than requirement. High floor, sea view, quiet road.
+  PREFERENCE
+  /// How to reach them and when. An instruction, not a nicety.
+  COMMUNICATION
+  /// A date that matters to them — visa, lease end, school term, birth.
+  KEY_DATE
+  /// Something that suggests they are closer than they say.
+  BUYING_SIGNAL
+  /// The same, from an owner.
+  SELLING_SIGNAL
+  /// What went wrong last time, on a deal that did not complete.
+  LOSS_REASON
+  /// Anything else worth remembering.
+  OTHER
+}
+
+enum ClientFactSource {
+  /// The agent typed or said it.
+  AGENT
+  /// The client said it, in a conversation we hold.
+  CLIENT
+  /// Extracted by the assistant from a conversation.
+  EXTRACTED
+  /// Inferred from behaviour rather than stated by anybody. Held to a
+  /// higher bar before it is shown, and always labelled.
+  INFERRED
+}
+
+/// What the product thinks you should do next, and why.
+///
+/// The difference between a CRM and an assistant. A CRM shows you 400
+/// leads and lets you decide; this names one action per person and
+/// stands behind it.
+///
+/// **Computed in the jobs layer, never in a request.** Scoring the
+/// database on a page load is how an intelligence layer becomes the
+/// reason the product feels slow.
+model Recommendation {
+  id    String @id @default(cuid())
+  orgId String
+
+  /// Who should do it. Recommendations are personal — a manager seeing
+  /// every agent's suggested calls is a report, not an assistant.
+  agentId String
+
+  /// What it concerns. Exactly one, same rule as ClientFact.
+  leadId    String?
+  vendorId  String?
+  listingId String?
+  dealId    String?
+
+  action NextAction
+
+  /// One line, in the imperative, naming the person. "Call James about
+  /// the Marina Gate offer" — not "Follow up on opportunity #4471".
+  headline String
+
+  /// Why this, why now. Shown alongside, always. An instruction with no
+  /// reason is one an agent learns to ignore, and the reason is also
+  /// how they catch it being wrong.
+  reason String
+
+  /// 0–1. Drives ordering, and is deliberately not shown as a
+  /// percentage — a number to two decimal places invites an argument
+  /// about the second one.
+  priority Float
+
+  /// What is on the table, in fils. Ordering considers it; it is not
+  /// the only input, because the biggest number is often the least
+  /// likely.
+  valueFils BigInt?
+
+  /// What the assistant is permitted to do with this, under the
+  /// brokerage's autonomy setting. Held on the row rather than derived
+  /// at read time so that a change of setting cannot retroactively
+  /// authorise something already prepared.
+  autonomy AutonomyLevel @default(SUGGEST)
+
+  state RecommendationState @default(OPEN)
+
+  /// Set when an agent acted, dismissed it, or it expired. Dismissals
+  /// are the training signal that matters most — a recommendation
+  /// dismissed forty times is a rule that is wrong.
+  resolvedAt   DateTime?
+  resolvedById String?
+  /// Why it was dismissed, where the agent said. Optional, because
+  /// forcing a reason means getting a bad one.
+  dismissReason String?
+
+  /// Recomputed daily. A recommendation that outlives the state it was
+  /// drawn from is worse than none — "call James, he has gone quiet"
+  /// on the morning after James called is the thing that makes an
+  /// agent stop trusting it.
+  computedAt DateTime @default(now())
+  expiresAt  DateTime?
+
+  org Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  /// One open recommendation per subject per action. The sweep upserts
+  /// on this rather than accumulating a pile of near-duplicates.
+  @@unique([orgId, agentId, leadId, action])
+  @@index([orgId, agentId, state, priority])
+  @@index([orgId, state, computedAt])
+}
+
+enum NextAction {
+  CALL
+  SEND_PROPERTY
+  FOLLOW_UP
+  REQUEST_DOCUMENTS
+  PREPARE_CMA
+  BOOK_VIEWING
+  ASK_FOR_LISTING
+  REACTIVATE
+  INTRODUCE_FINANCE
+  NEGOTIATE
+  /// Chase an outcome that was never recorded. Unglamorous and the most
+  /// frequently correct answer in a real brokerage.
+  RECORD_OUTCOME
+}
+
+enum RecommendationState {
+  OPEN
+  /// The agent did it. Detected where the system can see it — a call
+  /// logged, a message sent, a viewing booked — rather than asking them
+  /// to tick a box.
+  ACTED
+  DISMISSED
+  /// The state it was drawn from changed, so it no longer applies.
+  STALE
+}
+
+/// The brokerage's setting, as opposed to what a single action is
+/// allowed to do.
+///
+/// Three, because two is not enough and four is a menu nobody reads.
+/// The middle one — prepare it and wait — is where most brokerages will
+/// live, and it is the one that makes the product feel like an
+/// assistant rather than a report.
+enum AutonomyMode {
+  /// It tells you. You do it.
+  COPILOT
+  /// It prepares what it can and waits for a yes.
+  ASSISTED
+  /// It does the reversible, internal things on its own and still asks
+  /// before anything reaches a customer.
+  AUTOPILOT
+}
+
+/// How much the assistant may do without being asked.
+///
+/// Not a single switch. The existing kill switch is binary and stays
+/// exactly as it is — it is a brake and must remain one. This is the
+/// gearbox: it decides, per action, whether the product suggests,
+/// prepares, or acts.
+enum AutonomyLevel {
+  /// Say it should happen. The agent does it.
+  SUGGEST
+  /// Prepare it — a drafted message, a filled form — and wait.
+  DRAFT
+  /// Do it, but only after an explicit yes on this specific thing.
+  CONFIRM
+  /// Do it. Reserved for actions that are reversible and internal.
+  EXECUTE
+}
+
+/// A lead's score, over time.
+///
+/// `Lead.score` is a single nullable Int and nothing has ever written
+/// to it. Even once something does, one number cannot answer the
+/// question that makes scoring useful — *"his engagement has increased
+/// significantly over the last seven days"* — because a single column
+/// has no last seven days.
+///
+/// Append-only. Small rows, swept on the same schedule as the rest.
+model LeadScoreEvent {
+  id     String @id @default(cuid())
+  orgId  String
+  leadId String
+
+  /// 0–100. An integer on purpose: a score presented to a person to one
+  /// decimal place claims a precision this does not have.
+  score Int
+
+  /// The components, so a score can be explained rather than asserted.
+  /// A number an agent cannot interrogate is a number they overrule.
+  recency      Int
+  engagement   Int
+  intent       Int
+  budgetFit    Int
+  /// Free-form notes on what moved it, for the explanation line.
+  drivers      String[] @default([])
+
+  computedAt DateTime @default(now())
+
+  org Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, leadId, computedAt])
+  @@index([orgId, computedAt])
+}
+
+/// Everything the assistant did, and whether anybody said it could.
+///
+/// The existing `AuditLog` records what a *user* did. This records what
+/// the *product* did on its own, which is a different question and the
+/// one that decides whether a brokerage will ever turn autonomy up.
+///
+/// The rule it exists to serve: an agent must always be able to see what
+/// happened, why, what information was used, what changed, and how to
+/// undo it.
+model AiAction {
+  id    String @id @default(cuid())
+  orgId String
+
+  /// Whose behalf. Null for a scheduled sweep acting for the brokerage.
+  agentId String?
+
+  /// What was asked, verbatim, where there was a request. Null when the
+  /// product acted on its own initiative.
+  request String?
+  /// What it understood the request to be. The gap between these two is
+  /// where every misfire is visible.
+  interpretation String?
+
+  /// The recipe, job or rule responsible. Named so a bad pattern can be
+  /// found and switched off rather than hunted.
+  origin String
+
+  action NextAction?
+  /// What it touched.
+  entity   String?
+  entityId String?
+
+  /// Before and after, for the fields that changed. Enough to undo.
+  before Json?
+  after  Json?
+
+  autonomy AutonomyLevel
+  /// Null when none was needed — a SUGGEST never asks. Set to the user
+  /// who said yes for CONFIRM and above.
+  approvedById String?
+  approvedAt   DateTime?
+
+  outcome AiActionOutcome
+  /// Present on FAILED, and written for a person rather than a log
+  /// parser.
+  error String?
+
+  /// Set when somebody reversed it, so the record shows both.
+  undoneAt   DateTime?
+  undoneById String?
+
+  createdAt DateTime @default(now())
+
+  org Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, createdAt])
+  @@index([orgId, agentId, createdAt])
+  @@index([orgId, entity, entityId])
+}
+
+enum AiActionOutcome {
+  /// Prepared and waiting on a person.
+  PENDING
+  DONE
+  /// A person said no.
+  REJECTED
+  FAILED
+  /// The guardrails stopped it. Distinct from FAILED because it is the
+  /// system working, not breaking.
+  REFUSED
+}

@@ -1,0 +1,392 @@
+@import "tailwindcss";
+@import "./tokens.css";
+
+/* Tokens exposed to Tailwind so `text-ink-2` resolves to the same value
+   the website uses. One source of truth, not two that drift. */
+@theme inline {
+  --color-ground: var(--ground);
+  --color-sunk: var(--panel);
+  --color-raised: var(--raised);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-rule: var(--rule);
+  /* Used by the autonomy picker's hover border. Declared in tokens.css
+     since the beginning and never mapped here, so `border-rule-strong`
+     generated nothing — the same silent failure as accent-type and
+     accent-edge, which were used 42 times before anybody noticed. */
+  --color-rule-strong: var(--rule-strong);
+
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-on-accent: var(--on-accent);
+  --color-active: var(--accent-type);
+  --color-accent-deep: var(--accent-deep);
+
+  /**
+   * The two that were missing, and they are the two the palette is most
+   * insistent about.
+   *
+   * Tailwind names a utility after the token, so `--color-active` gives
+   * `text-active` and nothing else. `text-accent-type` and
+   * `border-accent-edge` were never exposed — and between them they are
+   * used 42 times across the app, generating no CSS whatsoever:
+   *
+   *   `text-accent-type` (13)  every orange word in the interface,
+   *     including the `.io` in the wordmark in the header of every
+   *     screen. It fell back to inherited ink, so the one deliberate use
+   *     of colour in the product simply was not there.
+   *
+   *   `border-accent-edge` (29) the hairline on every orange fill. That
+   *     is not decoration: tokens.css sets out that #E86A2C is
+   *     2.65:1 on the ground and 2.44:1 on the panel, so the same button
+   *     passes on one surface and fails on the other, and the darker
+   *     edge is what defines the boundary regardless of what is behind
+   *     it. Without it every orange button failed contrast on a panel.
+   *
+   * PROJECT_CONTEXT is explicit that the two oranges must not be merged
+   * and that a check enforces it. The check compares the hex values in
+   * the token file; it cannot see that Tailwind was never told about
+   * them.
+   */
+  --color-accent-type: var(--accent-type);
+  /* Soft Orange: selected rows, AI panels, highlight cards. Mapped so
+     `bg-accent-soft` generates CSS — the two tokens above spent 42 uses
+     generating nothing because nobody mapped them. */
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-edge: var(--accent-edge);
+
+  /**
+   * The wordmark navy, and why it is not called `navy`.
+   *
+   * `--color-navy` below is a legacy alias pointing at the charcoal
+   * `--leather-deep`, which is a dark surface and not a brand colour at
+   * all. Taking that name for the logo would have silently repainted
+   * every `bg-navy` panel in the product the moment the token changed.
+   *
+   * `text-brand-navy` says what it is for: the word "PotatoFarm", and
+   * nothing else.
+   */
+  --color-brand-navy: var(--brand-navy);
+  --color-brand-navy-ink: var(--brand-navy-ink);
+
+  --color-navy: var(--leather-deep);
+  --color-ocean: var(--leather);
+  --color-royal: var(--accent);
+  --color-teal: var(--accent);
+  --color-cyan: var(--accent-type);
+
+  /* Danger follows the type token, not the raw accent: #FFA500 as an
+     error message is 1.97:1 and unreadable. `--accent-deep` is ink on a
+     light surface and the orange on the dark band, which is exactly the
+     behaviour an error wants. */
+  --color-danger: var(--accent-deep);
+  --color-danger-deep: var(--accent-deep);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+
+  --font-sans: var(--sans);
+  --font-mono: var(--mono);
+  --ease-out: var(--ease);
+
+  /**
+   * The type scale, exposed to Tailwind.
+   *
+   * `--text-*` is the namespace Tailwind reads for `text-<name>`, so
+   * these give `text-title`, `text-ui`, `text-label` and so on. Each
+   * carries its line height and letter spacing with it, which is the
+   * whole point: a size chosen without them is the reason there were
+   * three tracking values on one visual label.
+   *
+   * The screens had 18 different `text-[Npx]` values and no scale.
+   * Anything still writing a raw pixel size after this is either a
+   * genuine one-off, and should say so, or a step nobody named.
+   */
+  --text-display: var(--display);
+  --text-display--line-height: var(--lh-display);
+  --text-display--letter-spacing: var(--track-display);
+
+  --text-h1: var(--h1);
+  --text-h1--line-height: var(--lh-display);
+  --text-h1--letter-spacing: var(--track-h1);
+
+  --text-h2: var(--h2);
+  --text-h2--line-height: var(--lh-heading);
+  --text-h2--letter-spacing: var(--track-h2);
+
+  --text-page: var(--t-page);
+  --text-page--line-height: var(--lh-display);
+  --text-page--letter-spacing: var(--track-h1);
+
+  --text-title: var(--t-title);
+  --text-title--line-height: var(--lh-heading);
+  --text-title--letter-spacing: var(--track-title);
+
+  --text-stat: var(--stat);
+  --text-stat--line-height: var(--lh-display);
+  --text-stat--letter-spacing: var(--track-title);
+
+  --text-h3: var(--h3);
+  --text-h3--line-height: var(--lh-title);
+  --text-h3--letter-spacing: var(--track-h3);
+
+  --text-body-lg: var(--body-lg);
+  --text-body-lg--line-height: var(--lh-body);
+  --text-body-lg--letter-spacing: var(--track-sub);
+
+  --text-section: var(--t-section);
+  --text-section--line-height: var(--lh-title);
+  --text-section--letter-spacing: var(--track-section);
+
+  --text-sub: var(--t-sub);
+  --text-sub--line-height: var(--lh-title);
+  --text-sub--letter-spacing: var(--track-sub);
+
+  --text-ui: var(--t-ui);
+  --text-ui--line-height: var(--lh-ui);
+  --text-ui--letter-spacing: var(--track-ui);
+
+  --text-control: var(--t-control);
+  --text-control--line-height: var(--lh-ui);
+  --text-control--letter-spacing: var(--track-ui);
+
+  --text-note: var(--t-note);
+  --text-note--line-height: var(--lh-tight);
+  --text-note--letter-spacing: var(--track-note);
+
+  --text-label: var(--t-label);
+  --text-label--line-height: var(--lh-tight);
+  --text-label--letter-spacing: var(--track-label);
+
+  /* Weights, so `font-medium` is a token rather than a magic number
+     and 700 has no name to be reached for by. */
+  --font-weight-regular: var(--w-regular);
+  --font-weight-medium: var(--w-medium);
+  --font-weight-semibold: var(--w-semibold);
+}
+
+html { color-scheme: light; }
+html.dark { color-scheme: dark; }
+
+body {
+  background: var(--ground);
+  color: var(--ink-2);
+  font-family: var(--sans);
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "cv11", "ss01";
+}
+
+/**
+ * The small label above a field, a section or a figure.
+ *
+ * ## What this replaces
+ *
+ * Roughly 150 elements carrying, verbatim:
+ *
+ *     font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3
+ *
+ * — and the same thing again at `tracking-[0.1em]`, and again at
+ * `tracking-[0.14em]`, and at 9px and 11px. Three letter-spacings and
+ * three sizes on what is visually one component, because there was
+ * never a name for it and each new screen copied whichever neighbour
+ * was nearest.
+ *
+ * ## Why it is no longer monospace
+ *
+ * A monospace face on a label is a terminal convention, and it was
+ * doing real damage here: it put a second, unrelated typeface on nearly
+ * every screen in the product, at 10px, where its wider letterforms and
+ * fixed advance are least legible. Apple uses one family and varies
+ * weight; that is most of why their interfaces read as calm.
+ *
+ * Monospace stays for figures in a column, which is what it is actually
+ * for — see `.tabular`.
+ *
+ * ## Why it is 12px and not 10px
+ *
+ * 10px is below the floor for anything a person is expected to read,
+ * and 9px — which three of these were — is not a font size, it is a
+ * texture. 12px at weight 500 in the secondary grey is quieter on the
+ * page than 10px uppercase monospace was, while being legible.
+ *
+ * ## What was deliberately not changed
+ *
+ * The words. These labels are uppercase and they stay uppercase: Apple
+ * would set most of them in sentence case, but the capitals here are
+ * the product's field-label convention across every screen, and
+ * rewriting 150 labels is a content decision rather than a typographic
+ * one. Now that it is one class it is a one-line change if wanted.
+ */
+.t-label {
+  font-family: var(--sans);
+  font-size: var(--t-label);
+  line-height: var(--lh-tight);
+  font-weight: var(--w-medium);
+  letter-spacing: var(--track-label);
+  /* No colour. This class sits outside `@layer utilities`, so it beats
+     every Tailwind utility regardless of source order — setting a
+     colour here would silently override the `text-accent-deep` on the
+     handful of these that are deliberately not grey, and the override
+     would look like a design choice rather than a cascade collision.
+     Colour is not typography; the call site keeps it. */
+}
+
+/**
+ * Emphasis inside a sentence is 500, not the browser's 700.
+ *
+ * `<strong>` and `<b>` default to `bold`, which every browser resolves
+ * to 700 — the one weight this system does not have. It showed up as a
+ * 14px 700 fragment in the middle of a paragraph on the settings
+ * screen: heavier than the page's own headings, inside body copy.
+ *
+ * 500 is enough to lift a phrase out of a sentence and is what Apple
+ * uses for it. Semantics are untouched — a screen reader still
+ * announces the emphasis.
+ */
+strong, b { font-weight: var(--w-medium); }
+
+/* Tabular numerals everywhere a figure appears. A pipeline column whose
+   values jitter as digits change is the sort of thing nobody reports and
+   everybody notices. */
+.tabular { font-variant-numeric: tabular-nums; }
+
+/* The skip link.
+ *
+ * `layout.tsx` renders one on every page and the class was never
+ * defined, so it sat visible above the header everywhere — the first
+ * thing on the screen, on every screen, reading "Skip to content".
+ *
+ * Off-screen rather than `display: none`, because a hidden element is
+ * not focusable and a skip link that cannot be focused is the one thing
+ * it must not be. It comes back at the top of the start edge the moment
+ * it is tabbed to.
+ *
+ * **`inset-inline-start`, not `left`.** This said `left` and it was the
+ * one piece of hand-written CSS that Arabic got wrong: the document
+ * flips, the skip link does not, and the very first thing a keyboard
+ * user meets arrives from the wrong edge — off-screen in the direction
+ * the page now reads *towards*. The rounded corner is the inner one, so
+ * it mirrors too: `border-end-end-radius` is bottom-right in English and
+ * bottom-left in Arabic, which is the same corner in both. */
+.skip {
+  position: absolute;
+  inset-inline-start: -9999px;
+  top: 0;
+  z-index: 100;
+  padding: 12px 18px;
+  background: var(--raised);
+  color: var(--ink);
+  border: 1px solid var(--rule);
+  border-radius: 0;
+  border-end-end-radius: var(--r);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  text-decoration: none;
+}
+.skip:focus-visible { inset-inline-start: 0; box-shadow: var(--ring); }
+
+/* Focus is the cyan ring from the site, not a browser outline. */
+:where(a, button, input, textarea, select, [tabindex]):focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+  border-radius: 4px;
+}
+
+/* A text-weight action inside a row or a card.
+ *
+ * Used nine times across the screens and defined nowhere until now — it
+ * would have rendered as plain text and looked like a bug nobody could
+ * name. The same class of miss as an undefined CSS variable: the markup
+ * is correct, the rule is absent, and it renders *almost* right.
+ *
+ * 44px minimum because it is a tap target on a phone, even inside a
+ * dense list where it visually reads as a link.
+ */
+.btn-inline {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: var(--r-sm, 6px);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  /* `--accent-deep`, not `--accent-type`.
+     
+     This is a 15px label and the brand orange is 3.22:1 on white — a
+     surface colour, not a text one. It read as orange and measured as
+     unreadable, which is precisely the trap tokens.css warns about two
+     lines above where it defines this pair. 6.34:1 here. */
+  color: var(--accent-deep);
+  text-decoration: none;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+.btn-inline:hover { background: var(--panel); }
+
+/* ---------------------------------------------------------------------
+ * Arabic.
+ *
+ * Scoped to `[dir="rtl"]`, which the root layout sets from the resolved
+ * locale. Nothing here touches English, so `browser:type` — which
+ * asserts every step of the scale against its intended pixel size and
+ * line height, and runs signed in with no language cookie — measures
+ * exactly what it measured before.
+ *
+ * ## Letter-spacing is reset to zero, and this is the one that matters
+ *
+ * The scale is tightened at every size above 13px: `--track-display` is
+ * -0.022em, `--track-h1` -0.02em, and so on down. That is right for the
+ * system Latin faces it was tuned against, and it is **actively wrong
+ * for Arabic**, which is a connected script. Tightening tracking there
+ * does not make the line denser — it pulls the joins between letters
+ * into each other, so a word renders with its connecting strokes
+ * overlapping. It reads as a rendering fault rather than as tight type,
+ * and it gets worse the larger the text, which means it is most visible
+ * on every page heading.
+ *
+ * ## Line height goes up
+ *
+ * Arabic has no x-height in the Latin sense, and the parts that decide
+ * how much room a line needs are above and below it: the diacritics
+ * that sit over a letter and the deep bowls of ب، ج، ع that hang under
+ * it. At 1.05 — the display value, chosen so a two-line English
+ * headline sits tight — the marks of one line touch the descenders of
+ * the one above. These are the same proportions one step looser.
+ *
+ * ## What is deliberately unchanged
+ *
+ * **The font stack.** The temptation is to name Arabic faces here, and
+ * it is the wrong instinct: every platform in the stack already falls
+ * back per glyph to a good system Arabic face — SF Arabic on Apple,
+ * Segoe UI on Windows, Noto Naskh on Android — and naming them by hand
+ * risks pinning a worse one (Tahoma has wide coverage and poor
+ * shaping). The product's principle is native system rendering and no
+ * webfont; Arabic gets that for free, and the correct amount of code
+ * for it is none.
+ * ------------------------------------------------------------------ */
+[dir="rtl"] {
+  --lh-display: 1.25;
+  --lh-heading: 1.30;
+  --lh-title:   1.38;
+  --lh-body:    1.70;
+  --lh-ui:      1.65;
+  --lh-tight:   1.50;
+
+  --track-display: 0;
+  --track-h1:      0;
+  --track-h2:      0;
+  --track-h3:      0;
+  --track-title:   0;
+  --track-section: 0;
+  --track-sub:     0;
+  --track-ui:      0;
+  --track-note:    0;
+  --track-tight:   0;
+  /* The label is the exception: `.t-label` is uppercase and *widened*
+     (0.02em), and uppercase does not exist in Arabic, so the widening
+     has nothing to do. Zero rather than inherited, for the same reason
+     as the rest — a positive track on a connected script separates
+     letters that should be joined. */
+  --track-label:   0;
+}

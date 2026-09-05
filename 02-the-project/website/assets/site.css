@@ -1,0 +1,955 @@
+/* PotatoFarm.io — the approved design.
+   Extracted from APPROVED-home.html so every page shares one
+   stylesheet rather than eleven copies drifting apart. */
+
+/* ============================================================
+   PotatoFarm.io — design tokens
+   Panel palette. Locked 2 August 2026.
+
+   One file. The marketing site and the CRM both take it from here —
+   two token files is how a product and its website drift apart.
+   ============================================================ */
+
+:root{
+  /* ============================================================
+     The palette. Option 1: white, deep charcoal, a controlled orange.
+
+     Every ratio here was re-measured against the shipped tokens. The
+     block this replaces was the cream palette's — it argued at length
+     for warm white while `--ground` had already been set to #FFFFFF,
+     and quoted the brand orange at 2.65:1 when on white it is 3.22:1.
+     `repalette.py` moves hex values and cannot move prose, so the
+     numbers and the argument drifted a generation behind the colours
+     they described.
+
+     `app/src/styles/tokens.css` is the source of truth and carries the
+     reasoning; `consistency.py` fails the build if the four surfaces
+     disagree on a hex.
+     ============================================================ */
+
+  /* ---- The ground ---------------------------------------------------
+     White, and the warm grey does the separating. Roughly 70% white,
+     20% warm neutral, 8% charcoal and 2% orange.
+
+     The cream this replaced had a real argument behind it — Hermès does
+     not put orange on #FFFFFF — and it lost to a decision. The warmth
+     lives in `--panel` now rather than in the ground. */
+  --ground: #FFFFFF;
+  --panel:  #F5F3F0;   /* Warm Grey — secondary sections, inputs */
+  --raised: #FFFFFF;   /* a card is its border and its spacing, not a tint */
+
+  /* ---- Ink ----------------------------------------------------------
+     Deep charcoal rather than pure black. */
+  --ink:   #171717;   /* 17.93:1 on white, 16.19:1 on panel */
+  --ink-2: #4A4A4A;   /*  8.86:1 on white */
+  --ink-3: #6B6B6B;   /*  5.33:1 on white, 4.81:1 on panel */
+
+  /* Two rules, because they do different jobs. `--rule` is a hairline
+     between table rows; WCAG 1.4.11 wants a form control's boundary at
+     3:1, which is what the second one is for. */
+  --rule:        #E7E5E2;   /* 1.26:1 — separators, decorative only */
+  --rule-strong: #918A82;   /* 3.41:1 on white, 3.08:1 on panel */
+
+  /* ---- The wordmark navy --------------------------------------------
+     The one colour the supplied logo has that this palette did not.
+     "PotatoFarm" in the artwork is a deep blue-black rather than the
+     neutral ink beside it — sampled at #0E1822, blue leading red by
+     eleven points, which is a decision and not compression noise.
+
+     It dresses the wordmark and nothing else. Repainting `--ink` navy
+     would have recoloured every heading and paragraph on the site
+     because a logo arrived, which is a different job.
+
+     **16.51:1 on the ground.** It read 14.88:1 here, which was correct
+     against the cream and was never re-measured when the ground went
+     white. */
+  --brand-navy: #12202E;
+
+  /* ---- Orange, and the discipline it needs ---------------------------
+     **#E86A2C is 3.22:1 on white.** That clears the 3:1 a border, an
+     icon or a focus ring needs, and falls short of the 4.5:1 text
+     needs. So the orange is a *surface* colour — fills, focus, the
+     active state, selected rows, the `.io` — and orange type steps down
+     the same hue until it is readable.
+
+     It used to dress every heading too. A 68px headline is not 2% of a
+     page, and an h3 at 20px/500 is not large text, so that was both an
+     imbalance and a genuine AA failure. Headings are `--ink` now. */
+  --accent:      #FF5A00;   /* 3.13:1 on white, 2.82:1 on panel — a
+                               fill colour, never type */
+  --accent-type: #FF5A00;   /* the `.io`, and nothing else */
+  --accent-hover:#FF5A00;   /* the hover on a fill — the same orange */
+
+  /**
+   * The legible orange, and it is not a second brand colour.
+   *
+   * Orange type at any size takes this. Not "small orange type" — every
+   * size. That distinction used to carve out headings, and carving out
+   * headings is what let a 20px h3 through at 3.22:1.
+   */
+  /* Orange type, and on a light ground it is **ink**, not orange.
+     #FF5A00 is 3.13:1 on white — it clears the 3:1 a border needs and
+     is well under the 4.5:1 body text needs, so orange body text stays
+     a knowing exception rather than the default. The brief is white
+     ground, black text, one accent. `tokens.css` carries the same
+     split and the same number. */
+  --accent-deep: #171717;   /* 17.93:1 on white */
+
+  /**
+   * The border on every orange fill, and it is not decoration.
+   *
+   * The fill is 3.22:1 on white and **2.90:1 on the panel** — the same
+   * button passes on one surface and fails on the other. Rather than
+   * forbid orange on panels, the fill carries a darker hairline, so the
+   * edge is defined regardless of what is behind it. WCAG 1.4.11 asks
+   * 3:1 of a control boundary; this is 4.54:1 there.
+   */
+  --accent-edge: #FF5A00;   /* the same orange */
+
+  /* Soft Orange. Selected rows and machine-written text — see
+     `components/ui/machine.tsx`. Charcoal on it is 16.22:1. */
+  --accent-soft: #FFF0E8;
+
+  /* **Labels on the orange fill are white, never ink**, on
+     instruction.
+
+     White on the accent is 3.13:1.
+     Ink #171717 on the same fill would be 5.73:1.
+
+     **White, confirmed by the brand owner with the number in front of
+     them.** Below the AA floor and chosen knowingly; `tokens.css`
+     carries the full note and the two ways to keep white and the
+     contrast. Do not change this to ink — it has been once. */
+  --on-accent: #FFFFFF;
+
+  /* ---- Leather -----------------------------------------------------
+     The anchor. Orange without a dark warm neutral beneath it floats;
+     this is the belt and the box. */
+  --leather:      #34322F;   /* raised inside the dark band */
+  --leather-deep: #2A2825;   /* charcoal, not black — see charcoal.py */
+  /* The type that sits on leather, named at the root rather than only
+     inside `.on-leather`. The footer is on leather and outside that
+     class, so without these it gets literals — which is exactly what
+     happened, three times. */
+  --leather-ink:   #F5F3F0;   /* 13.27:1 on leather-deep */
+  --leather-ink-2: #B5B5B5;   /*  7.17:1 */
+  --leather-ink-3: #9A9A96;   /*  5.21:1 on charcoal — #8A8A8A fell to 4.03 */
+
+  /* ---- State, and why it is no longer a colour ---------------------
+     The product is two colours by brand decision, so state cannot be
+     carried by hue. Every place that used green or red already said the
+     thing in words beside it; the hue was reinforcement, not the
+     message. Danger keeps the accent in its readable step because an
+     error still has to pull the eye; success drops to ink, because a
+     confirmation that has already happened does not need to shout. */
+  --success:      #171717;
+  /* An error is a sentence, so it follows the type token rather than
+     the raw accent — #FFA500 as an error message is 1.97:1. The orange
+     still marks the field: `[data-invalid]` borders it. */
+  --danger:       var(--accent-deep);
+  --warning:      var(--accent-deep);
+
+  /* ---- Type ---------------------------------------------------------
+     One scale, Apple's proportions, two registers.
+
+     ## The stack, and the one name that left it
+
+     `Inter` was third in the list and it is the change that matters.
+     On a Mac it never won — `-apple-system` matched first — so nobody
+     working on this saw it. On Windows and Linux with Inter installed
+     it won every time, and Inter is a different voice: a larger
+     x-height, flatter terminals, more geometric. Half the users were
+     reading a different product from the other half and no screenshot
+     ever showed it.
+
+     `-apple-system` and `BlinkMacSystemFont` resolve to San Francisco,
+     which is an optical-size family: the browser picks SF Pro Display
+     above roughly 20px and SF Pro Text below it, adjusting aperture and
+     spacing as it goes. That switch is most of what "Apple typography"
+     actually is, and it is free — it needs no webfont, no download and
+     no licence. The two quoted SF names after them are for the handful
+     of environments that have the fonts installed but not the keyword.
+
+     `"Segoe UI", Roboto` are kept, and this is a deliberate departure
+     from the brief's literal stack, which goes from Helvetica Neue
+     straight to Helvetica and Arial. On Windows that resolves to Arial
+     — a 1982 face with no optical sizing — for the entire product. The
+     brief's own principle is to "prioritise the native system
+     rendering"; Segoe UI *is* that on Windows and Roboto is on Android.
+     On Apple hardware this stack is byte-identical to the brief's.
+
+     No webfont is loaded anywhere. Nothing here is Apple's property. */
+  --sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
+          "Segoe UI", Roboto, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  /* Kept for one thing: figures in a column that must not jitter. It is
+     no longer a *label* face — see `--t-label` below. */
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+
+  /* ---- Weight -------------------------------------------------------
+     Three, and 700 is not one of them.
+
+     The product had 184 `font-semibold`, 11 `font-medium` and one
+     `font-normal` — effectively a binary, 600 or 400, with nothing in
+     between doing the work that 500 does on every Apple surface. A
+     button, a nav item and a table header are all "a bit heavier than
+     body", and reaching for 600 in all three is what makes an interface
+     look shouted. */
+  --w-regular:  400;
+  --w-medium:   500;
+  --w-semibold: 600;
+
+  /* ---- Tracking -----------------------------------------------------
+     The brief's three anchors. Each step below carries its own value
+     derived from them, because tracking is a function of size: type
+     tightens as it grows and needs air as it shrinks. Applying one
+     number at every size is the thing that reads as templated. */
+  --track-tight:  -0.02em;
+  --track-normal: 0;
+  --track-wide:   0.01em;
+
+  /* ---- The editorial register: the marketing site -------------------
+     Apple's own site proportions. Display sizes are fluid so a hero
+     never overflows a phone and never looks stranded at 1920. */
+  --display: clamp(2.75rem, 1.9rem + 4.2vw, 5rem);      /* 44 → 80 */
+  --h1:      clamp(2rem, 1.5rem + 2.4vw, 3rem);         /* 32 → 48 */
+  --h2:      clamp(1.625rem, 1.35rem + 1.4vw, 2rem);    /* 26 → 32 */
+  --h3:      1.5rem;                                    /* 24 */
+  --lead:    1.3125rem;                                 /* 21 */
+  --body-lg: 1.1875rem;                                 /* 19 */
+  --body:    1.0625rem;                                 /* 17 — Apple's */
+
+  /* ---- The interface register: the CRM ------------------------------
+     Deliberately not the same numbers, and this is the decision most
+     worth arguing with.
+
+     Apple does not use one scale for apple.com and for a working tool.
+     Their own guidance puts 17pt body on an iOS screen and 13pt on a
+     macOS window, because a marketing page is read once and a pipeline
+     is scanned four hundred times a day. Setting a CRM table at the
+     site's 17px body would push perhaps two rows below the fold on a
+     laptop and force a horizontal scroll on the wider tables.
+
+     So the interface keeps its density and takes everything else —
+     the face, the weights, the optical tracking, the line heights. */
+  /* The screen title. Fluid, because a fixed 40px headline on a 375px
+     phone is the single most common way a CRM overflows. There were
+     four different clamps in the app for this one thing — 32→40,
+     32→44, 28→36 and 30→40 — picked per screen. */
+  --t-page:    clamp(2rem, 1.5rem + 2vw, 2.5rem);   /* 32 → 40 */
+  --t-title:   1.75rem;      /* 28 — a card or panel heading */
+  --t-section: 1.3125rem;    /* 21 — a section heading (was 22) */
+  --t-sub:     1.0625rem;    /* 17 — a card or row title */
+  --t-ui:      0.9375rem;    /* 15 — body, list rows */
+  --t-control: 1rem;         /* 16 — inputs. Below this iOS zooms the
+                                page on focus, which is a layout bug
+                                that presents as a typography choice. */
+  --t-note:    0.8125rem;    /* 13 — secondary and helper text */
+  --t-label:   0.75rem;      /* 12 — the floor. Nothing renders under it. */
+
+  /* Figures that head a screen. Between title and h2 on purpose: a
+     number is read as a shape, not as words, and carries at a size
+     where a sentence would shout. */
+  --stat:      1.875rem;     /* 30 */
+
+  /* ---- Line height --------------------------------------------------
+     Tight for display, generous for anything read in sentences. */
+  --lh-display: 1.05;
+  --lh-heading: 1.12;
+  --lh-title:   1.2;
+  --lh-body:    1.5;
+  --lh-ui:      1.45;
+  --lh-tight:   1.3;
+
+  /* ---- Per-step tracking --------------------------------------------
+     Measured off the same curve rather than picked. The product had
+     three different values — 0.10em, 0.12em and 0.14em — on what was
+     visually one label, which is the sort of drift a scale exists to
+     stop. */
+  --track-display: -0.022em;
+  --track-h1:      -0.02em;
+  --track-h2:      -0.018em;
+  --track-h3:      -0.014em;
+  --track-title:   -0.018em;
+  --track-section: -0.012em;
+  --track-sub:     -0.01em;
+  --track-ui:      -0.006em;
+  --track-note:    -0.004em;
+  /* The one positive value in the system. Uppercase at 12px genuinely
+     needs air between the letters; everything else does not. */
+  --track-label:   0.06em;
+
+  --section: clamp(72px, 9vw, 128px);
+  --measure: 34rem;
+
+  --r-xs: 4px;
+  --r-sm: 6px;
+  --r:    8px;
+  --r-lg: 14px;
+  --r-xl: 999px;
+
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Warmer and shallower than a neutral shadow. A grey shadow on a
+     cream ground looks like dirt. */
+  --lift: 0 1px 2px rgb(43 30 23 / .05), 0 6px 20px rgb(43 30 23 / .06);
+  /* The focus ring, and why it is written out in numbers.
+     It was `rgb(232 106 44 / .40)` in the CRM and `rgb(217 119 87 / .40)`
+     on the website, the mobile preview and both design-system pages —
+     the first accent this project ever had, and a terracotta that was
+     never one of its accents at all. Two wrong oranges, on every
+     keyboard focus ring across five surfaces, surviving four palette
+     changes. Nothing could see them: `recolour.py` rewrites hex,
+     `palette.py` scanned for hex, and `browser:palette` measures hue —
+     19.8 and 14.8 both sit inside its 8–45 orange window, so all three
+     passed a colour none of them had ever read. It took an
+     accessibility check printing the focus shadow verbatim to find it.
+     `palette.py` now reads rgb() notation as well, which is what makes
+     this the last time. */
+  --ring: 0 0 0 3px rgb(255 90 0 / .40);
+}
+
+/* The inverted section. Leather, not black — a pure black band under a
+   cream page is a hole in it. */
+
+.on-leather{
+  --ground: var(--leather-deep); --panel: var(--leather); --raised: var(--leather);
+  --ink: var(--leather-ink); --ink-2: var(--leather-ink-2); --ink-3: var(--leather-ink-3);
+  /* Navy on leather is 1.3:1 — the wordmark would vanish. It reverses
+     to the light type here for the same reason --ink does. */
+  --brand-navy: var(--leather-ink);
+  --rule: #42403D;
+  /* On leather the bright orange finally works as type — 6.4:1 — so the
+     accent and the accent-type collapse into one here. */
+  /* The brand orange on the dark band. **4.57:1 on `--leather-deep`,
+     which passes AA — and 3.97:1 on `--leather`, the raised step, which
+     does not.**
+
+     It said "5.18:1 — passes AA", and the number was measured against a
+     charcoal two palettes ago. Both halves were wrong: the figure, and
+     the claim that it holds everywhere in the band.
+
+     It is not a fault, because since headings went to `--ink` the only
+     thing wearing this on a dark surface is the `.io` in the wordmark,
+     and WCAG 1.4.1 exempts a wordmark. But an inline comment saying
+     "passes AA" beside a value that does not is exactly how somebody
+     later puts a caption in it. */
+  --accent-type: #FF5A00;
+  /* The dark band. #FF5A00 is 4.70:1 on the charcoal ground — better
+     than the 3.42:1 it replaces and past the AA floor, so the accent
+     may be a word here as well as a fill. It is the one surface this
+     accent improves. */
+  --accent-deep: #FF5A00;
+  --on-accent: #FFFFFF;
+}
+
+/* Cream is the default, so this class is a no-op that exists only
+   so a section can opt back to it after a leather one. */
+.theme-cream{}
+
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{background:var(--ground);color:var(--ink-2);font-family:var(--sans);
+  font-size:var(--body);line-height:var(--lh-body);letter-spacing:var(--track-sub);
+  -webkit-font-smoothing:antialiased;
+  font-feature-settings:"cv11","ss01"}
+section{background:var(--ground);color:var(--ink-2);padding:var(--section) 0}
+.wrap{max-width:1120px;margin:0 auto;padding:0 clamp(20px,4vw,32px)}
+/* Headings are charcoal. The orange is the accent, not the type.
+
+   They were orange, and it was a decision carried forward from the
+   cream palette rather than one taken again under this one. Two things
+   make it wrong here:
+
+   The direction sets the surface at roughly 70% white, 20% warm grey,
+   8% charcoal and 2% orange. A 68px hero headline is nowhere near 2%
+   of anything — at 390px it made the front page majority orange, and
+   the "Book a call" button, which is the only thing on the page that
+   should be pulling the eye, competed with the sentence above it
+   instead of standing out from it.
+
+   And `h3` is 20px at weight 500. WCAG large text starts at 24px, or
+   18.66px bold, so an orange h3 was 3.22:1 against a 4.5:1 requirement
+   — a genuine failure that `contrast.py` waved through because its
+   exception table treated the whole `h1,h2,h3` selector as display
+   sized. That comment claimed "every heading these selectors cover is
+   display-sized" and h3 never was.
+
+   Charcoal is 17.93:1 and the exception is retired rather than
+   narrowed. */
+h1,h2,h3{color:var(--ink);font-weight:var(--w-semibold)}
+.display{font-size:var(--display);line-height:var(--lh-display);
+  letter-spacing:var(--track-display);color:var(--ink);
+  font-weight:var(--w-semibold);max-width:15ch}
+h1{font-size:var(--h1);line-height:var(--lh-display);letter-spacing:var(--track-h1)}
+h2{font-size:var(--h2);line-height:var(--lh-heading);letter-spacing:var(--track-h2)}
+/* 600, not 500. It was the only heading in the system at a different
+   weight, which read as an accident rather than a decision. */
+h3{font-size:var(--h3);line-height:var(--lh-title);letter-spacing:var(--track-h3);
+  font-weight:var(--w-semibold)}
+.lead{font-size:var(--lead);line-height:var(--lh-body);letter-spacing:var(--track-sub);
+  max-width:var(--measure);margin-top:var(--r)}
+.eyebrow{font-size:var(--t-note);color:var(--accent-deep);display:block;margin-bottom:12px;font-weight:var(--w-medium)}
+.cap{font-size:var(--t-note);color:var(--ink-3)}
+
+/* Hero gradient: two adjacent blues, 160deg. Restrained on purpose —
+   the difference between premium and generic here is amplitude. */
+
+
+nav{position:sticky;top:0;z-index:100;height:64px;display:flex;align-items:center;
+  background:color-mix(in srgb,var(--ground) 86%,transparent);
+  border-bottom:1px solid transparent;transition:border-color .24s}
+@supports not (backdrop-filter:blur(1px)){nav{background:var(--ground)}}
+@supports (backdrop-filter:blur(1px)){nav{backdrop-filter:saturate(180%) blur(20px);
+  -webkit-backdrop-filter:saturate(180%) blur(20px)}}
+nav.is-stuck{border-bottom-color:var(--rule)}
+nav .wrap{display:flex;align-items:center;gap:30px;width:100%}
+/* One lockup, no gap. The mark sits flush against the wordmark and
+   its own internal padding gives the optical breathing room, so the
+   whole thing reads as a single object rather than an icon placed
+   next to some text. */
+/* Ink, not --raised. --raised is white — this rendered the wordmark
+   invisible on the cream nav, with only the orange .io showing. Third
+   instance of the same remap error, and the one that was in the logo. */
+/* Two children only: the mark and the word.
+   This held the name and the extension as separate flex items — an
+   anonymous flex item for "PotatoFarm" and a span for ".io" — which
+   lays them out as two boxes that never kern against each other. The
+   markup had no whitespace in it, so a byte-for-byte check passed while
+   the browser drew a gap. The space was made by layout, not markup. */
+.brand{color:var(--brand-navy);text-decoration:none;display:flex;align-items:center;gap:0}
+.brand .word{font-weight:var(--w-semibold);font-size:var(--t-sub);
+  letter-spacing:var(--track-sub);white-space:nowrap}
+/* The extension in the wordmark.
+   Lighter and slightly smaller than the name, because an .io at full
+   weight competes with the word it is attached to — the eye should read
+   "PotatoFarm" first and the extension second. Same trick every domain
+   wordmark that works uses. */
+/* The extension in orange.
+   It is TYPE and it takes --accent-type, which is the same #E86A2C as
+   the fill. At 3.22:1 that is below the 4.5:1 text needs, and it is the
+   one place that is allowed: WCAG 1.4.1 exempts a wordmark, which is
+   the actual grounds rather than a preference. `contrast.py` keeps it
+   as its single recorded exception. The token resolves per ground, so
+   the footer and the sidebar get the lighter leather step
+   automatically. */
+.brand .tld{color:var(--accent-type);font-weight:var(--w-medium);letter-spacing:inherit}
+
+/* Not --tertiary here. That token is 4.2:1 on white, which is fine for a
+   caption and not fine for part of the company name — the wordmark is
+   the one piece of text on the page that must be legible to everybody.
+   var(--ink-3) is 5.33:1 on white and 4.81:1 on the grey panels, so it passes
+   on both grounds the footer and light sections use. */
+.theme-light .brand .tld,section.theme-light .brand .tld,
+
+
+/* Two characters now, so the mark is a rounded rectangle rather than a
+   square. min-width rather than width, so it never crops the F. */
+/* The mark. Sized to the cap height of the wordmark next to it, not to
+   a round number — a logo that is 28px beside 25px type looks like two
+   things that arrived separately. */
+/* The mark, sized to the wordmark's cap height. Slightly more gap than
+   a plain chip needed — the speckles read as busy if the type crowds
+   them. */
+.brand svg{width:28px;height:28px;margin-right:11px;flex:none;display:block}
+/* --leather-ink-2 is the secondary type on a LEATHER ground. On the
+   cream nav it is 1.95:1 — the "Log in" link, invisible. Fourth
+   instance of the remap putting a dark-ground colour on a light one. */
+nav a.link{color:var(--ink-2);text-decoration:none;font-size:.875rem}
+nav a.link:hover{color:var(--ink)}
+nav .right{margin-left:auto;display:flex;gap:22px;align-items:center}
+/* `.keep` marks the one nav link that survives on a phone — Log in.
+   It carries no styles of its own and exists only to be negated below,
+   which is legitimate and invisible to a check that looks for a rule
+   per class. Declared empty so it is deliberate rather than missing. */
+nav a.keep{}
+@media(max-width:760px){nav a.link:not(.keep){display:none}}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:48px;
+  padding:0 22px;border-radius:980px;font-size:var(--t-ui);
+  font-weight:var(--w-medium);letter-spacing:var(--track-ui);text-decoration:none;
+  border:1px solid transparent;transition:background .24s var(--ease),box-shadow .24s}
+/* Teal button, navy label. White on teal is 3.36:1 and unreadable in
+   sunlight — this is measured, not preference. */
+.btn-primary{background:var(--accent);color:var(--on-accent);border:1px solid var(--accent-edge)}
+.btn-primary:hover{background:var(--accent-hover)}
+/* Royal blue is a surface, never type on navy — it measures 2.11:1 there. */
+.btn-surface{background:var(--accent);color:var(--on-accent);border:1px solid var(--accent-edge)}
+.btn-surface:hover{background:var(--accent-hover)}
+.btn-quiet{color:var(--ink);border-color:var(--rule)}
+.btn-quiet:hover{border-color:var(--ink-2)}
+.btn:focus-visible{outline:none;box-shadow:var(--ring)}
+.btn-sm{min-height:32px;padding:0 15px;font-size:.8125rem}
+
+.hero{padding-top:clamp(64px,9vw,128px)}
+.actions{display:flex;gap:12px;margin-top:36px;flex-wrap:wrap}
+
+.thread{margin-top:clamp(52px,8vw,88px);background:rgb(255 255 255 / .06);
+  border:1px solid var(--leather);border-radius:var(--r-lg);
+  padding:clamp(20px,4vw,34px);max-width:580px}
+.m{display:flex;align-items:flex-end;margin-bottom:12px}
+.m.out{justify-content:flex-end}
+.m .b{max-width:80%;padding:11px 15px;border-radius:18px;font-size:1rem;line-height:1.45;
+  /* Ink, not --raised. --raised is white, and after the palette swap
+     this rendered white type on a cream bubble at 1.11:1 — the thing
+     in the screenshot. */
+  background:var(--panel);color:var(--ink)}
+.m.out .b{background:var(--accent);color:var(--on-accent);border:1px solid var(--accent-edge)}
+.m .t{font-size:.6875rem;color:var(--ink-3);margin:0 8px 3px}
+.thread .foot{margin-top:18px;padding-top:16px;border-top:1px solid var(--rule);
+  font-size:var(--t-note);color:var(--ink-3)}
+
+.mid{text-align:center}
+.mid h2{max-width:20ch;margin:0 auto}
+.mid p{max-width:var(--measure);margin:var(--r) auto 0}
+.figure{font-size:clamp(3.25rem,2.6rem + 4vw,5.5rem);line-height:1;letter-spacing:-.04em;
+  color:var(--ink);font-weight:var(--w-semibold)}
+
+.steps{display:grid;gap:44px;margin-top:clamp(52px,8vw,80px)}
+@media(min-width:760px){.steps{grid-template-columns:repeat(3,1fr);gap:36px}}
+.step{border-top:1px solid var(--rule);padding-top:22px}
+.step .n{font-size:var(--t-note);color:var(--ink);font-variant-numeric:tabular-nums;font-weight:var(--w-semibold)}
+.step h3{margin:10px 0 8px}
+.step p{font-size:1rem}
+
+.split{display:grid;gap:44px;align-items:center}
+@media(min-width:880px){.split{grid-template-columns:1fr 1fr;gap:76px}}
+.panel{background:var(--panel);border-radius:var(--r-lg);padding:clamp(24px,4vw,36px)}
+.row{display:flex;justify-content:space-between;align-items:baseline;gap:16px;padding:14px 0;
+  border-bottom:1px solid var(--rule)}
+.row:last-of-type{border-bottom:0}
+.row .k{font-size:.9375rem}
+.row .v{color:var(--ink);font-weight:var(--w-medium);font-variant-numeric:tabular-nums}
+.row .v.up{color:var(--ink);font-weight:var(--w-semibold)}
+
+footer{padding:var(--section) 0 56px;border-top:1px solid var(--rule)}
+.fgrid{display:grid;gap:32px}
+@media(min-width:700px){.fgrid{grid-template-columns:2fr 1fr 1fr}}
+footer a{color:var(--ink-2);text-decoration:none;font-size:.9375rem;display:block;padding:5px 0}
+footer a:hover{color:var(--ink)}
+.fh{font-size:var(--t-note);color:var(--ink-3);font-weight:var(--w-medium);margin-bottom:8px}
+
+.reveal-ready [data-reveal]{opacity:0;transform:translateY(24px)}
+.reveal-ready [data-reveal].is-in{opacity:1;transform:none;
+  transition:opacity .6s var(--ease),transform .6s var(--ease)}
+.thread .pending{opacity:0;transform:translateY(10px)}
+.thread .pending.is-in{opacity:1;transform:none;
+  transition:opacity .42s var(--ease),transform .42s var(--ease)}
+[id]{scroll-margin-top:64px}
+/* An explicit colour even though it is off-screen until focused.
+   Without one the anchor computes to the browser default #0000EE,
+   which is the one blue left in a two-colour product — and it is
+   on all ten pages, on the first element a keyboard user reaches. */
+.skip{position:absolute;left:-9999px;color:var(--ink)}
+.skip:focus{left:16px;top:12px;z-index:200;background:var(--accent);color:var(--on-accent);
+  padding:10px 16px;border-radius:8px;border:1px solid var(--accent-edge)}
+
+
+/* Shared section rules. These were inline in the approved homepage; they
+   belong here now that eleven pages use them. */
+.hero .display{max-width:15ch}
+section h1.display{margin-bottom:0}
+
+
+/* The price comparison.
+   A table rather than three cards, because a brokerage owner is looking
+   up one row — theirs — and cards make him read all of them. Tabular
+   figures so the columns align down the page rather than jittering. */
+.ptable{max-width:640px;margin:44px auto 0;border-top:1px solid var(--rule)}
+.prow{display:grid;grid-template-columns:1.1fr 1fr 1.2fr 1fr;gap:10px;align-items:baseline;
+  padding:14px 4px;border-bottom:1px solid var(--rule);
+  font-variant-numeric:tabular-nums}
+.phead{font-size:var(--t-label);font-weight:var(--w-medium);letter-spacing:var(--track-label);
+  text-transform:uppercase;color:var(--ink-3);
+  border-bottom-color:var(--ink);padding-bottom:10px}
+.pk{color:var(--ink);font-weight:var(--w-medium);font-size:.9375rem}
+.pv{color:var(--ink);font-weight:var(--w-semibold);font-size:1.0625rem}
+.pa{color:var(--ink-2);font-size:.9375rem}
+/* Not --tertiary. That token is 4.2:1 on white — correct for a caption
+   and wrong for a price figure, which is what this is. Same borrow I
+   made on the wordmark extension and the same fix: var(--ink-3), 5.33:1. */
+.py{color:var(--ink-3);font-size:.875rem}
+@media(max-width:560px){
+  /* Four columns at 375px is four columns nobody can read. The yearly
+     figure is the one an owner checks last, so it is the one that goes. */
+  .prow{grid-template-columns:1fr 1fr 1.2fr}
+  .py,.phead span:last-child{display:none}
+}
+
+
+/* ==================================================================
+   The quiet ask.
+
+   Deliberately not a popup, not an exit-intent overlay, not a bar that
+   follows you down the page. All three convert on a spreadsheet and all
+   three make a brokerage owner think less of you — which is the wrong
+   trade for a company whose whole pitch is being straight with people.
+
+   It sits where a reader has just finished something, which is the only
+   moment they are actually deciding what to do next.
+   ================================================================== */
+.nextup{padding:clamp(56px,8vw,88px) 0}
+.nextup-in{display:grid;gap:28px;max-width:720px;margin:0 auto}
+@media(min-width:820px){.nextup-in{grid-template-columns:1.15fr 1fr;gap:56px;align-items:start;max-width:900px}}
+.nextup h2{font-size:clamp(1.375rem,1.15rem + 1vw,1.75rem);line-height:1.2;
+  letter-spacing:-.02em;color:var(--ink);font-weight:var(--w-semibold)}
+.nextup p{font-size:.9375rem;color:var(--ink-2);margin-top:10px;max-width:44ch}
+
+/* The copy side of the subscribe block. Was styled only via its
+   parent, which works and reads as an accident. */
+.nextup-say{max-width:46ch}
+.nextup-form{display:grid;gap:10px}
+@media(min-width:560px){
+  /* The copy side of the subscribe block. Was styled only via its
+   parent, which works and reads as an accident. */
+.nextup-say{max-width:46ch}
+.nextup-form{grid-template-columns:1fr auto;gap:8px}
+  .nextup-note{grid-column:1/-1}
+}
+.nextup-form input[type=email]{
+  /* 16px exactly. Below that iOS zooms the page on focus and the layout
+     jumps under somebody's thumb while they type. */
+  min-height:48px;padding:0 16px;font-size:16px;font-family:var(--sans);
+  color:var(--ink);background:var(--raised);border:1px solid var(--rule);border-radius:10px;width:100%}
+.nextup-form input[type=email]::placeholder{color:var(--ink-3)}
+.nextup-form input[type=email]:focus-visible{outline:none;border-color:var(--accent);
+  box-shadow:var(--ring)}
+.nextup-form button{min-height:48px;padding:0 22px;border:1px solid var(--accent-edge);border-radius:980px;
+  background:var(--accent);color:var(--on-accent);font-family:var(--sans);
+  font-weight:var(--w-medium);
+  font-size:.9375rem;cursor:pointer;white-space:nowrap;
+  transition:background 240ms var(--ease)}
+.nextup-form button:hover{background:var(--accent-hover)}
+.nextup-form button:focus-visible{outline:none;box-shadow:var(--ring)}
+.nextup-note{font-size:.8125rem;color:var(--ink-3);margin:2px 0 0}
+.nextup-note[data-state=done]{color:var(--success);font-weight:var(--w-medium)}
+.nextup-note[data-state=error]{color:var(--danger);font-weight:var(--w-medium)}
+
+/* The honeypot. Off-screen rather than display:none — some bots skip
+   hidden fields and fill everything else. */
+.hp{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+
+/* ==================================================================
+   The booking form
+   ==================================================================
+   The demo page had no form on it at all — just a mailto link — while a
+   validated endpoint sat behind /api/demo waiting for one. This is the
+   page the whole site points at, so it is the one place a form has to
+   work.
+
+   Two rules carried over from the subscribe form, both learned the hard
+   way and both invisible until they bite:
+
+     - **16px on every input, exactly.** Anything smaller and iOS zooms
+       the page on focus, which shifts the layout under somebody's thumb
+       mid-sentence. On a page whose entire audience is holding a phone
+       that is not a detail.
+     - **48px minimum height.** Same tap target as the buttons.
+*/
+/* A link inside body copy.
+ *
+ * The site styles links by class — .btn, .link, .brand, footer a — and
+ * had no rule for a plain one in a sentence, because until this form
+ * there was not a single one. An unstyled anchor falls back to the
+ * browser's blue, which on a cream ground is both off-palette and the
+ * only blue anywhere in the product. Scoped to prose inside main so the
+ * class-based links are untouched. */
+main p a:not([class]){color:var(--accent-deep);text-decoration:underline;
+  text-underline-offset:2px;text-decoration-thickness:1px}
+main p a:not([class]):hover{text-decoration-thickness:2px}
+
+/* The form sits under an intro block that has no bottom margin of its
+   own, so without this the first label butts straight up against the
+   sentence above it. */
+.dform{display:grid;gap:18px;max-width:34rem;margin-top:32px}
+.dform-row{display:grid;gap:18px}
+@media(min-width:560px){.dform-row{grid-template-columns:1fr 1fr}}
+
+.dform-field{display:grid;gap:6px;min-width:0}
+.dform-field>label{font-size:var(--t-note);color:var(--ink-2);font-weight:var(--w-medium)}
+
+/* One selector for every control, so a new field cannot be added in a
+   style nothing else uses. */
+.dform input:not([type=checkbox]),
+.dform select,
+.dform textarea{
+  min-height:48px;padding:12px 14px;font-size:16px;font-family:var(--sans);
+  color:var(--ink);background:var(--raised);border:1px solid var(--rule);
+  border-radius:10px;width:100%;-webkit-appearance:none;appearance:none}
+.dform textarea{min-height:104px;resize:vertical;line-height:1.5}
+.dform select{
+  /* The chevron is a background image rather than a pseudo-element,
+     because a select cannot carry one. */
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5l5-5' stroke='%236B6B6B' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 14px center;padding-right:38px}
+.dform input::placeholder,.dform textarea::placeholder{color:var(--ink-3)}
+.dform input:focus-visible,.dform select:focus-visible,.dform textarea:focus-visible{
+  outline:none;border-color:var(--accent);box-shadow:var(--ring)}
+
+/* A field the server rejected. The border alone would be colour carrying
+   meaning on its own, so the message underneath does the real work. */
+.dform-field[data-invalid] input,
+.dform-field[data-invalid] select,
+.dform-field[data-invalid] textarea{border-color:var(--danger)}
+.dform-err{font-size:.8125rem;color:var(--danger);font-weight:var(--w-medium)}
+.dform-err:empty{display:none}
+
+/* Consent. The box is 20px and the whole label is the target, so it is
+   reachable without aiming. */
+.dform-consent{display:grid;grid-template-columns:auto 1fr;gap:12px;
+  align-items:start;cursor:pointer;padding:4px 0;min-height:44px}
+.dform-consent input[type=checkbox]{width:20px;height:20px;margin-top:2px;
+  accent-color:var(--accent);cursor:pointer;flex:none}
+.dform-consent span{font-size:.875rem;color:var(--ink-2);line-height:1.5}
+
+.dform button[type=submit]{
+  min-height:48px;padding:0 26px;border:1px solid var(--accent-edge);border-radius:980px;
+  background:var(--accent);color:var(--on-accent);font-family:var(--sans);
+  font-weight:var(--w-medium);
+  font-size:.9375rem;cursor:pointer;justify-self:start;
+  transition:background 240ms var(--ease)}
+.dform button[type=submit]:hover{background:var(--accent-hover)}
+.dform button[type=submit]:focus-visible{outline:none;box-shadow:var(--ring)}
+.dform button[type=submit][disabled]{opacity:.55;cursor:default}
+
+.dform-note{font-size:.8125rem;color:var(--ink-3);margin:0}
+.dform-note[data-state=error]{color:var(--danger);font-weight:var(--w-medium)}
+
+/* What replaces the form once it has gone. */
+.dform-done{font-size:1.0625rem;color:var(--ink);font-weight:var(--w-semibold);max-width:40ch}
+.dform-done+p{font-size:.9375rem;color:var(--ink-2);margin-top:10px;max-width:44ch}
+
+
+/* ==================================================================
+   Utilities.
+
+   These replace 42 inline styles across 11 shapes. Inline values are
+   the ones that never make it into the stylesheet and so never get
+   fixed when the palette moves — and it has moved twice already, each
+   time leaving values behind that nobody found afterwards.
+
+   Each of these appears more than once. Anything used once stays
+   inline, because a class for a single instance is an inline style
+   with extra steps.
+   ================================================================== */
+.narrow{max-width:var(--measure)}
+.t-4{margin-top:40px}
+.t-3{margin-top:36px}
+
+/* The ocean section. It was seven inline background declarations, which
+   meant seven places to miss when the palette changed. */
+section.on-ocean{background:var(--leather)}
+
+/* Every inner-page title. It was set inline at 16ch, 18ch and 20ch on
+   different pages — three measures for one element, which is drift
+   rather than intent. One value now. */
+.page-title{font-size:var(--h1);max-width:18ch}
+
+/* A single-column steps grid, for the pages where each item is a full
+   row rather than a third. */
+.steps-1{grid-template-columns:1fr}
+
+/* Cards that are links. Handled in the component rather than on every
+   instance. */
+/* The colour matters as much as the underline here. This rule set
+   text-decoration and not colour, so the three guide cards on
+   /guides were browser-blue anchors — invisible only because every
+   child happens to set its own colour, which is luck, not design. */
+.steps a.step{text-decoration:none;color:var(--accent-deep)}
+/* --accent-deep, not --accent-type. The first attempt used the brand
+   orange and contrast.py failed it at 2.56:1 within the same run —
+   the heading exception covers h1/h2/h3, and an anchor is not one.
+   Same hue, readable step: the rule the whole product already uses
+   for small orange type. The h3 inside the card is still the brand
+   orange, so the card reads as it was briefed. */
+.steps a.step:hover h3{color:var(--ink)}
+
+/* A centred note under a section. Two instances, one shape. */
+.note-mid{text-align:center;margin:20px auto 0;max-width:52ch}
+.cta-row{margin-top:36px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+
+
+/* ---- Product shots -------------------------------------------------
+   The site had no images at all. Ten pages of typography describing an
+   interface nobody could see, against competitors whose sites are mostly
+   screenshots. This is the one section that shows the thing.
+
+   Composition rather than a plain screenshot: the laptop frame carries
+   the width, the phone overlaps its lower right, and the pair reads as a
+   product rather than a document. The phone is the point in this market
+   — an agent works from one — so on a narrow screen the phone is what
+   survives and the laptop is dropped rather than shrunk to illegibility.
+
+   Both images are lazy and carry explicit width/height, so the section
+   reserves its space before they arrive and the page does not jump. */
+.shots-section { padding-bottom: clamp(48px, 7vw, 92px); }
+
+.shots {
+  position: relative;
+  margin: clamp(34px, 5vw, 56px) 0 0;
+  display: flex;
+  justify-content: center;
+}
+
+.shot-desktop {
+  display: block;
+  width: 100%;
+  max-width: 940px;
+  height: auto;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-lg);
+  background: var(--raised);
+  /* Warmer and deeper than the card lift — this one is meant to sit off
+     the page rather than on it. */
+  box-shadow: 0 2px 6px rgb(43 30 23 / .06), 0 24px 60px rgb(43 30 23 / .13);
+}
+
+.shot-phone {
+  display: none;                    /* joins the composition at >=880px */
+  position: absolute;
+  right: max(0px, calc(50% - 470px - 18px));
+  bottom: -22px;
+  width: 168px;
+  height: auto;
+  border: 1px solid var(--rule);
+  border-radius: 20px;
+  background: var(--raised);
+  box-shadow: 0 2px 6px rgb(43 30 23 / .07), 0 18px 44px rgb(43 30 23 / .18);
+}
+
+@media (min-width: 880px) {
+  .shot-phone { display: block; }
+  /* Room for the phone to hang past the laptop without clipping. */
+  .shots { padding-bottom: 26px; }
+}
+
+/* Below that the laptop is unreadable at thumb width, so show the phone
+   on its own — which is also the honest picture of how the product is
+   used here. */
+@media (max-width: 879px) {
+  .shot-desktop { display: none; }
+  .shot-phone {
+    display: block;
+    position: static;
+    width: min(300px, 76vw);
+    border-radius: 22px;
+  }
+}
+
+
+/* A single wide product shot, for the pages that argue one point at a
+   time. The homepage composition pairs a laptop with a phone; here the
+   screen is the whole illustration, so it only needs room to breathe.
+
+   Same frame as the homepage laptop so the two pages look like one
+   product rather than two designers. */
+.shots.shot-wide { margin: clamp(28px, 4vw, 44px) 0 0; }
+.shots.shot-wide .shot-desktop { display: block; max-width: 940px; }
+
+/* ==================================================================
+   Diagrams
+   ------------------------------------------------------------------
+   The three guides carried no picture at all, and each one explains a
+   mechanism that is genuinely spatial: a window that opens and shuts
+   over time, a permit that gates a listing, a check that runs before
+   money moves. Prose can describe a sequence, but it cannot show that
+   two things overlap — which, for the 24-hour window, is the entire
+   point a reader is here to understand.
+
+   Every diagram is inline SVG rather than a file: it inherits the
+   palette through currentColor and the custom properties, so it can
+   never be the thing that still shows last year's brand, and there is
+   no second asset to keep in step. `img-src` in the CSP does not need
+   widening for it either.
+   ================================================================== */
+.diagram{margin:clamp(32px,5vw,48px) 0 0}
+
+/* A wide diagram scrolls inside its own box rather than making the
+   page scroll sideways. The alternative — scaling it to a 320px phone
+   — puts the labels at seven pixels, which is a picture of a diagram
+   rather than a diagram. */
+.diagram-scroll{overflow-x:auto;overscroll-behavior-x:contain;
+  -webkit-overflow-scrolling:touch;padding-bottom:4px}
+.diagram-scroll>svg{display:block;min-width:600px;width:100%;height:auto}
+
+.diagram figcaption{font-size:var(--t-note);color:var(--ink-3);
+  margin-top:14px;max-width:var(--measure)}
+
+/* Text inside a diagram. Set here rather than as attributes on forty
+   elements, which is where a font-family goes stale. */
+.diagram svg text{font-family:var(--sans);fill:var(--ink)}
+.diagram svg .d-lbl{font-size:13px;font-weight:var(--w-semibold)}
+.diagram svg .d-sub{font-size:12px;fill:var(--ink-3);font-weight:var(--w-regular)}
+.diagram svg .d-tick{font-family:var(--mono);font-size:11px;fill:var(--ink-3)}
+/* --accent-deep, not the brand orange: this is small text, and
+   contrast.py exempts headings, not diagram labels. Learned on the
+   guide cards one section up. */
+.diagram svg .d-warn{fill:var(--danger);font-weight:var(--w-semibold)}
+.diagram svg .d-ok{fill:var(--accent-deep);font-weight:var(--w-semibold)}
+
+/* Shapes. Classes rather than presentation attributes carrying var(),
+   because a `fill="var(--x)"` attribute is a property value in a place
+   older Safari treats as a plain string — it fails to black, silently,
+   on exactly the phone this market uses most. */
+.diagram svg .d-axis{stroke:var(--rule-strong);stroke-width:1;fill:none}
+.diagram svg .d-stem{stroke:var(--rule-strong);stroke-width:1;
+  stroke-dasharray:2 3;fill:none}
+.diagram svg .d-open{fill:var(--accent);fill-opacity:.14;
+  stroke:var(--accent-edge);stroke-width:1.5}
+.diagram svg .d-shut{fill:var(--panel);stroke:var(--rule-strong);
+  stroke-width:1.5;stroke-dasharray:5 4}
+.diagram svg .d-dot{fill:var(--accent-edge)}
+.diagram svg .d-dot-bad{fill:var(--danger)}
+.diagram svg .d-in{fill:none;stroke:var(--ink);stroke-width:1.75}
+.diagram svg .d-loop{fill:none;stroke:var(--accent-edge);stroke-width:1.5;
+  stroke-dasharray:4 4}
+.diagram svg .d-head{fill:var(--accent-edge)}
+
+/* Wider than the prose it sits between, capped short of the full wrap.
+   A timeline stretched to 1056px puts three inches of empty band
+   between two events and reads as a gap rather than a duration. */
+.diagram{max-width:840px}
+
+/* The scroll affordance.
+   ------------------------------------------------------------------
+   A diagram wider than the screen is only honest if the reader knows
+   there is more of it. On a 390px phone the first version showed the
+   open window and hid the whole point of the page — the message that
+   is accepted and never delivered — behind an edge with nothing
+   indicating it was an edge. That is the same fault as the app's
+   original nav bar, which scrolled 356px of itself out of view and
+   said nothing.
+
+   Shown by width rather than by measuring overflow, because measuring
+   needs JavaScript and this must be right for a reader who has it
+   blocked. The breakpoint is the SVG's own min-width plus the wrap
+   padding, so the hint appears exactly when the diagram cannot fit. */
+.diagram-hint{display:none;font-size:var(--t-note);color:var(--accent-deep);
+  font-weight:var(--w-semibold);margin-top:10px}
+@media(max-width:664px){
+  .diagram-hint{display:block}
+  /* A soft right edge, so the cut looks deliberate rather than broken. */
+  .diagram-scroll{
+    -webkit-mask-image:linear-gradient(to right,#000 calc(100% - 32px),transparent);
+    mask-image:linear-gradient(to right,#000 calc(100% - 32px),transparent);
+  }
+}
+
+/* The state that costs money. Red fill, red dashed edge — never red
+   alone: every diagram that uses this also names the state in words,
+   because ux-audit.py is right that colour on its own is not a label. */
+.diagram svg .d-bad{fill:var(--danger);fill-opacity:.12;
+  stroke:var(--danger);stroke-width:1.5;stroke-dasharray:5 4}
+.diagram svg .d-lane{font-family:var(--mono);font-size:11px;
+  fill:var(--ink-3);letter-spacing:.08em}
+.diagram svg .d-cut{stroke:var(--danger);stroke-width:1.5;
+  stroke-dasharray:4 3;fill:none}
