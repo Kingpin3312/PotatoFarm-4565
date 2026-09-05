@@ -70,15 +70,38 @@ export default function Screening({ params }: { params: Promise<{ kycId: string 
           ← Compliance
         </a>
         {/*
-          * Three states. `ERROR` means no list was consulted — the
-          * provider failed, or none is configured — and calling that a
-          * possible match tells the officer a list came back with a hit
-          * on this person when nothing was ever checked.
+          * Five states, and it used to be three.
+          *
+          * The note that stood here made exactly the right argument
+          * about `ERROR`: no list was consulted, so calling it a possible
+          * match tells the officer a list came back with a hit on this
+          * person when nothing was ever checked. That was correct, and
+          * the ternary it justified handled `CONFIRMED_MATCH` and
+          * `ERROR` and sent **everything else** to "Possible match".
+          *
+          * Two things fall into "everything else", and both are the same
+          * mistake the note was written to prevent:
+          *
+          *   - **`CLEAR`** — a person who was screened and came back
+          *     clean, shown to a compliance officer as a possible
+          *     sanctions match.
+          *   - **no screening at all** — `latest` is undefined for a
+          *     file nobody has run, which is every file opened by
+          *     `openKycFile` until somebody presses the button. It
+          *     rendered "Possible match" on a record with an empty
+          *     screening history directly below it.
+          *
+          * This screen is where a decision goes on a permanent record
+          * with a name and a timestamp against it. Manufacturing a match
+          * is the more expensive direction to be wrong in than missing
+          * one, because it is the direction somebody acts on.
+          *
+          * Written as an exhaustive map rather than a ternary chain: a
+          * fifth result added to the enum should show up as a type error
+          * here, not as a fifth thing quietly reading "Possible match".
           */}
         <h1 className="font-sans font-semibold text-page text-ink mt-3">
-          {latest?.result === "CONFIRMED_MATCH" ? "Confirmed match"
-            : latest?.result === "ERROR" ? "Not screened"
-            : "Possible match"}
+          {HEADING[latest?.result ?? "NONE"]}
         </h1>
         <div className="mt-4">
           <Button
@@ -188,3 +211,19 @@ function Area({ label, value, onChange, hint }: {
     </div>
   );
 }
+
+/**
+ * What the officer is told, for every state the file can be in.
+ *
+ * `NONE` and `ERROR` are both "not a match" and are deliberately not the
+ * same sentence: nobody has run the check is somebody's job to do, and
+ * the check ran and failed is a provider to chase. Collapsing them would
+ * hide which one of those is needed.
+ */
+const HEADING: Record<string, string> = {
+  CONFIRMED_MATCH: "Confirmed match",
+  POSSIBLE_MATCH: "Possible match",
+  CLEAR: "No match",
+  ERROR: "Check did not complete",
+  NONE: "Not screened yet",
+};

@@ -139,9 +139,41 @@ const b = await pw.chromium.launch({ executablePath: cp() });
 const ctx = await b.newContext({ viewport: { width: 1280, height: 900 } });
 await ctx.addCookies([...sessionCookies("dev-session-token-ask-history")]);
 
+/**
+ * Screens that a different person has to open.
+ *
+ * This sweep signed in as the owner for every route, and `/compliance`
+ * is deliberately closed to owners: telling a client a report was filed
+ * is an offence, so the compliance officer's desk is separated from
+ * administration by design and by law. Opened as the owner it rendered
+ * the refusal — 137 characters and a 403 in the console — and this
+ * sweep reported that as a screen worth looking at.
+ *
+ * It is not a fault, and it is not something to suppress either: a
+ * refusal is not an exercise of the screen. **The compliance file was
+ * the last screen in the product nobody had ever seen**, skipped for
+ * want of a row until one was seeded, and it would have gone straight
+ * from never rendering to rendering only its own access denial.
+ *
+ * So the sweep changes identity for those routes and opens them as the
+ * person they belong to. `browser:roles` is what asserts the refusal
+ * still happens for everybody else.
+ */
+const AS = [
+  [/^\/compliance(\/|$)/, "dev-session-compliance_officer"],
+];
+async function contextFor(route) {
+  const match = AS.find(([re]) => re.test(route));
+  if (!match) return ctx;
+  const c = await b.newContext({ viewport: { width: 1280, height: 900 } });
+  await c.addCookies([...sessionCookies(match[1])]);
+  return c;
+}
+
 const rows = [];
 for (const route of targets) {
-  const p = await ctx.newPage();
+  const rc = await contextFor(route);
+  const p = await rc.newPage();
   let calls = 0;
   let late = 0;
   let settledAt = null;

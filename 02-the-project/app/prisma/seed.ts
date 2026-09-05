@@ -3,6 +3,7 @@ import { seedStages, DEFAULT_STAGES } from "../src/server/lib/pipeline/defaults"
 import { seedHours } from "../src/server/lib/hours/defaults";
 import { seedQualification } from "../src/server/lib/assistant/qualification";
 import { seedRoutingRule } from "../src/server/lib/routing/apply";
+import { openKycFile } from "../src/server/lib/aml/open";
 
 /**
  * A development brokerage, from nothing — or the one already there.
@@ -406,6 +407,7 @@ async function main() {
 
   await listings(org.id);
 
+  await compliance(org.id);
   await commissions(org.id);
   await blackbook(org.id, owner, agent);
   await register(org.id, owner, agent);
@@ -784,6 +786,73 @@ async function register(orgId: string, owner: string, agent: string) {
         orgId, ...rest,
         verifiedAt: verified ? daysAgo(20) : null,
         verifiedById: verified ? owner : null,
+      },
+    });
+  }
+}
+
+/**
+ * A compliance file, opened the way the product opens one.
+ *
+ * ## Why this was the last empty screen
+ *
+ * `/compliance` listed nothing and `/compliance/[kycId]` had **never
+ * rendered once** — `browser:screens` skipped it every run with "no row
+ * to fill [kycId]", so the detail view of the feature this product
+ * competes on had never been looked at by anybody.
+ *
+ * The write path was never missing. `openKycFile` is called when an
+ * offer is accepted and by the button on the inbox panel; the
+ * development brokerage simply had no accepted offer. So this calls the
+ * same function `negotiate.ts` calls rather than writing a `KycRecord`
+ * by hand — the discipline the stages, hours and routing rule already
+ * follow, for the reason stated up there: a fixture that differs from
+ * what the product creates is worse than no fixture.
+ *
+ * ## Two files, in the two states that differ
+ *
+ * One left at `NOT_STARTED`, which is what `openKycFile` produces and
+ * therefore what a real file looks like on day one. One carrying a
+ * screening that came back `ERROR`.
+ *
+ * `ERROR` rather than a match, and deliberately: there is no screening
+ * provider and there cannot be one until somebody signs with Dow Jones
+ * or Refinitiv, so `ERROR` with `provider: "none"` is the honest state
+ * of every file in this product today. It is also the state the desk
+ * exists to surface — a file nobody has checked, sitting where a
+ * compliance officer will see it, rather than an empty queue that reads
+ * as a clean shop.
+ */
+async function compliance(orgId: string) {
+  const leads = await db.lead.findMany({
+    where: { orgId, deletedAt: null },
+    orderBy: { createdAt: "asc" },
+    take: 2,
+    select: { id: true, name: true },
+  });
+  if (leads.length < 2) return;
+
+  for (const l of leads) {
+    await openKycFile(db, { orgId, leadId: l.id });
+  }
+
+  const second = await db.kycRecord.findUnique({
+    where: { leadId: leads[1]!.id },
+    select: { id: true, legalName: true },
+  });
+  if (second && !(await db.screening.count({ where: { kycId: second.id } }))) {
+    await db.screening.create({
+      data: {
+        orgId,
+        kycId: second.id,
+        nameChecked: second.legalName,
+        // No provider is registered, so this is what the product records.
+        // A stub returning "no hits" would write CLEAR and put a check
+        // that never happened into the file an inspector reads.
+        provider: "none",
+        result: "ERROR",
+        lists: [],
+        screenedAt: daysAgo(2),
       },
     });
   }

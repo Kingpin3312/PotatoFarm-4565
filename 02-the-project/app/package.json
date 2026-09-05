@@ -65,7 +65,8 @@
     "check:feed": "esbuild scripts/feed.check.ts --bundle --platform=node --format=esm --outfile=.tmp/feed.mjs --external:@prisma/client --log-level=warning && node --env-file-if-exists=.env .tmp/feed.mjs",
     "check:public-listing": "esbuild scripts/public-listing.check.ts --bundle --platform=node --format=esm --outfile=.tmp/publ.mjs --external:@prisma/client --log-level=warning && node --env-file-if-exists=.env .tmp/publ.mjs",
     "check:ownership": "esbuild scripts/ownership.check.ts --bundle --platform=node --format=esm --outfile=.tmp/own.mjs --external:@prisma/client --log-level=warning && node --env-file-if-exists=.env .tmp/own.mjs",
-    "check:rear": "esbuild scripts/rear.check.ts --bundle --platform=node --format=esm --outfile=.tmp/rear.mjs --external:@prisma/client --log-level=warning && node --env-file-if-exists=.env .tmp/rear.mjs"
+    "check:rear": "esbuild scripts/rear.check.ts --bundle --platform=node --format=esm --outfile=.tmp/rear.mjs --external:@prisma/client --log-level=warning && node --env-file-if-exists=.env .tmp/rear.mjs",
+    "browser:screening-heading": "node --env-file-if-exists=.env scripts/screening-heading.mjs"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.7.0",
