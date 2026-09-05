@@ -5,6 +5,7 @@ import { audit } from "@/server/lib/audit";
 import { assessRisk, STEP_STAGES, type RiskInput, type StepStage } from "@/server/lib/deals/risk";
 import { plan } from "@/server/lib/deals/timeline";
 import { transactionBlockers, refusalMessage } from "@/server/lib/documents/blockers";
+import { assessRear, REAR_CASH_THRESHOLD_FILS } from "@/server/lib/aml/rules";
 
 /**
  * Deals, which until now nobody could look at.
@@ -210,6 +211,130 @@ export const dealsRouter = router({
    * holding it up, and making the second a separate screen is how
    * `blockedReason` stayed empty.
    */
+  /**
+   * What the client has paid, and whether that makes it reportable.
+   *
+   * ## The report this exists for
+   *
+   * A UAE brokerage owes the FIU a **Real Estate Activity Report** when a
+   * transaction settles with AED 55,000 or more in cash — a single
+   * payment or several linked across ninety days — or with any virtual
+   * asset at any amount. `assessRear()` has implemented that rule
+   * correctly since it was written, is covered by unit tests, and
+   * **nothing called it**: the payments it takes had nowhere to be
+   * recorded, so the product held the code that knows a transaction is
+   * reportable and never once said so.
+   *
+   * Linked payments are the half that gets missed. Three payments of
+   * twenty thousand across a week are linked and they trigger it, and
+   * nobody adding them up in their head reliably notices.
+   */
+  payments: requirePermission("lead:read:own")
+    .input(z.object({ dealId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const rows = await ctx.db.dealPayment.findMany({
+        where: { dealId: input.dealId },
+        orderBy: { receivedAt: "desc" },
+        select: {
+          id: true, amountFils: true, method: true, receivedAt: true,
+          reference: true, note: true,
+        },
+      });
+
+      return {
+        payments: rows,
+        totalFils: rows.reduce((n, r) => n + r.amountFils, 0n),
+        /**
+         * Assessed on every read rather than stored.
+         *
+         * The answer depends on today's date — the linked window is the
+         * last ninety days — so a stored verdict is right on the day it
+         * is written and drifts every day after. It is also cheap: a
+         * handful of rows and some arithmetic.
+         */
+        rear: assessRear(rows.map((r) => ({
+          amountFils: r.amountFils,
+          method: r.method,
+          at: r.receivedAt,
+        }))),
+        thresholdFils: REAR_CASH_THRESHOLD_FILS,
+      };
+    }),
+
+  /**
+   * Record a payment the client has made.
+   *
+   * `lead:update` rather than a compliance permission, because the
+   * person who knows a cheque arrived is the agent running the deal.
+   * Deciding what to *do* about a report is the compliance officer's;
+   * writing down what was paid is not, and putting this behind a
+   * compliance permission would mean the data never gets entered and the
+   * assessment never runs.
+   */
+  recordPayment: requirePermission("lead:update")
+    .input(z.object({
+      dealId: z.string(),
+      amountFils: z.union([z.bigint(), z.number().int().positive()])
+        .transform((v) => (typeof v === "number" ? BigInt(v) : v)),
+      method: z.enum(["CASH", "TRANSFER", "CHEQUE", "VIRTUAL_ASSET"]),
+      receivedAt: z.string().datetime().or(z.date()),
+      reference: z.string().trim().max(120).optional(),
+      note: z.string().trim().max(500).optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const deal = await ctx.db.deal.findFirst({
+        where: { id: input.dealId },
+        select: { id: true, reference: true },
+      });
+      if (!deal) throw new TRPCError({ code: "NOT_FOUND", message: "No such deal." });
+
+      const received = new Date(input.receivedAt);
+      if (Number.isNaN(received.getTime())) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "That is not a date." });
+      }
+      /**
+       * A payment cannot have arrived in the future.
+       *
+       * The linked window is measured backwards from now, so a payment
+       * dated next month sits outside it and is silently excluded from
+       * the assessment — a typo in a date field would quietly suppress a
+       * mandatory report.
+       */
+      if (received.getTime() > Date.now() + 86_400_000) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "That date is in the future. Record the date the client paid.",
+        });
+      }
+
+      const row = await ctx.db.dealPayment.create({
+        data: {
+          orgId: ctx.orgId,
+          dealId: input.dealId,
+          amountFils: input.amountFils,
+          method: input.method,
+          receivedAt: received,
+          reference: input.reference,
+          note: input.note,
+          recordedById: ctx.userId,
+        },
+        select: { id: true },
+      });
+
+      await audit(ctx.db, ctx.orgId, {
+        actorId: ctx.userId,
+        action: "deal.payment_recorded",
+        entity: "Deal",
+        entityId: deal.reference,
+        // The amount and method, because whether a report was owed turns
+        // on exactly these two and an audit trail that omits them cannot
+        // answer the only question anybody will ask of it.
+        after: { amountFils: String(input.amountFils), method: input.method },
+      });
+
+      return row;
+    }),
+
   step: requirePermission("lead:update")
     .input(z.object({
       dealId: z.string(),

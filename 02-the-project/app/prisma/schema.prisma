@@ -1471,6 +1471,7 @@ model Deal {
 
   commissions Commission[]
   milestones  DealMilestone[]
+  payments    DealPayment[]
   /// Walked by the comparables report, which reads the building, bed
   /// count and area off the completed deal's property. SetNull so a
   /// removed listing does not erase the deal that closed on it.
@@ -1784,6 +1785,63 @@ enum Financing {
   UNKNOWN
   CASH
   MORTGAGE
+}
+
+/// How a payment on a transaction was made.
+///
+/// These four are the ones the Real Estate Activity Report turns on, and
+/// they are why this is an enum rather than free text: `assessRear`
+/// branches on CASH and VIRTUAL_ASSET, and a typo in a string reads as
+/// neither.
+enum DealPaymentMethod {
+  CASH
+  TRANSFER
+  CHEQUE
+  VIRTUAL_ASSET
+}
+
+/// Money the client actually paid, and when.
+///
+/// ## Why this table exists
+///
+/// `assessRear()` decides whether a transaction requires a **Real Estate
+/// Activity Report** — the filing a UAE brokerage owes the FIU when a
+/// deal is settled with AED 55,000 or more in cash, single or linked
+/// across ninety days, or with any virtual asset at any amount. It was
+/// written correctly, it is covered by unit tests, and **nothing could
+/// call it**, because the payments it takes as input had nowhere to be
+/// recorded. `PaymentEvent` is Stripe's — our own subscription billing,
+/// not the client's money.
+///
+/// So a brokerage could take sixty thousand dirhams in cash across three
+/// visits and the product, holding the code that knows that is
+/// reportable, would say nothing.
+///
+/// ## Fils, and an exact threshold
+///
+/// The threshold is 5,500,000 fils exactly. A rounding error either side
+/// of it is a report filed that should not have been or, far worse, one
+/// that should have been and was not.
+model DealPayment {
+  id     String @id @default(cuid())
+  orgId  String
+  dealId String
+
+  amountFils BigInt
+  method     DealPaymentMethod
+  /// When the client paid, not when somebody typed it in. The ninety-day
+  /// linked window is measured from this.
+  receivedAt DateTime
+  /// Cheque number, transfer reference, exchange house receipt.
+  reference  String?
+  note       String?
+
+  recordedById String?
+  createdAt    DateTime @default(now())
+
+  deal Deal @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, dealId, receivedAt])
 }
 
 /// One row per step in the transaction. A row rather than a status field
