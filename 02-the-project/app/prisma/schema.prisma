@@ -50,6 +50,20 @@ model Organisation {
   id        String   @id @default(cuid())
   name      String
   slug      String   @unique
+  /// The brokerage's own clock — and **nothing writes it**.
+  ///
+  /// It is set once, at signup and by the seed, and no mutation or screen
+  /// changes it. Seven server paths read it properly — the daily
+  /// briefing, notification dispatch, the digest, scheduling, outreach
+  /// hours — and nine display paths hardcode `Asia/Dubai` instead. They
+  /// agree today only because the column is a constant.
+  ///
+  /// Recorded rather than fixed, in both directions. Somebody adding a
+  /// timezone picker would ship a setting that half the product ignores
+  /// and find out from a customer; somebody deleting the column as dead
+  /// would break seven readers that are doing the right thing. This is a
+  /// Dubai-only product, so neither is urgent — but the next person to
+  /// touch it should know which of those two jobs they are taking on.
   timezone  String   @default("Asia/Dubai")
   currency  String   @default("AED")
   createdAt DateTime @default(now())
@@ -59,27 +73,25 @@ model Organisation {
   // retention period, then hard-deleted on a schedule.
   deletedAt DateTime?
 
-  memberships   Membership[]
-  invitations   Invitation[]
+  memberships Membership[]
+  invitations Invitation[]
 
   // The intelligence layer. See the block at the foot of this file.
   clientFacts     ClientFact[]
   recommendations Recommendation[]
   leadScores      LeadScoreEvent[]
   aiActions       AiAction[]
-  leads         Lead[]
-  listings      Listing[]
-  conversations Conversation[]
-  viewings      Viewing[]
-  channels      Channel[]
-  profiles      QualificationProfile[]
-  stages        PipelineStage[]
-  workingHours  WorkingHours[]
-  assistant     AssistantSettings?
-  assistantUsage AssistantUsage[]
-  auditLogs     AuditLog[]
-
-  @@index([deletedAt])
+  leads           Lead[]
+  listings        Listing[]
+  conversations   Conversation[]
+  viewings        Viewing[]
+  channels        Channel[]
+  profiles        QualificationProfile[]
+  stages          PipelineStage[]
+  workingHours    WorkingHours[]
+  assistant       AssistantSettings?
+  assistantUsage  AssistantUsage[]
+  auditLogs       AuditLog[]
   /// The listing feed's URL secret, at brokerage level rather than per
   /// user — a portal fetches the firm's inventory, not one agent's.
   ///
@@ -91,33 +103,32 @@ model Organisation {
   /// Rotating it is the revocation mechanism. That is why the timestamp
   /// is kept — a portal that stops fetching after a rotation is a
   /// question somebody has to be able to answer.
-  feedToken     String?   @unique
-  feedTokenAt   DateTime?
+  feedToken       String?                @unique
+  feedTokenAt     DateTime?
+
+  @@index([deletedAt])
 }
 
 model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
+  id    String @id @default(cuid())
+  email String @unique
 
   /**
    * Optional, because sign-in cannot supply it.
-   *
    * This was required. The magic-link provider creates a user from an
    * email address and nothing else — there is no name to give until the
    * person tells us one — so `createUser` inserted a null into a NOT NULL
    * column and **every first sign-in would have failed with a database
    * error**, on the only route into the product.
-   *
    * The screens already expect it: `m.user.name ?? m.user.email` is the
    * pattern in the team list and the assignment picker.
    */
-  name          String?
+  name String?
 
-  phone         String?
+  phone String?
 
   /**
    * Named `image` because the adapter names it `image`.
-   *
    * `@auth/prisma-adapter` writes a fixed shape — id, name, email,
    * emailVerified, image — and this model called the column
    * `avatarUrl`, so the adapter's insert would have been rejected for an
@@ -125,7 +136,7 @@ model User {
    * the fix costs nothing in the database. Nothing in the application
    * read it.
    */
-  image         String?   @map("avatarUrl")
+  image String? @map("avatarUrl")
 
   emailVerified DateTime?
   createdAt     DateTime  @default(now())
@@ -163,8 +174,8 @@ model Membership {
   ///
   /// Per membership, not per user: the feed is one brokerage's viewings,
   /// and somebody in two brokerages gets two calendars.
-  calendarToken     String?   @unique
-  calendarTokenAt   DateTime?
+  calendarToken      String?   @unique
+  calendarTokenAt    DateTime?
   calendarLastReadAt DateTime?
 
   org  Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
@@ -192,11 +203,11 @@ enum VisibilityMode {
 }
 
 enum Role {
-  OWNER   // billing, deletion, everything
-  ADMIN   // settings, members, all leads
+  OWNER // billing, deletion, everything
+  ADMIN // settings, members, all leads
   MANAGER // all leads in the org, no billing
-  AGENT   // own leads only
-  VIEWER  // read only — for accountants and auditors
+  AGENT // own leads only
+  VIEWER // read only — for accountants and auditors
 
   /// Required by UAE AML law: every DNFBP appoints one. Deliberately not
   /// a superset of ADMIN — a compliance officer sees the AML file and the
@@ -206,18 +217,18 @@ enum Role {
 }
 
 model Invitation {
-  id         String    @id @default(cuid())
-  orgId      String
-  email      String
-  role       Role      @default(AGENT)
+  id          String    @id @default(cuid())
+  orgId       String
+  email       String
+  role        Role      @default(AGENT)
   /// SHA-256 of the token, never the token itself. The plaintext exists
   /// only in the email that was sent. Storing it means read access to the
   /// database is enough to join any brokerage.
-  tokenHash  String    @unique
-  expiresAt  DateTime
+  tokenHash   String    @unique
+  expiresAt   DateTime
   invitedById String?
-  acceptedAt DateTime?
-  createdAt  DateTime  @default(now())
+  acceptedAt  DateTime?
+  createdAt   DateTime  @default(now())
 
   org Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
 
@@ -228,33 +239,33 @@ model Invitation {
 // ---------------------------------------------------------------- leads
 
 model Lead {
-  id       String @id @default(cuid())
+  id       String  @id @default(cuid())
   orgId    String
   /// E.164. This is the identity in a WhatsApp-first product — not email.
   phone    String
   name     String?
   email    String?
-  language String @default("en")
+  language String  @default("en")
 
   /// Coarse, system-owned state. Drives automation and reporting, and is
   /// the same in every brokerage so cross-org benchmarks mean something.
-  status  LeadStatus @default(NEW)
+  status LeadStatus @default(NEW)
 
   /// The brokerage's own board column. Configurable, because a rental
   /// team and an off-plan team do not run the same pipeline.
-  stageId String?
+  stageId        String?
   /// Fractional index for ordering within a column, as an unbounded
   /// Postgres NUMERIC. A plain integer would mean rewriting every row
   /// below it on every drag; halving a NUMERIC is exact and never runs
   /// out of precision. The midpoint is computed in SQL, never in JS —
   /// see routers/pipeline.ts.
-  position Decimal @default(0) @db.Decimal
+  position       Decimal  @default(0) @db.Decimal
   /// When it entered the current column. This is what makes "sitting
   /// untouched for nine days" answerable without a full history scan.
   stageEnteredAt DateTime @default(now())
 
-  score   Int?
-  source  LeadSource @default(UNKNOWN)
+  score  Int?
+  source LeadSource @default(UNKNOWN)
 
   // Qualification results, captured by the assistant.
   /// Fils, not AED. Every money value in this schema is fils — see the
@@ -262,10 +273,10 @@ model Lead {
   /// up out by a factor of a hundred.
   budgetMinFils BigInt?
   budgetMaxFils BigInt?
-  intent     Intent?
-  timeframe  String?
-  financing  String?
-  notes      String?
+  intent        Intent?
+  timeframe     String?
+  financing     String?
+  notes         String?
 
   assignedToId String?
   assignedAt   DateTime?
@@ -303,9 +314,9 @@ model Lead {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  org          Organisation  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  org          Organisation   @relation(fields: [orgId], references: [id], onDelete: Cascade)
   stageRef     PipelineStage? @relation(fields: [stageId], references: [id], onDelete: SetNull)
-  assignedTo   User?         @relation("AssignedAgent", fields: [assignedToId], references: [id], onDelete: SetNull)
+  assignedTo   User?          @relation("AssignedAgent", fields: [assignedToId], references: [id], onDelete: SetNull)
   conversation Conversation?
   enquiries    Enquiry[]
   viewings     Viewing[]
@@ -329,19 +340,19 @@ model Lead {
 
 /// A column on the board. Owned by the brokerage.
 model PipelineStage {
-  id       String  @id @default(cuid())
-  orgId    String
-  name     String
-  position Int
+  id             String     @id @default(cuid())
+  orgId          String
+  name           String
+  position       Int
   /// Which system status a lead takes when it lands here. Keeps the
   /// configurable board tied to the fixed reporting model.
-  maps     LeadStatus
+  maps           LeadStatus
   /// Days before a lead in this column is flagged as going cold. Null
   /// means never — appropriate for Won and Lost, not for anything else.
   staleAfterDays Int?
-  isWon    Boolean @default(false)
-  isLost   Boolean @default(false)
-  archived Boolean @default(false)
+  isWon          Boolean    @default(false)
+  isLost         Boolean    @default(false)
+  archived       Boolean    @default(false)
 
   org   Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
   leads Lead[]
@@ -400,9 +411,9 @@ model Conversation {
 
   /// Set when a lead asks for a person, or a rule escalates. While true
   /// the assistant does not send anything.
-  humanHandover   Boolean   @default(false)
-  handoverAt      DateTime?
-  handoverReason  String?
+  humanHandover  Boolean   @default(false)
+  handoverAt     DateTime?
+  handoverReason String?
 
   /// Per-conversation mute, and it is not the same thing as handover.
   ///
@@ -434,7 +445,7 @@ model Conversation {
 }
 
 model Message {
-  id             String    @id @default(cuid())
+  id             String @id @default(cuid())
   orgId          String
   conversationId String
 
@@ -444,8 +455,8 @@ model Message {
   author    Author
   authorId  String?
 
-  body        String
-  mediaUrl    String?
+  body         String
+  mediaUrl     String?
   templateName String?
 
   /// Meta's message id. Unique so a redelivered webhook cannot double-write.
@@ -466,12 +477,14 @@ enum Direction {
   INBOUND
   OUTBOUND
 }
+
 enum Author {
   LEAD
   ASSISTANT
   AGENT
   SYSTEM
 }
+
 enum MessageStatus {
   PENDING
   SENT
@@ -505,7 +518,7 @@ model Secret {
   /// The pointer held by `Channel.secretRef`, `EmailAccount.secretRef`
   /// and the portal feeds. Globally unique, because the reader is given
   /// a ref and nothing else.
-  ref   String @unique
+  ref String @unique
 
   /// AES-256-GCM. The nonce and tag are stored beside the ciphertext
   /// because they are not secret and are useless without the key.
@@ -526,10 +539,10 @@ model Secret {
 }
 
 model Channel {
-  id        String      @id @default(cuid())
-  orgId     String
-  type      ChannelType
-  label     String
+  id         String      @id @default(cuid())
+  orgId      String
+  type       ChannelType
+  label      String
   /// WhatsApp: the display number. Portal: the account identifier.
   identifier String
   secretRef  String?
@@ -537,7 +550,6 @@ model Channel {
   /**
    * The token in the portal's webhook URL, and it is deliberately not
    * `secretRef`.
-   *
    * `/api/webhooks/portals/[portal]?t=…` looked the channel up by
    * `secretRef` — the pointer into the secrets manager. That put a
    * credential reference into a URL handed to a third party, where it
@@ -545,24 +557,20 @@ model Channel {
    * Referer header if a page is ever served from it. Two different jobs
    * wearing one value: knowing which channel a delivery is for, and
    * naming where that channel's access token is kept.
-   *
    * Separate now. This one is a public routing identifier that can be
    * rotated by issuing a new URL, and it grants nothing on its own — the
    * signature check still has to pass.
    */
   webhookToken String? @unique
 
-  active     Boolean    @default(true)
+  active     Boolean   @default(true)
   lastSyncAt DateTime?
   lastError  String?
-  createdAt  DateTime   @default(now())
+  createdAt  DateTime  @default(now())
 
   org           Organisation   @relation(fields: [orgId], references: [id], onDelete: Cascade)
   conversations Conversation[]
   enquiries     Enquiry[]
-
-  @@unique([orgId, type, identifier])
-  @@index([orgId, active])
 
   /// **There is a second uniqueness rule on this table that Prisma
   /// cannot express, and it is the tenancy boundary for everything
@@ -584,6 +592,9 @@ model Channel {
   /// them arbitrarily — one brokerage receiving another's customer
   /// messages. Partial on `active` so a number can be released and
   /// legitimately reconnected elsewhere.
+
+  @@unique([orgId, type, identifier])
+  @@index([orgId, active])
 }
 
 enum ChannelType {
@@ -602,7 +613,7 @@ enum ChannelType {
 // ------------------------------------------------------------- listings
 
 model Listing {
-  id        String  @id @default(cuid())
+  id        String        @id @default(cuid())
   orgId     String
   reference String
   title     String
@@ -613,7 +624,7 @@ model Listing {
   areaSqft  Int?
   /// Fils. See the note on Money.
   priceFils BigInt?
-  purpose   Purpose  @default(SALE)
+  purpose   Purpose       @default(SALE)
   status    ListingStatus @default(AVAILABLE)
 
   /// Dubai requires a Trakheesi permit number on every property
@@ -623,7 +634,7 @@ model Listing {
   /// Who instructed us. Optional because a listing can be entered
   /// before the paperwork lands — but publishing without one should be
   /// a question rather than a surprise.
-  vendorId  String?
+  vendorId String?
 
   permitNumber    String?
   permitExpiresAt DateTime?
@@ -658,7 +669,7 @@ model Listing {
 /// still draft on the website — and a single JSON blob makes that state
 /// impossible to query, alert on, or fix.
 model ListingPublication {
-  id        String  @id @default(cuid())
+  id        String @id @default(cuid())
   orgId     String
   listingId String
   channelId String
@@ -671,7 +682,7 @@ model ListingPublication {
   rejection   String?
   publishedAt DateTime?
   lastTriedAt DateTime?
-  attempts    Int      @default(0)
+  attempts    Int          @default(0)
 
   listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
 
@@ -680,11 +691,11 @@ model ListingPublication {
 }
 
 enum PublishState {
-  PENDING       // queued, not yet sent
-  PUBLISHED     // live on the portal
-  REJECTED      // portal refused it — see rejection
-  WITHDRAWN     // pulled on purpose
-  FAILED        // transport failure, will retry
+  PENDING // queued, not yet sent
+  PUBLISHED // live on the portal
+  REJECTED // portal refused it — see rejection
+  WITHDRAWN // pulled on purpose
+  FAILED // transport failure, will retry
   /// No publishing integration exists for that portal yet.
   ///
   /// Not a failure and not progress, which is why it is neither FAILED
@@ -706,6 +717,7 @@ enum Purpose {
   SALE
   RENT
 }
+
 enum ListingStatus {
   DRAFT
   AVAILABLE
@@ -719,16 +731,16 @@ enum ListingStatus {
 /// properties; the join carries which channel it arrived through, which is
 /// what makes cost-per-lead reporting possible.
 model Enquiry {
-  id        String   @id @default(cuid())
-  orgId     String
-  leadId    String
-  listingId String?
-  channelId String
+  id         String   @id @default(cuid())
+  orgId      String
+  leadId     String
+  listingId  String?
+  channelId  String
   /// The portal's own id. Unique per brokerage so a redelivered webhook
   /// cannot become a second enquiry on the board.
   externalId String?
-  message   String?
-  createdAt DateTime @default(now())
+  message    String?
+  createdAt  DateTime @default(now())
 
   lead    Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
   listing Listing? @relation(fields: [listingId], references: [id], onDelete: SetNull)
@@ -743,35 +755,35 @@ model Enquiry {
 // ------------------------------------------------------------- viewings
 
 model Viewing {
-  id        String        @id @default(cuid())
-  orgId     String
-  leadId    String
-  listingId String?
-  agentId   String?
-  scheduledAt DateTime
-  durationMins Int         @default(30)
+  id           String                    @id @default(cuid())
+  orgId        String
+  leadId       String
+  listingId    String?
+  agentId      String?
+  scheduledAt  DateTime
+  durationMins Int                       @default(30)
   /// Generated column holding [scheduledAt, scheduledAt + duration). The
   /// exclusion constraint in scheduling.sql is built on this — it is what
   /// makes a double booking impossible rather than merely unlikely.
   /// Managed by SQL; Prisma only reads it.
-  timespan  Unsupported("tstzrange")?
+  timespan     Unsupported("tstzrange")?
   /// Where it actually is.
   ///
   /// Denormalised from the listing on purpose. A listing can be edited
   /// or unpublished between booking and attending, and an agent standing
   /// outside the wrong tower does not care which record was correct.
   /// Marina alone has six towers with nearly the same name.
-  address   String?
-  building  String?
+  address      String?
+  building     String?
   /// For a maps link. Null is fine — the address still opens a search.
-  lat       Float?
-  lng       Float?
+  lat          Float?
+  lng          Float?
   /// Which entrance, which floor, where to park. The things a colleague
   /// tells you on the phone and nobody writes down.
-  accessNote String?
+  accessNote   String?
 
-  status    ViewingStatus  @default(SCHEDULED)
-  outcome   String?
+  status  ViewingStatus @default(SCHEDULED)
+  outcome String?
 
   /// Slots the assistant has offered but nobody has accepted yet. Without
   /// a hold, two leads offered the same 10:00 both take it.
@@ -782,8 +794,8 @@ model Viewing {
   remindedLeadAt  DateTime?
   remindedAgentAt DateTime?
 
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   org     Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
   lead    Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
@@ -799,7 +811,7 @@ model Viewing {
 /// week is not the Monday-to-Friday one most scheduling code assumes —
 /// agents in this market do most of their viewings at the weekend.
 model WorkingHours {
-  id        String @id @default(cuid())
+  id        String  @id @default(cuid())
   orgId     String
   /// 0 = Sunday, matching Postgres DOW.
   dayOfWeek Int
@@ -946,7 +958,7 @@ model Session {
   /// Which brokerage this session is currently looking at. Held server
   /// side so it cannot be edited by the client, and re-checked against
   /// Membership on every request regardless.
-  activeOrgId  String?
+  activeOrgId String?
 
   createdAt    DateTime @default(now())
   lastActiveAt DateTime @default(now())
@@ -975,7 +987,7 @@ model TeamVisibility {
   id    String @id @default(cuid())
   orgId String @unique
 
-  mode  VisibilityMode @default(RANKED)
+  mode VisibilityMode @default(RANKED)
 
   /// An agent sees their own numbers this many hours before a manager
   /// can. Not a gimmick — it is the difference between "I know I had a
@@ -991,10 +1003,10 @@ model AssistantSettings {
 
   /// The kill switch. False means the assistant sends nothing for this
   /// brokerage, immediately, with no deploy. Read on every single turn.
-  enabled       Boolean   @default(false)
-  pausedReason  String?
-  pausedAt      DateTime?
-  pausedById    String?
+  enabled      Boolean   @default(false)
+  pausedReason String?
+  pausedAt     DateTime?
+  pausedById   String?
 
   /// Hard ceiling on spend per calendar month, in fils to avoid float.
   /// Null means no ceiling — only appropriate for internal test orgs.
@@ -1011,13 +1023,11 @@ model AssistantSettings {
 
   /**
    * How much the product may do without being asked.
-   *
    * Separate from `enabled`, which is the brake and stays a brake. This
    * is the gearbox. A brokerage starts in COPILOT and moves up when it
    * has watched the thing work for a fortnight — which is the only
    * order that ever earns the trust, and why the default is the
    * cautious one rather than the impressive one.
-   *
    * It never overrides the per-action floor in `autonomy.ts`: sending a
    * message to a customer needs a person at every mode, including
    * AUTOPILOT.
@@ -1035,7 +1045,7 @@ model AssistantUsage {
   id             String   @id @default(cuid())
   orgId          String
   conversationId String?
-  purpose        String   // "reply" | "extract"
+  purpose        String // "reply" | "extract"
   model          String
   promptVersion  String
   inputTokens    Int
@@ -1044,7 +1054,7 @@ model AssistantUsage {
   /// later, because pricing changes and a historical bill must not.
   costFils       BigInt
   latencyMs      Int
-  outcome        String   // "sent" | "handover" | "blocked" | "error"
+  outcome        String // "sent" | "handover" | "blocked" | "error"
   createdAt      DateTime @default(now())
 
   org Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
@@ -1069,7 +1079,7 @@ model NotificationPrefs {
   quietFromMin Int?
   quietToMin   Int?
   /// Days off, 0 = Sunday. Agents here often take Monday, not Sunday.
-  daysOff      Int[]  @default([])
+  daysOff      Int[] @default([])
 
   /// The one thing that overrides quiet hours. Off by default, because a
   /// setting that wakes someone should be opted into, not out of.
@@ -1081,7 +1091,7 @@ model NotificationPrefs {
 /// Sent notifications. Kept so escalation can tell whether the first
 /// person was actually told before it starts telling the second.
 model Notification {
-  id        String  @id @default(cuid())
+  id        String           @id @default(cuid())
   orgId     String
   userId    String
   kind      NotificationKind
@@ -1104,11 +1114,11 @@ model Notification {
 }
 
 enum NotificationKind {
-  HANDOVER_WAITING     // the assistant stepped back and nobody has replied
-  QUALIFIED_UNCLAIMED  // a qualified lead with no agent
+  HANDOVER_WAITING // the assistant stepped back and nobody has replied
+  QUALIFIED_UNCLAIMED // a qualified lead with no agent
   VIEWING_TOMORROW
   VIEWING_SOON
-  OUTCOME_MISSING      // a viewing happened and nobody said what happened
+  OUTCOME_MISSING // a viewing happened and nobody said what happened
   PERMIT_EXPIRING
   DEAL_AT_RISK
   PORTAL_SILENT
@@ -1124,19 +1134,19 @@ enum NotificationKind {
 /// "how many customers are stuck on WhatsApp verification" is a query
 /// rather than an export.
 model OnboardingStep {
-  id     String @id @default(cuid())
-  orgId  String
-  key    String
+  id    String @id @default(cuid())
+  orgId String
+  key   String
 
-  state      StepState @default(TODO)
+  state     StepState @default(TODO)
   /// Meta's business verification is outside our control and takes days.
   /// A step can be waiting on somebody else without being our problem or
   /// the customer's fault, and the UI needs to say which.
-  blockedOn  String?
-  note       String?
-  startedAt  DateTime?
-  doneAt     DateTime?
-  doneById   String?
+  blockedOn String?
+  note      String?
+  startedAt DateTime?
+  doneAt    DateTime?
+  doneById  String?
 
   @@unique([orgId, key])
   @@index([orgId, state])
@@ -1145,7 +1155,7 @@ model OnboardingStep {
 enum StepState {
   TODO
   IN_PROGRESS
-  WAITING     // on a third party, not on the customer
+  WAITING // on a third party, not on the customer
   DONE
   SKIPPED
 }
@@ -1155,8 +1165,8 @@ enum StepState {
 /// Time-boxed permission for a named Potato employee to look inside one
 /// brokerage. Granted by the customer, never by us.
 model SupportGrant {
-  id        String @id @default(cuid())
-  orgId     String
+  id    String @id @default(cuid())
+  orgId String
 
   /// The employee. A grant is to a person, never to a role or a team —
   /// "support can see your data" is not something a customer can consent
@@ -1164,12 +1174,12 @@ model SupportGrant {
   staffEmail String
 
   /// Read is the default. Write is a separate, explicit decision.
-  canWrite   Boolean @default(false)
+  canWrite Boolean @default(false)
 
-  reason     String
+  reason      String
   /// Who at the brokerage agreed, so consent has a name against it.
   grantedById String
-  grantedAt   DateTime @default(now())
+  grantedAt   DateTime  @default(now())
   /// Hard ceiling. There is no such thing as an open-ended grant.
   expiresAt   DateTime
   revokedAt   DateTime?
@@ -1182,10 +1192,10 @@ model SupportGrant {
 // --------------------------------------------------------------- billing
 
 model Subscription {
-  id       String @id @default(cuid())
-  orgId    String @unique
+  id    String @id @default(cuid())
+  orgId String @unique
 
-  plan     String
+  plan          String
   /// Fils per seat per month. Stored on the subscription, not looked up
   /// from a price list, so a price change never silently reprices an
   /// existing customer.
@@ -1202,14 +1212,14 @@ model Subscription {
   ///
   /// The headline stays $70. Only firms past the allowance pay more, so
   /// no existing quote is invalidated and nobody's bill goes down.
-  includedPerSeat  Int    @default(60)
-  overageFils      BigInt @default(35)
-  currency      String @default("AED")
+  includedPerSeat Int    @default(60)
+  overageFils     BigInt @default(35)
+  currency        String @default("AED")
 
-  status        SubStatus @default(TRIALING)
-  trialEndsAt   DateTime?
-  currentFrom   DateTime
-  currentTo     DateTime
+  status      SubStatus @default(TRIALING)
+  trialEndsAt DateTime?
+  currentFrom DateTime
+  currentTo   DateTime
 
   /// Provider references. No card data ever reaches this database.
   providerCustomerId String?
@@ -1228,8 +1238,8 @@ model Subscription {
 enum SubStatus {
   TRIALING
   ACTIVE
-  PAST_DUE     // payment failed, still fully working
-  RESTRICTED   // degraded on purpose — see dunning.ts
+  PAST_DUE // payment failed, still fully working
+  RESTRICTED // degraded on purpose — see dunning.ts
   CANCELLED
 }
 
@@ -1240,13 +1250,13 @@ enum SubStatus {
 /// overcharge or undercharge everybody. Every change is an event, and the
 /// invoice is computed from seat-days.
 model SeatEvent {
-  id       String   @id @default(cuid())
-  orgId    String
-  subId    String
-  userId   String
-  change   Int      // +1 joined, -1 left
-  at       DateTime @default(now())
-  reason   String?
+  id     String   @id @default(cuid())
+  orgId  String
+  subId  String
+  userId String
+  change Int // +1 joined, -1 left
+  at     DateTime @default(now())
+  reason String?
 
   subscription Subscription @relation(fields: [subId], references: [id], onDelete: Cascade)
 
@@ -1255,18 +1265,18 @@ model SeatEvent {
 }
 
 model Invoice {
-  id     String @id @default(cuid())
-  orgId  String
-  subId  String
+  id    String @id @default(cuid())
+  orgId String
+  subId String
 
-  number String @unique
+  number     String   @unique
   periodFrom DateTime
   periodTo   DateTime
 
   /// Seat-days, and the arithmetic that produced the total. Kept so an
   /// invoice can be explained line by line rather than merely presented.
-  seatDays     Int
-  seatDaysFull Int
+  seatDays              Int
+  seatDaysFull          Int
   /// Split out so an invoice can be read six months later without
   /// recomputing anything — the allowance may have been renegotiated
   /// since, and a document that changes retrospectively is not a tax
@@ -1277,7 +1287,7 @@ model Invoice {
   overageFils           BigInt @default(0)
 
   subtotalFils BigInt
-  vatRateBp    Int    @default(500)  // 5.00% as basis points
+  vatRateBp    Int    @default(500) // 5.00% as basis points
   vatFils      BigInt
   totalFils    BigInt
 
@@ -1311,8 +1321,8 @@ enum InvoiceStatus {
 /// running is the same failure mode as everything else in this system —
 /// nothing errors, things just quietly stop happening.
 model JobRun {
-  id       String @id @default(cuid())
-  job      String
+  id         String    @id @default(cuid())
+  job        String
   startedAt  DateTime  @default(now())
   finishedAt DateTime?
   state      JobState  @default(RUNNING)
@@ -1352,10 +1362,10 @@ model PaymentEvent {
 /// An open problem. One row per distinct issue, not one per detection —
 /// a check that fires every five minutes must not page every five minutes.
 model Alert {
-  id       String @id @default(cuid())
+  id    String  @id @default(cuid())
   /// Stable across detections of the same problem. What makes dedupe work.
-  key      String @unique
-  orgId    String?
+  key   String  @unique
+  orgId String?
 
   severity AlertSeverity
   title    String
@@ -1376,9 +1386,9 @@ model Alert {
 }
 
 enum AlertSeverity {
-  PAGE    // wake somebody — only if a human can fix it now
-  TICKET  // business hours
-  LOG     // recorded, nobody told
+  PAGE // wake somebody — only if a human can fix it now
+  TICKET // business hours
+  LOG // recorded, nobody told
 }
 
 // ------------------------------------------------------------ mobile
@@ -1391,14 +1401,14 @@ model PushDevice {
   orgId  String
   userId String
 
-  token    String @unique
+  token    String         @unique
   platform DevicePlatform
   /// Expo pushes through its own service; the token format differs from
   /// a raw APNs or FCM one and they are not interchangeable.
-  provider String @default("expo")
+  provider String         @default("expo")
 
   appVersion String?
-  lastSeenAt DateTime @default(now())
+  lastSeenAt DateTime  @default(now())
   /// Set when the provider tells us the token is dead. Kept rather than
   /// deleted so a reinstall can be distinguished from a first install.
   failedAt   DateTime?
@@ -1435,9 +1445,9 @@ enum DevicePlatform {
 /// A transaction that pays somebody. Separate from Lead because one lead
 /// can produce several deals over years, and a deal can have two sides.
 model Deal {
-  id     String @id @default(cuid())
-  orgId  String
-  leadId String?
+  id        String  @id @default(cuid())
+  orgId     String
+  leadId    String?
   listingId String?
 
   reference String
@@ -1445,29 +1455,29 @@ model Deal {
   /// The property price. Commission is derived from it, never typed in
   /// separately — two numbers that should agree eventually will not.
   valueFils BigInt
-  currency  String @default("AED")
+  currency  String   @default("AED")
 
   /// Which side we acted for. In Dubai a brokerage is often on one side
   /// only, and the commission differs.
-  side      DealSide @default(SELLER)
+  side DealSide @default(SELLER)
 
-  stage       DealStage @default(AGREED)
+  stage             DealStage @default(AGREED)
   /// Cash and mortgage are materially different transactions — different
   /// steps, and roughly three weeks' difference in how long they take.
-  financing   Financing @default(UNKNOWN)
+  financing         Financing @default(UNKNOWN)
   /// Whether the seller has a mortgage to discharge. Adds a bank and
   /// two to three weeks, and is the most commonly forgotten dependency.
-  sellerHasMortgage Boolean @default(false)
+  sellerHasMortgage Boolean   @default(false)
 
-  agreedAt    DateTime?
+  agreedAt                DateTime?
   /// The completion date in the Form F. Contractual, not aspirational —
   /// missing it can mean forfeiting the deposit, so everything is planned
   /// backwards from here.
   contractualCompletionAt DateTime?
-  expectedAt  DateTime?
-  completedAt DateTime?
-  collapsedAt DateTime?
-  collapseReason String?
+  expectedAt              DateTime?
+  completedAt             DateTime?
+  collapsedAt             DateTime?
+  collapseReason          String?
 
   commissions Commission[]
   milestones  DealMilestone[]
@@ -1475,9 +1485,9 @@ model Deal {
   /// Walked by the comparables report, which reads the building, bed
   /// count and area off the completed deal's property. SetNull so a
   /// removed listing does not erase the deal that closed on it.
-  listing     Listing?       @relation(fields: [listingId], references: [id], onDelete: SetNull)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  listing     Listing?        @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
 
   @@unique([orgId, reference])
   @@index([orgId, stage])
@@ -1489,6 +1499,7 @@ enum DealType {
   RENTAL
   OFF_PLAN
 }
+
 enum DealSide {
   BUYER
   SELLER
@@ -1500,17 +1511,17 @@ enum DealSide {
 /// The stages after the handshake. This is where deals actually die, and
 /// where the pipeline used to simply stop at "Won".
 enum DealStage {
-  AGREED            // terms agreed, nothing signed
-  MOU_SIGNED        // Form F executed — the contractual clock starts here
+  AGREED // terms agreed, nothing signed
+  MOU_SIGNED // Form F executed — the contractual clock starts here
   DEPOSIT_PAID
-  MORTGAGE_APPLIED  // mortgage path only
-  VALUATION_DONE    // mortgage path only
-  FINAL_OFFER       // mortgage path only
-  LIABILITY_LETTER  // when the seller has a mortgage to discharge
-  NOC_APPLIED       // developer NOC
+  MORTGAGE_APPLIED // mortgage path only
+  VALUATION_DONE // mortgage path only
+  FINAL_OFFER // mortgage path only
+  LIABILITY_LETTER // when the seller has a mortgage to discharge
+  NOC_APPLIED // developer NOC
   NOC_RECEIVED
-  TRANSFER_BOOKED   // DLD trustee appointment
-  COMPLETED         // transferred, title issued
+  TRANSFER_BOOKED // DLD trustee appointment
+  COMPLETED // transferred, title issued
   COLLAPSED
 }
 
@@ -1521,12 +1532,12 @@ model Commission {
   dealId String
 
   /// Basis points of the deal value. 200 = 2%, the Dubai norm.
-  rateBp     Int
-  grossFils  BigInt
+  rateBp    Int
+  grossFils BigInt
   /// UAE VAT on the commission itself, which brokerages routinely forget
   /// until an invoice is rejected.
-  vatFils    BigInt
-  netFils    BigInt
+  vatFils   BigInt
+  netFils   BigInt
 
   status     CommissionStatus @default(FORECAST)
   invoicedAt DateTime?
@@ -1552,17 +1563,17 @@ model CommissionSplit {
   orgId        String
   commissionId String
 
-  userId String?
+  userId       String?
   /// For an external referrer who is not a user.
   externalName String?
-  role   SplitRole
+  role         SplitRole
 
   /// Basis points of the net commission. Splits must total 10,000.
-  shareBp   Int
+  shareBp    Int
   amountFils BigInt
 
-  paidAt   DateTime?
-  paidRef  String?
+  paidAt  DateTime?
+  paidRef String?
 
   commission Commission @relation(fields: [commissionId], references: [id], onDelete: Cascade)
 
@@ -1588,7 +1599,7 @@ model CommissionPlan {
   /// share; past it, the next; and so on.
   tiers Json
 
-  effectiveFrom DateTime @default(now())
+  effectiveFrom DateTime  @default(now())
   effectiveTo   DateTime?
 
   @@index([orgId, userId, effectiveFrom])
@@ -1601,16 +1612,16 @@ model CommissionPlan {
 model KycRecord {
   id     String @id @default(cuid())
   orgId  String
-  leadId String  @unique
+  leadId String @unique
 
-  subjectType SubjectType @default(INDIVIDUAL)
-  legalName   String
-  nationality String?
+  subjectType  SubjectType @default(INDIVIDUAL)
+  legalName    String
+  nationality  String?
   /// For a company: the trade licence and the beneficial owners behind it.
   tradeLicence String?
 
-  idType     IdDocType?
-  idNumber   String?
+  idType      IdDocType?
+  idNumber    String?
   idExpiresAt DateTime?
 
   /// Where the money comes from, and how it was earned. Two different
@@ -1618,16 +1629,16 @@ model KycRecord {
   sourceOfFunds  String?
   sourceOfWealth String?
 
-  riskRating   RiskRating @default(UNASSESSED)
-  riskReasons  String[]   @default([])
+  riskRating  RiskRating @default(UNASSESSED)
+  riskReasons String[]   @default([])
   /// Politically exposed person. Triggers enhanced due diligence.
-  isPep        Boolean    @default(false)
+  isPep       Boolean    @default(false)
 
-  status       KycStatus @default(NOT_STARTED)
-  completedAt  DateTime?
+  status        KycStatus @default(NOT_STARTED)
+  completedAt   DateTime?
   completedById String?
   /// Re-checked periodically. High risk clients more often.
-  reviewDueAt  DateTime?
+  reviewDueAt   DateTime?
 
   documents  KycDocument[]
   screenings Screening[]
@@ -1646,18 +1657,21 @@ enum SubjectType {
   COMPANY
   TRUST
 }
+
 enum IdDocType {
   PASSPORT
   EMIRATES_ID
   GCC_ID
   TRADE_LICENCE
 }
+
 enum RiskRating {
   UNASSESSED
   LOW
   MEDIUM
   HIGH
 }
+
 enum KycStatus {
   NOT_STARTED
   COLLECTING
@@ -1670,9 +1684,9 @@ enum KycStatus {
 /// The natural person behind a corporate buyer. The whole point of the
 /// obligation — shell companies are the mechanism it exists to catch.
 model UltimateBeneficialOwner {
-  id     String @id @default(cuid())
-  orgId  String
-  kycId  String
+  id    String @id @default(cuid())
+  orgId String
+  kycId String
 
   fullName    String
   nationality String?
@@ -1687,20 +1701,20 @@ model UltimateBeneficialOwner {
 }
 
 model KycDocument {
-  id     String @id @default(cuid())
-  orgId  String
-  kycId  String
+  id    String @id @default(cuid())
+  orgId String
+  kycId String
 
-  type      IdDocType
+  type         IdDocType
   /// Pointer into object storage. The file never lives in Postgres.
-  storageRef String
-  fileName   String
-  expiresAt  DateTime?
+  storageRef   String
+  fileName     String
+  expiresAt    DateTime?
   /// How it arrived. Most will say WHATSAPP.
-  collectedVia String   @default("WHATSAPP")
+  collectedVia String    @default("WHATSAPP")
   verifiedAt   DateTime?
   verifiedById String?
-  createdAt    DateTime @default(now())
+  createdAt    DateTime  @default(now())
 
   kyc KycRecord @relation(fields: [kycId], references: [id], onDelete: Cascade)
 
@@ -1710,10 +1724,10 @@ model KycDocument {
 /// Sanctions and PEP screening. Required before onboarding, and repeated —
 /// lists change, and a client who was clear in March may not be in June.
 model Screening {
-  id     String @id @default(cuid())
-  orgId  String
-  kycId  String?
-  uboId  String?
+  id    String  @id @default(cuid())
+  orgId String
+  kycId String?
+  uboId String?
 
   nameChecked String
   /// UAE Local Terrorist List, UN Consolidated, and the provider's PEP set.
@@ -1721,7 +1735,7 @@ model Screening {
   provider    String
   result      ScreeningResult
   matches     Json?
-  screenedAt  DateTime @default(now())
+  screenedAt  DateTime        @default(now())
   clearedById String?
   clearedNote String?
 
@@ -1750,21 +1764,21 @@ enum ScreeningResult {
 /// a report was filed is "tipping off" and is an offence in itself, so
 /// the agent handling the deal must not be able to see this.
 model ComplianceReport {
-  id     String @id @default(cuid())
+  id     String  @id @default(cuid())
   orgId  String
   dealId String?
   kycId  String?
 
-  type       ReportType
+  type           ReportType
   /// Why it was triggered, in the compliance officer's words.
-  rationale  String
+  rationale      String
   /// Cash amount that triggered a REAR, in fils.
-  cashFils   BigInt?
-  filedAt    DateTime?
+  cashFils       BigInt?
+  filedAt        DateTime?
   /// The goAML reference once submitted.
-  goamlRef   String?
-  decidedById String
-  decidedAt   DateTime @default(now())
+  goamlRef       String?
+  decidedById    String
+  decidedAt      DateTime   @default(now())
   /// Set when a review concluded no filing was needed. Recorded, because
   /// a decision not to file is a decision.
   notFiledReason String?
@@ -1773,11 +1787,11 @@ model ComplianceReport {
 }
 
 enum ReportType {
-  REAR   // Real Estate Activity Report — cash at or above the threshold
-  STR    // Suspicious Transaction Report
-  SAR    // Suspicious Activity Report
-  CNMR   // Confirmed Name Match Report
-  FFR    // Fund Freeze Report
+  REAR // Real Estate Activity Report — cash at or above the threshold
+  STR // Suspicious Transaction Report
+  SAR // Suspicious Activity Report
+  CNMR // Confirmed Name Match Report
+  FFR // Fund Freeze Report
   NO_FILING
 }
 
@@ -1852,10 +1866,10 @@ model DealMilestone {
   orgId  String
   dealId String
 
-  stage      DealStage
+  stage         DealStage
   /// Planned backwards from the contractual completion date.
-  dueAt      DateTime?
-  completedAt DateTime?
+  dueAt         DateTime?
+  completedAt   DateTime?
   completedById String?
 
   /// Set when this step slipped past its planned date. Kept after the
@@ -1905,10 +1919,10 @@ model Requirement {
   preferences String[] @default([])
 
   /// Where this came from, and how much to trust it.
-  source     RequirementSource @default(ASSISTANT)
+  source        RequirementSource @default(ASSISTANT)
   /// The assistant's confidence when it inferred this. Below the floor,
   /// it informs an agent and never triggers an outbound message.
-  confidence Float?
+  confidence    Float?
   confirmedById String?
   confirmedAt   DateTime?
 
@@ -1927,9 +1941,9 @@ model Requirement {
 }
 
 enum RequirementSource {
-  ASSISTANT   // inferred from conversation
-  AGENT       // typed in by a person
-  LEAD        // stated explicitly and unambiguously
+  ASSISTANT // inferred from conversation
+  AGENT // typed in by a person
+  LEAD // stated explicitly and unambiguously
 }
 
 // -------------------------------------------------------- lead ownership
@@ -1937,8 +1951,8 @@ enum RequirementSource {
 /// How new leads are routed. Per brokerage, because every one of them has
 /// a different opinion and all of them feel strongly about it.
 model AssignmentRule {
-  id     String @id @default(cuid())
-  orgId  String
+  id    String @id @default(cuid())
+  orgId String
 
   name     String
   priority Int
@@ -1946,25 +1960,25 @@ model AssignmentRule {
 
   /// Conditions. All must match. Empty means it always matches, which is
   /// what makes the lowest-priority rule the fallback.
-  sources     LeadSource[] @default([])
-  communities String[]     @default([])
-  languages   String[]     @default([])
+  sources       LeadSource[] @default([])
+  communities   String[]     @default([])
+  languages     String[]     @default([])
   minBudgetFils BigInt?
   maxBudgetFils BigInt?
 
   strategy AssignStrategy @default(ROUND_ROBIN)
   /// The pool. Empty means everyone with the AGENT role.
-  userIds  String[] @default([])
+  userIds  String[]       @default([])
 
   @@index([orgId, active, priority])
 }
 
 enum AssignStrategy {
-  ROUND_ROBIN     // fair, and visibly so
-  LEAST_LOADED    // by open leads
-  FASTEST         // by median first-response time
-  SPECIFIC        // always this person
-  UNASSIGNED      // deliberately nobody — a shared pool anyone can claim
+  ROUND_ROBIN // fair, and visibly so
+  LEAST_LOADED // by open leads
+  FASTEST // by median first-response time
+  SPECIFIC // always this person
+  UNASSIGNED // deliberately nobody — a shared pool anyone can claim
 }
 
 /// Every change of hands, kept forever.
@@ -1977,13 +1991,13 @@ model LeadOwnership {
   orgId  String
   leadId String
 
-  userId    String?
+  userId     String?
   fromUserId String?
-  reason    OwnershipReason
-  ruleId    String?
+  reason     OwnershipReason
+  ruleId     String?
   /// Who made the change, when a person did.
-  actorId   String?
-  note      String?
+  actorId    String?
+  note       String?
 
   startedAt DateTime  @default(now())
   endedAt   DateTime?
@@ -1996,10 +2010,10 @@ enum OwnershipReason {
   FIRST_ASSIGNMENT
   RULE
   MANUAL
-  CLAIMED          // taken from the shared pool
-  PROTECTION       // returning enquirer, still inside the window
+  CLAIMED // taken from the shared pool
+  PROTECTION // returning enquirer, still inside the window
   PROTECTION_LAPSED
-  REASSIGNED       // manager moved it
+  REASSIGNED // manager moved it
   AGENT_LEFT
 }
 
@@ -2038,8 +2052,8 @@ model AgentAvailability {
 /// KycDocument stays as it is — an AML file has its own retention rules
 /// and its own access controls, and folding it in here would weaken both.
 model Document {
-  id     String @id @default(cuid())
-  orgId  String
+  id    String @id @default(cuid())
+  orgId String
 
   /// What it belongs to. Polymorphic because the same document type
   /// hangs off different things: a title deed off a listing, a RERA card
@@ -2047,7 +2061,7 @@ model Document {
   ownerType DocumentOwner
   ownerId   String
 
-  type     DocumentType
+  type DocumentType
 
   /// The number on the document — a BRN, a licence number, a permit
   /// number. What somebody quotes when they renew it, and the field they
@@ -2056,7 +2070,7 @@ model Document {
 
   /// Null when nothing has been uploaded. The register is a list of
   /// dates and numbers first and a filing cabinet second.
-  fileName String?
+  fileName   String?
   /// Object storage. Never the file itself.
   ///
   /// Optional, because the thing this register is for is the **expiry
@@ -2069,15 +2083,15 @@ model Document {
   sizeBytes  Int?
   mimeType   String?
 
-  issuedAt  DateTime?
-  expiresAt DateTime?
+  issuedAt     DateTime?
+  expiresAt    DateTime?
   /// Set once somebody has actually looked at it. A stored document is
   /// not a verified one.
   verifiedAt   DateTime?
   verifiedById String?
 
-  uploadedById String?
-  uploadedVia  String   @default("WEB")
+  uploadedById   String?
+  uploadedVia    String  @default("WEB")
   supersededById String?
 
   createdAt DateTime @default(now())
@@ -2126,15 +2140,15 @@ enum DocumentType {
 /// this market a meaningful share of enquiries are six to twelve months
 /// out, and the agency still politely in touch at month five wins them.
 model TaskPlan {
-  id     String @id @default(cuid())
-  orgId  String
+  id    String @id @default(cuid())
+  orgId String
 
   name        String
   description String?
   /// What kind of contact this is for. A seller nurture and a buyer
   /// nurture are not the same sequence with different words.
   audience    PlanAudience
-  active      Boolean @default(true)
+  active      Boolean      @default(true)
 
   steps         PlanStep[]
   subscriptions PlanSubscription[]
@@ -2158,15 +2172,15 @@ model PlanStep {
   orgId  String
   planId String
 
-  order    Int
+  order     Int
   /// Days after the previous step. The first step is days after
   /// subscription.
   afterDays Int
 
-  action   PlanAction
+  action    PlanAction
   /// For MESSAGE: the template name, because these are almost always
   /// outside the 24-hour window.
-  template String?
+  template  String?
   /// For TASK: what the agent is being asked to do, in their words.
   taskTitle String?
   note      String?
@@ -2177,10 +2191,10 @@ model PlanStep {
 }
 
 enum PlanAction {
-  MESSAGE       // the assistant sends, on WhatsApp
-  TASK          // an agent is asked to do something
+  MESSAGE // the assistant sends, on WhatsApp
+  TASK // an agent is asked to do something
   CHECK_MATCHES // run the matcher and message only if something fits
-  REVIEW        // prompt to decide whether to keep going
+  REVIEW // prompt to decide whether to keep going
 }
 
 /// One contact on one plan.
@@ -2190,12 +2204,12 @@ model PlanSubscription {
   planId String
   leadId String
 
-  state     SubscriptionState @default(RUNNING)
-  currentStep Int    @default(0)
-  nextDueAt  DateTime?
+  state       SubscriptionState @default(RUNNING)
+  currentStep Int               @default(0)
+  nextDueAt   DateTime?
 
-  startedAt  DateTime  @default(now())
-  finishedAt DateTime?
+  startedAt   DateTime  @default(now())
+  finishedAt  DateTime?
   /// Why it stopped. "They replied" is the good ending and the most
   /// common one — a plan that runs to completion usually means nobody
   /// engaged.
@@ -2209,9 +2223,9 @@ model PlanSubscription {
 
 enum SubscriptionState {
   RUNNING
-  PAUSED        // the lead replied — a human has it now
+  PAUSED // the lead replied — a human has it now
   COMPLETED
-  STOPPED       // opted out, or an agent ended it
+  STOPPED // opted out, or an agent ended it
 }
 
 // -------------------------------------------------------------- feedback
@@ -2219,26 +2233,26 @@ enum SubscriptionState {
 /// What a buyer thought, collected from the buyer rather than
 /// reconstructed from the agent's memory a week later.
 model ViewingFeedback {
-  id     String @id @default(cuid())
-  orgId  String
-  viewingId String @unique
+  id        String  @id @default(cuid())
+  orgId     String
+  viewingId String  @unique
   leadId    String
   listingId String?
 
   /// One question, tapped. A survey gets five percent; one question with
   /// four buttons gets most people.
-  verdict   Verdict?
+  verdict Verdict?
   /// Structured reasons, from a short list, so they can be counted across
   /// viewings. Free text cannot be aggregated into anything useful.
-  reasons   FeedbackReason[] @default([])
+  reasons FeedbackReason[] @default([])
   /// Anything they typed. Never shown to the vendor verbatim — see the
   /// report module for why.
-  comment   String?
+  comment String?
 
   askedAt    DateTime?
   answeredAt DateTime?
   /// Collected by the assistant, or typed in by the agent after a call.
-  source     String @default("WHATSAPP")
+  source     String    @default("WHATSAPP")
 
   createdAt DateTime @default(now())
 
@@ -2246,10 +2260,10 @@ model ViewingFeedback {
 }
 
 enum Verdict {
-  OFFERING          // wants to make an offer
-  INTERESTED        // wants a second viewing or time to think
+  OFFERING // wants to make an offer
+  INTERESTED // wants a second viewing or time to think
   NOT_FOR_ME
-  WRONG_PROPERTY    // it was not what they expected from the listing
+  WRONG_PROPERTY // it was not what they expected from the listing
 }
 
 enum FeedbackReason {
@@ -2270,21 +2284,21 @@ enum FeedbackReason {
 /// A report sent to the owner. Recorded because "have we updated the
 /// vendor" is a question every brokerage answers badly.
 model VendorReport {
-  id     String @id @default(cuid())
-  orgId  String
+  id        String @id @default(cuid())
+  orgId     String
   listingId String
 
-  periodFrom DateTime
-  periodTo   DateTime
-  viewings   Int
-  offers     Int
+  periodFrom  DateTime
+  periodTo    DateTime
+  viewings    Int
+  offers      Int
   /// The counted reasons, so the report is evidence rather than opinion.
-  summary    Json
+  summary     Json
   /// Set when the numbers say the price is the problem.
   priceSignal String?
 
-  sentAt   DateTime?
-  sentVia  String?
+  sentAt  DateTime?
+  sentVia String?
 
   createdAt DateTime @default(now())
 
@@ -2299,15 +2313,15 @@ model VendorReport {
 /// event — it is a fortnight during which two systems are both live and
 /// somebody needs to be able to answer "where are we".
 model Migration {
-  id     String @id @default(cuid())
-  orgId  String
+  id    String @id @default(cuid())
+  orgId String
 
-  source      String   // "PropSpace", "Goyzer", "spreadsheet", "Reapit"
-  state       MigrationState @default(DRAFT)
+  source String // "PropSpace", "Goyzer", "spreadsheet", "Reapit"
+  state  MigrationState @default(DRAFT)
 
   /// Everything lands here first and is counted before anything is
   /// written into the live tables.
-  stagedCounts Json?
+  stagedCounts  Json?
   /// What the source said it had. The two are compared, and a difference
   /// is shown rather than resolved.
   claimedCounts Json?
@@ -2315,10 +2329,10 @@ model Migration {
   /// Where the export lives, so a rollback has something to go back to.
   sourceArchiveRef String?
 
-  startedAt   DateTime  @default(now())
-  cutoverAt   DateTime?
-  completedAt DateTime?
-  abandonedAt DateTime?
+  startedAt     DateTime  @default(now())
+  cutoverAt     DateTime?
+  completedAt   DateTime?
+  abandonedAt   DateTime?
   abandonReason String?
 
   issues MigrationIssue[]
@@ -2327,10 +2341,10 @@ model Migration {
 }
 
 enum MigrationState {
-  DRAFT       // mapping being agreed
-  STAGED      // loaded, counted, not yet live
-  RECONCILED  // the brokerage has checked and signed off
-  PARALLEL    // live here, still live there
+  DRAFT // mapping being agreed
+  STAGED // loaded, counted, not yet live
+  RECONCILED // the brokerage has checked and signed off
+  PARALLEL // live here, still live there
   COMPLETE
   ABANDONED
 }
@@ -2343,16 +2357,16 @@ model MigrationIssue {
   orgId       String
   migrationId String
 
-  severity  IssueSeverity
-  kind      String
-  entity    String
+  severity    IssueSeverity
+  kind        String
+  entity      String
   /// The source's own identifier, so they can go and look at it.
-  sourceRef String?
-  detail    String
+  sourceRef   String?
+  detail      String
   /// What we propose. Null when there is no safe default and a person
   /// has to choose.
-  suggestion String?
-  decision   String?
+  suggestion  String?
+  decision    String?
   decidedById String?
 
   migration Migration @relation(fields: [migrationId], references: [id], onDelete: Cascade)
@@ -2361,9 +2375,9 @@ model MigrationIssue {
 }
 
 enum IssueSeverity {
-  BLOCKER   // cannot import this record at all
-  DECISION  // needs a human to choose
-  NOTE      // imported, worth knowing
+  BLOCKER // cannot import this record at all
+  DECISION // needs a human to choose
+  NOTE // imported, worth knowing
 }
 
 /// A file sent to a lead, or received from one.
@@ -2372,15 +2386,15 @@ enum IssueSeverity {
 /// no way to attach one, the first time a buyer asks the agent leaves
 /// for WhatsApp — and does not come back for the next thing either.
 model Attachment {
-  id     String @id @default(cuid())
-  orgId  String
+  id        String  @id @default(cuid())
+  orgId     String
   messageId String?
   /// Reusable library items — a brochure attached to a listing, sendable
   /// to any lead without re-uploading.
   listingId String?
 
-  kind      AttachmentKind
-  fileName  String
+  kind       AttachmentKind
+  fileName   String
   /// Object storage. The file never lives in Postgres.
   storageRef String
   mimeType   String
@@ -2430,14 +2444,14 @@ enum AttachmentKind {
 /// The row is written *before* the emails now. If delivery fails the
 /// enquiry is still here, `emailedAt` is null, and it is findable.
 model WebsiteLead {
-  id        String   @id @default(cuid())
-  kind      WebsiteLeadKind
-  name      String?
-  email     String
-  phone     String?
-  company   String?
-  teamSize  String?
-  message   String?
+  id       String          @id @default(cuid())
+  kind     WebsiteLeadKind
+  name     String?
+  email    String
+  phone    String?
+  company  String?
+  teamSize String?
+  message  String?
 
   /// Where they came from — utm parameters and referrer, as captured.
   source    Json?
@@ -2450,7 +2464,7 @@ model WebsiteLead {
   /// Null until both emails have gone. **A null here on an old row is
   /// the alarm**: it means somebody asked for a call and nobody was
   /// told. `website.undelivered` sweeps for it.
-  emailedAt DateTime?
+  emailedAt  DateTime?
   /// Why delivery failed, kept verbatim so it can be diagnosed rather
   /// than guessed at.
   emailError String?
@@ -2462,8 +2476,8 @@ model WebsiteLead {
 }
 
 enum WebsiteLeadKind {
-  DEMO        // asked for a call
-  SUBSCRIBE   // asked for the guides
+  DEMO // asked for a call
+  SUBSCRIBE // asked for the guides
 }
 
 model RateLimitHit {
@@ -2502,7 +2516,7 @@ model Vendor {
 
   /// An owner who is not the seller — a power of attorney, a family
   /// member handling it, a company representative. Common here.
-  actingFor  String?
+  actingFor String?
 
   /// Stops two agents telling one vendor two different stories about
   /// the same week.
@@ -2539,7 +2553,7 @@ enum ContactPreference {
 /// This is the job. The product's answer to the most important twenty
 /// minutes of any deal was a listing status that said UNDER_OFFER.
 model Offer {
-  id        String @id @default(cuid())
+  id        String  @id @default(cuid())
   orgId     String
   listingId String
   leadId    String?
@@ -2574,7 +2588,7 @@ model Offer {
   /// on Tuesday is an agent about to be embarrassed.
   expiresAt DateTime?
 
-  submittedAt DateTime @default(now())
+  submittedAt DateTime  @default(now())
   decidedAt   DateTime?
 
   responses OfferResponse[]
@@ -2624,6 +2638,7 @@ enum OfferParty {
   VENDOR
   AGENT
 }
+
 enum OfferResponseKind {
   COUNTER
   ACCEPT
@@ -2651,9 +2666,9 @@ enum OfferResponseKind {
 /// Recorded per conversation per UTC day, so the unique constraint does
 /// the deduplication rather than application logic that can drift.
 model ConversationCharge {
-  id     String @id @default(cuid())
-  orgId  String
-  subId  String
+  id    String @id @default(cuid())
+  orgId String
+  subId String
 
   conversationId String
   /// The UTC day, truncated. The natural key for "once per day".
@@ -2698,12 +2713,12 @@ model BlackbookEntry {
   standaloneEmail String?
 
   /// What the agent calls them, which is often not their legal name.
-  nickname String?
+  nickname    String?
   /// Free text. Theirs, exports with them, never shown to a manager.
   privateNote String?
   /// "mortgage broker", "Emaar", "school run friend" — an agent's own
   /// taxonomy, not the brokerage's pipeline stages.
-  tags String[]
+  tags        String[]
 
   starred     Boolean   @default(false)
   lastTouched DateTime?
@@ -2734,7 +2749,7 @@ model EmailAccount {
   cursor       String?
   lastSyncedAt DateTime?
   lastError    String?
-  active       Boolean @default(true)
+  active       Boolean   @default(true)
 
   createdAt DateTime @default(now())
 
@@ -2773,9 +2788,9 @@ model EmailMessage {
   leadId   String?
   vendorId String?
 
-  sentAt   DateTime
+  sentAt  DateTime
   /// A link back to the message in Gmail or Outlook.
-  webLink  String?
+  webLink String?
 
   @@unique([accountId, externalId])
   @@index([orgId, leadId, sentAt])
@@ -2814,7 +2829,7 @@ model AgentRequest {
   leadId    String?
   vendorId  String?
 
-  state    RequestState @default(QUEUED)
+  state     RequestState @default(QUEUED)
   /// The finished thing, or the reason there isn't one.
   outputRef String?
   /// Stated on the deliverable itself, never only in a log.
@@ -2822,7 +2837,7 @@ model AgentRequest {
 
   /// Escalated to a person. Rare by design, and always for a named
   /// reason — never "the model was unsure" with nothing after it.
-  escalatedTo     String?
+  escalatedTo      String?
   escalationReason String?
 
   createdAt   DateTime  @default(now())
@@ -2887,8 +2902,8 @@ model FollowUp {
   body  String?
 
   /// What it is about, where there is something.
-  leadId          String?
-  vendorId        String?
+  leadId           String?
+  vendorId         String?
   blackbookEntryId String?
 
   dueAt       DateTime
@@ -2965,12 +2980,12 @@ model ClientFact {
   /// Facts go stale. A budget from eighteen months ago is not a budget.
   /// Nothing deletes on this automatically — it weights retrieval, so
   /// an old fact is shown as old rather than silently dropped.
-  statedAt   DateTime  @default(now())
-  supersededAt DateTime?
+  statedAt      DateTime  @default(now())
+  supersededAt  DateTime?
   /// Set when an agent says it is wrong. Kept rather than deleted: a
   /// correction is itself information, and the audit log has DELETE
   /// revoked for the same reason.
-  retractedAt DateTime?
+  retractedAt   DateTime?
   retractedById String?
 
   createdAt DateTime @default(now())
@@ -3075,8 +3090,8 @@ model Recommendation {
   /// Set when an agent acted, dismissed it, or it expired. Dismissals
   /// are the training signal that matters most — a recommendation
   /// dismissed forty times is a rule that is wrong.
-  resolvedAt   DateTime?
-  resolvedById String?
+  resolvedAt    DateTime?
+  resolvedById  String?
   /// Why it was dismissed, where the agent said. Optional, because
   /// forcing a reason means getting a bad one.
   dismissReason String?
@@ -3085,7 +3100,7 @@ model Recommendation {
   /// drawn from is worse than none — "call James, he has gone quiet"
   /// on the morning after James called is the thing that makes an
   /// agent stop trusting it.
-  computedAt DateTime @default(now())
+  computedAt DateTime  @default(now())
   expiresAt  DateTime?
 
   org Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
@@ -3178,12 +3193,12 @@ model LeadScoreEvent {
 
   /// The components, so a score can be explained rather than asserted.
   /// A number an agent cannot interrogate is a number they overrule.
-  recency      Int
-  engagement   Int
-  intent       Int
-  budgetFit    Int
+  recency    Int
+  engagement Int
+  intent     Int
+  budgetFit  Int
   /// Free-form notes on what moved it, for the explanation line.
-  drivers      String[] @default([])
+  drivers    String[] @default([])
 
   computedAt DateTime @default(now())
 
@@ -3211,7 +3226,7 @@ model AiAction {
 
   /// What was asked, verbatim, where there was a request. Null when the
   /// product acted on its own initiative.
-  request String?
+  request        String?
   /// What it understood the request to be. The gap between these two is
   /// where every misfire is visible.
   interpretation String?
@@ -3220,7 +3235,7 @@ model AiAction {
   /// found and switched off rather than hunted.
   origin String
 
-  action NextAction?
+  action   NextAction?
   /// What it touched.
   entity   String?
   entityId String?
@@ -3229,7 +3244,7 @@ model AiAction {
   before Json?
   after  Json?
 
-  autonomy AutonomyLevel
+  autonomy     AutonomyLevel
   /// Null when none was needed — a SUGGEST never asks. Set to the user
   /// who said yes for CONFIRM and above.
   approvedById String?
@@ -3238,7 +3253,7 @@ model AiAction {
   outcome AiActionOutcome
   /// Present on FAILED, and written for a person rather than a log
   /// parser.
-  error String?
+  error   String?
 
   /// Set when somebody reversed it, so the record shows both.
   undoneAt   DateTime?

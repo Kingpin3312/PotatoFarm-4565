@@ -1,5 +1,6 @@
 import type { LeadStatus } from "@prisma/client";
 import { messagingWindow } from "@/server/lib/whatsapp";
+import { aedWhole } from "@/lib/money";
 import type { Match } from "./score";
 
 /**
@@ -115,7 +116,10 @@ export function decide(args: {
 export function message(args: { firstName: string | null; match: Match; agentName: string | null }) {
   const { match } = args;
   const price = match.listing.priceFils
-    ? `AED ${(Number(match.listing.priceFils) / 100).toLocaleString("en-GB")}`
+    // `aedWhole`, not a hand-rolled divide. This string goes to a buyer
+    // over WhatsApp, and "formatted only by lib/money.ts" exists because
+    // there were once five formatters and two of them assumed AED.
+    ? aedWhole(match.listing.priceFils)
     : "price on application";
 
   const opener = args.firstName ? `${args.firstName}, ` : "";

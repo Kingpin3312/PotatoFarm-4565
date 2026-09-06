@@ -90,6 +90,11 @@ CHECKS=(
   # cases found were not screens: an outbound WhatsApp nudge to a lead
   # the brokerage had removed, and a closed brokerage still sweeping.
   "erasure.py|$APP"
+  # A second money formatter. The rule is in CLAUDE.md and was enforced
+  # by nothing, so two had grown back — one of them building the price
+  # in a WhatsApp message to a buyer. Neither printed a wrong number,
+  # which is the reason this needs a check and not a comment.
+  "money.py|$APP"
 )
 
 pass=0; fail=0; failed=()

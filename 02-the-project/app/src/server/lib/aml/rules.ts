@@ -1,3 +1,4 @@
+import { aedWhole } from "@/lib/money";
 /**
  * UAE AML rules for real estate brokers.
  *
@@ -64,7 +65,11 @@ export function assessRear(payments: Payment[], now = new Date()): RearAssessmen
       required: true,
       reason: single
         ? "A single cash payment at or above AED 55,000."
-        : `${cash.length} linked cash payments totalling AED ${(Number(total) / 100).toLocaleString("en-GB")} within ${REAR_LINKED_WINDOW_DAYS} days.`,
+        // Same reason as `outreach.ts`: this sentence is read by an agent
+        // and by a compliance officer, beside figures the rest of the
+        // product formats through `lib/money.ts`. Two formatters agreeing
+        // today is not the same as one formatter.
+        : `${cash.length} linked cash payments totalling ${aedWhole(total)} within ${REAR_LINKED_WINDOW_DAYS} days.`,
       cashTotalFils: total,
       linkedPayments: cash.length,
     };
