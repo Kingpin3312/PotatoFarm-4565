@@ -1,4 +1,4 @@
-import { directions, dial, apart } from "@/lib/contact";
+import { directions, dial, whatsapp, apart } from "@/lib/contact";
 import { cn } from "@/lib/cn";
 
 /**
@@ -33,6 +33,26 @@ export function ViewingCard({
 }) {
   const map = directions(viewing);
   const tel = dial(viewing.leadPhone);
+  /**
+   * WhatsApp, and it was the missing one.
+   *
+   * This is a WhatsApp-first CRM and there was **no WhatsApp link on
+   * any screen in it**. `whatsapp()` had been written in `contact.ts`
+   * from the start; the only thing that called it was `contact-row.tsx`,
+   * which nothing imports and which therefore has never rendered. A
+   * helper with one caller and that caller unmounted is the same as no
+   * helper at all.
+   *
+   * It goes to the **buyer**, not to the brokerage. On this card the
+   * agent is standing outside a building wanting to say "I'm here" to
+   * the person meeting them, and the message is pre-filled with exactly
+   * that — the thing an agent types twenty times a week.
+   */
+  const wa = whatsapp(
+    viewing.leadPhone,
+    `Hi${viewing.leadName ? ` ${viewing.leadName.split(" ")[0]}` : ""}, ` +
+    `I'm at ${viewing.building ?? "the property"} for our ${time(viewing.scheduledAt)} viewing.`
+  );
   const km = previous ? apart(previous, viewing) : null;
   const gapMins = previous
     ? Math.round((viewing.scheduledAt.getTime() - previous.scheduledAt.getTime()) / 60_000)
@@ -86,7 +106,10 @@ export function ViewingCard({
           orange, twice per viewing. A max-width fixes the desktop
           without a breakpoint: on a 390px screen the column is narrower
           than the cap, so nothing about the phone layout changes. */}
-      <div className="flex gap-2 mt-3 max-w-[420px]">
+      {/* Three actions, one of them the point of the product.
+          The cap widened with the third button; on a phone the column
+          is narrower than the cap, so the phone layout is unchanged. */}
+      <div className="flex gap-2 mt-3 max-w-[560px]">
         {map && (
           <a
             href={map}
@@ -95,6 +118,17 @@ export function ViewingCard({
             className="flex-1 min-h-11 rounded-full bg-accent text-on-accent font-medium text-ui grid place-items-center no-underline"
           >
             Directions
+          </a>
+        )}
+        {wa && (
+          <a
+            href={wa}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex-1 min-h-11 rounded-full border border-rule text-ink font-medium text-ui grid place-items-center no-underline"
+            aria-label={`WhatsApp ${viewing.leadName ?? "the buyer"}`}
+          >
+            WhatsApp
           </a>
         )}
         {tel && (

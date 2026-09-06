@@ -181,6 +181,91 @@ if orphans:
 else:
     print("  every module is reachable from an entry point")
 
+# ---------- 4c. Components nothing mounts ----------
+#
+# The reachability check above works on module *groups*, and `ui` is an
+# entry point — so every file under `src/app` and `src/components` is
+# reachable by definition and this class of fault was invisible to it.
+#
+# `reachability.py` could not see it either, from the other side: it
+# greps the screens tree for `api.<router>.<proc>`, and a component that
+# calls a procedure satisfies that grep whether or not anything renders
+# the component. `viewings/mine.tsx` — a finished "next two days" panel
+# over a live procedure — sat unmounted while `viewings.mine` counted as
+# called, on the very screen that showed today and then eight hundred
+# pixels of nothing.
+#
+# So: a `.tsx` under the app or component tree that no other file
+# imports is a screen nobody can reach. Next's own filenames are
+# exempt — the framework imports those, not the application.
+print("\n" + "=" * 64); print("UNMOUNTED COMPONENTS"); print("=" * 64)
+
+NEXT_ENTRIES = {
+    "page.tsx", "layout.tsx", "template.tsx", "error.tsx", "loading.tsx",
+    "not-found.tsx", "global-error.tsx", "default.tsx", "route.tsx",
+    "opengraph-image.tsx", "icon.tsx", "apple-icon.tsx",
+}
+
+# The ones already known, each with what it is and what it is waiting
+# for. A ratchet rather than a silence: they are listed so the next one
+# fails the build instead of joining them.
+KNOWN_UNMOUNTED = {
+    "app/(app)/viewings/outcome.tsx":
+        "recording what happened at a viewing — the field the pipeline "
+        "hangs on. It needs a home on the viewing card",
+    "app/(app)/viewings/reschedule.tsx":
+        "moving a viewing. Same home as outcome.tsx",
+    "app/(app)/blackbook/add.tsx":
+        "adding a contact to the private blackbook",
+    "app/(app)/inbox/send-file.tsx":
+        "sending an attachment on WhatsApp. `sendFile` on the server is "
+        "reachable; the control that calls it is not",
+    "app/(app)/inbox/thread-controls.tsx":
+        "mute the assistant, hand over to a person. Both write real "
+        "columns and neither has a control on the thread",
+    "app/(app)/listings/attach-owner.tsx":
+        "linking a listing to the vendor who owns it",
+    "app/(app)/pipeline/lead-routing.tsx":
+        "the routing panel on the board",
+    "app/(app)/vendors/brief.tsx":
+        "the vendor brief — what an owner is told and how they want it",
+    "components/ui/contact-row.tsx":
+        "a shared row for a person with a phone number",
+}
+
+src_root = os.path.join(ROOT, "src")
+tsx = [p for p in files if p.endswith(".tsx")]
+all_text = files  # already read above
+unmounted = []
+for p3 in sorted(tsx):
+    base = os.path.basename(p3)
+    if base in NEXT_ENTRIES:
+        continue
+    rel = os.path.relpath(p3, src_root)
+    stem = base[:-4]
+    here = os.path.dirname(p3)
+    # How another file would name this one: a relative import from its
+    # own directory, or the "@/" alias from anywhere.
+    needles = (f'"./{stem}"', f"'./{stem}'",
+               f'"@/{rel[:-4]}"', f"'@/{rel[:-4]}'",
+               f'/{stem}"', f"/{stem}'")
+    if any(n in src for q, src in all_text.items() if q != p3 for n in (needles,)[0]):
+        continue
+    unmounted.append(rel)
+
+news = [u for u in unmounted if u not in KNOWN_UNMOUNTED]
+for u in sorted(unmounted):
+    if u in KNOWN_UNMOUNTED:
+        print(f"  known  {u} — {KNOWN_UNMOUNTED[u]}")
+    else:
+        print(f"  NEW    {u} — nothing imports it, so nothing renders it")
+        FAIL.append(f"unmounted component: {u}")
+gone = [k for k in KNOWN_UNMOUNTED if k not in unmounted]
+for g in sorted(gone):
+    print(f"  mounted now: {g} — remove it from KNOWN_UNMOUNTED")
+if not unmounted:
+    print("  every component is imported by something")
+
 # ---------- 4b. Utilities buried in domain modules ----------
 #
 # A cross-cutting utility inside a domain module is a cycle waiting for a

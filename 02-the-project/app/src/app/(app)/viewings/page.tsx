@@ -3,6 +3,7 @@
 import { api } from "@/lib/trpc";
 import { ViewingCard } from "@/components/ui/viewing-card";
 import { QueryError } from "@/components/ui/query-state";
+import { MyViewings } from "./mine";
 
 /**
  * The day.
@@ -72,6 +73,23 @@ export default function Viewings() {
           ))}
         </div>
       )}
+
+      {/* The next two days, which existed and had never rendered.
+          
+          `mine.tsx` is a finished component over a live procedure —
+          "Deliberately short. A fortnight of viewings is a calendar;
+          two days is a plan an agent can hold in their head" — and
+          **nothing imported it**. The screen it belongs on showed
+          today and then eight hundred pixels of nothing, while the
+          agent's next four appointments sat one query away.
+          
+          `reachability.py` could not catch it: it greps the screens
+          tree for `api.viewings.mine`, and this file is in that tree,
+          so the procedure looked called. The component calling it was
+          the thing nobody reached. */}
+      <div className="mt-10">
+        <MyViewings />
+      </div>
     </div>
   );
 }
