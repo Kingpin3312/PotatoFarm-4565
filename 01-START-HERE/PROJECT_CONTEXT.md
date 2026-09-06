@@ -757,7 +757,7 @@ wordmark 30px / weight 500 / tracking −0.4, baseline 146.
 4. The highlight must stay **clipped to the form**.
 
 **The mark is drawn in exactly one place: `03-brand/logo/mark.py`.** It
-is inlined into 34 copies across 23 files, and hand-editing 34 copies is
+is inlined into 47 copies across 26 files, and hand-editing 47 copies is
 not a thing anybody does correctly twice. Change the shape there and run
 `python3 03-brand/logo/mark.py --apply`, which rewrites every copy and is
 idempotent — running it twice changes nothing, which is how you can tell

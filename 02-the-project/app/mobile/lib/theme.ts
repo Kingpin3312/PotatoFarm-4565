@@ -50,18 +50,34 @@ export const light = {
   brandNavy: "#12202E",
   /** The wordmark extension. Type, so it takes the deeper orange. */
   tld: "#FF5A00",
-  /** The mark's own brown — eyes, mouth, brow and cheek. It is the one
-   *  warm colour in the product that is deliberately *not* the accent,
-   *  because a flat orange body needs something dark to keep a face in
-   *  it. `palette.py` carries it as the single exception. */
-  markEye: "#3B2416",
-  /** The body and its rim were #F0A03A over #D9761C — a gradient, and
-   *  at hue 35.8 and 28.6 it was a visibly different orange from the
-   *  interface at 19.8. That two-brands-on-one-screen effect is the
-   *  thing the branding review actually reported. Flat, now, and the
-   *  same value as everything else. */
-  markBody: "#FF5A00",
-  markRim:  "#FF5A00",
+  /** The mark's own brown — the eyes, and only the eyes now that the
+   *  creases are orange. Deliberately *not* the accent: a face needs
+   *  something dark in it. Mirrors EYE in `03-brand/logo/mark.py`. */
+  markEye: "#4A1E0C",
+  /** The body, lit, on the owner's direction — mirrors G_HIGH, G_MID,
+   *  G_WARM and G_LOW in `03-brand/logo/mark.py`, which is the file
+   *  that defines the mark and the only one to change.
+   *
+   *  This block has been wrong twice in the same way and it is worth
+   *  saying why rather than deleting the history. It first carried
+   *  #F0A03A over #D9761C — hue 35.8 and 28.6 against an interface at
+   *  19.8, which is the two-brands-on-one-screen effect a branding
+   *  review reported. It was then flattened to a single #FF5A00, and
+   *  when the artwork became a gradient again this file was not in
+   *  `mark.py --apply`'s target list, so it kept the flat value and the
+   *  old brown — caught by `palette.py`, months after the web moved.
+   *
+   *  Every value here is inside the 8-45 hue window, so the mark is the
+   *  product's orange with light on it rather than a second orange. */
+  markBody:    "#FCA51B",
+  markBodyHi:  "#FFD04A",
+  markBodyWarm:"#F2760A",
+  markBodyLow: "#D24500",
+  markRim:     "#E8620A",
+  markRimLow:  "#9E2A00",
+  markCrease:  "#D2530C",
+  /** The soft lobe over the lower right. Mirrors SHADE. */
+  markShade:   "#B23600",
 
   /* The inverted band inside the light theme. Charcoal, matching
      --leather / --leather-deep in tokens.css. */
@@ -110,9 +126,24 @@ export const dark = {
    *  the same reason `ink` does. */
   brandNavy: "#F5F3F0",
   tld: "#FF5A00",
-  markEye: "#3B2416",
-  markBody: "#FF5A00",
-  markRim:  "#FF5A00",
+  /** The mark itself does not reverse. A logo is reproduced as a unit,
+   *  so only the wordmark above takes a light fill on charcoal; every
+   *  value below is the same one the light theme uses and mirrors
+   *  `03-brand/logo/mark.py`.
+   *
+   *  This block was missed when the light theme was updated — it is the
+   *  second copy of the same tokens in the same file, forty lines
+   *  further down, and it kept the old brown and the flat body. Caught
+   *  by `palette.py`, which is the only reason it is not still here. */
+  markEye:      "#4A1E0C",
+  markBody:     "#FCA51B",
+  markBodyHi:   "#FFD04A",
+  markBodyWarm: "#F2760A",
+  markBodyLow:  "#D24500",
+  markRim:      "#E8620A",
+  markRimLow:   "#9E2A00",
+  markCrease:   "#D2530C",
+  markShade:    "#B23600",
 
   leather:     "#34322F",
   leatherDeep: "#2A2825",

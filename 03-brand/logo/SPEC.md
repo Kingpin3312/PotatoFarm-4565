@@ -16,19 +16,21 @@ which was two artworks ago and matched nothing that shipped.
 
 | | Hex | |
 |---|---|---|
-| Ground | `#F4F3F0` | soft grey off-white |
-| Body, lit | `#F8BA5E` | top-left of the gradient |
-| Body, mid | `#F0A03A` | the body |
-| Body, low | `#E5842A` | lower right |
-| Rim | `#D9761C` | the darker edge, all the way round |
-| Crease | `#DD8A2E` | cheek line and surface marks |
-| Eyes | `#3B2416` | dark brown, not black |
-| Wordmark | `#1A1A1A` | 16.94:1 |
-| `.io`, everywhere | `#FF6B35` | the brand orange, as briefed |
+| Ground | `#FFFFFF` | white |
+| Body, lit | `#FFD04A` | top-left of the gradient |
+| Body, amber | `#FCA51B` | the body |
+| Body, turning | `#F2760A` | the turn into shadow |
+| Body, low | `#D24500` | lower right, in shadow |
+| Rim, lit | `#E8620A` | the edge where the light falls |
+| Rim, shadow | `#9E2A00` | the edge under the base |
+| Crease | `#D2530C` | mouth, brow, cheek line, dots |
+| Eyes | `#4A1E0C` | dark warm brown, not black |
+| Wordmark | `#12202E` | 14.88:1 |
+| `.io`, everywhere | `#FF5A00` | the brand orange |
 
-The mark keeps an amber gradient while the `.io` takes the brand orange.
-That is deliberate: the potato is artwork and exempt from contrast
-rules, the `.io` is type.
+The mark is lit — a gradient and a rim — while staying inside the hue
+window the interface accent sits in. `PALETTE.md` carries why that is
+not the two-oranges problem a flat fill was adopted to solve.
 
 ## Three things chosen by rendering, not by assuming
 
@@ -65,8 +67,12 @@ artwork adds the marks a potato actually has. They are all drawn at
 lower opacity than the eyes, so the face still reads first and the
 detail dissolves rather than muddles at sixteen pixels.
 
-The eyes are **capsules, not ellipses** — flat-sided with round ends.
-At favicon size that shape is the whole character.
+The eyes are **ellipses, not capsules**. This paragraph said the
+opposite for two generations after the artwork stopped being true, which
+is exactly the drift `mark.py` exists to stop: at roughly 1.4 tall to
+wide they stay oval at 16px, and pushed nearer the 2.2 the capsules had
+they collapse into two dashes and the face loses its expression in the
+favicon.
 
 ## The one place the brief and accessibility disagree
 

@@ -5,7 +5,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/trpc";
 import { cn } from "@/lib/cn";
-import { aedShort } from "@/lib/money";
+import { aedShort, aedWhole } from "@/lib/money";
 import { sentence as label } from "@/lib/sentence";
 import { Ask } from "../ask/ask-box";
 import { QueryError } from "@/components/ui/query-state";
@@ -73,7 +73,24 @@ export default function Today() {
   const act = api.today.act.useMutation(optimistic);
 
   return (
-    <div className="mx-auto max-w-[680px] px-6 pb-28">
+    /**
+     * Two columns from 1100px, one below it.
+     *
+     * This was a single 680px column, so on a 1440px laptop — which is
+     * what an owner is shown the product on — **380 pixels of the right
+     * hand side were empty**, about a quarter of the screen. Restraint
+     * was the intent and unfinished was the effect, which is what three
+     * separate groups of people reported independently.
+     *
+     * The answer is not decoration in the gap. It is the thing an owner
+     * opens a CRM to find out and currently had to go looking for: what
+     * the book is worth and what is moving. Same payload, no new query.
+     *
+     * The breakpoint is deliberate rather than a tablet size. Below it
+     * the rail stacks under the list, which keeps the phone layout
+     * exactly as it was.
+     */
+    <div className="mx-auto max-w-[1180px] px-6 pb-28">
       <header className="pt-10 pb-6">
         <h1 className="font-sans text-page font-semibold text-ink">
           {/* "day" while it loads, not a guess at "morning". It is
@@ -83,15 +100,30 @@ export default function Today() {
               small wrongness that makes a product feel careless. */}
           Good {data?.partOfDay ?? "day"}
         </h1>
-        {data && <Summary counts={data.counts} pipelineFils={data.pipelineFils} />}
+        {data && (
+          <Summary
+            counts={data.counts}
+            pipelineFils={data.pipelineFils}
+            /**
+             * The list decides whether "nothing is waiting" is true.
+             *
+             * `Summary` counted hot leads, unanswered replies, due
+             * follow-ups and today's viewings — and not the action list
+             * directly underneath it. So a screen with five things to do
+             * on it opened with **"Nothing is waiting on you and nothing
+             * is overdue."** The first sentence a prospect reads, and it
+             * disagreed with the rest of the page.
+             */
+            actionCount={data.actions.length}
+          />
+        )}
       </header>
 
-      {/* The command line. Same component the Ask screen uses — one
-          natural-language surface, not two that drift apart. */}
-      <Ask compact />
-
       {isLoading && (
-        <p className="mt-10 text-sm text-ink-3">Working out what matters…</p>
+        <>
+          <Ask compact />
+          <p className="mt-10 text-sm text-ink-3">Working out what matters…</p>
+        </>
       )}
 
       {isError && (
@@ -101,23 +133,47 @@ export default function Today() {
       )}
 
       {data && (
-        <>
-          {/* The revert, said out loud.
-              role="alert" rather than status: the row has just jumped
-              back onto a list the agent thought they had cleared, and
-              that is an interruption, not an update. */}
-          {failed && (
-            <p role="alert" className="mt-6 text-sm text-danger max-w-[52ch]">
-              {failed}
-            </p>
-          )}
-          <Actions
-            actions={data.actions}
-            onAct={(id) => act.mutate({ id })}
-            onDismiss={(id) => dismiss.mutate({ id })}
-          />
-          <Viewings viewings={data.viewings} />
-        </>
+        <div className="grid gap-x-12 gap-y-8 min-[1100px]:grid-cols-[minmax(0,1fr)_300px] items-start">
+          <div className="min-w-0">
+            {/* The command line. Same component the Ask screen uses —
+                one natural-language surface, not two that drift apart.
+
+                Inside the column rather than above it. Spanning the full
+                width it was a single-line prompt stretched across
+                1180px, and it pushed the rail down so far that the top
+                right of the screen was the empty space this layout was
+                supposed to remove. */}
+            <Ask compact />
+
+            {/* The revert, said out loud.
+                role="alert" rather than status: the row has just jumped
+                back onto a list the agent thought they had cleared, and
+                that is an interruption, not an update. */}
+            {failed && (
+              <p role="alert" className="mt-6 text-sm text-danger max-w-[52ch]">
+                {failed}
+              </p>
+            )}
+            <Actions
+              actions={data.actions}
+              onAct={(id) => act.mutate({ id })}
+              onDismiss={(id) => dismiss.mutate({ id })}
+            />
+          </div>
+
+          {/* The rail, sticky as a pair.
+              "Your day" used to sit at the bottom of the left column,
+              below five actions, which is where an agent had to scroll
+              to find out when their next viewing was — while the right
+              hand side sat empty for nine hundred pixels underneath the
+              pipeline card. Same two things, moved to where the eye
+              already is. Below 1100px the pair stacks under the list and
+              the phone layout is unchanged. */}
+          <div className="grid gap-6 min-[1100px]:sticky min-[1100px]:top-6">
+            <Book counts={data.counts} pipelineFils={data.pipelineFils} />
+            <Viewings viewings={data.viewings} />
+          </div>
+        </div>
       )}
     </div>
   );
@@ -132,10 +188,11 @@ export default function Today() {
  * that "7" is an insight.
  */
 function Summary({
-  counts, pipelineFils,
+  counts, pipelineFils, actionCount,
 }: {
   counts: { hot: number; waiting: number; followUpsDue: number; viewingsToday: number };
   pipelineFils: bigint;
+  actionCount: number;
 }) {
   const bits: string[] = [];
   if (counts.viewingsToday) bits.push(`${counts.viewingsToday} viewing${counts.viewingsToday === 1 ? "" : "s"} today`);
@@ -146,13 +203,15 @@ function Summary({
   if (bits.length === 0) {
     return (
       <p className="mt-3 max-w-[46ch] text-ui leading-snug text-ink-2">
-        Nothing is waiting on you and nothing is overdue.
+        {actionCount > 0
+          ? `${actionCount} thing${actionCount === 1 ? "" : "s"} to do, and nothing overdue.`
+          : "Nothing is waiting on you and nothing is overdue."}
       </p>
     );
   }
 
   return (
-    <p className="mt-3 max-w-[52ch] text-ui leading-snug text-ink-2">
+    <p className="mt-3 max-w-[74ch] text-ui leading-snug text-ink-2">
       {sentence(bits)}
       {pipelineFils > 0n && (
         <>
@@ -161,6 +220,88 @@ function Summary({
         </>
       )}
     </p>
+  );
+}
+
+/**
+ * The book, at a glance.
+ *
+ * ## Why this is not the four stat cards the Summary argues against
+ *
+ * That argument is right and it is about the *header*: a row of tiles
+ * where a sentence belongs, pretending "7" is an insight. This is a
+ * different job in a different place. It is the standing answer to the
+ * question an owner opens a CRM to ask — what is the book worth, what is
+ * moving — which previously required leaving this screen and adding up
+ * two others.
+ *
+ * It also earns the space rather than filling it. The screen was one
+ * 680px column on a 1440px laptop, so a quarter of the width was blank,
+ * and blank is what three separate groups of people read as unfinished.
+ *
+ * ## The figures are the design
+ *
+ * `tabular` so the digits line up in a column, which is the difference
+ * between a number you can compare and a number you can only read. The
+ * money is `--ink` at the largest size on the rail, because it is the
+ * one figure that gets repeated in a meeting, and it was previously a
+ * grey caption at the end of a sentence.
+ *
+ * Nothing here is a colour-coded state: the brand carries one accent and
+ * `--danger` is the same orange as a primary action, so a red tile would
+ * be a second meaning for a colour that already has one. Where something
+ * needs attention it says so in a word, which is the rule the rest of
+ * the product follows.
+ */
+function Book({
+  counts, pipelineFils,
+}: {
+  counts: { hot: number; waiting: number; followUpsDue: number; viewingsToday: number };
+  pipelineFils: bigint;
+}) {
+  const rows: [string, string, boolean][] = [
+    ["Running hot", String(counts.hot), counts.hot > 0],
+    ["Waiting on a reply", String(counts.waiting), counts.waiting > 0],
+    ["Follow-ups due", String(counts.followUpsDue), counts.followUpsDue > 0],
+    ["Viewings today", String(counts.viewingsToday), counts.viewingsToday > 0],
+  ];
+
+  return (
+    <aside
+      aria-label="Your book"
+      /* Second on a phone, first on the rail. The diary is what an
+         agent checks standing in a lift; the book is what an owner
+         checks at a desk, and only one of them has a right hand column
+         to sit in. */
+      className="order-2 rounded-xl border border-rule bg-sunk p-5 min-[1100px]:order-1"
+    >
+      <span className="t-label text-ink-3">Live pipeline</span>
+      <p className="mt-1.5 font-sans text-title font-semibold leading-none text-ink tabular">
+        {aedWhole(pipelineFils)}
+      </p>
+      <p className="mt-2 text-note leading-snug text-ink-3">
+        What the leads running hot are looking to spend. Not a forecast — the
+        figure they told us.
+      </p>
+
+      <dl className="mt-5 border-t border-rule">
+        {rows.map(([label, value, live]) => (
+          <div key={label} className="flex items-baseline justify-between gap-3 border-b border-rule py-2.5">
+            <dt className="text-sm text-ink-3">{label}</dt>
+            <dd className={cn("font-mono text-control tabular", live ? "text-ink" : "text-ink-3")}>
+              {value}
+            </dd>
+          </div>
+        ))}
+      </dl>
+
+      <Link
+        href="/pipeline"
+        className="mt-4 inline-block text-sm text-accent-deep no-underline"
+      >
+        Open the board →
+      </Link>
+    </aside>
   );
 }
 
@@ -236,31 +377,45 @@ function Actions({
               </span>
 
               <div className="min-w-0 flex-1">
-                <p className="text-control leading-snug text-ink">
-                  {a.leadId ? (
-                    <Link href={`/leads?open=${a.leadId}`} className="text-ink no-underline hover:underline">
-                      {a.headline}
-                    </Link>
-                  ) : a.headline}
-                </p>
+                {/* Headline left, kind and value hard right on the same
+                    baseline.
+
+                    They were stacked under the reason, which left the
+                    right half of every row empty and put the one figure
+                    an agent scans for — the value — at the bottom of a
+                    block of prose. Wrapped, so on a phone they fall back
+                    under the headline exactly as before. */}
+                <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
+                  <p className="text-control leading-snug text-ink">
+                    {a.leadId ? (
+                      <Link href={`/leads?open=${a.leadId}`} className="text-ink no-underline hover:underline">
+                        {a.headline}
+                      </Link>
+                    ) : a.headline}
+                  </p>
+                  <div className="flex shrink-0 items-baseline gap-x-3">
+                    <span className="t-label text-ink-3">
+                      {LABEL[a.action] ?? label(a.action)}
+                    </span>
+                    {a.valueFils !== null && a.valueFils > 0n && (
+                      <span className="t-label tabular text-ink-3">
+                        {aedShort(a.valueFils)}
+                      </span>
+                    )}
+                  </div>
+                </div>
 
                 {/* Always shown. An instruction with no reason is one an
                     agent learns to ignore, and the reason is also how
-                    they catch it being wrong. */}
-                <p className="mt-1 max-w-[48ch] text-sm leading-snug text-ink-2">
+                    they catch it being wrong.
+
+                    68ch, not 48. A measure cap is right — 48 of them at
+                    14px is 370 pixels, and in a 785px column that is a
+                    two-line wrap with half the row blank, which is what
+                    reads as unfinished rather than as restraint. */}
+                <p className="mt-1 max-w-[68ch] text-sm leading-snug text-ink-2">
                   {a.reason}
                 </p>
-
-                <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <span className="t-label text-ink-3">
-                    {LABEL[a.action] ?? label(a.action)}
-                  </span>
-                  {a.valueFils !== null && a.valueFils > 0n && (
-                    <span className="t-label tabular text-ink-3">
-                      {aedShort(a.valueFils)}
-                    </span>
-                  )}
-                </div>
               </div>
             </div>
 
@@ -303,19 +458,17 @@ function Viewings({
   if (viewings.length === 0) return null;
 
   return (
-    <section className="mt-10 border-t border-rule pt-6">
-      <h2 className="t-label text-ink-3">
-        Your day
-      </h2>
-      <ul className="mt-2">
+    <section aria-label="Your day" className="order-1 rounded-xl border border-rule bg-sunk p-5 min-[1100px]:order-2">
+      <span className="t-label text-ink-3">Your day</span>
+      <ul className="mt-3 border-t border-rule">
         {viewings.map((v) => (
-          <li key={v.id} className="flex items-baseline gap-3 border-b border-rule py-3">
-            <span className="w-14 shrink-0 font-mono text-label tabular text-ink">
+          <li key={v.id} className="flex items-baseline gap-3 border-b border-rule py-2.5">
+            <span className="w-11 shrink-0 font-mono text-label tabular text-ink">
               {new Date(v.scheduledAt).toLocaleTimeString("en-GB", {
                 hour: "2-digit", minute: "2-digit",
               })}
             </span>
-            <span className="flex-1 text-ui leading-snug text-ink">
+            <span className="min-w-0 flex-1 text-sm leading-snug text-ink">
               {v.lead?.name ?? "Someone"}
               {v.listing?.building && (
                 <span className="text-ink-2"> · {v.listing.building}</span>
@@ -324,6 +477,12 @@ function Viewings({
           </li>
         ))}
       </ul>
+      <Link
+        href="/viewings"
+        className="mt-4 inline-block text-sm text-accent-deep no-underline"
+      >
+        Open the diary →
+      </Link>
     </section>
   );
 }

@@ -294,7 +294,33 @@ MARK_SURFACES = [
 # than quietly becoming a second logo. It earned that this time —
 # `mark.py --apply` reported success while leaving ten files on the old
 # mark, and this is what caught them.
-POTATO = "M32.6,3.0"   # the rounder potato, third artwork
+# Read out of `mark.py`, not typed here.
+#
+# This line was `POTATO = "M32.6,3.0"` and the comment above it said, in
+# effect, "remember to change me". That is the shape this repository has
+# been bitten by twice — `mobile/_check.py` compared against eight
+# hardcoded colours that were two generations old, so its loop could
+# never fire, and `palette.py` named three directories and passed green
+# across two surfaces it had never seen. **A check pinned to a specific
+# value goes quiet exactly when that value is superseded**, and this one
+# would have: the fourth artwork begins "M27.6,3.0", so on the day the
+# mark changed this check would have failed on all seven surfaces and
+# the fix a hurried person makes is to retype the constant.
+#
+# Reading the first path point out of the definition keeps the thing the
+# check is actually for — a surface that `--apply` missed still fails —
+# and removes the thing it is not for, which is asserting which artwork
+# is current. That is `mark.py`'s job.
+def _current_potato(default="M27.6,3.0"):
+    f = at("03-brand/logo/mark.py")
+    try:
+        src = open(f, encoding="utf-8").read()
+    except OSError:
+        return default
+    m = re.search(r'^BODY = \("(M[-\d.,]+)', src, re.M)
+    return m.group(1) if m else default
+
+POTATO = _current_potato()
 for path in MARK_SURFACES:
     if not require(path): continue
     body = open(path).read()

@@ -67,10 +67,6 @@ ACCENT = "#FF5A00"
 #
 # The direction is one colour, so the rule is equality.
 EXCEPTIONS = {
-    # The mark's brown. Eyes, mouth, brow and cheek line — dark enough
-    # that nobody calls it orange, and it is what keeps the potato's face
-    # readable now that the body is a flat fill.
-    "#3B2416",
     # The shadow tint, written as `rgb(43 30 23 / .06)` and friends. It
     # is warm on purpose — a neutral grey shadow under a warm palette
     # reads as dirt — and it only ever ships at 5-18% opacity, so it is a
@@ -79,6 +75,40 @@ EXCEPTIONS = {
     # visible to this check only now that rgb() notation is read.
     "#2B1E17",
 }
+
+# ---- the mark's own palette, read out of the file that defines it ----
+#
+# The rule above — one orange, exact equality — is about the *interface*
+# and it is not relaxed. This is about the logo, which the owner has
+# directed be the supplied artwork: a lit body with a gradient, a rim
+# that is lighter where the light falls, and orange creases. That cannot
+# be one hex value and it is not supposed to be.
+#
+# **It is not a typed-in list, and that is the whole point.** The mark's
+# brown used to sit in EXCEPTIONS above as a literal `#3B2416`, which is
+# the failure mode this repository has hit twice: `mobile/_check.py`
+# compared against eight hardcoded colours that were two generations
+# old, so its loop could never fire, and this file's own first version
+# named three directories and passed green across two surfaces it had
+# never been pointed at. A hardcoded exemption goes quiet exactly when
+# the value it exempts is superseded.
+#
+# So the exemption is *read from `03-brand/logo/mark.py`* — the one file
+# that defines the mark, the file `--apply` propagates from, and the
+# only way any of these values can reach a surface. Change the mark
+# there and the exemption follows; paste an orange anywhere else and it
+# still fails. Comments are stripped first, because that file argues at
+# length about oranges it has rejected and a sentence about `#CF5A22` is
+# not a declaration of it — the same trap that made an earlier rewrite
+# of this check unable to fail.
+def mark_palette():
+    f = os.path.join(ROOT, "03-brand/logo/mark.py")
+    try:
+        src = strip_comments(open(f, encoding="utf-8").read())
+    except OSError:
+        return set()
+    return {m.group(1).upper() for m in
+            re.finditer(r'^[A-Z_]+\s*=\s*"(#[0-9A-Fa-f]{6})"', src, re.M)}
 
 # Where a colour that ships lives. Deliberately not the whole repo:
 # `PALETTE-V4.md`, `SPEC.md` and the repalette tooling record superseded
@@ -262,6 +292,10 @@ def warm_enough(h, l, s):
 
 
 ACC_H, _, _ = hls(ACCENT)
+MARK = mark_palette()
+if not MARK:
+    print('  ! 03-brand/logo/mark.py could not be read — this run would\n'
+          '    exempt nothing of the mark and fail on the logo everywhere.')
 fails, seen = [], {}
 
 for base in LIVE:
@@ -286,7 +320,7 @@ for base in LIVE:
             h, l, s = hls(hx)
             if not warm_enough(h, l, s):
                 continue
-            if hx in EXCEPTIONS:
+            if hx in EXCEPTIONS or hx in MARK:
                 continue
             d = abs(h - ACC_H)
             d = min(d, 360 - d)
@@ -317,10 +351,85 @@ if bad:
 # Source is not enough. A generated PNG carries whatever palette was
 # current the last time somebody remembered to run its generator.
 #
-# The test is the *dominant* warm colour rather than every warm pixel:
-# anti-aliasing around orange type produces hundreds of near-misses that
-# are not decisions, and a shadow or a blend is not a palette violation.
-# One colour per file, the one a person actually sees.
+# ## Two bugs in the previous version of this block, both latent
+#
+# It opened each file with `.convert("RGB")` and then took the single
+# most common warm pixel. Both halves were wrong and neither could show
+# it while the mark was a flat fill.
+#
+# **It threw the alpha away.** A fully transparent pixel is (0,0,0) in a
+# PNG and an invisible shadow fringe keeps its colour, so the check was
+# reading pixels nobody can see. In `icon-512.png` the "dominant orange"
+# it reported was `#BF0000` — 5,361 pixels of pure red at an alpha
+# between 4 and 16 out of 255, which is the outer 2% of a drop shadow.
+# It named a colour that does not appear on anybody's screen.
+#
+# **And "the dominant pixel" assumed a flat fill.** With one colour over
+# most of the mark, the most common pixel was that colour and the test
+# meant something. A gradient has no dominant pixel: every pixel differs
+# slightly from its neighbour, so `most_common` returns whichever small
+# flat region happens to be largest — which is now the eyes.
+#
+# So the question changes to one a gradient can answer: **is every warm
+# pixel a person can actually see inside the hue span the mark declares?**
+# That still fails on a stale asset carrying a different orange family,
+# it fails on a stray warm colour composited into an icon, and unlike
+# the old test it does not depend on the artwork being flat.
+# ## And a third thing, found by proving the rewrite
+#
+# The first rewrite tested every opaque warm pixel individually and lit
+# up on all sixteen assets — at fringes like `#FFC6C7` and `#B02100`,
+# one to seven degrees outside. Those are antialiasing: the edge of an
+# orange shape against white passes through pink, and the edge of the
+# deep rim against transparency passes through a redder orange. Real
+# pixels, visible, and not a palette decision by anybody.
+#
+# A per-pixel rule cannot separate those from a wrong colour. A **mass**
+# rule can: a stale asset has its whole body at the wrong hue, which is
+# most of its warm pixels, while an antialiased edge is a rounding error
+# on a boundary and never approaches one percent. So the test is what
+# share of the warm pixels sit outside the span, not whether any do.
+OPAQUE_ENOUGH = 24      # /255. Below this a pixel is a shadow, not a colour.
+HUE_SLACK = 6.0         # PNG rounding and blending between two stops.
+# Three percent, and the number is not a fudge.
+#
+# The lockup PNGs are mark *plus type*, so their warm-pixel population
+# is small and the wordmark's own antialiasing — which passes through
+# pinks and mauves against a coloured ground — is a larger share of it:
+# 1.1% to 2.3% measured across the three. A stale asset, by contrast,
+# has its whole body at the wrong hue, which is most of its warm pixels.
+# The gap between "an antialiased edge" and "the wrong mark" is two
+# percent against roughly a hundred, so this threshold sits in the
+# middle of nothing.
+OUTSIDE_LIMIT = 0.03
+# Two percent, and the first attempt at this line said ten because it
+# was guessed rather than measured — which flagged seven correct assets.
+#
+# The actual spread of the warm share across everything that ships, of
+# the pixels a person can see:
+#
+#     4.3 - 5.2%   the social cards, which are mostly white around a
+#                  small mark
+#     12.7 - 15.5% the lockups: mark plus navy wordmark
+#     20.7%        the maskable icon, which is mostly safe-area padding
+#     53.9 - 100%  the icon ladder
+#
+# An asset that has lost the mark's colour altogether measures ~0 — the
+# proof case recolours an icon green, and green is not warm, so its warm
+# population empties. The floor therefore has to sit between 0 and 4.3,
+# and it is a floor against **absence** rather than a target: it exists
+# so that "no warm pixels to measure" cannot be mistaken for "no warm
+# pixel is wrong", which is how the hue rule above passed a green potato.
+WARM_SHARE = 0.02
+
+# The span the rasters are measured against. **Warm members only** — the
+# wordmark navy is declared in `mark.py` too, and including it stretched
+# the ceiling to 214 degrees, which is a window wide enough to pass a
+# green potato. `warm_enough` is the same filter the source scan uses.
+_warm = [hls(c)[0] for c in (MARK | EXCEPTIONS | {ACCENT})
+         if warm_enough(*hls(c))]
+HUE_LO = (min(_warm) if _warm else ACC_H) - HUE_SLACK
+HUE_HI = (max(_warm) if _warm else ACC_H) + HUE_SLACK
 raster_fails = []
 try:
     from PIL import Image
@@ -341,25 +450,52 @@ else:
                     continue
                 f = os.path.join(dirpath, n)
                 try:
-                    im = Image.open(f).convert("RGB")
+                    im = Image.open(f).convert("RGBA")
                 except Exception:
                     continue
                 checked += 1
-                counts = collections.Counter()
+                # The window the mark declares, plus the accent, plus the
+                # named exceptions. Read from mark.py, so it cannot go
+                # stale; if that file is unreadable MARK is empty and the
+                # window collapses to the accent alone, which fails loudly
+                # rather than passing quietly.
+                warm, outside, opaque, worst = 0, 0, 0, None
                 for px in im.getdata():
-                    h, l, s = hls("#%02X%02X%02X" % px)
-                    if warm_enough(h, l, s):
-                        counts[px] += 1
-                if not counts:
-                    continue  # a mark with no orange in it is fine
-                top = "#%02X%02X%02X" % counts.most_common(1)[0][0]
-                if top in EXCEPTIONS or top == ACCENT:
+                    if px[3] < OPAQUE_ENOUGH:
+                        continue          # a shadow fringe is not a colour
+                    opaque += 1
+                    h, l, sat = hls("#%02X%02X%02X" % px[:3])
+                    if not warm_enough(h, l, sat):
+                        continue
+                    warm += 1
+                    if HUE_LO <= h <= HUE_HI:
+                        continue
+                    outside += 1
+                    off = min(abs(h - HUE_LO), abs(h - HUE_HI))
+                    if worst is None or off > worst[1]:
+                        worst = ("#%02X%02X%02X" % px[:3], off, h)
+                # A mark that is no longer orange at all must not pass
+                # by having no warm pixels to measure.
+                #
+                # This was `if not warm: continue`, and proving the check
+                # is how it was found: recolouring `icon-192.png` by
+                # swapping its red and green channels turns the potato
+                # green, which is about as wrong as an asset can be — and
+                # green pixels are not warm, so the warm population fell
+                # to nothing and the file passed. The hue rule only ever
+                # looked at pixels that were already the right family.
+                if opaque and warm / opaque < WARM_SHARE:
+                    rel = os.path.relpath(f, ROOT)
+                    raster_fails.append(
+                        f"{rel} is {warm / opaque:.1%} warm — the mark is an "
+                        f"orange potato, so this asset is not it")
                     continue
-                h, _, _ = hls(top)
-                d = abs(h - ACC_H); d = min(d, 360 - d)
+                if not warm or outside / warm <= OUTSIDE_LIMIT:
+                    continue
                 rel = os.path.relpath(f, ROOT)
                 raster_fails.append(
-                    f"{top} is the dominant orange in {rel} (hue {h:.1f}, {d:.1f} off)")
+                    f"{outside / warm:.1%} of {rel} is outside the mark's hue span "
+                    f"{HUE_LO:.1f}-{HUE_HI:.1f} — worst {worst[0]} at hue {worst[2]:.1f}")
     print(f"\n  {checked} lossless asset(s) scanned")
     print("  (WebP and JPEG are not checked — see RASTER_EXT for why;")
     print("   regenerate them with the commands in REGENERATORS)")
@@ -389,7 +525,7 @@ for rel in ARCHIVES:
             continue
         for hx in colours_in(text):
             h, l, s = hls(hx)
-            if not warm_enough(h, l, s) or hx in EXCEPTIONS or hx == ACCENT:
+            if not warm_enough(h, l, s) or hx in EXCEPTIONS or hx in MARK or hx == ACCENT:
                 continue
             seen_in_zip.setdefault(hx, set()).add(info.filename)
     for hx, files in sorted(seen_in_zip.items()):

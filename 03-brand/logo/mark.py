@@ -1,7 +1,7 @@
 """
 The mark, defined once — and this file is the only place it is defined.
 
-The mark is inlined into **41 places across 25 files**: nine logo
+The mark is inlined into **47 places across 26 files**: nine logo
 masters, ten website pages, two design-system references, the React
 lockup every screen in the app renders, the mobile wordmark and the
 preview. That is the shape this codebase has been bitten by repeatedly — "the potato replaced a PF chip and three
@@ -25,114 +25,226 @@ raster and this codebase renders the mark at sixteen pixels.
 """
 
 # ---- the silhouette -------------------------------------------------
-# Taller than wide, narrow-ish shoulders, a full round bottom that sits
-# slightly left, and a bulge on the lower right. 64x64 to match every
-# existing file, so nothing downstream has to change its viewBox.
-BODY = ("M32.6,3.0 C39.6,2.8 45.0,7.6 47.8,14.6 C50.2,20.6 51.2,27.2 51.6,33.6 "
-        "C52.0,40.6 51.0,47.6 46.6,52.8 C42.2,58.0 34.8,61.4 27.6,60.8 "
-        "C20.4,60.2 14.2,55.4 11.8,48.6 C9.4,41.8 10.2,34.2 11.6,27.0 "
-        "C13.0,19.4 15.4,11.4 21.2,6.4 C24.2,3.9 28.6,3.2 32.6,3.0 Z")
+# A bottom-heavy pear, traced off the supplied artwork rather than
+# guessed at.
+#
+# The previous silhouette was an egg: widest across the middle, roughly
+# symmetrical top to bottom. The artwork is not. Scanning the supplied
+# render row by row and expressing each row as a percentage of the
+# bounding box, the widest point is at **68% of the height**, the crown
+# is only about a quarter of the full width, and the centre line drifts
+# left below 70% while the right side carries a bulge. That profile —
+# narrow domed top, full round base sitting slightly left — is most of
+# what makes the mark read as a potato rather than as an egg with a
+# face on it.
+#
+# The crown is a dome, not a point, and getting that wrong is what made
+# a first attempt read as a teardrop. Traced by edge gradient rather
+# than by brightness threshold — the artwork's lower right is in shadow
+# and a brightness cut-off drops it, which is what produced an earlier
+# reading that the base "sits left". It does not: the centre line holds
+# at 50% for the whole body. The top row is a flat about a quarter of
+# the width across, offset very slightly left, and that flat is the
+# whole difference between a potato and a teardrop.
+#
+# Fitted against the measured profile, which now agrees within about
+# two points of width everywhere below the crown, at an aspect of
+# 1.26 against the artwork's 1.29.
+#
+# 64x64 to match every existing file, so nothing downstream has to
+# change its viewBox. Body box is x 8.9->55, y 3->61.5.
+BODY = ("M27.6,3.0 C34.6,3.0 40.6,6.6 44.0,11.6 "
+        "C46.6,17.2 48.8,23.6 50.8,29.8 "
+        "C53.0,35.6 55.4,40.6 54.6,45.8 "
+        "C53.4,53.0 47.2,58.6 39.8,60.5 "
+        "C32.8,62.2 25.4,61.6 19.8,58.6 "
+        "C13.4,55.2 9.4,49.0 8.9,42.0 "
+        "C8.4,35.0 10.2,28.0 12.4,21.6 "
+        "C14.6,15.2 17.0,8.0 21.4,5.2 "
+        "C23.2,4.0 25.0,3.0 27.6,3.0 Z")
 
 # ---- the palette ----------------------------------------------------
-# **One orange. #E86A2C, exactly, everywhere.**
+# **A gradient, on the owner's explicit direction, and the block this
+# replaces argued the opposite. That history is kept because it is the
+# reason somebody would change it back.**
 #
-# This block has now been wrong twice. First it argued for an amber
-# gradient — hue 28.6 to 35.8 against the interface's 19.8 — and a
-# branding team said, correctly, that the logo was a different orange
-# from the product. Then it was moved onto the interface *ramp*, which
-# fixed the hue and still left four different hex values in the mark.
-# That was the same answer in a smaller size: a button one shade, its
-# border another.
+# What was here: one flat #FF5A00, everywhere, because a branding team
+# had twice objected that the logo was a different orange from the
+# product. The fix was to collapse the mark to the single interface
+# accent. It satisfied the objection and it also flattened the artwork
+# into a silhouette — no light direction, no rim, no form.
 #
-# The direction was one colour, so there is one colour. Every stop of
-# the gradient and the rim are the same value, which means the body is a
-# flat #E86A2C.
+# The owner has since supplied the artwork as the definitive mark and
+# asked for it exactly, so the constraint that produced the flat fill no
+# longer applies. What replaces it is not "any colour": every value
+# below is sampled from the supplied render and every one of them sits
+# inside the hue window `browser:palette` enforces (8-45), so the mark
+# is still unambiguously the product's orange — it is now lit.
 #
-# Dimension now comes from things that are not orange and therefore
-# cannot disagree with it: the white highlight already clipped inside
-# the body, and the dark eyes. The creases — the mouth, the brow, the
-# cheek line — are drawn in the eye's brown at low opacity rather than a
-# darker orange, because a darker orange is another orange.
-G_HIGH = "#FF5A00"   # the one orange
-G_MID  = "#FF5A00"   # the one orange
-G_LOW  = "#FF5A00"   # the one orange
-RIM    = "#FF5A00"   # the one orange
-# Not an orange. The mark's own brown, already present in the eyes, so
-# the face keeps a mouth and a brow without introducing a second warm
-# value. Drawn at the opacities set in `CREASE_PATH` and `MARKS`.
-CREASE = "#3B2416"
-EYE    = "#3B2416"   # dark brown, not black. Not an orange, unchanged.
+# Sampled, not invented. Upper-left body #FDDF68, centre #FD990F,
+# lower-right #C03B00, bottom rim #8C1C00. The shipped values are those
+# readings pulled a little toward the accent's own hue, because the
+# source is a JPEG-ish render on black and its bloom biases warm.
+G_HIGH = "#FFD04A"   # the lit upper-left: pale gold        hue 44
+G_MID  = "#FCA51B"   # the amber body                       hue 37
+G_WARM = "#F2760A"   # the turn into shadow                 hue 28
+G_LOW  = "#D24500"   # the lower right, in shadow           hue 20
+# The rim is two values, because in the artwork it is not one.
+#
+# Drawn as a single deep value it came out as a heavy cartoon outline
+# and swamped a 512px icon. The artwork's edge is lit where the body is
+# lit — sampled #FD6904 on the upper left — and falls to #8C1C00 under
+# the base. So the stroke takes its own gradient on the same light axis
+# as the body, which is what makes it read as an edge rather than as a
+# drawn border.
+RIM      = "#B83400"   # the single value, still used for the bloom  hue 17
+RIM_HIGH = "#E8620A"   # the lit edge, upper left                    hue 24
+RIM_LOW  = "#9E2A00"   # the edge in shadow, under the base          hue 16
+
+# The creases are orange, not brown, and that is a correction.
+#
+# Under the flat-fill rule a darker orange was "another orange", so the
+# mouth, the brow and the cheek line were drawn in the eyes' brown at
+# low opacity. In the artwork they are plainly orange indentations and
+# only the eyes are brown — which is what stops the face reading as a
+# drawn-on smiley.
+CREASE = "#D2530C"   # hue 21
+EYE    = "#4A1E0C"   # dark warm brown, sampled off the sockets. hue 17
+SHADE  = "#B23600"   # the soft shading lobe over the lower right
+GLOSS  = "#FFF0CE"   # the specular edge, upper left.  hue 42
 
 # ---- the wordmark ---------------------------------------------------
 # The one colour the supplied artwork has that the product did not.
 # "PotatoFarm" is a deep blue-black, sampled at #0E1822 off the flat
 # interior of the thick strokes with blue leading red by eleven points
-# — a decision rather than compression noise. The shipped value is
+# - a decision rather than compression noise. The shipped value is
 # lifted a little off that reading because a JPEG darkens stroke cores.
 #
 # It dresses the wordmark and nothing else. `--ink` stays neutral: a
 # logo is not a reason to recolour every heading and table in a CRM.
 NAVY     = "#12202E"   # 14.88:1 on the ground
 NAVY_REV = "#F5F3F0"   # the same word on charcoal, where navy vanishes
-TLD      = "#FF5A00"   # the ".io" — the brand orange, Option 1
+TLD      = "#FF5A00"   # the ".io" - the brand orange, Option 1
+
+# Four stops, not three. The artwork's light falls from the upper left
+# and turns over into shadow across the lower right, and three stops put
+# that turn in the wrong place - either the middle stayed pale to
+# halfway down or the shadow climbed into the face.
+RIM_STOPS = (f'<stop offset="0" stop-color="{RIM_HIGH}"/>'
+             f'<stop offset="1" stop-color="{RIM_LOW}"/>')
 
 STOPS = (f'<stop offset="0" stop-color="{G_HIGH}"/>'
-         f'<stop offset="0.5" stop-color="{G_MID}"/>'
+         f'<stop offset="0.42" stop-color="{G_MID}"/>'
+         f'<stop offset="0.72" stop-color="{G_WARM}"/>'
          f'<stop offset="1" stop-color="{G_LOW}"/>')
 
 # ---- the face -------------------------------------------------------
-# Ellipses, not capsules.
+# Ellipses, and bigger than they were.
 #
-# The previous artwork had flat-sided eyes with round ends and this file
-# argued for capsules on that basis. The revised artwork does not: the
-# eyes are plainly oval, rounder, larger and set further apart, and that
-# is most of what makes the new mark read as softer than the old one.
+# Measured off the artwork as a fraction of the body box: each eye is
+# about 13% of the width and 15% of the height, centred at 36% and 67%
+# across and 48% down. The previous eyes were 12.6% x 14.2% at 38.5% and
+# 67.6%, which is close in size and too close together, and they sat
+# 46% down rather than 48%.
 #
-# The ratio matters more than the size. At roughly 1.6 tall to wide they
-# stay oval at 16px; pushed nearer 2.2, as the capsules were, they
+# The ratio matters more than the size. At roughly 1.4 tall to wide they
+# stay oval at 16px; pushed nearer 2.2, as an earlier version was, they
 # collapse into two dashes and the face loses its expression in the
-# favicon — which is the one place this mark is seen most often.
+# favicon - which is the one place this mark is seen most often.
 def eyes(p=""):
-    return (f'<ellipse cx="26.4" cy="29.6" rx="2.6" ry="4.1" fill="{EYE}"/>'
-            f'<ellipse cx="38.4" cy="29.2" rx="2.6" ry="4.1" fill="{EYE}"/>')
+    return (f'<ellipse cx="26.2" cy="31.4" rx="3.1" ry="4.4" fill="{EYE}"/>'
+            f'<ellipse cx="40.4" cy="31.4" rx="3.1" ry="4.4" fill="{EYE}"/>')
 
-# Two separate strokes, not one smile.
+
+def crescent(x0, y0, x1, y1, outer, inner):
+    """A tapered crease: two arcs on the same two endpoints.
+
+    Every crease in the artwork is thick in the body and comes to a
+    point at each end. SVG has no variable-width stroke, and a uniform
+    round-capped stroke - which is what this file used to draw - reads
+    as a drawn-on line rather than as a dent in a surface.
+
+    Two quadratic arcs sharing endpoints give the taper for free: the
+    shape is `outer - inner` thick at the middle and zero at both ends.
+    `outer` and `inner` are signed distances along the left-hand normal,
+    so the sign decides which way the crease bows - which is the
+    difference between this mark's downturned mouth and a smile.
+    """
+    dx, dy = x1 - x0, y1 - y0
+    L = (dx * dx + dy * dy) ** 0.5
+    nx, ny = -dy / L, dx / L
+    mx, my = (x0 + x1) / 2, (y0 + y1) / 2
+    return (f'M{x0:.1f},{y0:.1f} '
+            f'Q{mx + nx * outer * 2:.1f},{my + ny * outer * 2:.1f} {x1:.1f},{y1:.1f} '
+            f'Q{mx + nx * inner * 2:.1f},{my + ny * inner * 2:.1f} {x0:.1f},{y0:.1f} Z')
+
+
+# The mouth turns **down**, and the mark this replaces smiled.
 #
-# The first attempt swept a single heavy curve across the whole lower
-# body and the mark grinned — which the source does not. The source has
-# a long, very soft cheek boundary on the right and a short downturn at
-# the lower left. Kept apart, and both quieter than the eyes, so the
-# face reads as a potato with a face rather than a smiley.
-CREASE_PATH = (f'<path d="M46.0,33.4 C46.6,42.0 42.8,49.8 35.2,53.4" fill="none" '
-               f'stroke="{CREASE}" stroke-width="1.6" stroke-linecap="round" opacity="0.55"/>'
-               f'<path d="M23.8,45.6 C26.0,48.2 29.6,48.6 32.2,46.6" fill="none" '
-               f'stroke="{CREASE}" stroke-width="1.8" stroke-linecap="round" opacity="0.85"/>')
+# That was not a stylistic drift, it was the wrong shape: the old path
+# swept from lower-left up through a dip and back, which is a grin. The
+# artwork has a short crescent below and left of centre whose ends point
+# down. It is the single feature that decides whether this reads as the
+# supplied character or as a generic smiley, so it is drawn from the
+# measured endpoints rather than by eye: (21.9,50.4) to (29.3,52.6) in
+# the body box, bowing up.
+MOUTH = (f'<path d="{crescent(21.9, 50.4, 29.3, 52.6, -2.4, -1.15)}" '
+         f'fill="{CREASE}" opacity="0.9"/>')
 
-# Surface marks. Three, asymmetric, because a symmetrical potato reads
-# as a logo of a potato rather than a potato.
-MARKS = (f'<path d="M23.4,15.4 C25.2,13.9 27.6,13.8 29.4,15.0" fill="none" stroke="{CREASE}" '
-         f'stroke-width="1.6" stroke-linecap="round" opacity="0.7"/>'
-         f'<ellipse cx="42.4" cy="17.4" rx="1.0" ry="1.3" fill="{CREASE}" opacity="0.5"/>'
-         f'<ellipse cx="43.4" cy="44.0" rx="1.1" ry="1.4" fill="{CREASE}" opacity="0.45"/>')
+# The long cheek crease on the lower right, at the top edge of the
+# shading lobe. Thick, and much longer than the mouth - it is what gives
+# the lower half of the body its turn.
+CHEEK = (f'<path d="{crescent(40.2, 47.4, 51.6, 40.2, -2.6, -1.0)}" '
+         f'fill="{CREASE}" opacity="0.72"/>')
 
-FACE = eyes() + CREASE_PATH + MARKS
+# Surface marks. Asymmetric, because a symmetrical potato reads as a
+# logo of a potato rather than a potato. Two dashes and two dots, each
+# measured off the artwork the same way.
+MARKS = (f'<path d="{crescent(26.0, 11.7, 32.9, 10.4, -1.5, -0.55)}" '
+         f'fill="{CREASE}" opacity="0.85"/>'
+         f'<path d="{crescent(16.8, 38.6, 22.0, 39.1, -1.1, -0.4)}" '
+         f'fill="{CREASE}" opacity="0.8"/>'
+         f'<ellipse cx="44.7" cy="17.6" rx="0.75" ry="0.95" fill="{CREASE}" opacity="0.7"/>'
+         f'<ellipse cx="47.6" cy="51.1" rx="0.85" ry="1.05" fill="{CREASE}" opacity="0.5"/>')
+
+FACE = eyes() + MOUTH + CHEEK + MARKS
+
+# ---- the modelling --------------------------------------------------
+# Everything inside the silhouette that is not the face, clipped to the
+# body so nothing can spill past the rim.
+#
+# Three layers, and they are the reason the flat version looked like a
+# sticker: a broad soft shadow over the lower right, the diffuse sheen
+# on the upper left, and a hard specular crescent riding the upper-left
+# edge. The first two are blurred; the third is not, because a blurred
+# specular is just more sheen.
+def modelling(pfx: str) -> str:
+    return (
+        f'<g clip-path="url(#cp{pfx})">'
+        f'<ellipse cx="46" cy="52" rx="22" ry="18" fill="{SHADE}" opacity="0.5" '
+        f'filter="url(#sd{pfx})"/>'
+        f'<ellipse cx="24" cy="18" rx="16" ry="17" fill="#FFFFFF" opacity="0.28" '
+        f'filter="url(#bl{pfx})"/>'
+        f'<path d="{crescent(14.6, 27.0, 27.0, 6.2, -2.4, -0.8)}" fill="{GLOSS}" '
+        f'opacity="0.45" filter="url(#sp{pfx})"/>'
+        f'</g>'
+    )
 
 
 def svg(pfx: str, extra_g: str = "", size: str = "") -> str:
     """A standalone mark. `pfx` keeps ids unique when several are inlined."""
     return (
         f'<defs>'
-        f'<linearGradient id="sh{pfx}" x1="22%" y1="10%" x2="74%" y2="90%">{STOPS}</linearGradient>'
-        f'<filter id="bl{pfx}"><feGaussianBlur stdDeviation="7"/></filter>'
+        f'<linearGradient id="sh{pfx}" x1="18%" y1="6%" x2="88%" y2="96%">{STOPS}</linearGradient>'
+        f'<linearGradient id="rm{pfx}" x1="18%" y1="6%" x2="88%" y2="96%">{RIM_STOPS}</linearGradient>'
+        f'<filter id="bl{pfx}" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="7"/></filter><filter id="sd{pfx}" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="5"/></filter><filter id="sp{pfx}" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="1.1"/></filter>'
         f'<filter id="dp{pfx}" x="-35%" y="-35%" width="180%" height="180%">'
-        f'<feDropShadow dx="0" dy="2" stdDeviation="2.2" flood-color="#FF5A00" flood-opacity="0.18"/></filter>'
+        f'<feDropShadow dx="0" dy="2" stdDeviation="2.2" flood-color="{RIM}" flood-opacity="0.22"/></filter>'
         f'<clipPath id="cp{pfx}"><path d="{BODY}"/></clipPath>'
         f'</defs>'
-        f'<path d="{BODY}" fill="url(#sh{pfx})" stroke="{RIM}" stroke-width="1.7" '
+        f'<path d="{BODY}" fill="url(#sh{pfx})" stroke="url(#rm{pfx})" stroke-width="1.15" '
         f'stroke-linejoin="round" filter="url(#dp{pfx})"/>'
-        f'<g clip-path="url(#cp{pfx})">'
-        f'<ellipse cx="24" cy="17" rx="17" ry="18" fill="#FFFFFF" opacity="0.20" filter="url(#bl{pfx})"/>'
-        f'</g>'
+        + modelling(pfx)
         + FACE
     )
 
@@ -160,7 +272,8 @@ def glow(pfx: str) -> str:
     """The mark on a dark ground, lit. 128x128 viewBox, mark inset at 32."""
     return (
         f'<defs>'
-        f'<linearGradient id="sh{pfx}" x1="22%" y1="10%" x2="74%" y2="90%">{STOPS}</linearGradient>'
+        f'<linearGradient id="sh{pfx}" x1="18%" y1="6%" x2="88%" y2="96%">{STOPS}</linearGradient>'
+        f'<linearGradient id="rm{pfx}" x1="18%" y1="6%" x2="88%" y2="96%">{RIM_STOPS}</linearGradient>'
         # Three radii, not one. A single blur gives either a smudge with
         # no hot edge or a hard edge with no spill; the reference has
         # both, so it is built as three passes at 22 / 11 / 4.
@@ -170,7 +283,7 @@ def glow(pfx: str) -> str:
         f'<feGaussianBlur stdDeviation="11"/></filter>'
         f'<filter id="gc{pfx}" x="-60%" y="-60%" width="220%" height="220%">'
         f'<feGaussianBlur stdDeviation="4"/></filter>'
-        f'<filter id="bl{pfx}"><feGaussianBlur stdDeviation="7"/></filter>'
+        f'<filter id="bl{pfx}" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="7"/></filter><filter id="sd{pfx}" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="5"/></filter><filter id="sp{pfx}" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="1.1"/></filter>'
         f'<clipPath id="cp{pfx}"><path d="{BODY}"/></clipPath>'
         f'</defs>'
         f'<g transform="translate(32,32)">'
@@ -181,12 +294,9 @@ def glow(pfx: str) -> str:
         # Innermost: the heat right at the edge, which is what makes the
         # silhouette read as lit rather than as a sticker on a glow.
         f'<path d="{BODY}" fill="{G_MID}" filter="url(#gc{pfx})" opacity="0.85"/>'
-        f'<path d="{BODY}" fill="url(#sh{pfx})" stroke="{RIM}" stroke-width="1.7" '
+        f'<path d="{BODY}" fill="url(#sh{pfx})" stroke="url(#rm{pfx})" stroke-width="1.15" '
         f'stroke-linejoin="round"/>'
-        f'<g clip-path="url(#cp{pfx})">'
-        f'<ellipse cx="24" cy="17" rx="17" ry="18" fill="#FFFFFF" opacity="0.20" '
-        f'filter="url(#bl{pfx})"/>'
-        f'</g>'
+        + modelling(pfx)
         + FACE +
         f'</g>'
     )
@@ -231,6 +341,40 @@ def _jsx(block):
     return block
 
 
+
+# ---- the native mark ------------------------------------------------
+# React Native cannot import an SVG file, so `mobile/components/
+# wordmark.tsx` rebuilds the mark out of `react-native-svg` components
+# against theme tokens. That put it outside the propagator's reach for
+# three generations of artwork — see the comment at the top of that
+# file for what it was carrying by the end.
+#
+# So the geometry is generated into it, between markers, and the
+# colours come from `mobile/lib/theme.ts`, whose values mirror the ones
+# above. Nothing in that file is hand-maintained any more.
+def native_block() -> str:
+    eyes = "[26.2, 31.4, 3.1, 4.4], [40.4, 31.4, 3.1, 4.4]"
+    creases = ",\n".join(
+        f'  ["{d}", {o}]' for d, o in [
+            (crescent(21.9, 50.4, 29.3, 52.6, -2.4, -1.15), 0.9),
+            (crescent(40.2, 47.4, 51.6, 40.2, -2.6, -1.0), 0.72),
+            (crescent(26.0, 11.7, 32.9, 10.4, -1.5, -0.55), 0.85),
+            (crescent(16.8, 38.6, 22.0, 39.1, -1.1, -0.4), 0.8),
+        ])
+    return (
+        "\nconst BODY =\n  \"" + BODY + "\";\n\n"
+        "/** cx, cy, rx, ry. */\n"
+        "const EYES: [number, number, number, number][] = [\n"
+        f"  {eyes},\n];\n\n"
+        "/** d, opacity — the mouth, the cheek line and two surface dashes. */\n"
+        "const CREASES: [string, number][] = [\n" + creases + ",\n];\n\n"
+        "/** cx, cy, rx, ry, opacity. */\n"
+        "const DOTS: [number, number, number, number, number][] = [\n"
+        "  [44.7, 17.6, 0.75, 0.95, 0.7],\n"
+        "  [47.6, 51.1, 0.85, 1.05, 0.5],\n];\n"
+    )
+
+
 def apply(root="."):
     """Rewrite every inlined copy of the mark from the definition above."""
     import os, re, glob, io as _io
@@ -254,12 +398,23 @@ def apply(root="."):
     # accepts either eye primitive for the same reason — capsules
     # yesterday, ellipses today.
     eye = r'(?:<rect [^/]*/>|<ellipse [^/]*/>)'
+    # The face is counted, not enumerated.
+    #
+    # This used to spell out the exact run the face happened to be —
+    # three paths then two ellipses — which meant the propagator could
+    # only find a face with the number of features it was about to
+    # write. Adding the fourth crease would have matched nothing on the
+    # second run and reported success, which is the failure the comment
+    # above this one already describes once. Anything self-closing in
+    # the five-to-eight range after the eyes is the face; the lockups
+    # continue with `</g>` or `<text>`, neither of which is in the
+    # alternation, so it cannot run past the end of the mark.
+    shape = r'(?:<path [^/]*/>|<ellipse [^/]*/>)'
     block = re.compile(
         r'<defs><linearGradient id="sh[\w-]*".*?</defs>'
         r'\s*<path d="M[^"]*"[^/]*/>'
         r'\s*<g clip-?[Pp]ath="url\(#cp[^)]*\)">.*?</g>'
-        r'\s*' + eye + eye + r'<path [^/]*/><path [^/]*/><path [^/]*/>'
-        r'<ellipse [^/]*/><ellipse [^/]*/>', re.S)
+        r'\s*' + eye + eye + shape + r'{5,8}', re.S)
     pfx_re = re.compile(r'<linearGradient id="sh([\w-]+)"')
 
     targets = (glob.glob(os.path.join(root, "03-brand/logo/*.svg"))
@@ -302,6 +457,12 @@ def apply(root="."):
     # that is deliberately the brand orange.
     tld_re = re.compile(r'(<tspan\b[^>]*?\bfill=")(#[0-9A-Fa-f]{6})("[^>]*>\.io)')
 
+    # The native mark, between its markers. Counted like any other
+    # instance, so a file that stops matching stops being reported as
+    # updated rather than silently doing nothing.
+    native_re = re.compile(
+        r'(/\* MARK:BEGIN[^\n]*\*/\n).*?(/\* MARK:END \*/)', re.S)
+
     def _reword(m):
         return m.group(1) + (m.group(2) if _light(m.group(2)) else NAVY) + m.group(3)
 
@@ -314,7 +475,8 @@ def apply(root="."):
         if not os.path.exists(f):
             continue
         s = _io.open(f, encoding="utf-8").read()
-        n = len(block.findall(s)) + len(word_re.findall(s)) + len(tld_re.findall(s))
+        n = (len(block.findall(s)) + len(word_re.findall(s))
+             + len(tld_re.findall(s)) + len(native_re.findall(s)))
         if not n:
             continue
         def sub(m, _f=f):
@@ -323,6 +485,8 @@ def apply(root="."):
             return _jsx(b) if _f.endswith((".tsx", ".jsx")) else b
         s = block.sub(sub, s)
         s = word_re.sub(_reword, s)
+        s = native_re.sub(
+            lambda m: m.group(1) + native_block() + m.group(2), s)
         # The `.io` is the brand orange on every background. Unlike the
         # wordmark it is not lightened for reversed lockups: that is what
         # produced the third orange in the first place.

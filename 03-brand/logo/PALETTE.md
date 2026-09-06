@@ -81,58 +81,37 @@ token in `tokens.css` and is not re-argued here.
 
 | Role | Hex | Where |
 |---|---|---|
-| Charcoal ground | `#2A2825` | The inverted band, and the mobile dark theme |
-| Charcoal raised | `#34322F` | Cards lifted inside that band |
-| Rule | `#42403D` | Borders on the dark surface |
-| Type | `#F5F3F0` · `#B5B5B5` · `#9A9A96` | 12.21 · 7.17 · 5.21 on the ground |
+| Gradient, 0 | `#FFD04A` | The lit upper left — pale gold. Hue 44 |
+| Gradient, 0.42 | `#FCA51B` | The amber body. Hue 37 |
+| Gradient, 0.72 | `#F2760A` | The turn into shadow. Hue 28 |
+| Gradient, 1 | `#D24500` | The lower right, in shadow. Hue 20 |
+| Rim, lit | `#E8620A` | The edge where the light falls on it. Hue 24 |
+| Rim, shadow | `#9E2A00` | The edge under the base. Hue 16 |
+| Crease | `#D2530C` | Mouth, brow, cheek line, dots. Hue 21 |
+| Shading | `#B23600` | The soft lobe over the lower right |
+| Gloss | `#FFF3C4` | The specular crescent on the upper left edge |
+| Eyes | `#4A1E0C` | Dark warm brown, not black. Hue 17 |
 
-On charcoal the brand orange measures **5.18:1** and clears AA
-comfortably. The inverted sections are the one place it is both correct
-and fully legible.
+**The mark is lit again, on the owner's direction, and the paragraph
+this replaces argued the opposite.** What was here: one flat `#FF5A00`
+everywhere, adopted after a branding team twice objected that the logo
+was a different orange from the product. It answered the objection and
+it also flattened the artwork into a silhouette — no light direction,
+no rim, no form.
 
-**Charcoal has a ceiling, and it is lower than it looks.** Two pairs set
-it: the accent has to work as type on the *raised* step inside the band,
-and `.on-leather` sets `--on-accent: var(--leather-deep)`, so the ground
-colour is also the label on every orange button there. Both must clear
-4.5:1, which stops the ground going much past `#2A2825`. It is a real
-charcoal, not a mid grey, and it cannot be a mid grey while the orange
-is doing work on top of it.
+The owner has since supplied the artwork as the definitive mark and
+asked for it exactly. What replaces the flat fill is not "any colour":
+every value above is sampled off that render, and **every one sits
+inside the 8–45 hue window `palette.py` enforces**, so the mark is
+still unambiguously the product's orange. It is now lit rather than
+recoloured.
 
-The muted grey had to move with it: `--leather-ink-3` was `#8A8A8A` at
-4.74:1 on black and falls to 4.03:1 on charcoal. It is `#9A9A96` now.
-Raising the floor of a surface raises everything standing on it, and
-that is the step a palette change usually forgets.
+**Nothing in the interface moved.** `--accent` is still `#FF5A00`, the
+`.io` is still `#FF5A00`, and every contrast figure in the table above
+this section is unchanged. The values here dress the potato and nothing
+else.
 
-`03-brand/charcoal.py` carries the measurements and makes the change.
-It edits **named declarations, never hex values** — `#171717` was both
-`--ink` and `--leather-deep`, so a value-level replace would have turned
-every heading and every button label charcoal too.
-
-### The mark
-
-| Role | Hex | Where |
-|---|---|---|
-| Gradient high | `#F39263` | The lit top-left. A tint of the accent, hue 19.8 |
-| Gradient mid | `#FF5A00` | The body — `--accent`, the `.io` orange itself |
-| Gradient low | `#FF5A00` | The lower right — the same orange, so the gradient is flat |
-| Rim | `#FF5A00` | The edge — the same orange |
-| Crease | `#FF5A00` | The cheek line and surface marks — the same orange |
-
-**One orange.** Four of the five above are literally the interface
-tokens; only the highlight is a tint, because the ramp does not go up
-from the accent.
-
-This table used to describe an amber gradient — hue 28.6 to 35.8 —
-while the interface and the `.io` sat at 18.0 to 19.8. Up to sixteen
-degrees apart is a different orange, not a shade of one, and on a screen
-showing the logo beside an orange button it read as two brands. The
-reversed lockups carried a third, `#FF8533`, on the `.io` of all things.
-
-`palette.py` measures this now: any warm, saturated colour that ships
-must be within six degrees of the accent.
-| Eye | `#3B2416` | Dark brown, not black |
-
-Drawn in one place — `03-brand/logo/mark.py` — and inlined into 34 copies
+Drawn in one place — `03-brand/logo/mark.py` — and inlined into 47 copies
 by `--apply`.
 
 ## What this costs, plainly

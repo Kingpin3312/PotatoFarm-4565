@@ -71,10 +71,13 @@ wrong.
 | Wordmark | `#12202E` | Deep navy, sampled off the supplied artwork. 14.88:1 on the ground |
 | Wordmark, reversed | `#F5F3F0` | Navy on charcoal is 1.3:1 and vanishes |
 | `.io` | `#FF5A00` | The brand orange, on every ground |
-| Body | `#F8BA5E` → `#F0A03A` → `#E5842A` | The mark's own amber gradient |
-| Rim | `#D9761C` | The darker edge |
-| Eyes | `#3B2416` | Dark brown, not black |
+| Body | `#FFD04A` → `#FCA51B` → `#F2760A` → `#D24500` | The mark's gradient, upper left to lower right |
+| Rim | `#E8620A` → `#9E2A00` | The edge, lit at the top and in shadow under the base |
+| Crease | `#D2530C` | Mouth, brow, cheek line, dots |
+| Eyes | `#4A1E0C` | Dark warm brown, not black |
 
-The mark keeps an amber gradient while the `.io` takes the interface
-orange. That is deliberate and it is the only exception in the palette:
-a logo is exempt from contrast rules, and the `.io` beside it is type.
+The body was a flat `#FF5A00` for one generation and is lit again on the
+owner's direction — `PALETTE.md` carries that history and the reason.
+**Every value above is inside the hue window `palette.py` enforces**, so
+the mark is the product's orange with light on it, not a second orange.
+`--accent` and the `.io` did not move.

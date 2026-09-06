@@ -388,6 +388,79 @@ async function main() {
     await db.lead.update({ where: { id: l.id }, data: { status, stageId } });
   }
 
+  /**
+   * The front door, with something behind it.
+   *
+   * `/today` is the first screen of every demonstration and it read
+   * **AED 0 with four zeros under it**, because the brief counts what is
+   * hot, unanswered and booked *for the signed-in agent* — and the
+   * development brokerage had one lead scoring over seventy in the whole
+   * firm, owned by somebody else, and no viewing today.
+   *
+   * The screen was right. Every figure on it was a true statement about
+   * an empty book, which is the least useful true thing a product can
+   * say to somebody deciding whether to buy it.
+   *
+   * `LEADS` carries a considered spread of scores across all four bands
+   * and, like the rest of that array, it never reached the database —
+   * these leads predate it. So the spread is applied to whatever leads
+   * are actually there, in the same place the pipeline funnel and the
+   * conversation clock are re-stated, and for the same reason: a fixture
+   * whose numbers do not move with the calendar or the schema is one
+   * that quietly stops describing the product.
+   */
+  const SPREAD = [88, 84, 76, 72, 68, 61, 55, 47, 38, 22, null];
+  for (const [i, l] of inOrder.entries()) {
+    await db.lead.update({
+      where: { id: l.id },
+      data: { score: SPREAD[i % SPREAD.length] ?? null },
+    });
+  }
+
+  /**
+   * Two viewings today, and one tomorrow.
+   *
+   * Relative to now on every run, never a stored date. A diary seeded
+   * with absolute times is empty by the following week, which is the
+   * decay the conversation clock above was fixed for — the same bug,
+   * one screen along.
+   */
+  const owner2 = byEmail.get("omar@marinabay.ae");
+  const listing = await db.listing.findFirst({ where: { orgId: org.id }, select: { id: true } });
+  const mine = inOrder.filter((_, i) => i < 3);
+  if (owner2 && listing && mine.length >= 2) {
+    // The signed-in agent's, or the count on their own screen stays zero.
+    await db.lead.updateMany({
+      where: { id: { in: mine.map((l) => l.id) } },
+      data: { assignedToId: owner2 },
+    });
+    const at = (hours: number) => {
+      const d = new Date();
+      d.setHours(hours, 0, 0, 0);
+      return d;
+    };
+    const slots: [Date, string][] = [
+      [at(16), "Marina Gate 2, unit 1204"],
+      [at(18), "Palmera 3, villa 22"],
+      [new Date(at(11).getTime() + 86_400_000), "Dubai Hills, plot 8"],
+    ];
+    for (const [i, [when, where]] of slots.entries()) {
+      const lead = mine[i % mine.length]!;
+      const already = await db.viewing.findFirst({
+        where: { orgId: org.id, leadId: lead.id, scheduledAt: when },
+        select: { id: true },
+      });
+      if (already) continue;
+      await db.viewing.create({
+        data: {
+          orgId: org.id, leadId: lead.id, listingId: listing.id,
+          agentId: owner2, scheduledAt: when, durationMins: 45,
+          status: "SCHEDULED", address: where,
+        },
+      });
+    }
+  }
+
   const nobodyWanted = LEADS.filter((l) => l.nobody).length;
   const nobodyNow = await db.lead.count({
     where: { orgId: org.id, deletedAt: null, assignedToId: null },

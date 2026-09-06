@@ -3,7 +3,28 @@
 import re, glob, os, sys
 
 issues = []
-files = {p: open(p).read() for p in glob.glob("lib/*.ts") + glob.glob("app/**/*.tsx", recursive=True)}
+# Anchored to this file, not to the working directory.
+#
+# These globs were relative — `glob.glob("lib/*.ts")` — so the check only
+# saw anything when it was invoked from inside `mobile/`. Run from the
+# repository root, which is where every other audit is run from, it
+# matched nothing, `theme` was the empty string, the whole palette
+# comparison was skipped by `if theme and web:` and it printed
+# "0 issue(s)" and exited 0.
+#
+# That is worse than the two stale-list bugs this file already carries
+# comments about, because those at least ran. This one reported a clean
+# native app from the one directory nobody runs it from, and it was
+# found by putting a stray colour in the theme and watching nothing
+# happen.
+_HERE = os.path.dirname(os.path.abspath(__file__))
+files = {os.path.relpath(p, _HERE): open(p).read()
+         for p in glob.glob(os.path.join(_HERE, "lib/*.ts"))
+         + glob.glob(os.path.join(_HERE, "app/**/*.tsx"), recursive=True)}
+if not files:
+    print("0 issue(s)\n  ! no native source found next to this script — "
+          "nothing was checked")
+    sys.exit(1)
 
 def strip(src):
     """Comments are not code. Every false positive these scripts have
@@ -111,10 +132,34 @@ if theme and web:
     # not a declaration.
     code = declared(theme)
     web_src = declared(web)
-    # The mark's brown. It belongs to the logo artwork rather than to the
-    # interface tokens, so it is in `mark.py` and legitimately not in
-    # tokens.css. `palette.py` carries the same single exception.
-    ALLOWED = {"#3b2416"}
+    # The mark's own palette. It belongs to the logo artwork rather than
+    # to the interface tokens, so it lives in `mark.py` and is
+    # legitimately not in `tokens.css`.
+    #
+    # **Read from that file, not typed here.** This was `ALLOWED =
+    # {"#3b2416"}` — one hardcoded hex, which is the exact defect the
+    # comment forty lines above describes about this same file's first
+    # version: a list of literal colours that goes quiet the moment the
+    # values move. It did move. The mark became a lit gradient and this
+    # set still named a brown nothing uses, so it would have flagged
+    # nine legitimate values and exempted one dead one.
+    #
+    # Comments are stripped for the same reason they are stripped from
+    # the two files above: `mark.py` argues at length about oranges it
+    # rejected, and a sentence about #CF5A22 is not a declaration of it.
+    def mark_palette():
+        f = os.path.join(HERE, "..", "..", "..", "03-brand/logo/mark.py")
+        try:
+            src = declared(open(os.path.normpath(f), encoding="utf-8").read())
+        except OSError:
+            return set()
+        return {m.group(1).lower() for m in
+                re.finditer(r'^[A-Z_]+\s*=\s*"(#[0-9A-Fa-f]{6})"', src, re.M)}
+
+    ALLOWED = mark_palette()
+    if not ALLOWED:
+        issues.append(("_check.py", "03-brand/logo/mark.py could not be read — "
+                                    "every mark colour would be reported as a stray"))
     web_hex = {h.lower() for h in re.findall(r"#[0-9A-Fa-f]{6}", web_src)}
     for h in sorted({h.lower() for h in re.findall(r"#[0-9A-Fa-f]{6}", code)}):
         if h in web_hex or h in ALLOWED:
