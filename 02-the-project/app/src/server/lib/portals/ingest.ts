@@ -52,7 +52,8 @@ export async function ingestEnquiry(
 
     const listing = raw.listingRef
       ? await tx.listing.findFirst({
-          where: { orgId, reference: raw.listingRef },
+          // A withdrawn property should not collect new enquiries.
+          where: { orgId, deletedAt: null, reference: raw.listingRef },
           select: { id: true },
         })
       : null;

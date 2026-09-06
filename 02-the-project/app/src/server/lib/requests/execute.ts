@@ -221,7 +221,8 @@ export async function execute(args: {
       if (!who) return { kind: "NEEDS", question: "Who to?", recipe: c.recipe };
 
       const lead = await db.lead.findFirst({
-        where: { name: { contains: who, mode: "insensitive" } },
+        // A deleted lead is not somebody to draft a message to.
+        where: { deletedAt: null, name: { contains: who, mode: "insensitive" } },
         // `conversation`, singular. Lead has at most one — the model
         // declares `conversation Conversation?`, not a list.
         select: { id: true, name: true,

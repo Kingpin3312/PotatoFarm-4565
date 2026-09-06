@@ -257,6 +257,9 @@ export const reportsRouter = router({
       ctx.db.enquiry.count({ where: { createdAt: { gte: input.from, lte: input.to } } }),
       ctx.db.lead.count({
         where: {
+          // Deleted leads were counted, which inflates the denominator
+          // of the one conversion number anybody is paid on.
+          deletedAt: null,
           createdAt: { gte: input.from, lte: input.to },
           // Qualified means we know what they can spend and what they want.
           // Not a stage anybody dragged them into.

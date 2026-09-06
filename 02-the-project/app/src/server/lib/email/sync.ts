@@ -48,7 +48,12 @@ export async function syncAccount(accountId: string) {
   // Every phone and address the brokerage knows. Built once per sync,
   // not per message.
   const [leads, vendors] = await Promise.all([
-    db.lead.findMany({ where: { email: { not: null } }, select: { id: true, email: true } }),
+    // Deleted leads are left out of the address map: incoming mail must
+    // not start attaching itself to a record the brokerage removed.
+    db.lead.findMany({
+      where: { deletedAt: null, email: { not: null } },
+      select: { id: true, email: true },
+    }),
     db.vendor.findMany({ where: { email: { not: null } }, select: { id: true, email: true } }),
   ]);
   const known = new Map<string, { leadId?: string; vendorId?: string }>();

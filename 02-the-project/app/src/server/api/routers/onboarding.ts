@@ -101,7 +101,10 @@ export const onboardingRouter = router({
         .filter(Boolean) as string[];
 
       const existing = await ctx.db.listing.findMany({
-        where: { reference: { in: refs.slice(0, 5000) } },
+        // Without this a deleted listing counts as already present, so a
+        // re-import silently skips the one property somebody deleted in
+        // order to bring it back in properly.
+        where: { deletedAt: null, reference: { in: refs.slice(0, 5000) } },
         select: { reference: true },
       });
 

@@ -31,6 +31,17 @@ export async function dueForVisaNudge(orgId: string, now = new Date()) {
 
   const candidates = await forOrg(orgId).lead.findMany({
     where: {
+      /**
+       * Not somebody who has been deleted.
+       *
+       * This filtered `optedOutOfOutreach` and not `deletedAt`, so a
+       * lead the brokerage had removed still received an outbound
+       * WhatsApp message about their visa. Consent was thought about
+       * carefully here and erasure was not, which is the more expensive
+       * half to miss: an opt-out is a preference, a deletion is usually
+       * a request to be forgotten.
+       */
+      deletedAt: null,
       visaExpiresAt: { gte: now, lte: windowEnd },
       // The column is `optedOutOfOutreach`. `optedOut` is what
       // decide() calls it in its own argument shape, which is where the
@@ -85,7 +96,12 @@ export function draftNudge(): string {
 export async function sweep() {
   const { crossTenant } = await import("@/server/db/client");
   let sent = 0;
-  const orgs = await crossTenant("sweep").organisation.findMany({ select: { id: true } });
+  // A closed brokerage does not message anybody. Without this the sweep
+  // went on sending on behalf of an account that no longer exists.
+  const orgs = await crossTenant("sweep").organisation.findMany({
+    where: { deletedAt: null },
+    select: { id: true },
+  });
 
   for (const org of orgs) {
     const due = await dueForVisaNudge(org.id);

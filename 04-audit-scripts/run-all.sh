@@ -85,6 +85,11 @@ CHECKS=(
   # a container reset has restored a month-old copy over a current one.
   # It is gitignored, so nothing else will ever mention it.
   "package.py|$ROOT"
+  # A soft-deleted row reappearing. Nothing errors when a read forgets
+  # the filter — a deleted person simply comes back, and the two worst
+  # cases found were not screens: an outbound WhatsApp nudge to a lead
+  # the brokerage had removed, and a closed brokerage still sweeping.
+  "erasure.py|$APP"
 )
 
 pass=0; fail=0; failed=()
