@@ -18,11 +18,25 @@ export function ContactRow({
   name,
   onMessage,
   compact,
+  quiet,
 }: {
   phone: string | null;
   name?: string | null;
   onMessage?: () => void;
   compact?: boolean;
+  /**
+   * Quiet, for a header rather than a card.
+   *
+   * The weighting below is right where it was designed to be used — a
+   * viewing card, where Call is the widest because it is what an agent
+   * reaches for when something has gone wrong. Dropped into the thread
+   * header unchanged, that same weighting put a full-width orange
+   * button next to the buyer's name and made it the loudest thing on
+   * the screen the agent spends the day in.
+   *
+   * Same actions, same order, no fill.
+   */
+  quiet?: boolean;
 }) {
   const tel = dial(phone);
   const wa = whatsapp(phone);
@@ -35,11 +49,18 @@ export function ContactRow({
     );
   }
 
+  const shell = quiet
+    ? "min-h-9 rounded-full border border-rule px-4 text-ui text-ink"
+    : "min-h-11 rounded-full text-ui font-medium";
+
   return (
     <div className={cn("flex gap-2", compact ? "flex-wrap" : "")}>
       <a
         href={tel}
-        className="flex-[2] min-h-11 rounded-full bg-accent text-on-accent font-medium text-ui grid place-items-center no-underline"
+        className={cn(
+          "grid place-items-center no-underline", shell,
+          quiet ? "" : "flex-[2] bg-accent text-on-accent"
+        )}
         aria-label={name ? `Call ${name}` : "Call this lead"}
       >
         Call
@@ -49,7 +70,7 @@ export function ContactRow({
           href={wa}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex-1 min-h-11 rounded-full border border-rule text-ink font-medium text-ui grid place-items-center no-underline"
+          className={cn("grid place-items-center no-underline", shell, quiet ? "" : "flex-1 border border-rule font-medium")}
           // Opens the real WhatsApp thread. An agent who wants to send a
           // voice note will go there anyway; making it one tap from our
           // record keeps them starting here rather than in Contacts.
@@ -61,7 +82,7 @@ export function ContactRow({
       {onMessage && (
         <button
           onClick={onMessage}
-          className="flex-1 min-h-11 rounded-full border border-rule text-ink font-medium text-ui"
+          className={cn(shell, quiet ? "" : "flex-1 border border-rule font-medium")}
         >
           Reply here
         </button>

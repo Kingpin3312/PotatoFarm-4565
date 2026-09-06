@@ -889,6 +889,7 @@ async function main() {
   }
 
 
+  await vendors(org.id);
   await offers(org.id);
   await compliance(org.id);
   await commissions(org.id);
@@ -1400,6 +1401,92 @@ async function register(orgId: string, owner: string, agent: string) {
         verifiedById: verified ? owner : null,
       },
     });
+  }
+}
+
+/**
+ * The owners, and which property each of them owns.
+ *
+ * ## Two faults, and the screen only showed one
+ *
+ * Every listing read "No owner" the moment the listings screen learned
+ * to say so — sixteen of sixteen, on a book that also carried twenty
+ * eight vendors. Both halves were wrong: nothing ever attached a vendor
+ * to a listing, and the twenty eight were the same person twenty eight
+ * times, a check creating "Margaret Okonjo" again on every run.
+ *
+ * An unowned listing is not cosmetic. `attach-owner.tsx` states the
+ * cost in its own words: the weekly report has nobody to go to, and the
+ * Form F has nobody to sign it.
+ *
+ * Two are deliberately left unowned. That is a real state a brokerage
+ * gets into — a listing taken over the phone before the paperwork — and
+ * it is the state the screen exists to flag, so a fixture where every
+ * property is tidy would hide the feature.
+ *
+ * `prefers` varies on purpose. `CALL` means the weekly report is
+ * prepared and put on an agent's list rather than sent, and
+ * `OFFERS_ONLY` means do not ring them for a chat — a contact
+ * preference is an instruction, not a nicety, and a fixture where
+ * everybody is the same cannot show that either.
+ */
+async function vendors(orgId: string) {
+  const rows: {
+    name: string; phone: string; email?: string;
+    prefers: "WHATSAPP" | "EMAIL" | "CALL" | "OFFERS_ONLY";
+    refs: string[];
+  }[] = [
+    { name: "Margaret Okonjo",  phone: "+971509998888", email: "m.okonjo@example.ae",
+      prefers: "WHATSAPP",    refs: ["DH-101", "DH-509"] },
+    { name: "Hussain Al Marzooqi", phone: "+971504441122",
+      prefers: "CALL",        refs: ["MG-202", "MG-513"] },
+    { name: "Elena Vasquez",    phone: "+971505552211", email: "elena.v@example.com",
+      prefers: "EMAIL",       refs: ["AR-303", "AR-516"] },
+    { name: "Sunil Kapoor",     phone: "+971506663344",
+      prefers: "OFFERS_ONLY", refs: ["JVC-404", "JVC-510"] },
+    { name: "Aisha Bint Salem", phone: "+971507778899",
+      prefers: "WHATSAPP",    refs: ["PJ-505", "EH-512"] },
+    { name: "Tomasz Nowak",     phone: "+971502223355", email: "t.nowak@example.com",
+      prefers: "EMAIL",       refs: ["BB-506", "TH-514"] },
+    { name: "Grace Mensah",     phone: "+971508887766",
+      prefers: "CALL",        refs: ["DM-507", "AR-508"] },
+    // CT-515 and DS-511 stay unowned, on purpose. See above.
+  ];
+
+  const byRef = new Map(
+    (await db.listing.findMany({
+      where: { orgId }, select: { id: true, reference: true },
+    })).map((l) => [l.reference, l.id])
+  );
+
+  for (const v of rows) {
+    // Idempotent on the phone, which is what identifies an owner. The
+    // twenty eight duplicates exist because nothing ever asked whether
+    // this person was already here.
+    let row = await db.vendor.findFirst({
+      where: { orgId, phone: v.phone }, select: { id: true },
+    });
+    if (!row) {
+      row = await db.vendor.create({
+        data: {
+          orgId, name: v.name, phone: v.phone, email: v.email ?? null,
+          prefers: v.prefers,
+        },
+        select: { id: true },
+      });
+    } else {
+      await db.vendor.update({
+        where: { id: row.id },
+        data: { name: v.name, email: v.email ?? null, prefers: v.prefers },
+      });
+    }
+    for (const ref of v.refs) {
+      const listingId = byRef.get(ref);
+      if (!listingId) continue;
+      await db.listing.update({
+        where: { id: listingId }, data: { vendorId: row.id },
+      });
+    }
   }
 }
 

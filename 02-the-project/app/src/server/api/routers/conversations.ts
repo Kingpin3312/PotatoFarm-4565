@@ -214,6 +214,10 @@ export const conversationsRouter = router({
         where: { id: input.conversationId, lead: leadScope(ctx.role, ctx.userId) },
         select: {
           id: true, humanHandover: true, handoverReason: true, lastInboundAt: true,
+          // Whether the assistant is muted on this thread. The control
+          // for it existed and was mounted nowhere, so the field it
+          // reflects had never needed to be on the wire.
+          assistantMuted: true,
           lead: { select: { id: true, name: true, phone: true, language: true, status: true } },
           messages: {
             take: input.limit,

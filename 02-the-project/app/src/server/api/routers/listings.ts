@@ -35,6 +35,11 @@ export const listingsRouter = router({
         include: {
           publications: { select: { channelId: true, state: true, rejection: true } },
           _count: { select: { enquiries: true } },
+          // The owner, so the row can say whether there is one. Without
+          // it the weekly report has nobody to go to and the Form F has
+          // nobody to sign it — and the screen could not tell you which
+          // listings were in that state.
+          vendor: { select: { id: true, name: true } },
         },
       });
 

@@ -27,10 +27,13 @@ message every time somebody is quick, and agents are quick.
 
 ## The window, again
 
-`WindowState` and `WindowClosed` are separate components on purpose. When
-the 24-hour window has shut the composer is **replaced**, not disabled —
-a greyed box with no explanation leaves somebody typing into nothing and
-wondering why the lead never replied.
+`WindowState` is the open-window counterpart to the closed-window
+banner, which now lives inside `inbox/thread-controls.tsx`. They were
+two components on purpose — an open window is a state to notice and a
+closed one is a decision to make — and the split had a cost nobody
+had noticed: the banner was mounted with both its buttons wired to
+`() => {}`, while the component holding the working mutations was
+imported by nothing. The decision half is now where its actions are.
 
 If this component is wrong the failure is silent: Meta accepts the
 message and never delivers it. That is why it is the most carefully

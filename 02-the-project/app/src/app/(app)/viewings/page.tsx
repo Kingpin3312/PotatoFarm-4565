@@ -69,6 +69,9 @@ export default function Viewings() {
               // The stop before, so the card can say "that's tight"
               // before the agent sets off rather than on the road.
               previous={i > 0 ? list[i - 1]! : null}
+              // An outcome or a move changes the day; ask for it again
+              // rather than leaving the card showing what it was.
+              onChanged={() => void refetch()}
             />
           ))}
         </div>

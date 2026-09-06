@@ -209,29 +209,23 @@ NEXT_ENTRIES = {
 # The ones already known, each with what it is and what it is waiting
 # for. A ratchet rather than a silence: they are listed so the next one
 # fails the build instead of joining them.
-KNOWN_UNMOUNTED = {
-    "app/(app)/viewings/outcome.tsx":
-        "recording what happened at a viewing — the field the pipeline "
-        "hangs on. It needs a home on the viewing card",
-    "app/(app)/viewings/reschedule.tsx":
-        "moving a viewing. Same home as outcome.tsx",
-    "app/(app)/blackbook/add.tsx":
-        "adding a contact to the private blackbook",
-    "app/(app)/inbox/send-file.tsx":
-        "sending an attachment on WhatsApp. `sendFile` on the server is "
-        "reachable; the control that calls it is not",
-    "app/(app)/inbox/thread-controls.tsx":
-        "mute the assistant, hand over to a person. Both write real "
-        "columns and neither has a control on the thread",
-    "app/(app)/listings/attach-owner.tsx":
-        "linking a listing to the vendor who owns it",
-    "app/(app)/pipeline/lead-routing.tsx":
-        "the routing panel on the board",
-    "app/(app)/vendors/brief.tsx":
-        "the vendor brief — what an owner is told and how they want it",
-    "components/ui/contact-row.tsx":
-        "a shared row for a person with a phone number",
-}
+# Empty, and that is the point of it being here.
+#
+# It held nine when this check was written — recording a viewing
+# outcome, rescheduling one, adding to the blackbook, sending a file on
+# WhatsApp, the mute and hand-over controls, attaching an owner to a
+# listing, the routing panel, the vendor brief, and the call/WhatsApp
+# row. Every one finished, every one over a working procedure, none of
+# them reachable. Two of them were two halves of the same feature
+# waiting for each other: `attach-owner.tsx` linked to `/vendors/<id>`,
+# and `brief.tsx` was the page that link wanted.
+#
+# All nine are mounted, so the ratchet is empty and the rule is now
+# simply: a component nothing imports fails the build. An entry added
+# here needs a sentence saying what it is waiting for — and if that
+# sentence is hard to write, the honest move is to delete the file
+# rather than to list it.
+KNOWN_UNMOUNTED: dict[str, str] = {}
 
 src_root = os.path.join(ROOT, "src")
 tsx = [p for p in files if p.endswith(".tsx")]

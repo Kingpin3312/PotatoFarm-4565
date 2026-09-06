@@ -4,6 +4,7 @@ import { useState } from "react";
 import { api } from "@/lib/trpc";
 import { QueryError } from "@/components/ui/query-state";
 import { cn } from "@/lib/cn";
+import { AddToBlackbook } from "./add";
 
 /**
  * The blackbook.
@@ -18,6 +19,7 @@ import { cn } from "@/lib/cn";
  * audited, because an audit row is a record somebody can read.
  */
 export default function Blackbook() {
+  const [adding, setAdding] = useState(false);
   const [tag, setTag] = useState<string | undefined>();
   const { data, isLoading, isError, refetch, error } = api.blackbook.mine.useQuery({ tag });
 
@@ -39,7 +41,28 @@ export default function Blackbook() {
           Your notes and tags. No manager sees this page, and it exports with you if you
           ever leave — the client records and the compliance file stay with the brokerage.
         </p>
+        {/* Adding somebody, which was not possible from anywhere.
+            
+            The empty state below tells an agent to "add the people you
+            actually deal with" and there was no way to do it: `add.tsx`
+            is a finished form over a working mutation and nothing
+            imported it. Behind a disclosure rather than always open —
+            this screen is for reading a book of contacts, not for
+            filling one in. */}
+        <button
+          onClick={() => setAdding((a) => !a)}
+          aria-expanded={adding}
+          className="btn-inline mt-4 min-h-11"
+        >
+          {adding ? "Never mind" : "Add somebody"}
+        </button>
       </header>
+
+      {adding && (
+        <div className="mb-6">
+          <AddToBlackbook onDone={() => { setAdding(false); void refetch(); }} />
+        </div>
+      )}
 
       {tags.length > 0 && (
         <div className="flex gap-2 flex-wrap mb-6">

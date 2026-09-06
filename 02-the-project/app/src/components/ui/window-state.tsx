@@ -37,20 +37,19 @@ export function WindowState({ open, hoursLeft }: { open: boolean; hoursLeft: num
 }
 
 /** Replaced, not disabled — a greyed box leaves somebody typing into nothing. */
-export function WindowClosed({
-  onTemplate, onAssign,
-}: { onTemplate: () => void; onAssign: () => void }) {
-  return (
-    <div className="border border-rule border-s-2 border-s-danger-deep bg-sunk rounded-xl p-4">
-      <p className="text-sm text-ink-2">
-        <strong className="text-ink font-semibold">Quiet for more than 24 hours.</strong>{" "}
-        WhatsApp only allows an approved template until they reply. This isn&rsquo;t us —
-        it&rsquo;s Meta&rsquo;s rule for every business on the platform.
-      </p>
-      <div className="flex gap-2.5 mt-3.5 flex-wrap">
-        <Button variant="primary" size="sm" onClick={onTemplate}>Send follow-up template</Button>
-        <Button variant="secondary" size="sm" onClick={onAssign}>Assign an agent to call</Button>
-      </div>
-    </div>
-  );
-}
+/**
+ * `WindowClosed` used to live here and has been folded into
+ * `inbox/thread-controls.tsx`.
+ *
+ * It rendered the right explanation with two buttons wired to
+ * `() => {}` — "Send follow-up template" and "Assign an agent to call",
+ * neither of which did anything, on the one screen where a message that
+ * cannot be delivered costs a deal. `ThreadControls` had the working
+ * mutations all along and was imported by nothing, so the two halves of
+ * a finished feature sat in separate files, one visible and inert, the
+ * other functional and unreachable.
+ *
+ * The banner's markup went with it, so nothing was lost but the
+ * duplication. `WindowState` below is unaffected and still the
+ * open-window counterpart.
+ */

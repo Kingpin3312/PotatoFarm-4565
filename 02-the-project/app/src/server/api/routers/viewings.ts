@@ -31,6 +31,11 @@ export const viewingsRouter = router({
         orderBy: { scheduledAt: "asc" },
         select: {
           id: true, scheduledAt: true, durationMins: true,
+          // The agent and the property, so the card can offer to move
+          // it. `viewings.slots` needs both to know what is free and how
+          // far away it is, and neither was on the wire — which is one
+          // reason `reschedule.tsx` had never been mounted.
+          agentId: true, listingId: true, status: true,
           address: true, building: true, lat: true, lng: true, accessNote: true,
           lead: { select: { name: true, phone: true } },
           listing: { select: { reference: true } },
@@ -50,6 +55,9 @@ export const viewingsRouter = router({
           lat: v.lat,
           lng: v.lng,
           accessNote: v.accessNote,
+          agentId: v.agentId,
+          listingId: v.listingId,
+          status: v.status,
         })),
       };
     }),

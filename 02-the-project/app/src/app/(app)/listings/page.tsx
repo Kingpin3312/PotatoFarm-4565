@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { cn } from "@/lib/cn";
@@ -8,6 +8,7 @@ import { api } from "@/lib/trpc";
 import { QueryError } from "@/components/ui/query-state";
 import { aedWhole } from "@/lib/money";
 import { PublishCheck } from "./publish-check";
+import { AttachOwner } from "./attach-owner";
 import { WhoWantsIt } from "./who-wants-it";
 import { AddProperty } from "./add-property";
 import { EditListing } from "./edit-listing";
@@ -48,6 +49,9 @@ function Listings() {
    */
   const params = useSearchParams();
   const q = params.get("q")?.trim() ?? "";
+  // Which row has its owner panel open. One at a time: the panel is a
+  // block, and two of them open in a table turns the list into a form.
+  const [ownerFor, setOwnerFor] = useState<string | null>(null);
 
   const { data, isLoading } = api.listings.list.useInfiniteQuery(
     { limit: 25, ...(q ? { search: q } : {}) },
@@ -188,7 +192,27 @@ function Listings() {
                 reference={l.reference}
                 channelIds={l.publications.map((p) => p.channelId)}
               />
+              {/* Who owns it, which nothing in the product could show
+                  or set. `attach-owner.tsx` was finished and imported by
+                  nothing, and its own "Brief" button pointed at
+                  `/vendors/<id>` — a route that did not exist either.
+                  Marked when there is no owner, because that is the
+                  state with consequences: no weekly report and nobody
+                  to sign the Form F. */}
+              <button
+                onClick={() => setOwnerFor((o) => (o === l.id ? null : l.id))}
+                aria-expanded={ownerFor === l.id}
+                className="btn-inline min-h-11"
+              >
+                {l.vendor ? "Owner" : "No owner"}
+              </button>
             </div>
+
+            {ownerFor === l.id && (
+              <div className="col-span-full">
+                <AttachOwner listingId={l.id} current={l.vendor} />
+              </div>
+            )}
           </div>
         ))}
 

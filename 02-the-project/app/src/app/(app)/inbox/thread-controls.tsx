@@ -45,15 +45,26 @@ export function ThreadControls({ conversationId, muted, windowOpen, handover }: 
       {!windowOpen && (
         <div className="w-full mt-2">
           {!picking ? (
-            <>
-              <p className="text-sm text-ink-2 max-w-[46ch] leading-snug">
-                The window closed. A normal message won't arrive — WhatsApp takes it and
-                silently drops it.
+            /* The banner `WindowClosed` used to draw, folded in here.
+               
+               That component rendered this explanation with two buttons
+               wired to `() => {}` — "Send follow-up template" and
+               "Assign an agent to call", neither of which did anything.
+               This one has the same words and the same weight, and the
+               button opens a picker that sends. Keeping both would have
+               meant two components explaining Meta's rule in the same
+               viewport. */
+            <div className="border border-rule border-s-2 border-s-danger-deep bg-sunk rounded-xl p-4">
+              <p className="text-sm text-ink-2">
+                <strong className="text-ink font-semibold">Quiet for more than 24 hours.</strong>{" "}
+                WhatsApp only allows an approved template until they reply. This isn&rsquo;t us
+                — it&rsquo;s Meta&rsquo;s rule for every business on the platform.
               </p>
-              <Button variant="primary" className="mt-2" onClick={() => setPicking(true)}>
-                Use a template
+              <Button variant="primary" size="sm" className="mt-3.5"
+                      onClick={() => setPicking(true)}>
+                Send follow-up template
               </Button>
-            </>
+            </div>
           ) : (
             <div className="bg-sunk rounded-xl p-4">
               <span className="block t-label text-ink-3 mb-2">

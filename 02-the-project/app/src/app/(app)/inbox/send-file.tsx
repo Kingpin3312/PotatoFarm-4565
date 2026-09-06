@@ -79,12 +79,27 @@ export function SendFile({ conversationId, listingId, windowOpen }: {
         </>
       ) : null}
 
-      <label htmlFor="upl" className="block t-label text-ink-3 mb-2">
-        Or send something new
+      {/* A styled label wrapping a hidden input, not a bare file field.
+          
+          Mounted as-is this rendered the browser's own "Choose File / No
+          file chosen" in the middle of the composer — unstyled, in the
+          wrong typeface, on the screen an agent spends the day in. It
+          looked like a half-finished form, which is a fair description
+          of what an unmounted component is. */}
+      <label
+        htmlFor="upl"
+        className="btn-inline inline-flex min-h-11 items-center cursor-pointer"
+      >
+        {busy ? "Sending…" : "Attach a file"}
       </label>
       <input id="upl" type="file" accept="image/jpeg,image/png,application/pdf"
+        disabled={busy}
         onChange={(e) => { const f = e.target.files?.[0]; if (f) void upload(f); }}
-        className="text-control text-ink" />
+        className="sr-only" />
+      <p className="text-note text-ink-3 mt-1.5">
+        JPG, PNG or PDF. It goes straight to storage, so a large brochure
+        does not time out.
+      </p>
 
       {/* Every refusal says what to do instead. "Unsupported file type"
           leaves an agent standing in a lobby with nothing. */}

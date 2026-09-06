@@ -4,7 +4,11 @@ import { useState, useRef, useEffect } from "react";
 import { api } from "@/lib/trpc";
 import { QueryError } from "@/components/ui/query-state";
 import { Message } from "@/components/ui/message";
-import { WindowState, WindowClosed } from "@/components/ui/window-state";
+import { WindowState } from "@/components/ui/window-state";
+import { ThreadControls } from "./thread-controls";
+import { SendFile } from "./send-file";
+import { LeadRouting } from "../pipeline/lead-routing";
+import { ContactRow } from "@/components/ui/contact-row";
 import { KycPanel } from "./kyc-panel";
 import { Button } from "@/components/ui/button";
 
@@ -16,6 +20,7 @@ export function Thread({ conversationId }: { conversationId: string }) {
   const utils = api.useUtils();
   const { data, isLoading , isError, refetch, error } = api.conversations.thread.useQuery({ conversationId });
   const [draft, setDraft] = useState("");
+  const [attaching, setAttaching] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -89,6 +94,15 @@ export function Thread({ conversationId }: { conversationId: string }) {
             {data.lead.phone} · {data.lead.language}
           </div>
         </div>
+
+        {/* Call and WhatsApp, on the screen where a buyer goes quiet.
+            
+            `ContactRow` opens by saying "The first agent test opened
+            with 'I can't call anyone', and it was right" — and it was
+            still right, because the component that fixed it was
+            imported by nothing. The number was here all along as plain
+            text you cannot press. */}
+        <ContactRow phone={data.lead.phone} name={data.lead.name} compact quiet />
         {data.humanHandover && (
           // Says why the assistant stopped. Silence with no explanation
           // reads as a fault, and the agent rings support.
@@ -114,6 +128,14 @@ export function Thread({ conversationId }: { conversationId: string }) {
             reply, and what is outstanding is the last thing they pass. */}
         <div className="px-6 pb-2">
           <KycPanel leadId={data.lead.id} />
+
+          {/* Why this lead is yours, and the two things you can do
+              about it. Its own note says it belongs "on the lead itself
+              rather than in settings, because that is where the
+              question occurs" — and it was on nothing at all. Returns
+              null when there is no routing history, so it is invisible
+              where it has nothing to say. */}
+          <LeadRouting leadId={data.lead.id} />
         </div>
 
         <div ref={endRef} />
@@ -155,10 +177,58 @@ export function Thread({ conversationId }: { conversationId: string }) {
                 Send
               </Button>
             </div>
+
+            {/* Sending a brochure or a floor plan.
+                
+                From `send-file.tsx`: "An agent test found this: a buyer
+                asks for the floor plan and the agent has to leave the
+                CRM, open WhatsApp and find the file. Seven conversation
+                procedures existed to do it properly and none had a
+                screen." They still had none — the component was written
+                and imported by nothing.
+                
+                No `listingId`: a conversation is with a person, not
+                about a property, so there is nothing on this thread that
+                says which listing they are discussing. Without it the
+                component offers the upload and hides the pick-an-
+                existing-file half, which is the honest behaviour rather
+                than an empty list. */}
+            {/* Behind a disclosure: the composer is the busiest part of
+                the busiest screen, and an attachment is occasional. */}
+            <div className="mt-2">
+              <button
+                onClick={() => setAttaching((a) => !a)}
+                aria-expanded={attaching}
+                className="min-h-11 px-2 t-label text-ink-3 hover:text-ink"
+              >
+                {attaching ? "Never mind" : "Attach"}
+              </button>
+              {attaching && (
+                <div className="mt-2">
+                  <SendFile conversationId={conversationId} windowOpen={w.open} />
+                </div>
+              )}
+            </div>
           </>
-        ) : (
-          <WindowClosed onTemplate={() => {}} onAssign={() => {}} />
-        )}
+        ) : null}
+
+        {/* The controls for this one conversation: silence the
+            assistant here, hand back, and — when the window has closed
+            — send an approved template.
+            
+            All three procedures existed and worked. The component
+            calling them was imported by nothing, so an agent could not
+            mute the assistant on a delicate negotiation from anywhere
+            in the product, and the two buttons on the closed-window
+            banner were `() => {}`. */}
+        <div className={w.open ? "mt-3" : ""}>
+          <ThreadControls
+            conversationId={conversationId}
+            muted={data.assistantMuted}
+            windowOpen={w.open}
+            handover={data.humanHandover}
+          />
+        </div>
       </div>
     </div>
   );

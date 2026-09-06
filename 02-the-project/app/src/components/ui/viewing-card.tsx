@@ -1,4 +1,16 @@
+"use client";
+
+// State, since the card now hosts the outcome form and the
+// reschedule panel. Both callers are already client components, so
+// this changes nothing at runtime — it states the requirement so a
+// future server-rendered caller fails at the boundary rather than
+// at the first click.
+
+import { useState } from "react";
+
 import { directions, dial, whatsapp, apart } from "@/lib/contact";
+import { Outcome } from "@/app/(app)/viewings/outcome";
+import { Reschedule } from "@/app/(app)/viewings/reschedule";
 import { cn } from "@/lib/cn";
 
 /**
@@ -14,6 +26,7 @@ import { cn } from "@/lib/cn";
 export function ViewingCard({
   viewing,
   previous,
+  onChanged,
 }: {
   viewing: {
     id: string;
@@ -27,7 +40,13 @@ export function ViewingCard({
     lat: number | null;
     lng: number | null;
     accessNote: string | null;
+    /** Whose diary and which property — `Reschedule` needs both. */
+    agentId?: string | null;
+    listingId?: string | null;
+    status?: string;
   };
+  /** Refetch the day after an outcome or a move. */
+  onChanged?: () => void;
   /** The stop before this one, so we can warn about the drive. */
   previous?: { lat: number | null; lng: number | null; scheduledAt: Date } | null;
 }) {
@@ -60,6 +79,11 @@ export function ViewingCard({
 
   // Rough, and deliberately pessimistic — Dubai traffic is not 60km/h.
   const tight = km != null && gapMins != null && km / 25 * 60 > gapMins - 30;
+
+  const [moving, setMoving] = useState(false);
+  // A slot that has been and gone. The outcome question belongs here and
+  // the offer to move it does not.
+  const past = new Date(viewing.scheduledAt).getTime() < Date.now();
 
   return (
     <article className="border-b border-rule py-4">
@@ -146,6 +170,40 @@ export function ViewingCard({
         <p className="text-sm text-ink-3 mt-2">
           No address on this one. Worth adding before you set off.
         </p>
+      )}
+
+      {/* Recording what happened, and moving it — both were written,
+          both were finished, and neither had ever been on a screen.
+          
+          `outcome.tsx` says of itself: "Asked once, in three taps, and
+          only after the slot has passed. An outcome form that appears
+          before the viewing is a form nobody trusts." So the card
+          follows its own instruction: past slots get the question,
+          future ones get the offer to move it. */}
+      {past ? (
+        <div className="mt-4">
+          <Outcome viewingId={viewing.id} onDone={onChanged} />
+        </div>
+      ) : (
+        <div className="mt-3">
+          <button
+            onClick={() => setMoving((m) => !m)}
+            aria-expanded={moving}
+            className="min-h-11 px-2 t-label text-ink-3 hover:text-ink"
+          >
+            {moving ? "Never mind" : "Move it"}
+          </button>
+          {moving && viewing.agentId && (
+            <div className="mt-2">
+              <Reschedule
+                viewingId={viewing.id}
+                agentId={viewing.agentId}
+                listingId={viewing.listingId ?? undefined}
+                onDone={() => { setMoving(false); onChanged?.(); }}
+              />
+            </div>
+          )}
+        </div>
       )}
     </article>
   );
