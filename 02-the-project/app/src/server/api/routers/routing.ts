@@ -4,6 +4,7 @@ import { TRPCError } from "@trpc/server";
 import { router, orgProcedure, requirePermission } from "../trpc";
 import { route, available, type Candidate } from "@/server/lib/routing/assign";
 import { checkProtection, summariseDispute, DEFAULT_PROTECTION_DAYS } from "@/server/lib/routing/ownership";
+import { firstResponseMedians } from "@/server/lib/routing/apply";
 import { audit } from "@/server/lib/audit";
 
 export const routingRouter = router({
@@ -199,6 +200,24 @@ async function candidatesFor(ctx: { db: any; orgId: string }): Promise<Candidate
     select: { userId: true, user: { select: { name: true } } },
   });
 
+  /**
+   * The same medians the real path decides on.
+   *
+   * This preview is what a manager reads before choosing a strategy, and
+   * it hardcoded `medianFirstResponseSeconds: null` exactly as the
+   * routing path did. Fixing only the path would have been worse than
+   * fixing neither: the screen would then say "no response history" for
+   * everybody while live routing quietly sorted on real numbers, and a
+   * manager comparing the two would trust the screen.
+   *
+   * One aggregate for the whole team, from the same function, so the
+   * preview and the decision cannot disagree.
+   */
+  const medians = await firstResponseMedians(
+    ctx.orgId,
+    members.map((m: any) => m.userId),
+  );
+
   return Promise.all(members.map(async (m: any) => {
     const [openLeads, availability, last] = await Promise.all([
       ctx.db.lead.count({ where: { assignedToId: m.userId, deletedAt: null,
@@ -217,7 +236,7 @@ async function candidatesFor(ctx: { db: any; orgId: string }): Promise<Candidate
       languages: availability?.languages ?? [],
       communities: availability?.communities ?? [],
       lastAssignedAt: last?.startedAt ?? null,
-      medianFirstResponseSeconds: null,
+      medianFirstResponseSeconds: medians.get(m.userId) ?? null,
     };
   }));
 }

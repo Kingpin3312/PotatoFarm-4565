@@ -160,6 +160,40 @@ export async function assignmentFor(
     return { userId: null, why: "no agents to route to", ruleId: rule.id };
   }
 
+  /**
+   * The one strategy that had nothing to sort by.
+   *
+   * `FASTEST` is a selectable option in the schema and on the routing
+   * screen — "by median first-response time" — and **both** places that
+   * built a `Candidate` set `medianFirstResponseSeconds: null`. Every
+   * agent compared equal, so a brokerage that chose performance-based
+   * routing silently got whoever came first out of the query, for ever.
+   *
+   * The reason string was honest about it ("no response history — next
+   * in rotation"), which is why nothing ever looked broken: the sentence
+   * was true and the setting was inert. That is the shape CLAUDE.md
+   * names — *if this setting were ignored, what would look different?*
+   * The answer here was nothing.
+   *
+   * ## One query, and only for this strategy
+   *
+   * `candidatesFor` is deliberately three queries rather than three per
+   * agent, because this runs inside the inbound webhook transaction. So
+   * this is one aggregate for the whole pool, and it is not issued at
+   * all unless the rule actually asks for it — round robin and least
+   * loaded pay nothing.
+   *
+   * Ninety days, because an agent's median over their whole career stops
+   * responding to whether they are fast *now*, which is the only version
+   * of the question a routing rule is asking.
+   */
+  if (rule.strategy === "FASTEST" && candidates.length > 1) {
+    const medians = await firstResponseMedians(args.orgId, candidates.map((c) => c.userId));
+    for (const c of candidates) {
+      c.medianFirstResponseSeconds = medians.get(c.userId) ?? null;
+    }
+  }
+
   const routed = route(rule.strategy, candidates, {
     language: args.language,
     community: args.community,
@@ -181,6 +215,53 @@ export async function assignmentFor(
  * fine on the inbound path of every WhatsApp message, where it would be
  * 3N round trips inside the webhook transaction.
  */
+/**
+ * Median seconds from a client's enquiry to their agent's first reply.
+ *
+ * The same measurement `reports.responseByHour` plots, grouped by the
+ * agent who owned the lead rather than by hour of day, so the two cannot
+ * disagree about what "first response" means.
+ *
+ * `crossTenant("sweep")` with an explicit `orgId` in the SQL, which is
+ * the idiom `reports.ts` uses for its raw aggregates: row-level security
+ * is the boundary, and the explicit filter is the statement of intent
+ * for a query that is not going through Prisma's own where clause.
+ *
+ * Agents with no answered enquiry in the window are absent from the
+ * result rather than present with a zero — `assign.ts` sorts an unknown
+ * median last on purpose, so that a new agent does not win a "fastest"
+ * contest by having never been slow.
+ */
+export async function firstResponseMedians(
+  orgId: string,
+  userIds: string[],
+): Promise<Map<string, number>> {
+  if (userIds.length === 0) return new Map();
+  const { crossTenant } = await import("@/server/db/client");
+  const since = new Date(Date.now() - 90 * 86_400_000);
+
+  const rows = await crossTenant("sweep").$queryRaw<
+    { userId: string; median_s: number | null }[]
+  >`
+    SELECT l."assignedToId" AS "userId",
+           PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (
+             (SELECT MIN(m."sentAt") FROM "Message" m
+                JOIN "Conversation" c ON c.id = m."conversationId"
+               WHERE c."leadId" = e."leadId" AND m.direction = 'OUTBOUND'
+                 AND m."sentAt" >= e."createdAt") - e."createdAt"))) AS median_s
+      FROM "Enquiry" e
+      JOIN "Lead" l ON l.id = e."leadId"
+     WHERE e."orgId" = ${orgId}
+       AND e."createdAt" >= ${since}
+       AND l."assignedToId" = ANY(${userIds})
+     GROUP BY 1
+  `;
+
+  return new Map(
+    rows.filter((r) => r.median_s !== null).map((r) => [r.userId, Number(r.median_s)]),
+  );
+}
+
 async function candidatesFor(
   tx: Assigner,
   orgId: string,
