@@ -388,7 +388,16 @@ function Actions({
                 <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
                   <p className="text-control leading-snug text-ink">
                     {a.leadId ? (
-                      <Link href={`/leads?open=${a.leadId}`} className="text-ink no-underline hover:underline">
+                      /* `/blackbook/<leadId>`, not `/leads?open=<leadId>`.
+                       
+                       Nothing on the leads screen reads `open` — it has
+                       no `useSearchParams` at all — so the most
+                       important link on the product's front door landed
+                       you on a list of forty-two leads with no sign of
+                       which one you had clicked. The blackbook person
+                       page takes a lead id directly and is what the
+                       agent wanted: everything said to this person. */
+                    <Link href={`/blackbook/${a.leadId}`} className="text-ink no-underline hover:underline">
                         {a.headline}
                       </Link>
                     ) : a.headline}

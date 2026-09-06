@@ -69,6 +69,7 @@
     "browser:screening-heading": "node --env-file-if-exists=.env scripts/screening-heading.mjs",
     "browser:kyc-details": "node --env-file-if-exists=.env scripts/kyc-details.mjs",
     "browser:viewing-links": "node --env-file-if-exists=.env scripts/viewing-links.mjs",
+    "browser:dead-links": "node --env-file-if-exists=.env scripts/dead-links.mjs",
     "check:links": "esbuild scripts/links.check.ts --bundle --platform=node --format=esm --outfile=.tmp/links.mjs --log-level=warning && node .tmp/links.mjs",
     "check:fastest": "esbuild scripts/fastest.check.ts --bundle --platform=node --format=esm --outfile=.tmp/fast.mjs --external:@prisma/client --log-level=warning && node --env-file-if-exists=.env .tmp/fast.mjs"
   },

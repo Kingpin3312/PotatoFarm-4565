@@ -19,7 +19,14 @@ export function MyViewings() {
       <h2 className="font-sans font-medium text-sub text-ink mb-3">Next two days</h2>
       <div className="border-t border-ink">
         {viewings.map((v) => (
-          <a key={v.id} href={`/viewings#${v.id}`}
+          /* The person, not `/viewings#<id>`.
+             
+             That fragment matched no element — the viewing card carries
+             no id — and the day view only ever shows today, so a row
+             for Tuesday had nowhere to land even in principle. Every
+             one of these rows is an appointment with somebody, and
+             their page is the thing an agent wants before they set off. */
+          <a key={v.id} href={`/blackbook/${v.lead.id}`}
              className="flex items-baseline gap-3 py-3 border-b border-rule no-underline">
             <span className="font-mono text-label text-ink-3 tabular w-24 shrink-0">
               {new Date(v.scheduledAt).toLocaleString("en-GB",
