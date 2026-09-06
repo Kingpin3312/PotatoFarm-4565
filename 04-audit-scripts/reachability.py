@@ -235,6 +235,55 @@ screens = "\n".join(open(p2).read() for p2 in
 routers = glob.glob(f"{ROOT}/src/server/api/routers/*.ts")
 
 REVENUE = {"billing"}
+
+# ---------------------------------------------------------------------
+# Procedures with no screen: a ratchet, not a note.
+#
+# This half of the check reported everything except `billing` as advisory,
+# and it stayed advisory for a long time. In that time it was quietly
+# describing, among others: `org.listingFeed`, so a brokerage could not
+# obtain the address a portal fetches; `aml.updateFile`, so a due
+# diligence file could not record where the money came from; and
+# `migration.abandon`, which `migration.start` names in its own error
+# message — "finish or abandon it first" — while nothing could abandon
+# anything.
+#
+# Every one of those was a real hole, and every one sat in a list of notes
+# nobody actioned, because a note costs nothing to leave.
+#
+# So an unreachable procedure fails now, and the way to make it pass is to
+# give it a screen or to say here why it does not need one. The
+# `KNOWN_UNWRITTEN` ratchet above works the same way and has already
+# proved the point: `Screening` was on it and came off when the write path
+# landed, because a line somebody must delete is harder to ignore than a
+# line nobody must.
+#
+# Reasons, not names. "It is fine" is not a reason.
+# ---------------------------------------------------------------------
+KNOWN_UNCALLED = {
+    "aml.checkRear":
+        "a pure calculator over payments passed in. `deals.payments` and "
+        "`aml.reportable` read DealPayment and call assessRear directly; this "
+        "is for a caller holding payments with no deal — an import, or a "
+        "what-if before a deposit is accepted",
+    "aml.visibilityPolicy":
+        "the tipping-off rules as data. The agent panel and the compliance "
+        "desk both state them in words, which is where somebody actually "
+        "reads them; this is for a client that wants the rules rather than "
+        "the sentences",
+    "leads.assign":
+        "the single-lead form of pipeline.bulkAssign, which has the screen "
+        "and handles one lead as readily as two hundred. Kept for a detail "
+        "screen or the mobile client; both write the same LeadOwnership rows "
+        "and must be changed together",
+    "onboarding.previewImport":
+        "a dry run of the importer. `migration.inspect` is the one the import "
+        "screen uses and it does the same work against the same parser",
+    "org.switch":
+        "switching between brokerages. Every user in this product belongs to "
+        "one; the procedure exists for when that stops being true, and there "
+        "is no second membership to switch to yet",
+}
 for rf in routers:
     router = os.path.basename(rf)[:-3]
     body = open(rf).read()
@@ -253,9 +302,20 @@ for rf in routers:
     if router in REVENUE:
         FAILS.append(f"no screen calls {router}.{', '.join(uncalled)} — "
                      f"the revenue path is unreachable from the app")
-    else:
-        NOTES.append(f"{router}: {len(uncalled)} of {len(procs)} procedures have no screen "
-                     f"({', '.join(uncalled[:4])}{'…' if len(uncalled) > 4 else ''})")
+        continue
+
+    # Named here with a reason, or it is a failure.
+    for pr in uncalled:
+        key = f"{router}.{pr}"
+        if key in KNOWN_UNCALLED:
+            NOTES.append(f"{key} has no screen — {KNOWN_UNCALLED[key]}")
+        else:
+            FAILS.append(
+                f"no screen calls {key} — a complete, permission-gated "
+                f"procedure nothing can reach. Give it a screen, or add "
+                f"'{key}' to KNOWN_UNCALLED in reachability.py with the "
+                f"reason it does not need one"
+            )
 
 
 # Screens calling a procedure with an argument it does not accept.

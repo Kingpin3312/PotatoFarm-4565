@@ -231,6 +231,31 @@ function Underway({ status }: { status: NonNullable<RouterOutputs["migration"]["
     onSuccess: () => void utils.migration.status.invalidate(),
   });
 
+  /**
+   * Stopping one, which the product told people to do and gave them no
+   * way to do.
+   *
+   * `migration.start` refuses a second migration with **"A migration
+   * from X is already under way. Finish or abandon it first."** —
+   * naming an action that existed as a procedure and had no caller. A
+   * brokerage whose first import went wrong could not start another, and
+   * the error message pointed at the door.
+   *
+   * The reason is required by the router, four characters minimum, and
+   * that is the right shape: cutting over is destructive and abandoning
+   * is a decision rather than a recovery. What it must not be is silent —
+   * a migration that stops with no reason is one nobody can learn
+   * anything from, and the next person imports the same broken export.
+   */
+  const [stopping, setStopping] = useState(false);
+  const [why, setWhy] = useState("");
+  const abandon = api.migration.abandon.useMutation({
+    onSuccess: () => {
+      setStopping(false); setWhy("");
+      void utils.migration.status.invalidate();
+    },
+  });
+
   const stage = plan.data?.stages.find((s) => s.state === status.state);
   const undecided = status.issues;
   const blockers = undecided.filter((i) => i.severity === "BLOCKER");
@@ -330,6 +355,50 @@ function Underway({ status }: { status: NonNullable<RouterOutputs["migration"]["
           The mapping is agreed
         </Button>
       )}
+
+      <div className="mt-8 border-t border-rule pt-5">
+        {!stopping ? (
+          <>
+            <Button variant="secondary" onClick={() => setStopping(true)}>
+              Stop this import
+            </Button>
+            <p className="mt-2 max-w-[48ch] text-note leading-snug text-ink-3">
+              Nothing already brought across is removed. Stopping only ends this
+              attempt, so another one can be started.
+            </p>
+          </>
+        ) : (
+          <form
+            className="max-w-[48ch] rounded-lg border border-rule bg-sunk p-4"
+            onSubmit={(e) => { e.preventDefault(); abandon.mutate({ reason: why.trim() }); }}
+          >
+            <label className="block">
+              <span className="t-label text-ink-3 mb-1 block">Why it is being stopped</span>
+              <textarea
+                required minLength={4} rows={2} value={why}
+                onChange={(e) => setWhy(e.target.value)}
+                placeholder="The export was incomplete — no viewing history came across."
+                className="w-full rounded-md border border-rule bg-raised p-3 text-control text-ink"
+              />
+            </label>
+            <p className="mt-2 text-note leading-snug text-ink-2">
+              This goes on the record with your name against it. The next person to try
+              reads it before they export again.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button variant="primary" type="submit" loading={abandon.isPending}>
+                Stop it
+              </Button>
+              <Button variant="secondary" type="button" onClick={() => setStopping(false)}>
+                Keep going
+              </Button>
+            </div>
+            {abandon.error && (
+              <p role="alert" className="mt-3 text-sm text-danger">{abandon.error.message}</p>
+            )}
+          </form>
+        )}
+      </div>
     </div>
   );
 }
