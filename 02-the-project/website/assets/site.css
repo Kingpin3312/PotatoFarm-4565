@@ -709,6 +709,34 @@ main p a:not([class]):hover{text-decoration-thickness:2px}
    own, so without this the first label butts straight up against the
    sentence above it. */
 .dform{display:grid;gap:18px;max-width:34rem;margin-top:32px}
+
+/* The booking page, in two columns from 900px.
+   
+   Everything on the page that exists to capture a lead sat in one
+   column of a 1120px wrap: the hero, then about three hundred and fifty
+   pixels of nothing, then the form — so on a 1440px laptop the right
+   half was empty and the form itself started below the fold. A
+   conversion page whose form you have to scroll to find is one that
+   converts worse for a reason that has nothing to do with the offer.
+   
+   Copy on the left, form on the right, and the gap between them closes
+   because they are now beside each other rather than stacked. Placed
+   rather than reordered, so the source order — and therefore the phone
+   — is untouched. */
+@media (min-width: 900px) {
+  #book .wrap {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 34rem);
+    column-gap: clamp(40px, 5vw, 72px);
+    align-items: start;
+  }
+  #book .wrap > .narrow { grid-column: 1 }
+  #book .wrap > .dform,
+  #book .wrap > .dform-done { grid-column: 2; margin-top: 0 }
+  /* The hero above it no longer needs to clear a form that is now
+     alongside the copy rather than under it. */
+  .hero + #book { padding-top: clamp(24px, 3vw, 40px) }
+}
 .dform-row{display:grid;gap:18px}
 @media(min-width:560px){.dform-row{grid-template-columns:1fr 1fr}}
 

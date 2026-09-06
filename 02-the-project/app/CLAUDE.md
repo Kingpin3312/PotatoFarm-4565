@@ -102,7 +102,7 @@ What is verified today, measured rather than assumed:
   `/api/health` returns `200 {"ok":true}` against a real Postgres.
 - The boot log names every unconfigured service with its consequence —
   six of them in a bare development environment.
-- 286 assertions in 14 files, 32 check suites, 21 audits, all green.
+- 286 assertions in 14 files, 32 check suites, 22 audits, all green.
 
 Type errors on a fresh checkout are no longer expected. If you get one,
 it is new.
@@ -430,7 +430,7 @@ send path read it.
 ## Run the tests
 
     npm test          # 285 assertions, pure functions, no database
-    npm run verify    # tsc, the tests, 32 check suites, 21 audits
+    npm run verify    # tsc, the tests, 32 check suites, 22 audits
 
 **The gate is now green end to end, including the two things that used
 to skip.** `verify` reports what it did not run rather than counting a
@@ -475,8 +475,10 @@ tenant isolation cannot be proved against a mock.
 
 ## Run the audits
 
-There are **fifteen**, in `04-audit-scripts/` at the repository root.
-All fifteen are green and all of them belong in CI.
+There are **twenty-two**, in `04-audit-scripts/` at the repository
+root. All twenty-two are green and all of them belong in CI. Twenty-one
+are Python; `reveal.mjs` needs a browser, which is why `run-all.sh`
+dispatches on the extension rather than assuming an interpreter.
 
     pip install -r ../../04-audit-scripts/requirements.txt
     ../../04-audit-scripts/run-all.sh

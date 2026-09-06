@@ -90,7 +90,11 @@ except (ValueError, TypeError):
     scripts = {}
 
 audit_dir = os.path.join(ROOT, "04-audit-scripts")
-audit_scripts = len([f for f in os.listdir(audit_dir) if f.endswith(".py")]) \
+# `.py` *and* `.mjs`. The first audit that needed a browser could not be
+# Python, and counting only Python meant the runner said 22 while this
+# said 21 — a check about stale numbers, itself carrying one.
+audit_scripts = len([f for f in os.listdir(audit_dir)
+                     if f.endswith((".py", ".mjs")) and not f.startswith("_")]) \
     if os.path.isdir(audit_dir) else 0
 
 TRUTH = {
@@ -100,6 +104,7 @@ TRUTH = {
     "procedures":    procedures,
     "jobs":          crons,
     "audit scripts": audit_scripts,
+    "audits":        audit_scripts,
     "check suites":  len([s for s in scripts if s.startswith("check:")]),
 }
 
@@ -121,6 +126,13 @@ PATTERNS = {
     # itself.
     "jobs":          r"(\d+)\s+(?:scheduled|cron)\s+jobs\b",
     "audit scripts": r"(\d+)\s+audit\s+scripts\b",
+    # "21 audits", which CLAUDE.md wrote twice and this file did not
+    # look for — so the count went stale the moment a twenty-second was
+    # added, in exactly the way the pattern above it exists to prevent.
+    # The two nouns share a truth because they are the same number:
+    # every script in `04-audit-scripts/` is an audit, whatever the
+    # sentence around it calls them.
+    "audits":        r"(\d+)\s+audits\b",
     "check suites":  r"(\d+)\s+check\s+suites\b",
 }
 

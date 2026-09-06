@@ -47,6 +47,12 @@ CHECKS=(
   "site-deep.py|$SITE"
   "claims.py|$SITE $APP"
   "design-audit.py|$SITE $APP $DESIGN"
+  # Content that never becomes visible. Every page hides itself on load
+  # and depends on an IntersectionObserver to bring it back, so a change
+  # to that observer's margins can strand whole sections — present in
+  # the HTML, indexed, and unreadable. Nothing else looks for it, and
+  # there is nothing in a screenshot or a build to notice.
+  "reveal.mjs|$SITE"
   "consistency.py|$ROOT"
   # Every contrast ratio written in a comment, against the colour beside
   # it. `contrast.py` computes ratios from the stylesheet and never reads
@@ -105,8 +111,20 @@ printf '%s\n\n' "─────────────────────
 for entry in "${CHECKS[@]}"; do
   script="${entry%%|*}"
   args="${entry#*|}"
+  # Dispatch on the extension, so an audit that needs a browser can sit
+  # in this list beside the ones that only need to read files.
+  #
+  # It was `python3 "$S/$script"` unconditionally. That is fine while
+  # every audit is Python and silently wrong the moment one is not — a
+  # `.mjs` would have been handed to the interpreter that cannot run it,
+  # failed on a syntax error, and read as the audit failing rather than
+  # as the runner being unable to start it.
+  case "$script" in
+    *.mjs) runner=(node) ;;
+    *)     runner=(python3) ;;
+  esac
   # shellcheck disable=SC2086
-  out=$(python3 "$S/$script" $args 2>&1); code=$?
+  out=$("${runner[@]}" "$S/$script" $args 2>&1); code=$?
 
   if [ "$code" -eq 0 ]; then
     pass=$((pass + 1))
