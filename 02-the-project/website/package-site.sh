@@ -52,7 +52,7 @@ fi
 
 rm -f "$OUT"
 ( cd "$HERE" && zip -q -r -X "$OUT" . \
-    -x "*.mjs" -x "package-site.sh" -x "DEPLOY.md" \
+    -x "*.mjs" -x "package-site.sh" -x "DEPLOY.md" -x "*.zip" \
     -x ".DS_Store" -x "__MACOSX/*" )
 
 echo "  wrote $OUT ($(unzip -Z1 "$OUT" | wc -l | tr -d ' ') files)"

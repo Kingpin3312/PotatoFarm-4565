@@ -21,6 +21,21 @@ export const amlRouter = router({
         where: { leadId: input.leadId },
         select: {
           status: true, riskRating: true, reviewDueAt: true,
+          /**
+           * The file's own contents, which this never returned.
+           *
+           * `updateFile` writes all of these and **no screen called it**,
+           * so a due diligence file could be opened, could collect
+           * documents, and could never record who the person actually is
+           * — no legal name beyond the one copied off the lead, no
+           * nationality, no identity document, and no source of funds or
+           * wealth. Those last two are not a nicety: a risk-based
+           * approach is what the regulation asks for, and "where did the
+           * money come from" is the question it is built around.
+           */
+          legalName: true, nationality: true, tradeLicence: true,
+          idType: true, idNumber: true, idExpiresAt: true,
+          sourceOfFunds: true, sourceOfWealth: true,
           documents: { select: { type: true, verifiedAt: true, expiresAt: true } },
           screenings: { select: { result: true }, orderBy: { screenedAt: "desc" }, take: 1 },
         },
@@ -40,6 +55,35 @@ export const amlRouter = router({
         message: onHold ? AGENT_VISIBLE_STATE.message : null,
         outstanding,
         unverified: kyc.documents.filter((d) => !d.verifiedAt).length,
+        /**
+         * Returned even while the file is held with compliance, because
+         * the agent is still told to carry on as normal — but the panel
+         * does not render it in that state, which is the existing rule
+         * about a held file showing one neutral sentence and nothing
+         * else. Kept here so the decision lives in the screen rather
+         * than being enforced twice.
+         */
+        file: {
+          legalName: kyc.legalName,
+          nationality: kyc.nationality,
+          tradeLicence: kyc.tradeLicence,
+          idType: kyc.idType,
+          idNumber: kyc.idNumber,
+          idExpiresAt: kyc.idExpiresAt,
+          sourceOfFunds: kyc.sourceOfFunds,
+          sourceOfWealth: kyc.sourceOfWealth,
+        },
+        /**
+         * What is still blank, in the order an inspector would ask.
+         * Counted here rather than in the screen so the agent's panel
+         * and any future summary cannot disagree about what "complete"
+         * means.
+         */
+        missing: ([
+          [!kyc.nationality, "nationality"],
+          [!kyc.idType || !kyc.idNumber, "an identity document"],
+          [!kyc.sourceOfFunds, "source of funds"],
+        ] as const).filter(([m]) => m).map(([, label]) => label),
       };
     }),
 

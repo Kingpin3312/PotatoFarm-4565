@@ -79,6 +79,12 @@ CHECKS=(
   # a warning about the first was already written into the repository.
   # Nothing fails when they go; search silently stops using an index.
   "migrations.py|$ROOT"
+  # The deployable archive against the site it was built from.
+  # `palette.py` reads its colours and only its colours; this reads the
+  # file list and the bytes. It has shipped missing ten files once, and
+  # a container reset has restored a month-old copy over a current one.
+  # It is gitignored, so nothing else will ever mention it.
+  "package.py|$ROOT"
 )
 
 pass=0; fail=0; failed=()
