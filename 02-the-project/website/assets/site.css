@@ -593,6 +593,21 @@ footer a:hover{color:var(--ink)}
 /* Shared section rules. These were inline in the approved homepage; they
    belong here now that eleven pages use them. */
 .hero .display{max-width:15ch}
+/* An interior hero gets a longer line, and finding out why took
+   measuring rather than reading.
+   
+   `.page-title` sets `max-width:18ch` and looks like the rule in
+   charge. It is not: `.hero .display` is two classes to its one, so the
+   **15ch wins** — and because `ch` is relative to the element's own
+   font, and `page-title` also drops the size to `--h1`, that 15ch
+   resolves to **400px**. Two rules that each looked reasonable
+   combined into a heading capped at a third of a 1120px wrap, wrapping
+   to three lines where two would do.
+   
+   The homepage keeps the short measure: its hero has the conversation
+   card beside it, so a narrow column is the point. A page with nothing
+   alongside just gets a ragged stack. */
+.hero .display.page-title{max-width:26ch}
 section h1.display{margin-bottom:0}
 
 
@@ -818,6 +833,19 @@ section.on-ocean{background:var(--leather)}
 /* Every inner-page title. It was set inline at 16ch, 18ch and 20ch on
    different pages — three measures for one element, which is drift
    rather than intent. One value now. */
+/* 26ch, not 18.
+   
+   Measured rather than adjusted by eye: `18ch` of `--h1` computes to
+   **400px**, inside a 1120px wrap — so every interior page's heading
+   sat in the left third of the line and wrapped to three lines where
+   two would do. It was also *narrower* than the homepage's own hero
+   cap, which is 667px, because `ch` is relative to the font and `--h1`
+   is smaller than `--display`; the two rules looked like the same
+   constraint and were not.
+   
+   A display line wants twenty to thirty characters. This gives about
+   twenty-six and stays relative, so it still tightens with the clamped
+   font size on a phone. */
 .page-title{font-size:var(--h1);max-width:18ch}
 
 /* A single-column steps grid, for the pages where each item is a full

@@ -225,27 +225,79 @@ NEXT_ENTRIES = {
 # here needs a sentence saying what it is waiting for — and if that
 # sentence is hard to write, the honest move is to delete the file
 # rather than to list it.
-KNOWN_UNMOUNTED: dict[str, str] = {}
+KNOWN_UNMOUNTED: dict[str, str] = {
+    # Six, found only after this check's own resolver was fixed — it had
+    # been matching `"./board"` as a bare string, so a file was reported
+    # reachable whenever *another* folder imported something of the same
+    # name. `offers/board.tsx` hid behind `pipeline/board.tsx` exactly
+    # that way. Import specifiers are resolved as paths now.
+    #
+    # Every one below is a distinct feature over a working procedure,
+    # not a duplicate. `offers/board.tsx` was the one duplicate and is
+    # deleted rather than listed, which is what this comment asks for.
+    "app/(app)/settings/assistant.tsx":
+        "what the assistant is allowed to spend. Distinct from the "
+        "`settings/assistant/` route beside it, which is what the "
+        "assistant asks a buyer — a budget is not a script",
+    "app/(app)/blackbook/export.tsx":
+        "taking your book with you when you leave. The blackbook screen "
+        "promises this in its own copy — 'it exports with you if you "
+        "ever leave' — and there is no way to do it",
+    "app/(app)/commission/record.tsx":
+        "recording what a deal pays and to whom, with the split "
+        "previewed before it is written",
+    "app/(app)/compliance/risk.tsx":
+        "the risk assessment, which takes factors and derives a rating "
+        "rather than asking an officer to pick one",
+    "app/(app)/pipeline/stages.tsx":
+        "the board's own columns, and rebalancing a stage that has "
+        "become a graveyard",
+    "app/(app)/settings/privacy/history.tsx":
+        "past erasure requests. An inspector asks what you did with "
+        "them, not only whether you honoured them",
+}
 
 src_root = os.path.join(ROOT, "src")
+
+# Every import specifier in the tree, resolved to the file it names.
+#
+# Needle-matching was the first approach and it was wrong in both
+# directions. `"./board"` matched anywhere in the tree, so
+# `offers/board.tsx` — which nothing imports — was reported reachable on
+# the strength of `pipeline/page.tsx` importing its own `./board`. And
+# scoping that needle to the directory then missed `../brief`, a
+# perfectly ordinary parent-relative import, so a component that *is*
+# mounted was reported as dead.
+#
+# Both are the same mistake: a specifier is a path, so resolve it like
+# one. `@/x` is the alias for `src/x` — the same mapping `tsconfig.json`
+# gives the compiler.
+IMPORTED = set()
+SPEC = re.compile(r'from\s+["\']([^"\']+)["\']')
+for f, src in files.items():
+    for spec in SPEC.findall(src):
+        if spec.startswith("@/"):
+            target = os.path.join(src_root, spec[2:])
+        elif spec.startswith("."):
+            target = os.path.normpath(os.path.join(os.path.dirname(f), spec))
+        else:
+            continue                       # a package, not our file
+        # A specifier carries no extension, and may name a directory's
+        # index. Both spellings resolve to the same file on disk.
+        for cand in (target + ".tsx", target + ".ts",
+                     os.path.join(target, "index.tsx"),
+                     os.path.join(target, "index.ts")):
+            IMPORTED.add(os.path.normpath(cand))
+
 tsx = [p for p in files if p.endswith(".tsx")]
-all_text = files  # already read above
 unmounted = []
 for p3 in sorted(tsx):
     base = os.path.basename(p3)
     if base in NEXT_ENTRIES:
         continue
-    rel = os.path.relpath(p3, src_root)
-    stem = base[:-4]
-    here = os.path.dirname(p3)
-    # How another file would name this one: a relative import from its
-    # own directory, or the "@/" alias from anywhere.
-    needles = (f'"./{stem}"', f"'./{stem}'",
-               f'"@/{rel[:-4]}"', f"'@/{rel[:-4]}'",
-               f'/{stem}"', f"/{stem}'")
-    if any(n in src for q, src in all_text.items() if q != p3 for n in (needles,)[0]):
+    if os.path.normpath(p3) in IMPORTED:
         continue
-    unmounted.append(rel)
+    unmounted.append(os.path.relpath(p3, src_root))
 
 news = [u for u in unmounted if u not in KNOWN_UNMOUNTED]
 for u in sorted(unmounted):

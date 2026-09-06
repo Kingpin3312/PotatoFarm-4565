@@ -15,12 +15,21 @@ export default function Offers() {
   const { data, isLoading, isError, refetch, error } = api.offers.live.useQuery();
 
   if (isError) return <QueryError retry={() => void refetch()} what="live offers" error={error} />;
-  if (isLoading) return <div className="max-w-[760px] mx-auto px-6 pt-10"><div className="h-40 bg-sunk rounded-sm" aria-busy /></div>;
+  if (isLoading) return <div className="max-w-[980px] mx-auto px-6 pt-10"><div className="h-40 bg-sunk rounded-sm" aria-busy /></div>;
 
   const rows = data ?? [];
 
   return (
-    <div className="max-w-[760px] mx-auto px-6 pb-24">
+    /**
+     * 980px, not 760.
+     *
+     * Every row is one line — amount, reference, time left — so this
+     * does not want the 1180 the ranked view takes; it wants enough
+     * that the three columns line up down the page instead of the
+     * reference floating next to a number of whatever length it
+     * happened to be.
+     */
+    <div className="max-w-[980px] mx-auto px-6 pb-24">
       <header className="pt-10 pb-6">
         <span className="t-label text-ink-3 block mb-3">
           Live
@@ -52,11 +61,17 @@ export default function Offers() {
               on that property, which is exactly what that screen is, so
               one change fixed both. */}
           {rows.map((o) => (
+            /* A grid, so the reference and the clock line up down the
+               page. As a flex row the reference sat wherever the amount
+               happened to end — different on every row, because the
+               amounts are different lengths. */
             <a key={o.id} href={`/offers/${o.listingId}`}
-               className="flex items-baseline gap-4 py-4 border-b border-rule no-underline">
+               className="grid grid-cols-[minmax(0,1fr)_auto] min-[700px]:grid-cols-[220px_minmax(0,1fr)_auto]
+                          items-baseline gap-x-6 gap-y-1 py-4 border-b border-rule no-underline
+                          -mx-2 px-2 rounded-sm transition-colors hover:bg-sunk">
               <span className="font-sans font-semibold text-body-lg text-ink tabular">{o.current}</span>
-              <span className="text-sm text-ink-2">{o.reference}</span>
-              <span className="ms-auto t-label"
+              <span className="text-sm text-ink-2 truncate">{o.reference}</span>
+              <span className="t-label justify-self-end"
                     style={{ color: o.hoursLeft != null && o.hoursLeft <= 24 ? "var(--danger-deep)" : "var(--tertiary)" }}>
                 {o.hoursLeft == null ? "no expiry" : o.hoursLeft <= 0 ? "expired" : `${o.hoursLeft}h`}
               </span>

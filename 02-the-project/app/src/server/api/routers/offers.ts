@@ -176,11 +176,32 @@ export const offersRouter = router({
   onListing: requirePermission("lead:read:own")
     .input(z.object({ listingId: z.string() }))
     .query(async ({ ctx, input }) => {
+      /**
+       * The property comes back too, and it used to be fetched and
+       * thrown away.
+       *
+       * This selected `{ id: true }` purely to prove the listing exists
+       * — so the screen that ranks every offer on one property could
+       * not name the property. Its heading read "3 offers" and nothing
+       * else: an agent arriving from a link, or a manager sent one, had
+       * no way to tell which of sixteen it was about.
+       */
       const listing = await ctx.db.listing.findFirst({
         where: { id: input.listingId, deletedAt: null },
-        select: { id: true },
+        select: {
+          id: true, reference: true, title: true, community: true,
+          building: true, bedrooms: true, priceFils: true, status: true,
+          vendor: { select: { id: true, name: true } },
+        },
       });
       if (!listing) throw new TRPCError({ code: "NOT_FOUND", message: "No such property." });
-      return compare(ctx.orgId, input.listingId);
+      return {
+        property: {
+          ...listing,
+          // Formatted here, so the screen never divides by a hundred.
+          asking: aedWhole(listing.priceFils),
+        },
+        offers: await compare(ctx.orgId, input.listingId),
+      };
     }),
 });

@@ -48,19 +48,32 @@ export default function OfferThread({ params }: { params: Promise<{ listingId: s
   const [confirming, setConfirming] = useState<string | null>(null);
 
   if (isError) return <QueryError retry={() => void refetch()} what="the offers" error={error} />;
-  if (isLoading) return <div className="max-w-[680px] mx-auto px-6 pt-10"><div className="h-64 bg-sunk rounded-sm" aria-busy /></div>;
+  if (isLoading) return <div className="max-w-[1180px] mx-auto px-6 pt-10"><div className="h-64 bg-sunk rounded-sm" aria-busy /></div>;
 
-  const offers = [...(data ?? [])].sort((a, b) => b.strength - a.strength);
+  const offers = [...(data?.offers ?? [])].sort((a, b) => b.strength - a.strength);
+  const property = data?.property;
 
   return (
-    <div className="max-w-[680px] mx-auto px-6 pb-24">
+    <div className="max-w-[1180px] mx-auto px-6 pb-24">
       <header className="pt-10 pb-6">
+        {/* Which property, which is what this screen could not say.
+        
+            The heading was "3 offers" and nothing else. This page is
+            keyed by a listing and ranks every bid on it — so an agent
+            arriving from a link, or a manager sent one, had no way to
+            tell which of sixteen properties it was about. The reference
+            is what they quote on the phone, so it leads. */}
         <span className="t-label text-ink-3 block mb-3">
-          On the table
+          {property ? `On the table · ${property.reference}` : "On the table"}
         </span>
         <h1 className="font-sans font-semibold text-page text-ink">
           {offers.length} offer{offers.length === 1 ? "" : "s"}
         </h1>
+        {property && (
+          <p className="text-ui text-ink-2 mt-2">
+            {property.title}
+          </p>
+        )}
         {offers.length > 1 && (
           <p className="text-sm text-ink-2 mt-3 max-w-[48ch]">
             Ordered by whether the buyer can actually complete, not by the number. Cash with
@@ -95,6 +108,15 @@ export default function OfferThread({ params }: { params: Promise<{ listingId: s
         </div>
       ) : null}
 
+      {/* The offers left, the property they are on to the right.
+      
+          Widened from 680px, which left half of a 1440px screen empty
+          on the screen carrying this product's central argument — that
+          strength beats price. The rail is the context a manager opening
+          a link needs and had no way to get: what is being asked, who
+          owns it, and how many bids are in. */}
+      <div className="grid gap-x-12 gap-y-8 min-[1100px]:grid-cols-[minmax(0,1fr)_300px] items-start">
+      <div className="min-w-0">
       <div className="border-t border-ink">
         {offers.map((o, i) => (
           <article key={o.id} className="py-5 border-b border-rule">
@@ -192,6 +214,51 @@ export default function OfferThread({ params }: { params: Promise<{ listingId: s
             )}
           </article>
         ))}
+      </div>
+      </div>
+
+      {property && (
+        <aside
+          aria-label="The property"
+          className="rounded-xl border border-rule bg-sunk p-5
+                     min-[1100px]:sticky min-[1100px]:top-6"
+        >
+          <span className="t-label text-ink-3">Asking</span>
+          <p className="mt-1.5 font-sans text-title font-semibold leading-none text-ink tabular">
+            {property.asking}
+          </p>
+          <p className="mt-2 text-note leading-snug text-ink-3">
+            {property.community}
+            {property.bedrooms != null && ` · ${property.bedrooms} bed`}
+          </p>
+
+          <dl className="mt-5 border-t border-rule">
+            {([
+              ["Reference", property.reference],
+              ["Status", sentence(property.status)],
+              ["Offers in", String(offers.length)],
+            ] as const).map(([k, v]) => (
+              <div key={k} className="flex items-baseline justify-between gap-3 border-b border-rule py-2.5">
+                <dt className="text-sm text-ink-3">{k}</dt>
+                <dd className="font-mono text-control tabular text-ink">{v}</dd>
+              </div>
+            ))}
+          </dl>
+
+          {/* The owner, because the next thing an agent does after
+              reading this page is ring them. */}
+          {property.vendor ? (
+            <a href={`/vendors/${property.vendor.id}`}
+               className="mt-4 inline-block text-sm text-accent-deep no-underline">
+              {property.vendor.name} &rarr;
+            </a>
+          ) : (
+            <p className="mt-4 text-sm text-ink-3 leading-snug">
+              No owner on file. Nobody can sign the Form F until there is.
+            </p>
+          )}
+        </aside>
+      )}
       </div>
     </div>
   );
