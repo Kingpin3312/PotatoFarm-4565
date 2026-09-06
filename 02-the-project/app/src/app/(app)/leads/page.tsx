@@ -53,7 +53,21 @@ export default function Leads() {
   });
 
   return (
-    <div className="max-w-[760px] mx-auto px-6 pb-24">
+    /**
+     * 1180px, the same as Today.
+     *
+     * It was 760, which on the 1440px laptop an owner is shown the
+     * product on left **680 pixels — nearly half the screen — empty**,
+     * with a 760px column floating left of centre while the header
+     * above it ran the full width. Three separate groups of people
+     * reported the product as visually unfinished and this was the
+     * clearest instance of it.
+     *
+     * The list is the thing that needed the room. Every row is name,
+     * band, source and owner on one line, and at 760 they were fighting
+     * for it — see the assignee column below.
+     */
+    <div className="max-w-[1180px] mx-auto px-6 pb-24">
       <header className="pt-10 pb-5">
         <div className="flex items-start justify-between gap-4 mb-3">
           <span className="t-label text-ink-3">
@@ -119,7 +133,7 @@ export default function Leads() {
         * mean "ring them" and "not today" say more anyway.
         */}
       {shape && shape.total > 0 && (
-        <div className="mb-6">
+        <div className="mb-6 max-w-[760px]">
           <Funnel
             caption="Leads by score"
             rows={shape.bands.map((b) => ({
@@ -184,8 +198,27 @@ export default function Leads() {
       ) : (
         <div className="border-t border-ink">
           {rows.map((l) => (
+            /**
+             * A grid, and a row that lights up under the pointer.
+             *
+             * As a flex row this was name-on-the-left and everything
+             * else pushed hard right, which is correct at 760px and a
+             * chasm at 1180: eight hundred pixels of nothing between
+             * "Michael Osei" and the chip that says how warm he is, on
+             * every row, with nothing to carry the eye across it.
+             *
+             * Fixed columns mean the band, the source and the owner
+             * line up down the page instead of floating at the end of
+             * whatever length the name happened to be — which is the
+             * thing that makes a wide list scannable rather than merely
+             * wide. The hover is the other half: it is what tells you
+             * which row you are reading at the far side of the screen.
+             */
             <div key={l.id} data-lead={l.id}
-                 className="flex flex-wrap items-center gap-x-3 gap-y-1 py-3 border-b border-rule">
+                 className="grid grid-cols-[auto_minmax(0,1fr)_104px] items-center gap-x-4 gap-y-1
+                            border-b border-rule py-3 -mx-2 px-2 rounded-sm
+                            transition-colors hover:bg-sunk
+                            min-[900px]:grid-cols-[auto_minmax(0,1fr)_104px_96px_128px]">
               <label className="flex items-center min-h-11 cursor-pointer">
                 <span className="sr-only">Select {l.name ?? l.phone}</span>
                 <input type="checkbox" checked={picked.has(l.id)} onChange={() => toggle(l.id)}
@@ -199,20 +232,40 @@ export default function Leads() {
                   the word is what an agent scans and the number is what
                   they argue with — and a word with no number behind it
                   is the kind of label people learn to ignore. */}
+              {/* Rendered even when there is none, as an empty cell.
+                  Conditionally *omitting* it collapses the column and
+                  slides the source and the owner one place left for
+                  that row alone — an unscored lead's "Referral" landing
+                  under everybody else's score chip, which reads as a
+                  layout bug rather than as missing data. */}
+              {!l.band && <span aria-hidden />}
               {l.band && (
                 <span data-band={l.band.band} title={l.band.blurb}
                       className={cn(
-                        "t-label px-1.5 py-0.5 rounded-[2px] border",
+                        "t-label px-1.5 py-0.5 rounded-[2px] border justify-self-end",
                         l.band.band === "GOLDEN" || l.band.band === "HOT"
                           ? "text-accent-deep border-accent-edge bg-accent-soft"
                           : "text-ink-3 border-rule")}>
                   {l.band.label} <span className="tabular">{l.score}</span>
                 </span>
               )}
-              <span className="t-label text-ink-3">
+              {/* Hidden below 900px rather than wrapped. On a phone
+                  the source is the least useful of the three and
+                  wrapping it put a third line under every row. */}
+              <span className="t-label text-ink-3 hidden min-[900px]:block truncate">
                 {sentence(l.source)}
               </span>
-              <span className="font-mono text-label text-ink-3 w-20 text-end tabular">
+              {/* 128px, not 80.
+                  At 80 every two-part name wrapped onto a second line —
+                  "Omar / Haddad" on every row of the demo book — while
+                  340 pixels of the same row sat empty to the right of
+                  it. A fixed column is right here, because the names
+                  should line up; the width was simply too small for the
+                  names it holds. `truncate` rather than a wider column
+                  for the rare long one: a row that grows a second line
+                  breaks the rhythm of the whole list. */}
+              <span className="font-mono text-label text-ink-3 truncate text-end tabular
+                               hidden min-[900px]:block">
                 {l.assignedTo?.name ?? "unassigned"}
               </span>
               {/* Why it is that warm, in the sweep's own words. An
@@ -220,7 +273,7 @@ export default function Leads() {
                   ignore, and the reason is also how they catch it being
                   wrong — the same argument as the Today list. */}
               {l.drivers.length > 0 && (
-                <p className="basis-full ps-8 text-note leading-snug text-ink-3">
+                <p className="col-span-full ps-8 text-note leading-snug text-ink-3">
                   {l.drivers.join(" · ")}
                 </p>
               )}

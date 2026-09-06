@@ -506,6 +506,44 @@ nav a.keep{}
 .thread .foot{margin-top:18px;padding-top:16px;border-top:1px solid var(--rule);
   font-size:var(--t-note);color:var(--ink-3)}
 
+/* The hero is two columns from 900px, and this is the single largest
+   visual fault anybody reported about this site.
+   
+   Everything in it — headline, paragraph, both buttons and the
+   conversation — was stacked in one column about 580px wide inside a
+   1120px wrap. On the 1440px laptop a brokerage owner is shown this on,
+   that left the right half of the screen empty above the fold, and it
+   pushed the conversation card — the one thing on the page that shows
+   the product working — below it. The first screen of the site was a
+   headline, a paragraph and a lot of white.
+
+   Placed rather than reordered: the markup stays in reading order, so
+   the source, the screen reader and the phone layout are unchanged and
+   only the desktop composition moves.
+
+   `:has()` scopes this to the one hero that actually contains a
+   conversation — every other page shares `.hero` and would otherwise
+   get an empty second column. A browser without `:has()` drops the
+   whole rule and gets the stacked layout, which is the state this
+   replaces rather than a broken one. */
+@media (min-width: 900px) {
+  .hero .wrap:has(.thread) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 470px);
+    column-gap: clamp(40px, 5vw, 76px);
+    align-items: start;
+  }
+  .hero .wrap:has(.thread) > .display { grid-column: 1; grid-row: 1 }
+  .hero .wrap:has(.thread) > .lead    { grid-column: 1; grid-row: 2 }
+  .hero .wrap:has(.thread) > .actions { grid-column: 1; grid-row: 3 }
+  /* Spanning all three rows and starting at the top, so the card sits
+     beside the headline rather than beside the buttons. */
+  .hero .wrap:has(.thread) > .thread {
+    grid-column: 2; grid-row: 1 / span 3;
+    margin-top: 8px; max-width: none;
+  }
+}
+
 .mid{text-align:center}
 .mid h2{max-width:20ch;margin:0 auto}
 .mid p{max-width:var(--measure);margin:var(--r) auto 0}
