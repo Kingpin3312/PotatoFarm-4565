@@ -80,9 +80,20 @@ PATTERNS = [
 def strip_comments(t):
     """Prose is not code — the same lesson `palette.py` and `erasure.py`
     both had to learn. Every one of these files explains the rule in a
-    comment that necessarily contains the words it forbids."""
-    t = re.sub(r"/\*.*?\*/", " ", t, flags=re.S)
-    t = re.sub(r"^[ \t]*//.*$", " ", t, flags=re.M)
+    comment that necessarily contains the words it forbids.
+
+    **Line count is preserved.** A block comment used to collapse to a
+    single space, which is correct for matching and wrong for reporting:
+    the line this printed was the line in the stripped text, and the
+    files it reads carry thirty-line doc comments. It named line 225 for
+    a fault on line 294 — sixty-nine lines out, in a file where nothing
+    resembling a formatter sits at 225, so the reader's first conclusion
+    is that the check is broken rather than that they are looking in the
+    wrong place. A check that finds a real fault and points somewhere
+    else costs most of what it is worth."""
+    t = re.sub(r"/\*.*?\*/",
+               lambda m: "\n" * m.group(0).count("\n"), t, flags=re.S)
+    t = re.sub(r"^[ \t]*//.*$", "", t, flags=re.M)
     return t
 
 

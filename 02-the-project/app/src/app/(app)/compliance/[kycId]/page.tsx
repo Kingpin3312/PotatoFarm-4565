@@ -3,8 +3,10 @@
 import { use, useState } from "react";
 import { api } from "@/lib/trpc";
 import { sentence } from "@/lib/sentence";
+import { aed } from "@/lib/money";
 import { Button } from "@/components/ui/button";
 import { QueryError } from "@/components/ui/query-state";
+import { AssessRisk } from "../risk";
 
 /**
  * One screening, and the decision.
@@ -39,11 +41,13 @@ export default function Screening({ params }: { params: Promise<{ kycId: string 
   const [rationale, setRationale] = useState("");
   const [notFiledReason, setNotFiled] = useState("");
   const [goamlRef, setRef] = useState("");
+  const [reassessing, setReassessing] = useState(false);
 
   if (isError) return <QueryError retry={() => void refetch()} what="this screening" error={error} />;
   if (isLoading) return <div className="max-w-[680px] mx-auto px-6 pt-10"><div className="h-64 bg-sunk rounded-sm" aria-busy /></div>;
 
-  const latest = data?.[0];
+  const latest = data?.screenings[0];
+  const subject = data?.subject;
   const noFiling = type === "NO_FILING";
   const ready = rationale.trim().length >= 10 && (!noFiling || notFiledReason.trim().length > 0);
 
@@ -133,7 +137,7 @@ export default function Screening({ params }: { params: Promise<{ kycId: string 
 
       <h2 className="font-sans font-medium text-sub text-ink mb-3">Screening history</h2>
       <div className="border-t border-ink mb-10">
-        {(data ?? []).map((s) => (
+        {(data?.screenings ?? []).map((s) => (
           <div key={s.id} className="flex items-baseline gap-3 py-3 border-b border-rule">
             <span className="font-mono text-label text-ink-3">
               {new Date(s.screenedAt).toLocaleDateString("en-GB")}
@@ -145,6 +149,48 @@ export default function Screening({ params }: { params: Promise<{ kycId: string 
           </div>
         ))}
       </div>
+
+      {/* The rating, which nothing could produce.
+
+          `risk.tsx` is a finished form over `aml.assessRisk` and no
+          screen imported it, so `KycRecord.riskRating` stayed
+          `UNASSESSED` on every file in the product — and
+          `reviewDueAt`, which the nightly sweep and the review queue
+          both read, was never written. A risk-based approach is the
+          thing the regulation actually asks for, and this is the whole
+          of it.
+
+          Above the filing decision, because the rating is one of the
+          inputs to that decision rather than a footnote after it. */}
+      <section className="mb-10">
+        <h2 className="font-sans font-medium text-sub text-ink mb-1">Risk rating</h2>
+        {subject && subject.riskRating !== "UNASSESSED" ? (
+          <>
+            <p className="text-ui text-ink">
+              {sentence(String(subject.riskRating))}
+              {subject.reviewDueAt && (
+                <span className="text-ink-2">
+                  {" "}· review due {new Date(subject.reviewDueAt).toLocaleDateString("en-GB")}
+                </span>
+              )}
+            </p>
+            <ul className="mt-2 space-y-1">
+              {subject.riskReasons.map((r, i) => (
+                <li key={i} className="text-sm text-ink-2 max-w-[52ch] leading-snug">{r}</li>
+              ))}
+            </ul>
+            {!reassessing ? (
+              <button onClick={() => setReassessing(true)} className="btn-inline mt-3 min-h-11">
+                Assess it again
+              </button>
+            ) : (
+              <RiskForm kycId={kycId} subject={subject} />
+            )}
+          </>
+        ) : (
+          <RiskForm kycId={kycId} subject={subject} />
+        )}
+      </section>
 
       <h2 className="font-sans font-medium text-sub text-ink mb-3">Your decision</h2>
       <div className="flex gap-2 flex-wrap mb-5">
@@ -208,6 +254,65 @@ function Area({ label, value, onChange, hint }: {
       <textarea id={id} rows={3} value={value} onChange={(e) => onChange(e.target.value)}
         className="w-full px-4 py-2.5 text-control text-ink bg-sunk border border-rule rounded-lg focus-visible:outline-none focus-visible:shadow-[var(--ring)]" />
       <p className="text-sm text-ink-2 mt-1.5 max-w-[46ch] leading-snug">{hint}</p>
+    </div>
+  );
+}
+
+/**
+ * The transaction value, and where it comes from.
+ *
+ * `assessRisk` takes it as a required input and the component that
+ * wraps it takes it as a required prop — deliberately, because a
+ * defaulted zero rates a fifty-million-dirham purchase one point lower
+ * than it is and says nothing about having done so.
+ *
+ * There is a deal for most files and its value is already recorded, so
+ * the ordinary case asks nobody anything. A file opened before the
+ * transaction exists — which `openFile` is explicitly for — has no
+ * value to read, and that is the case that asks, rather than the case
+ * that guesses.
+ */
+function RiskForm({ kycId, subject }: {
+  kycId: string;
+  subject: { dealReference: string | null; dealValueFils: bigint | null } | null | undefined;
+}) {
+  const [typed, setTyped] = useState("");
+
+  const known = subject?.dealValueFils ?? null;
+  if (known !== null) {
+    return (
+      <>
+        <p className="text-sm text-ink-2 mt-1 mb-1 max-w-[48ch] leading-snug">
+          Against {aed(known)}
+          {subject?.dealReference ? ` on ${subject.dealReference}` : ""}.
+        </p>
+        <AssessRisk kycId={kycId} dealValueFils={known} />
+      </>
+    );
+  }
+
+  // Not `dirhams`. `money.py` forbids a money helper named that outside
+  // `lib/money.ts`, and it is right to read the name rather than the
+  // output — a private `aed()` that returned a bare number is what the
+  // rule was written for. This is a typed amount, not a formatter, but
+  // an audit that has to tell those apart by reading the body is an
+  // audit that will one day get it wrong in the expensive direction.
+  const typedAmount = Number(typed.replace(/[^0-9.]/g, ""));
+  return (
+    <div className="mt-2">
+      <label htmlFor="txval" className="block t-label text-ink-3 mb-2">
+        Transaction value, in dirhams
+      </label>
+      <input id="txval" type="number" inputMode="decimal" value={typed}
+        onChange={(e) => setTyped(e.target.value)} placeholder="4200000"
+        className="w-48 min-h-11 px-4 text-control text-ink bg-sunk border border-rule rounded-lg focus-visible:outline-none focus-visible:shadow-[var(--ring)] tabular" />
+      <p className="text-sm text-ink-2 mt-1.5 max-w-[46ch] leading-snug">
+        There is no deal on this file yet, so there is no figure to read. Value is one of
+        the inputs to the rating — assessing without it would understate a large purchase.
+      </p>
+      {typedAmount > 0 && (
+        <AssessRisk kycId={kycId} dealValueFils={BigInt(Math.round(typedAmount * 100))} />
+      )}
     </div>
   );
 }

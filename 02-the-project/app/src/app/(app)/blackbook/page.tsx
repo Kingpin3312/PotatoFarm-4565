@@ -5,6 +5,7 @@ import { api } from "@/lib/trpc";
 import { QueryError } from "@/components/ui/query-state";
 import { cn } from "@/lib/cn";
 import { AddToBlackbook } from "./add";
+import { ExportBlackbook } from "./export";
 
 /**
  * The blackbook.
@@ -149,6 +150,16 @@ export default function Blackbook() {
           })}
         </div>
       )}
+
+      {/* The half of the ownership split this page has always promised
+          and could not do.
+
+          The header says the book "exports with you if you ever leave",
+          `blackbook.exportMine` builds the file, and nothing imported
+          the component over it — so the sentence was a claim with no
+          button behind it. Last on the page deliberately: it is the
+          thing an agent does once, not the thing they came for. */}
+      <ExportBlackbook />
     </div>
   );
 }

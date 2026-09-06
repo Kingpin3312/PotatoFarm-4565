@@ -384,6 +384,45 @@ nothing that starts it — and the sixth is the product itself:
    because listings silently never appearing looks exactly like a quiet
    market.
 
+**The same shape, one layer up: fifteen finished components no screen
+imported.** `architecture.py` grew a `KNOWN_UNMOUNTED` ratchet and it
+started at nine, went to fifteen when the resolver was fixed, and is
+**now empty**. Every one was a working form over a working procedure
+with no `import` anywhere: an agent could not export their blackbook
+though the page promised it, could not record what a deal pays,
+could not set the assistant's budget, and no compliance file in the
+product had ever been risk-rated — `KycRecord.riskRating` was
+`UNASSESSED` everywhere and `reviewDueAt`, which the nightly review
+sweep reads, had never been written by anything.
+
+Three lessons from clearing it, in the order they cost time:
+
+- **Mounting is not finished when it compiles.** Every one of the
+  fifteen needed work after it first rendered. Two examples: the
+  assistant form carried its own start/stop pair and its host already
+  has the kill switch, so the page grew a second, smaller stop button
+  that means the same thing; and the stage panel, put under the funnel,
+  printed the same six names against the same six counts and added
+  nothing until a column passed 120 leads.
+- **A component nothing renders is a component whose queries have never
+  run.** `commission.preview` takes a `BigInt` — money is fils — and
+  React Query hashes a query key with `JSON.stringify`, which *throws*
+  on a BigInt rather than skipping it. Mounting the form turned the
+  whole deals screen into "Application error: a client-side exception
+  has occurred". Nothing before it had put a BigInt in a query *input*;
+  mutations have no key, so every other amount-taking procedure was
+  fine and the hole was invisible. `providers.tsx` now sets a
+  `queryKeyHashFn`, because the rule it collided with — all money is
+  BigInt fils — is project-wide.
+- **A screen nothing renders is a screen whose router has never been
+  read back.** `privacy.erasureHistory` unpacked `after.phone`,
+  `after.leadId` and `after.deferredUntil`, and **no writer writes any
+  of the three**; it also filtered out `privacy.erasure_deferred`
+  entirely, so the one state that screen exists to prove — a request
+  held back by AML retention rather than ignored — could never appear
+  on it. A subject-access request, meanwhile, fell through to the
+  erasure branch and told the officer the person had been *scrubbed*.
+
 `architecture.py` catches a module nothing *imports*. `reachability.py`
 catches the subtler one — a module that is imported, called correctly,
 and whose entry condition never occurs. **A light switch wired to

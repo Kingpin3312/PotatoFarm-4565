@@ -492,16 +492,62 @@ export const amlRouter = router({
     };
   }),
 
+  /**
+   * One file: its screenings, and the facts the risk assessment needs.
+   *
+   * This returned a bare array of screenings, which is everything the
+   * screen showed and not everything the screen has to do.
+   * `assessRisk` — the procedure that turns questions of fact into a
+   * rating and a review interval — takes the **transaction value**, and
+   * there was no way to get it: `KycRecord` has no deal on it, and the
+   * only link between the two is `leadId`, which both carry and neither
+   * declares as a relation.
+   *
+   * So the value is resolved here rather than being asked of the
+   * officer, who would be typing a number that is already recorded. It
+   * is null when no deal exists — a file can be opened before there is
+   * a transaction, deliberately — and the screen asks for it in that
+   * case rather than sending a silent zero, which would rate every
+   * high-value deal one point lower than it is.
+   */
   screeningDetail: requirePermission("compliance:read")
     .input(z.object({ kycId: z.string() }))
     .query(async ({ ctx, input }) => {
-      const rows = await ctx.db.screening.findMany({
-        where: { kycId: input.kycId }, orderBy: { screenedAt: "desc" },
-      });
-      return rows.map((r) => ({
-        ...r,
-        guidance: interpret((r.matches as never) ?? []).guidance,
-      }));
+      const [rows, kyc] = await Promise.all([
+        ctx.db.screening.findMany({
+          where: { kycId: input.kycId }, orderBy: { screenedAt: "desc" },
+        }),
+        ctx.db.kycRecord.findUnique({
+          where: { id: input.kycId },
+          select: {
+            leadId: true, legalName: true, riskRating: true,
+            riskReasons: true, reviewDueAt: true,
+          },
+        }),
+      ]);
+
+      const deal = kyc?.leadId
+        ? await ctx.db.deal.findFirst({
+            where: { leadId: kyc.leadId },
+            orderBy: { agreedAt: "desc" },
+            select: { reference: true, valueFils: true },
+          })
+        : null;
+
+      return {
+        screenings: rows.map((r) => ({
+          ...r,
+          guidance: interpret((r.matches as never) ?? []).guidance,
+        })),
+        subject: kyc && {
+          legalName: kyc.legalName,
+          riskRating: kyc.riskRating,
+          riskReasons: kyc.riskReasons,
+          reviewDueAt: kyc.reviewDueAt,
+          dealReference: deal?.reference ?? null,
+          dealValueFils: deal?.valueFils ?? null,
+        },
+      };
     }),
 
   /** Filing, or deciding not to. Both are decisions and both are recorded. */

@@ -8,6 +8,7 @@ import { sentence } from "@/lib/sentence";
 import type { StepStage } from "@/server/lib/deals/risk";
 import { QueryError } from "@/components/ui/query-state";
 import { Payments } from "./payments";
+import { RecordCommission } from "../commission/record";
 
 /**
  * Deals, which nobody could see until now.
@@ -138,6 +139,9 @@ function Detail({ id }: { id: string }) {
   });
   const [blocking, setBlocking] = useState<StepStage | null>(null);
   const [reason, setReason] = useState("");
+  // A second fee on the same deal is legitimate — both sides, or a
+  // referral — and it is not the ordinary case, so it asks first.
+  const [adding, setAdding] = useState(false);
 
   if (isLoading || !data) {
     return <p className="pb-4 ps-[5.75rem] text-sm text-ink-3">Loading…</p>;
@@ -313,6 +317,48 @@ function Detail({ id }: { id: string }) {
       )}
 
       <Payments dealId={id} />
+
+      {/* What the deal pays, which nothing could record.
+
+          `commission/record.tsx` is a finished form over
+          `commission.preview` and `commission.record` and no screen
+          imported it — so the commission page's "Deals appear here the
+          moment a commission is recorded against them" described
+          something no agent could do. It belongs on the deal rather
+          than on the commission page, because the deal is where the
+          value and the rate are both in front of somebody.
+
+          Recorded fees are listed first. There is no unique constraint
+          on `Commission.dealId` — a deal can carry more than one fee —
+          so an unguarded form is a way to double the forecast by
+          pressing the button twice. */}
+      <section className="mt-6">
+        <h3 className="t-label text-ink-3">Commission</h3>
+
+        {data.commissions.length > 0 && (
+          <ul className="mt-2 border-t border-rule">
+            {data.commissions.map((c) => (
+              <li key={c.id} className="flex items-baseline gap-3 border-b border-rule py-2.5">
+                <span className="text-ui text-ink">{c.rate.toFixed(2)}%</span>
+                <span className="tabular text-ui font-medium text-ink">{c.gross}</span>
+                <span className="ms-auto t-label text-ink-3">{c.status.toLowerCase()}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {data.commissions.length === 0 ? (
+          <RecordCommission dealId={id} valueFils={data.valueFils} />
+        ) : (
+          !adding ? (
+            <button onClick={() => setAdding(true)} className="btn-inline mt-3 min-h-11">
+              Record another
+            </button>
+          ) : (
+            <RecordCommission dealId={id} valueFils={data.valueFils} />
+          )
+        )}
+      </section>
     </div>
   );
 }

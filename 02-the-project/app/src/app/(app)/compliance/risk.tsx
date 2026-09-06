@@ -18,23 +18,34 @@ import { Button } from "@/components/ui/button";
  * it was.
  */
 /**
- * Nothing mounts this yet.
+ * Mounted on `/compliance/[kycId]`, above the filing decision.
  *
- * `AssessRisk` is imported by no screen — the compliance pages show
- * screenings and reviews, and never offer the risk assessment that
- * `aml.assessRisk` exists to record. Worth knowing before anyone counts
- * risk rating as a working feature.
+ * The note that stood here said nothing imported it, which was true for
+ * as long as it stood — `KycRecord.riskRating` was `UNASSESSED` on
+ * every file in the product and `reviewDueAt`, which the nightly review
+ * sweep reads, had never been written by anything. It is struck out
+ * rather than deleted because a stale "not built" note is the more
+ * expensive kind of wrong: it invites the next person to build a second
+ * one.
  *
- * `dealValueFils` is a required prop rather than a defaulted one:
+ * `dealValueFils` is still a required prop rather than a defaulted one:
  * transaction value is one of the inputs that decides the rating, and a
- * silent zero would quietly rate every high-value deal as low risk.
- * Whoever mounts this has to supply it.
+ * silent zero would quietly rate every high-value deal as low risk. The
+ * host resolves it from the deal on the file, and asks for it when
+ * there is no deal yet.
  */
 export function AssessRisk({ kycId, dealValueFils }: {
   kycId: string;
   dealValueFils: bigint;
 }) {
-  const assess = api.aml.assessRisk.useMutation();
+  const utils = api.useUtils();
+  // The screen around this renders the rating off `screeningDetail`.
+  // Without the invalidation the panel above goes on saying
+  // "unassessed" beside this component's own success block, which reads
+  // as the assessment having failed.
+  const assess = api.aml.assessRisk.useMutation({
+    onSuccess: () => void utils.aml.screeningDetail.invalidate({ kycId }),
+  });
   const [f, setF] = useState({
     isPep: false, isNonResident: false, isCompany: false,
     uboCount: 0, cashInvolved: false,
@@ -90,6 +101,12 @@ export function AssessRisk({ kycId, dealValueFils }: {
             risk factor.
           </p>
         </div>
+      )}
+
+      {assess.isError && (
+        <p role="alert" className="text-sm text-danger mt-5 max-w-[46ch] leading-snug">
+          {assess.error.message}
+        </p>
       )}
 
       <Button variant="primary" className="mt-5" loading={assess.isPending}

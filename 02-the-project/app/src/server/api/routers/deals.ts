@@ -2,6 +2,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { router, requirePermission } from "../trpc";
 import { audit } from "@/server/lib/audit";
+import { aed } from "@/lib/money";
 import { assessRisk, STEP_STAGES, type RiskInput, type StepStage } from "@/server/lib/deals/risk";
 import { plan } from "@/server/lib/deals/timeline";
 import { transactionBlockers, refusalMessage } from "@/server/lib/documents/blockers";
@@ -111,6 +112,21 @@ export const dealsRouter = router({
           financing: true, sellerHasMortgage: true, contractualCompletionAt: true,
           agreedAt: true, leadId: true,
           listing: { select: { building: true, community: true } },
+          /**
+           * Whether a commission has already been recorded against it.
+           *
+           * `commission.record` creates a row every time it is called and
+           * nothing stops it being called twice — there is no unique
+           * constraint on `Commission.dealId`, deliberately, because a
+           * deal can carry more than one fee. What that means for a
+           * screen is that an unguarded "Record it" button is a way to
+           * double a brokerage's forecast by pressing it again, so the
+           * screen has to be able to say what is already there.
+           */
+          commissions: {
+            select: { id: true, rateBp: true, grossFils: true, status: true },
+            orderBy: { id: "desc" },
+          },
           milestones: {
             select: {
               stage: true, completedAt: true, blockedReason: true, note: true, dueAt: true,
@@ -197,6 +213,12 @@ export const dealsRouter = router({
         agreedAt: d.agreedAt,
         risk,
         steps,
+        commissions: d.commissions.map((c) => ({
+          id: c.id,
+          rate: c.rateBp / 100,
+          gross: aed(c.grossFils),
+          status: c.status,
+        })),
         blockers: blockers.map((b) => ({
           what: b.what, whose: b.whose, daysExpired: b.daysExpired, consequence: b.consequence,
         })),

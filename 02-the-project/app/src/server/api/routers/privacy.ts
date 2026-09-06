@@ -74,12 +74,26 @@ export const privacyRouter = router({
       const days = input?.days ?? 365;
       const rows = await ctx.db.auditLog.findMany({
         where: {
-          action: { in: ["privacy.erasure", "privacy.subject_access"] },
+          /**
+           * Three actions, and the third is the one that matters.
+           *
+           * This listed two, and `privacy.erasure_deferred` was not
+           * among them — which is the action `eraseSubject` writes when
+           * a live KYC file holds the request back. So the one state
+           * this screen exists to prove had been handled correctly
+           * **could never appear on it**: a deferred erasure was absent
+           * from the history entirely, which is indistinguishable from
+           * a request nobody acted on. That is the exact reading the
+           * screen was built to prevent.
+           */
+          action: {
+            in: ["privacy.erasure", "privacy.erasure_deferred", "privacy.subject_access"],
+          },
           createdAt: { gte: new Date(Date.now() - days * 86_400_000) },
         },
         orderBy: { createdAt: "desc" },
         select: {
-          id: true, action: true, createdAt: true, after: true,
+          id: true, action: true, createdAt: true, after: true, entityId: true,
           actor: { select: { name: true } },
         },
       });
@@ -98,20 +112,57 @@ export const privacyRouter = router({
        * one. Five-year AML retention outranks the request, and the due
        * date is when it will actually run.
        */
+      /**
+       * Read the keys the writers actually write.
+       *
+       * This unpacked `after.phone`, `after.leadId` and
+       * `after.deferredUntil`, and **none of the three is ever
+       * written**. `erase.ts` deliberately stores no phone and no name
+       * — a one-way `subject` fingerprint answers "have we already done
+       * this one?" without keeping the thing being erased — and
+       * `subjectAccess` stores the last four digits in `entityId`. So
+       * every row on this screen rendered as the fallback string, "a
+       * contact", with no way to tell one request from another. It went
+       * unnoticed because nothing imported the component that renders
+       * them.
+       *
+       * The identifier is deliberately weak in all three cases. That is
+       * the design and it is right: what an inspector needs from this
+       * list is that a request existed, what was decided, who decided
+       * it and when — not a directory of the people who asked to be
+       * forgotten.
+       */
       return {
         requests: rows.map((r) => {
           const after = (r.after ?? {}) as {
-            phone?: string; leadId?: string;
-            deferredUntil?: string; deferredReason?: string;
+            subject?: string; reason?: string; releaseAt?: string;
           };
+          const deferred = r.action === "privacy.erasure_deferred";
           return {
             id: r.id,
-            subject: after.phone ?? after.leadId ?? "a contact",
+            subject:
+              r.action === "privacy.subject_access"
+                // The last four digits, which is all `subjectAccess` keeps.
+                ? (r.entityId ? `number ending ${r.entityId}` : "a contact")
+                : after.subject
+                // The head of the erasure fingerprint. Not reversible,
+                // and enough to tell two rows apart.
+                ? `reference ${after.subject.slice(0, 8)}`
+                // A deferral writes no subject at all, and it is the one
+                // case where nothing has been erased yet — the record is
+                // still whole, so its id is not a disclosure. Without
+                // this, two people held back by the same obligation are
+                // two identical rows reading "a contact".
+                : r.entityId
+                ? `reference ${r.entityId.slice(-8)}`
+                : "a contact",
             requestedAt: r.createdAt,
-            state: after.deferredUntil ? ("DEFERRED" as const) : ("DONE" as const),
-            dueAt: after.deferredUntil ?? null,
-            reason: after.deferredReason ?? null,
-            kind: r.action === "privacy.erasure" ? ("ERASURE" as const) : ("ACCESS" as const),
+            state: deferred ? ("DEFERRED" as const) : ("DONE" as const),
+            dueAt: deferred ? after.releaseAt ?? null : null,
+            reason: after.reason ?? null,
+            kind: r.action === "privacy.subject_access"
+              ? ("ACCESS" as const)
+              : ("ERASURE" as const),
             by: r.actor?.name ?? null,
           };
         }),

@@ -4,6 +4,7 @@ import { KillSwitch } from "./kill-switch";
 import { CalendarFeed } from "./calendar";
 import { ListingFeed } from "./listing-feed";
 import { LanguageChoice } from "./language";
+import { AssistantSettings } from "./assistant";
 import { api } from "@/lib/trpc";
 import { QueryError } from "@/components/ui/query-state";
 
@@ -49,6 +50,15 @@ export default function SettingsPage() {
           </div>
         </>
       )}
+
+      {/* The ceiling, directly under what has been spent against it.
+
+          `assistant.tsx` was a finished form over `updateSettings` that
+          nothing imported, so `monthlyBudgetFils` and `warnAtPercent`
+          were columns only a database client could set — the figures
+          above had no lever beside them and the warning threshold that
+          decides when an owner hears about it was unreachable. */}
+      <AssistantSettings />
 
       {handovers && handovers.byReason.length > 0 && (
         <>

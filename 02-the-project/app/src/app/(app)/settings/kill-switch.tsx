@@ -22,6 +22,25 @@ export function KillSwitch() {
   const utils = api.useUtils();
   const { data , isError, refetch } = api.assistant.status.useQuery();
   /**
+   * Whether it is sending right now, read live.
+   *
+   * `status` carries `enabled` too, and this used it — behind the
+   * client's 30-second `staleTime`, which is right for a spend figure
+   * and wrong for the one control on this page. An owner who stops the
+   * assistant in another tab and comes back to this one was shown
+   * "Running" and a stop button for up to half a minute, with no way to
+   * tell that from the real thing.
+   *
+   * `assistant.isRunning` exists for exactly this and had no caller at
+   * all — `reachability.py` said so the moment the settings form that
+   * used to call it was trimmed. It is one uncached column read; the
+   * question "is it messaging my customers at this moment" does not
+   * have a cached answer.
+   */
+  const { data: live } = api.assistant.isRunning.useQuery(undefined, {
+    staleTime: 0, refetchOnWindowFocus: true,
+  });
+  /**
    * Rounded to the day. See the note in viewings/page.tsx — a live
    * timestamp in a query input is a new React Query key on every
    * render, and this one sits in the shell's settings screen refetching
@@ -38,14 +57,21 @@ export function KillSwitch() {
   const [reason, setReason] = useState("");
 
   const pause = api.assistant.pause.useMutation({
-    onSuccess: () => { void utils.assistant.status.invalidate(); dialog.current?.close(); },
+    onSuccess: () => {
+      void utils.assistant.status.invalidate();
+      void utils.assistant.isRunning.invalidate();
+      dialog.current?.close();
+    },
   });
   const resume = api.assistant.resume.useMutation({
-    onSuccess: () => void utils.assistant.status.invalidate(),
+    onSuccess: () => {
+      void utils.assistant.status.invalidate();
+      void utils.assistant.isRunning.invalidate();
+    },
   });
 
   if (!data) return null;
-  const running = data.enabled;
+  const running = live?.enabled ?? data.enabled;
   const perDay = volume ? Math.round(volume.enquiries / 7) : null;
 
   return (

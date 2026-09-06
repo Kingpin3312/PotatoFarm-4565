@@ -11,6 +11,19 @@ import { cn } from "@/lib/cn";
  * not a stage, it is a graveyard — and the usual cause is one agent
  * hoarding or one who left. Redistributing is a manager's decision, so
  * it says what it will do before it does it.
+ *
+ * ## What it shows on a brokerage with no graveyard
+ *
+ * Mounting it exposed the problem with the first version: it sat under
+ * the funnel on the board and printed the same six names against the
+ * same six counts, and everything it *added* — the unassigned split and
+ * the rebalance button — only appeared above 120 leads in a column. On
+ * a healthy pipeline it was the funnel again in a plainer typeface.
+ *
+ * So `unassigned` is shown at every size, not only past the threshold.
+ * It is the number the funnel cannot carry and the one that predicts a
+ * graveyard: a column of twelve where five belong to nobody is where
+ * the next one starts, and it is actionable while it is still small.
  */
 export function Stages() {
   const { data, isLoading, refetch } = api.pipeline.stages.useQuery();
@@ -24,8 +37,9 @@ export function Stages() {
         Stages
       </h2>
       <p className="text-sm text-ink-2 mb-4 max-w-[48ch]">
-        A column with hundreds of leads in it is not a stage, it is a graveyard. Usually one
-        agent hoarding, or one who left.
+        How many are in each column, and how many of those belong to nobody. A stage filling
+        with unowned leads is where a graveyard starts — usually one agent hoarding, or one
+        who left.
       </p>
 
       <div className="border-t border-ink">
@@ -36,7 +50,14 @@ export function Stages() {
               heavy && "border-s-[3px] border-s-accent-edge ps-4 -ms-4")}>
               <div className="flex items-baseline gap-3">
                 <span className="text-control text-ink">{s.name}</span>
-                <span className="ms-auto text-ui text-ink font-medium tabular">
+                {/* Unowned, always. The count beside it is already on
+                    the funnel above; this is not. */}
+                <span className="ms-auto text-sm text-ink-3 tabular">
+                  {s.unassigned > 0
+                    ? `${s.unassigned.toLocaleString()} unassigned`
+                    : "all owned"}
+                </span>
+                <span className="text-ui text-ink font-medium tabular min-w-[3ch] text-end">
                   {s.count.toLocaleString()}
                 </span>
                 {heavy && (

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { api } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
+import { ErasureHistory } from "./history";
 
 /**
  * Subject access and erasure.
@@ -117,6 +118,15 @@ export default function Privacy() {
           Deferred — there is a live KYC file. Scheduled for {erase.data.deferredUntil}.
         </p>
       )}
+
+      {/* What was done with the requests already made.
+
+          An inspector asks what happened to them, not only whether the
+          screen above exists — and a deferral in particular has to be
+          visibly a deferral rather than a request that went quiet. The
+          component renders nothing until there is a first request, so
+          this is not an empty heading on a new brokerage. */}
+      <ErasureHistory />
     </div>
   );
 }

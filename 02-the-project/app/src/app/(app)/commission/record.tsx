@@ -19,12 +19,27 @@ import { Button } from "@/components/ui/button";
 export function RecordCommission({ dealId, valueFils }: {
   dealId: string; valueFils: bigint;
 }) {
+  const utils = api.useUtils();
   const [rateBp, setRate] = useState(200);
   const preview = api.commission.preview.useQuery(
     { dealValueFils: valueFils, rateBp },
     { enabled: rateBp > 0 }
   );
-  const record = api.commission.record.useMutation();
+  /**
+   * Both caches, on success.
+   *
+   * Without this the deal it was just recorded against goes on offering
+   * to record it again — the guard that stops a second row reads
+   * `deals.one`, and a stale `deals.one` is a guard that has not heard
+   * about the thing it is guarding against. `commission.mine` is the
+   * page the success sentence sends the agent to.
+   */
+  const record = api.commission.record.useMutation({
+    onSuccess: () => {
+      void utils.deals.one.invalidate({ id: dealId });
+      void utils.commission.mine.invalidate();
+    },
+  });
 
   if (record.isSuccess) {
     return (
@@ -80,8 +95,17 @@ export function RecordCommission({ dealId, valueFils }: {
         </div>
       )}
 
+      {/* A refusal used to be silent. `record` recalculates the split
+          server-side and throws BAD_REQUEST when it does not total
+          100% — which arrived as a button that did nothing. */}
+      {record.isError && (
+        <p role="alert" className="text-sm text-danger mt-4 max-w-[46ch] leading-snug">
+          {record.error.message}
+        </p>
+      )}
+
       <Button variant="primary" className="mt-5" loading={record.isPending}
-        disabled={rateBp < 1}
+        disabled={rateBp < 1 || rateBp > 2000}
         onClick={() => record.mutate({ dealId, rateBp })}>
         Record it
       </Button>

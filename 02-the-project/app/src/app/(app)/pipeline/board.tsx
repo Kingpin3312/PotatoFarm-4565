@@ -7,6 +7,7 @@ import { QueryError } from "@/components/ui/query-state";
 import { aed, aedShort } from "@/lib/money";
 import { sentence } from "@/lib/sentence";
 import { Funnel } from "@/components/ui/chart";
+import { Stages } from "./stages";
 
 /**
  * The pipeline board.
@@ -23,6 +24,22 @@ export function Board() {
   const [conflict, setConflict] = useState(false);
 
   const [failed, setFailed] = useState<string | null>(null);
+
+  /**
+   * The stage list, behind a disclosure.
+   *
+   * `stages.tsx` was a finished panel over two working procedures that
+   * nothing imported, so a stage holding four hundred leads — the thing
+   * the funnel directly above is drawing — could be seen and not acted
+   * on. It sits here rather than on a settings screen because the
+   * decision to rebalance is made while looking at the shape, not an
+   * hour later somewhere else.
+   *
+   * Closed by default. The board is what an agent opens this page for,
+   * and an always-open panel would push the columns down the screen for
+   * everyone to serve a manager's occasional job.
+   */
+  const [stages, setStages] = useState(false);
 
   /**
    * The card moves on drop, not on the server's reply.
@@ -250,6 +267,14 @@ export function Board() {
                 {open.toLocaleString()} open · {aedShort(openValue)}
               </span>
             )}
+            <button
+              type="button"
+              onClick={() => setStages((v) => !v)}
+              aria-expanded={stages}
+              className="btn-inline ms-auto"
+            >
+              {stages ? "Hide stages" : "Stages"}
+            </button>
           </div>
           <Funnel
             caption="Pipeline"
@@ -260,6 +285,12 @@ export function Board() {
             }))}
             empty="Nothing in the pipeline yet. Stages fill as enquiries arrive and get qualified."
           />
+
+          {stages && (
+            <div className="mt-6">
+              <Stages />
+            </div>
+          )}
         </div>
       </div>
 

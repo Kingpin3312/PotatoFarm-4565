@@ -226,35 +226,22 @@ NEXT_ENTRIES = {
 # sentence is hard to write, the honest move is to delete the file
 # rather than to list it.
 KNOWN_UNMOUNTED: dict[str, str] = {
-    # Six, found only after this check's own resolver was fixed — it had
-    # been matching `"./board"` as a bare string, so a file was reported
-    # reachable whenever *another* folder imported something of the same
-    # name. `offers/board.tsx` hid behind `pipeline/board.tsx` exactly
-    # that way. Import specifiers are resolved as paths now.
+    # Empty, and it should stay that way.
     #
-    # Every one below is a distinct feature over a working procedure,
-    # not a duplicate. `offers/board.tsx` was the one duplicate and is
-    # deleted rather than listed, which is what this comment asks for.
-    "app/(app)/settings/assistant.tsx":
-        "what the assistant is allowed to spend. Distinct from the "
-        "`settings/assistant/` route beside it, which is what the "
-        "assistant asks a buyer — a budget is not a script",
-    "app/(app)/blackbook/export.tsx":
-        "taking your book with you when you leave. The blackbook screen "
-        "promises this in its own copy — 'it exports with you if you "
-        "ever leave' — and there is no way to do it",
-    "app/(app)/commission/record.tsx":
-        "recording what a deal pays and to whom, with the split "
-        "previewed before it is written",
-    "app/(app)/compliance/risk.tsx":
-        "the risk assessment, which takes factors and derives a rating "
-        "rather than asking an officer to pick one",
-    "app/(app)/pipeline/stages.tsx":
-        "the board's own columns, and rebalancing a stage that has "
-        "become a graveyard",
-    "app/(app)/settings/privacy/history.tsx":
-        "past erasure requests. An inspector asks what you did with "
-        "them, not only whether you honoured them",
+    # It held nine, then six after this check's own resolver was fixed —
+    # it had been matching `"./board"` as a bare string, so a file read
+    # as reachable whenever *another* folder imported something of the
+    # same name, and `offers/board.tsx` hid behind `pipeline/board.tsx`
+    # exactly that way. Import specifiers are resolved as paths now.
+    #
+    # All fifteen are mounted. A ratchet with nothing in it is the point
+    # of a ratchet: any new entry printed below is a component nothing
+    # renders, and that is a build failure rather than a line somebody
+    # adds here.
+    #
+    # If you are about to add one, the question to answer first is which
+    # screen it belongs on. Every one of the fifteen had an answer —
+    # what none of them had was the import.
 }
 
 src_root = os.path.join(ROOT, "src")
