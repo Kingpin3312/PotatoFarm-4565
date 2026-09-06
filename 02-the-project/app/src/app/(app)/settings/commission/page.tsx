@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { api } from "@/lib/trpc";
+import { aedShort } from "@/lib/money";
 import { QueryError } from "@/components/ui/query-state";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
@@ -96,7 +97,7 @@ export default function CommissionPlans() {
               <div className="flex gap-4 flex-wrap mt-2">
                 {r.tiers.map((t, i) => (
                   <span key={i} className="font-mono text-label text-ink-2">
-                    {t.fromFils === "0" ? "from 0" : `from ${aedShort(t.fromFils)}`}
+                    {t.fromFils === "0" ? "from 0" : `from ${aedShort(BigInt(t.fromFils))}`}
                     {" · "}
                     <span className="text-ink font-semibold">{(t.shareBp / 100).toFixed(0)}%</span>
                   </span>
@@ -244,17 +245,3 @@ function PlanEditor({
   );
 }
 
-/**
- * A threshold, shortened.
- *
- * Local rather than `money.ts`'s `aedShort`, because this takes fils as
- * a decimal *string* off the wire — the shape `parseTiers` writes — and
- * the shared formatter takes a bigint. Converting here keeps the wire
- * format in one place instead of teaching the money module about JSON.
- */
-function aedShort(fils: string): string {
-  const aed = Number(BigInt(fils) / 100n);
-  if (aed >= 1_000_000) return `AED ${(aed / 1_000_000).toFixed(aed % 1_000_000 === 0 ? 0 : 1)}m`;
-  if (aed >= 1_000) return `AED ${(aed / 1_000).toFixed(0)}k`;
-  return `AED ${aed}`;
-}

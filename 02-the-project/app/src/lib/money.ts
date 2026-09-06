@@ -48,6 +48,36 @@ export function aedShort(fils: bigint | null | undefined): string {
   return `AED ${value.toFixed(0)}`;
 }
 
+/**
+ * Whole dirhams as a bare number, for a machine. `2500000`
+ *
+ * Not for a screen — there is no currency word, no separators and no
+ * decimal, because the only readers are portal feeds and exports whose
+ * element already declares the currency: `<price currency="AED">`.
+ *
+ * It lived as a private `function aed()` inside `portals/feed.ts`,
+ * which is the hazard rather than the output. That output is correct;
+ * the *name* is not. `aed(l.priceFils)` in that file returned
+ * "2500000" while the identical call in every other file returns
+ * "AED 2,500,000.00", so moving one line between two files silently
+ * changed what a portal receives — in the one place where being wrong
+ * is invisible, because a feed rejection names only the first offending
+ * listing and looks like a quiet market.
+ *
+ * `money.ts` exists because there were five formatters and two of them
+ * assumed AED. A sixth, shadowing the name of the first, is that bug
+ * with better manners.
+ *
+ * Truncates rather than rounds, as the original did: BigInt division
+ * discards the fils. A property price is whole dirhams, so the case
+ * does not arise, and a portal is better served by a number one dirham
+ * low than by a decimal it may not accept.
+ */
+export function aedPlain(fils: bigint | null | undefined): string {
+  if (fils === null || fils === undefined) return "";
+  return String(fils / 100n);
+}
+
 /** Only at a boundary — an import, or a person typing a number. */
 export function aedToFils(aedValue: number): bigint {
   return BigInt(Math.round(aedValue * 100));

@@ -46,6 +46,34 @@ PATTERNS = [
     (re.compile(r'AED[^`"\']{0,12}\$\{[^}]*(?:/\s*100|Number\()'), "a hand-built AED string"),
     (re.compile(r'Intl\.NumberFormat\([^)]*currency'), "a second currency formatter"),
     (re.compile(r'toLocaleString\([^)]*currency'), "a second currency formatter"),
+    # A money formatter declared outside `money.ts`, whatever it prints.
+    #
+    # The three rules above all look for the *output* — the letters AED,
+    # or a currency-aware locale call. A private
+    #
+    #     function aed(fils: bigint | null): string {
+    #       return String(fils / 100n);
+    #     }
+    #
+    # sitting in `portals/feed.ts` matched none of them, because it emits
+    # a bare number. Its output was correct. Its **name** was the fault:
+    # `aed(l.priceFils)` returned "2500000" in that one file and
+    # "AED 2,500,000.00" in every other, so moving a line between two
+    # files silently changed what a portal receives — in the one place
+    # where being wrong is invisible, since a feed rejection names only
+    # the first offending listing and reads as a quiet market.
+    #
+    # `money.ts` exists because there were five formatters and two of
+    # them assumed AED. This catches the sixth by the shape that made it
+    # dangerous rather than by what it happened to print.
+    # `money` on its own is deliberately not in this list. `parse.ts`
+    # has a `money(word, suffix)` that turns "2.5m" into a number —
+    # a *parser*, the opposite direction, and matching it would be a
+    # check that fails on correct code, which teaches people to switch
+    # the check off.
+    (re.compile(r'\b(?:function|const|let)\s+(?:aed|dirhams?|fmtMoney|formatMoney)'
+                r'(?:Whole|Short|Plain|Full)?\s*[(=:]'),
+     "a money formatter declared outside money.ts"),
 ]
 
 

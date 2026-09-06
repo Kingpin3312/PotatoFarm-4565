@@ -79,7 +79,14 @@ export function ViewingCard({
         </p>
       )}
 
-      <div className="flex gap-2 mt-3">
+      {/* The row is capped, the buttons still stretch inside it.
+          `flex-1` on both is right on the phone this card was designed
+          for — an agent in a car park needs the whole width for a thumb
+          — and at 1440 it made two 310px bars, one of them solid
+          orange, twice per viewing. A max-width fixes the desktop
+          without a breakpoint: on a 390px screen the column is narrower
+          than the cap, so nothing about the phone layout changes. */}
+      <div className="flex gap-2 mt-3 max-w-[420px]">
         {map && (
           <a
             href={map}

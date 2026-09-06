@@ -1,4 +1,5 @@
 import { crossTenant } from "@/server/db/client";
+import { aedPlain } from "@/lib/money";
 import { validateForPublish, blocking } from "@/server/lib/feeds/validate";
 
 /**
@@ -152,12 +153,6 @@ function xml(value: string | null | undefined): string {
     .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "");
 }
 
-/** AED, whole units. Portals want a number, not a formatted string. */
-function aed(fils: bigint | null): string {
-  if (fils === null) return "";
-  return String(fils / 100n);
-}
-
 /**
  * A generic, well-formed listing feed.
  *
@@ -178,7 +173,7 @@ export function toXml(listings: FeedListing[], meta: { brokerage: string }): str
     <title>${xml(l.title)}</title>
     <description>${xml(l.description)}</description>
     <purpose>${xml(l.purpose)}</purpose>
-    <price currency="AED">${aed(l.priceFils)}</price>
+    <price currency="AED">${aedPlain(l.priceFils)}</price>
     <community>${xml(l.community)}</community>
     <building>${xml(l.building)}</building>
     <bedrooms>${l.bedrooms ?? ""}</bedrooms>

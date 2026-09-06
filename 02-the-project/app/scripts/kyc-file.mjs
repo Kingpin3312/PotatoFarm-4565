@@ -42,7 +42,7 @@ const org = await db.organisation.findFirst({ where:{deletedAt:null}, select:{id
  */
 const convos = await db.conversation.findMany({
   where: { orgId: org.id }, select: { id: true, leadId: true },
-  orderBy: [{ updatedAt: "desc" }, { id: "desc" }], take: 50,
+  orderBy: [{ lastInboundAt: "desc" }, { id: "desc" }], take: 50,
 });
 const convo = convos.find((c) => c.leadId);
 if (!convo) { console.error("no conversation to test against"); process.exit(1); }

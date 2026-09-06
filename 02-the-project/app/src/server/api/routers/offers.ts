@@ -3,7 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { router, orgProcedure, requirePermission } from "../trpc";
 import { counter, accept, compare } from "@/server/lib/offers/negotiate";
 import { audit } from "@/server/lib/audit";
-import { aed, usd } from "@/lib/money";
+import { aed, aedWhole, usd } from "@/lib/money";
 
 /**
  * Offers.
@@ -70,7 +70,7 @@ export const offersRouter = router({
 
       return {
         id: offer.id,
-        amount: aed(offer.amountFils),
+        amount: aedWhole(offer.amountFils),
         // Flagged here rather than blocked. An offer arrives before the
         // paperwork sometimes, and refusing to record it would send the
         // agent back to a WhatsApp group.
@@ -152,7 +152,7 @@ export const offersRouter = router({
         id: o.id,
         listingId: o.listingId,
         reference: ref.get(o.listingId) ?? "—",
-        current: aed(o.responses[0]?.amountFils ?? o.amountFils),
+        current: aedWhole(o.responses[0]?.amountFils ?? o.amountFils),
         hoursLeft: o.expiresAt
           ? Math.round((o.expiresAt.getTime() - Date.now()) / 3_600_000)
           : null,

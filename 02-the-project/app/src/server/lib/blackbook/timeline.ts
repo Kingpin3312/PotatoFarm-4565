@@ -57,7 +57,7 @@ export async function timeline(args: {
     }),
   ]);
 
-  const { aed } = await import("@/lib/money");
+  const { aedWhole } = await import("@/lib/money");
   const entries: Entry[] = [
     ...messages.map((m) => ({
       at: m.sentAt,
@@ -84,7 +84,7 @@ export async function timeline(args: {
       at: o.submittedAt,
       channel: "offer" as const,
       direction: "none" as const,
-      summary: `Offer ${aed(o.amountFils)} — ${o.status.toLowerCase()}`,
+      summary: `Offer ${aedWhole(o.amountFils)} — ${o.status.toLowerCase()}`,
     })),
   ].sort((a, b) => b.at.getTime() - a.at.getTime()).slice(0, take);
 

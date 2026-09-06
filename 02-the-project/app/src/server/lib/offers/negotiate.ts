@@ -1,6 +1,6 @@
 import { forOrg } from "@/server/db/client";
 import { audit } from "@/server/lib/audit";
-import { aed } from "@/lib/money";
+import { aed, aedWhole } from "@/lib/money";
 import { log } from "@/lib/log";
 import { openKycFile } from "@/server/lib/aml/open";
 
@@ -262,7 +262,7 @@ export async function accept(args: {
     return {
       ok: true as const,
       dealId: deal.id,
-      agreed: aed(agreedFils),
+      agreed: aedWhole(agreedFils),
       /** Who needs telling, by a person, today. */
       toTell: others.map((o) => ({ leadId: o.leadId, agentId: o.agentId })),
       /**
@@ -303,8 +303,8 @@ export async function compare(orgId: string, listingId: string) {
 
     return {
       id: o.id,
-      opened: aed(o.amountFils),
-      current: aed(current),
+      opened: aedWhole(o.amountFils),
+      current: aedWhole(current),
       // Movement matters. A buyer who has come up twice is a buyer with
       // room; one who opened and stood still is not.
       moves: o.responses.filter((r) => r.kind === "COUNTER").length,
@@ -325,7 +325,7 @@ export async function compare(orgId: string, listingId: string) {
       expiresAt: o.expiresAt,
       history: o.responses.map((r) => ({
         by: r.by, kind: r.kind,
-        amount: r.amountFils ? aed(r.amountFils) : null,
+        amount: r.amountFils ? aedWhole(r.amountFils) : null,
         note: r.note, at: r.at,
       })),
     };

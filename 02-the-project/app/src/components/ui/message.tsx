@@ -1,4 +1,5 @@
 import { cn } from "@/lib/cn";
+import { whenExact } from "@/lib/when";
 import type { Author, Direction, MessageStatus } from "@prisma/client";
 
 /**
@@ -52,9 +53,11 @@ export function Message({
       <p className={cn("text-ui", author === "SYSTEM" ? "text-ink-2" : "text-ink")}>{body}</p>
 
       <div className="t-label text-ink-3 mt-2 tabular">
-        {new Intl.DateTimeFormat("en-GB", {
-          hour: "2-digit", minute: "2-digit", timeZone: "Asia/Dubai",
-        }).format(sentAt)}
+        {/* The date too, once it is not today. This printed the time
+            alone, so a thread three days old read 17:58 → 18:18 with a
+            banner underneath it saying the conversation had been quiet
+            for over 24 hours. */}
+        {whenExact(sentAt)}
         {outbound && ` · ${status.toLowerCase()}`}
         {/* Meta's own wording, passed straight through. "Send failed"
             gives an agent nothing; "this number has blocked you" ends

@@ -40,6 +40,35 @@ function missing(error?: { data?: { code?: string } | null } | null): boolean {
   return error?.data?.code === "NOT_FOUND";
 }
 
+/**
+ * The frame all four states share.
+ *
+ * They each carried `px-6 py-10 max-w-[46ch]`, which pins the message
+ * to the top-left corner of an otherwise blank 1440x900 screen. The
+ * copy below is careful and the placement undid it: a single sentence
+ * hard against the top-left of nothing reads as a page that failed to
+ * render, which is the *opposite* of what these states are for — three
+ * of the four are the product working exactly as designed, and one of
+ * them is a compliance officer's screen being correctly withheld from
+ * an agent.
+ *
+ * Centred, in a panel, in the middle of the space it has. Same words,
+ * and now they look like a decision rather than a crash. The wrapper is
+ * shared so the next state added cannot drift from the other four.
+ */
+function Notice({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="px-6 py-16 grid place-items-center">
+      <div
+        role="alert"
+        className="w-full max-w-[46ch] rounded-xl border border-rule bg-sunk px-6 py-6"
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
 export function QueryError({
   retry,
   what,
@@ -56,7 +85,7 @@ export function QueryError({
 }) {
   if (signedOut(error)) {
     return (
-      <div role="alert" className="px-6 py-10 max-w-[46ch]">
+      <Notice>
         <p className="text-ui text-ink font-medium">You&rsquo;ve been signed out.</p>
         <p className="text-sm text-ink-2 mt-1.5">
           Sessions don&rsquo;t last forever. Sign in again and you&rsquo;ll come straight
@@ -70,13 +99,13 @@ export function QueryError({
         >
           Sign in
         </a>
-      </div>
+      </Notice>
     );
   }
 
   if (missing(error)) {
     return (
-      <div role="alert" className="px-6 py-10 max-w-[46ch]">
+      <Notice>
         <p className="text-ui text-ink font-medium">
           We can&rsquo;t find {what}.
         </p>
@@ -85,13 +114,13 @@ export function QueryError({
           affected.
         </p>
         {/* No Try again: it will not appear on a second attempt. */}
-      </div>
+      </Notice>
     );
   }
 
   if (refused(error)) {
     return (
-      <div role="alert" className="px-6 py-10 max-w-[46ch]">
+      <Notice>
         <p className="text-ui text-ink font-medium">
           You don&rsquo;t have access to {what}.
         </p>
@@ -101,17 +130,17 @@ export function QueryError({
         </p>
         {/* Deliberately no Try again. A button that cannot ever succeed
             is worse than no button: it teaches people to keep pressing. */}
-      </div>
+      </Notice>
     );
   }
 
   return (
-    <div role="alert" className="px-6 py-10 max-w-[46ch]">
+    <Notice>
       <p className="text-ui text-ink font-medium">Couldn&rsquo;t load {what}.</p>
       <p className="text-sm text-ink-2 mt-1.5">
         Nothing is lost — your data is safe. This is usually the connection.
       </p>
       <Button className="mt-4" onClick={retry}>Try again</Button>
-    </div>
+    </Notice>
   );
 }

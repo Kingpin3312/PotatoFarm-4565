@@ -123,7 +123,42 @@ export const conversationsRouter = router({
       })
     ),
 
-  /** The inbox list. Ordered by most recent activity, not by lead age. */
+  /**
+   * The inbox list, ordered by when the buyer last spoke.
+   *
+   * ## Not `updatedAt`, and the comment here used to say "most recent
+   * activity" while sorting on something that is not activity
+   *
+   * `updatedAt` is Prisma's `@updatedAt`: it moves on **any** write to
+   * the row. Muting the assistant on a thread, a handover flag, marking
+   * one read, a lead being reassigned — each one lifts a conversation
+   * to the top of the inbox as though the customer had just messaged.
+   * An agent works this screen downwards, so the cost is not cosmetic:
+   * the thing at the top is the thing they answer first, and an
+   * administrative write can put a three-week-old dead thread there.
+   *
+   * It was invisible until the seed wrote real messages. Re-anchoring
+   * eleven conversations touched eleven rows, and the whole inbox came
+   * back stamped with the same minute — every thread claiming activity
+   * that was a fixture script writing to the database.
+   *
+   * `lastInboundAt` is the honest signal for this screen, because this
+   * screen is a queue of people waiting on a reply: it moves when, and
+   * only when, somebody messages the brokerage. It is also the column
+   * the 24-hour window is measured from, so the order now agrees with
+   * the chip on each row instead of contradicting it.
+   *
+   * **The trade, stated:** a thread the agent has just answered does
+   * not jump to the top, and a conversation an agent opened outbound
+   * with no reply yet sorts last. Both are correct for a reply queue
+   * and would be wrong for an activity feed. If this ever needs to be a
+   * true "last message either way", that is a `lastMessageAt` column
+   * maintained on send and on receive — not another sort on a timestamp
+   * that means something else.
+   *
+   * `scripts/kyc-file.mjs` repeats this ordering so it can click the
+   * row it then reads out of the database. It changes with this.
+   */
   list: orgProcedure
     .input(z.object({
       filter: z.enum(["all", "unread", "handover", "mine"]).default("all"),
@@ -140,7 +175,7 @@ export const conversationsRouter = router({
         },
         take: input.limit + 1,
         cursor: input.cursor ? { id: input.cursor } : undefined,
-        orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+        orderBy: [{ lastInboundAt: { sort: "desc", nulls: "last" } }, { id: "desc" }],
         select: {
           id: true, unreadCount: true, humanHandover: true,
           lastInboundAt: true, updatedAt: true,

@@ -292,6 +292,30 @@ async function main() {
    * and a "Nobody's" tab that has quietly filled in cannot demonstrate
    * the thing it exists to show.
    */
+  /**
+   * The budgets, restated for the same reason the clock is.
+   *
+   * Adoption leaves whatever is in the database, and the checks write
+   * to leads as a side effect of testing other things — so Hannah, who
+   * the fixture says is looking at 1.4, was carrying 11.5, and Peter at
+   * 1.9 was carrying the same 11.5 as her. Nothing was broken and
+   * nothing looked broken until the transcripts went in: the inbox then
+   * showed a buyer saying "what can I get for 1.4?" beside a chip
+   * reading AED 11.5M, on the row above another one with the identical
+   * figure.
+   *
+   * Matched on name, which is what the fixture actually identifies a
+   * lead by, and only for names the fixture knows — a lead somebody
+   * added by hand is left alone.
+   */
+  for (const l of LEADS) {
+    if (!l.budgetMax) continue;
+    await db.lead.updateMany({
+      where: { orgId: org.id, name: l.name, deletedAt: null },
+      data: { budgetMaxFils: BigInt(l.budgetMax) * 100n },
+    });
+  }
+
   const spread = await db.lead.findMany({
     where: { orgId: org.id, deletedAt: null },
     orderBy: { createdAt: "asc" },
@@ -303,9 +327,73 @@ async function main() {
     // conversations, most within the fortnight, and two genuinely stale
     // so "gone quiet" has something true to find.
     const age = [0, 1, 2, 3, 5, 8, 11, 13, 21, 34, 61][i % 11] ?? 7;
+
+    /**
+     * The transcript, rewritten against the same clock.
+     *
+     * Written here rather than beside the conversation's `create`, for
+     * exactly the reason this whole block exists: a message stamped
+     * once with an absolute date drifts away from a `lastInboundAt`
+     * that is re-stated every run, and a thread whose last line is
+     * three weeks older than the "18h" chip beside it is a fixture
+     * arguing with itself.
+     *
+     * Cleared and rewritten rather than topped up, so running the seed
+     * twice does not produce a conversation that says the same thing
+     * twice.
+     */
+    const turns = THREADS[l.name ?? ""] ?? GENERIC;
+    await db.message.deleteMany({ where: { conversationId: l.conversation.id } });
+    const end = daysAgo(age).getTime();
+    await db.message.createMany({
+      data: turns.map(([who, body], k) => {
+        const inbound = who === "them";
+        // Four minutes apart, ending on the conversation's own clock.
+        const sentAt = new Date(end - (turns.length - 1 - k) * 4 * 60_000);
+        return {
+          orgId: org.id,
+          conversationId: l.conversation!.id,
+          direction: inbound ? ("INBOUND" as const) : ("OUTBOUND" as const),
+          author: inbound ? ("LEAD" as const)
+                : who === "bot" ? ("ASSISTANT" as const) : ("AGENT" as const),
+          body,
+          status: "READ" as const,
+          sentAt,
+          deliveredAt: sentAt,
+          readAt: sentAt,
+        };
+      }),
+    });
+
+    /**
+     * The badge, **derived** from the transcript rather than declared
+     * beside it.
+     *
+     * Unread means one thing: how many times the buyer has spoken since
+     * we last answered. Computing it from the messages makes the dot,
+     * the count and the last line of the thread incapable of
+     * disagreeing — which they were free to do while `unreadCount` was
+     * a number in the fixture and the transcript did not exist.
+     *
+     * The first version of this only *preserved* the declared count
+     * where the buyer spoke last, and the seed's own guard caught it
+     * immediately: "waiting on us matches 0 of 11 — that tab cannot
+     * catch a regression." On an adopted database the counts had
+     * already been zeroed by check runs marking threads read, so
+     * preserving them preserved nothing. Deriving restores the tab on
+     * every run, which is the whole point of this block.
+     */
+    const outbound = [...turns].reverse().findIndex(([w]) => w !== "them");
+    const unread = outbound === -1 ? turns.length : outbound;
     await db.conversation.update({
       where: { id: l.conversation.id },
-      data: { lastInboundAt: daysAgo(age) },
+      data: {
+        lastInboundAt: daysAgo(age),
+        lastOutboundAt: outbound === -1
+          ? null
+          : new Date(end - outbound * 4 * 60_000),
+        unreadCount: unread,
+      },
     });
   }
   /**
@@ -930,6 +1018,138 @@ async function compliance(orgId: string) {
     });
   }
 }
+
+/**
+ * What the conversations actually say.
+ *
+ * ## The inbox was empty, and it is the product
+ *
+ * Eleven conversations existed with a lead, a channel, an unread count
+ * and a 24-hour clock — and **not one message row between them**. The
+ * inbox of a WhatsApp-first CRM rendered eleven threads each reading
+ * "No messages yet", every one of them "Window closed", because a
+ * window opens on an inbound message and there were none.
+ *
+ * That is the shape this codebase keeps finding: everything around the
+ * thing exists and the thing itself has never been written. It is worse
+ * here than in the usual case, because the screen does not look broken
+ * — it looks like a brokerage nobody has messaged.
+ *
+ * ## The rules these have to obey
+ *
+ * A transcript that disagrees with the badge beside it is worse than no
+ * transcript. So:
+ *
+ * - A thread whose lead carries `unread` **ends with the buyer
+ *   speaking**, and one that does not ends with us. The dot and the
+ *   last line can then never contradict each other.
+ * - The final message is stamped at the conversation's own
+ *   `lastInboundAt`, which is re-anchored on every run — so the clock,
+ *   the transcript and the "Window Nh" chip all move together instead
+ *   of the transcript aging out from under the other two.
+ * - Nothing here quotes a price the assistant was not given. The
+ *   guardrails refuse an ungrounded figure, and a fixture that shows it
+ *   doing the opposite teaches the wrong thing to everybody who reads
+ *   it.
+ */
+type Turn = ["them" | "bot" | "agent", string];
+
+const THREADS: Record<string, Turn[]> = {
+  "Sarah Al Mansoori": [
+    ["them", "Hi, saw the 4-bed in Dubai Hills Grove. Is it still available?"],
+    ["bot", "It is. Are you buying to live in or as an investment?"],
+    ["them", "To live in. We're relocating in March."],
+    ["bot", "Understood. What sort of budget are you working to?"],
+    ["them", "Up to 12 if it's the right one."],
+    ["bot", "That works for this one. Omar looks after Dubai Hills — shall I ask him to call you?"],
+    ["agent", "Sarah, Omar here. I have the keys Saturday morning if you'd like to see it."],
+    ["them", "Saturday works. Can my husband join on video?"],
+    ["them", "Also — is the service charge included in what you quoted?"],
+  ],
+  "James Whitfield": [
+    ["them", "Following up on Palmera. Any movement from the seller?"],
+    ["agent", "They came back at 18. I've told them you were at 17.4 and they're thinking."],
+    ["them", "I can go to 17.8 but that's my ceiling."],
+    ["bot", "Noted — I've recorded 17.8 as your position and flagged it to Omar."],
+    ["them", "How long do they have to respond?"],
+  ],
+  "Emma Lindqvist": [
+    ["them", "Hello! Looking for a 2-bed in Marina, budget around 3.2"],
+    ["bot", "Marina at 3.2 is realistic for a 2-bed. Do you need it furnished?"],
+    ["them", "Unfurnished is fine. Ideally high floor."],
+    ["bot", "Noted. Are you buying with a mortgage or cash?"],
+    ["them", "Mortgage. Pre-approved with Emirates NBD."],
+    ["them", "Sorry, one more — do any of them allow pets?"],
+    ["them", "Hello? Still there?"],
+  ],
+  "Michael Osei": [
+    ["them", "Is the 1-bed in JVC still on?"],
+    ["bot", "It is. What's prompting the move?"],
+    ["them", "First place. Budget is 2.5 max, honestly a bit tight."],
+    ["bot", "That's workable in JVC. I'll have Omar send you three that fit."],
+    ["agent", "Michael, sent you three just now. The Arabian Ranches one is the best value of them."],
+  ],
+  "Grace Oyelaran": [
+    ["them", "Hi, enquiring about the villa in Arabian Ranches"],
+    ["bot", "Happy to help. Are you looking to buy or to rent?"],
+    ["them", "Buy. Around 4 million."],
+    ["bot", "That's the right range for a 3-bed there. When would you want to move?"],
+    ["them", "No rush, next six months."],
+    ["agent", "Grace, I'll keep an eye out and send anything that comes up. No pressure."],
+  ],
+  "David Chen": [
+    ["them", "do you have anything under 300k"],
+    ["bot", "Not in the communities we cover — 300k is below the entry point for Dubai Hills or Marina. I can tell you where it does buy something, if that helps."],
+    ["them", "ok"],
+    ["them", "what about jvc"],
+  ],
+
+  "Peter Nkemelu": [
+    ["them", "Do you have anything in Business Bay around 1.9?"],
+    ["bot", "At 1.9 that would be a studio or a small 1-bed in Business Bay. Is that the size you had in mind?"],
+    ["them", "1-bed ideally. It's an investment, not to live in."],
+    ["bot", "Understood — I'll flag you for anything that comes up with a tenant already in place."],
+  ],
+  "Claudia Moreau": [
+    ["them", "Bonjour, I saw your advert on Instagram"],
+    ["bot", "Hello — happy to help. Which property was it?"],
+    ["them", "The one in Jumeirah Village. Around 2.8?"],
+    ["bot", "That one has gone, but there are two similar on the same street. Shall I send them over?"],
+  ],
+  "Yusuf Demir": [
+    ["them", "Merhaba, looking for a 3-bed, budget 5.6"],
+    ["bot", "That opens up Dubai Hills and Arabian Ranches. Do you need it ready to move into?"],
+    ["them", "Yes, this year."],
+    ["agent", "Yusuf, I've put four together for you. Ranches is the better value at that budget."],
+  ],
+  "Hannah Kruger": [
+    ["them", "Hi, what can I get for 1.4?"],
+    ["bot", "At 1.4 you're looking at a studio in JVC or Dubai South. Would either work?"],
+    ["them", "Let me think about it."],
+    ["agent", "No rush at all Hannah. I'll check in if something good comes up."],
+  ],
+  "Rashid Al Falasi": [
+    ["them", "السلام عليكم، هل الفيلا في دبي هيلز متاحة؟"],
+    ["bot", "وعليكم السلام. نعم، ما زالت متاحة. هل تفضل الشراء أم الإيجار؟"],
+    ["them", "Buy. Around 11.5, cash."],
+    ["agent", "Rashid, a cash offer at that level is strong. I can get you in this week."],
+  ],
+};
+
+/**
+ * Anyone without a written thread still gets a real one.
+ *
+ * Two leads fell to this at once and the inbox showed **two adjacent
+ * rows with the same last line**, which reads as a rendering bug rather
+ * than as two people. So the named threads above cover every lead in
+ * the fixture, and this exists for a lead somebody adds later.
+ */
+const GENERIC: Turn[] = [
+  ["them", "Hi, is the property still available?"],
+  ["bot", "It is. What are you looking for — somewhere to live, or an investment?"],
+  ["them", "To live in."],
+  ["bot", "Noted. I've passed you to Omar, who covers that community."],
+];
 
 function daysAgo(n: number) {
   return new Date(Date.now() - n * 86_400_000);

@@ -5,6 +5,7 @@ import { cn } from "@/lib/cn";
 import { api } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { aed, aedShort } from "@/lib/money";
+import { when } from "@/lib/when";
 
 const FILTERS = [
   { id: "all", label: "All" },
@@ -94,8 +95,15 @@ export function InboxList({
               <span className="text-ui font-medium text-ink">
                 {c.lead.name ?? c.lead.phone}
               </span>
+              {/* The last message, not `updatedAt`.
+                  `updatedAt` moves on any write to the row — a mute, a
+                  handover flag, a reassignment — so the time beside a
+                  customer's name was the time somebody last touched the
+                  record, which is not what anybody reads it as. It is
+                  the same field, for the same reason, that this list
+                  used to be sorted by. */}
               <span className="ms-auto font-mono text-label tracking-[0.08em] text-ink-3 whitespace-nowrap">
-                {time(c.updatedAt)}
+                {c.messages[0] ? when(new Date(c.messages[0].sentAt)) : ""}
               </span>
             </span>
 
@@ -153,7 +161,3 @@ function ListSkeleton() {
     </div>
   );
 }
-
-const time = (d: Date) =>
-  new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Dubai" }).format(d);
-

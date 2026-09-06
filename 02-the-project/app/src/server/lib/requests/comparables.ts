@@ -1,5 +1,5 @@
 import { forOrg } from "@/server/db/client";
-import { aed } from "@/lib/money";
+import { aedWhole } from "@/lib/money";
 
 /**
  * The CMA equivalent, for a market with no MLS.
@@ -172,7 +172,11 @@ export async function comparables(args: {
 
   const withSqft = comps.filter((c) => c.sqft && c.sqft > 0);
   const perSqft = withSqft.length >= 3
-    ? aed(BigInt(Math.round(
+    // Whole dirhams: this is the mean of a handful of comparables, so
+    // `.00` on the end of it claims a precision the number does not
+    // have. A rate per square foot is quoted to a vendor as a round
+    // figure for the same reason.
+    ? aedWhole(BigInt(Math.round(
         withSqft.reduce((s, c) => s + Number(c.priceFils) / c.sqft!, 0) / withSqft.length)))
     : null;
   if (!perSqft && withSqft.length > 0) {
