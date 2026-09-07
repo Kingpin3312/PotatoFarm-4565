@@ -105,18 +105,23 @@ token, which the web app cannot do. Treat it as a design sketch.
 
 ## 4. What is built
 
-**75 database models · 62 enums · 27 API routers · 154 procedures ·
-43 screens · 28 scheduled jobs · 22 audit scripts · 32 check suites.**
+**75 database models · 62 enums · 27 API routers · 155 procedures ·
+44 screens · 28 scheduled jobs · 22 audit scripts · 32 check suites.**
 
-**Eight procedures have no screen.** Seven are deliberate:
-`migration.abandon`, `aml.updateFile`, `aml.checkRear`,
-`aml.visibilityPolicy`, `onboarding.previewImport`, `leads.assign` and
-`org.switch`. `reachability.py` prints them by name every run.
+**Five procedures have no screen, and every one of them deliberately:**
+`aml.checkRear`, `aml.visibilityPolicy`, `onboarding.previewImport`,
+`leads.assign` and `org.switch`. `reachability.py` prints them by name
+with the reason every run.
 
-The eighth, `copy.draftListing`, is **not** deliberate — it is
-unfinished. It built its prompt and never called the model, returning an
-empty description marked publishable. It throws `NOT_IMPLEMENTED` now.
-Its sibling `copy.checkCopy` works, needs no model, and has a screen.
+This said eight for a long time, and the three that left the list are
+worth knowing about because they left in different ways.
+`migration.abandon` and `aml.updateFile` were given the screens they
+needed. `copy.draftListing` was the one that was **not** deliberate — it
+built its prompt and never called the model, returning an empty
+description marked publishable — and it is off this list because it now
+throws `NOT_IMPLEMENTED` instead of pretending. It is still unfinished;
+see "what is not built". Its sibling `copy.checkCopy` works, needs no
+model, and has a screen.
 
 `listings.update` was on this list and was **not** deliberate: a
 property could be added and then never changed — not the price, not the

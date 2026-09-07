@@ -102,7 +102,7 @@ What is verified today, measured rather than assumed:
   `/api/health` returns `200 {"ok":true}` against a real Postgres.
 - The boot log names every unconfigured service with its consequence —
   six of them in a bare development environment.
-- 286 assertions in 14 files, 32 check suites, 22 audits, all green.
+- 296 assertions in 15 files, 32 check suites, 22 audits, all green.
 
 Type errors on a fresh checkout are no longer expected. If you get one,
 it is new.
@@ -468,7 +468,7 @@ send path read it.
 
 ## Run the tests
 
-    npm test          # 285 assertions, pure functions, no database
+    npm test          # 296 assertions, pure functions, no database
     npm run verify    # tsc, the tests, 32 check suites, 22 audits
 
 **The gate is now green end to end, including the two things that used
@@ -490,11 +490,14 @@ skip as a pass, and for a long time it reported two:
   simply did not run.
 
 `npm test` was declared from day one with no test files behind it, so it
-exited 1 and said "No test files found". There are eleven files now, and
+exited 1 and said "No test files found". There are fifteen files now, and
 they cover the pure logic where being wrong is silent: the fils unit, the
 24-hour window on both sides of the boundary, Dubai sending hours, the
 search parser's plural intents and budget bands, lead scoring, deal
-risk, and the assistant's guardrails.
+risk, the assistant's guardrails, and what a model turn costs — that
+last one because the spend ceiling is only as good as its arithmetic and
+it could not be tested at all until it moved out of a module that opens
+a database client.
 
 The guardrails file is the one to read first. It is the last code
 between a language model and a customer's WhatsApp, and it fails in two

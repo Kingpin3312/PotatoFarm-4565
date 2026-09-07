@@ -61,6 +61,25 @@ export const PERMISSIONS = [
   "kyc:approve",    // sign off the due diligence
   "compliance:read",   // reports, screening detail, risk rationale
   "compliance:file",   // decide to file, or decide not to
+
+  /**
+   * What the brokerage earned, across everybody.
+   *
+   * Its own permission rather than a reuse of `audit:read` or
+   * `member:update`, because the question it answers is neither
+   * auditing nor administration and the set of people who should be
+   * able to ask it is genuinely different from both.
+   *
+   * Deliberately **not** in the compliance officer's set. They see every
+   * client file in the brokerage and every report filed about one; what
+   * the firm bills is none of their business, and the separation only
+   * means something if it cuts both ways.
+   *
+   * An agent's own earnings need no permission at all — `commission.mine`
+   * scopes to the caller, and money an agent made is theirs to see
+   * before anybody asks.
+   */
+  "revenue:read",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -82,6 +101,10 @@ const MANAGER: Permission[] = [
   ...AGENT, "lead:read:all", "lead:assign", "lead:delete",
   "listing:write", "channel:read", "audit:read", "member:invite",
   "document:write",
+  // A sales manager runs the floor and is measured on what it bills.
+  // Withholding the number they are accountable for makes the board an
+  // instrument of management rather than a tool they use.
+  "revenue:read",
 ];
 
 const ADMIN: Permission[] = [

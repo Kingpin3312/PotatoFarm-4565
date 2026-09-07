@@ -36,6 +36,7 @@ export const en = {
   "nav.deals": "Deals",
   "nav.activity": "What it did",
   "nav.reports": "Reports",
+  "nav.revenue": "Revenue",
   "nav.mine": "Mine",
   "nav.leads": "Leads",
   "nav.listings": "Listings",

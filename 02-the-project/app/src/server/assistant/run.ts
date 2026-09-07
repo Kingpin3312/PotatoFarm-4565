@@ -11,7 +11,38 @@ import { extraction, sane, needsConfirmation } from "./extract";
 import { HANDOVER_TRIGGERS, type HandoverReason } from "./policy";
 import { gate, isMuted, record } from "./controls";
 
-const MODEL = process.env.ASSISTANT_MODEL ?? "claude-sonnet-4-6";
+/**
+ * The current Sonnet tier, and it was a generation behind.
+ *
+ * This said `claude-sonnet-4-6`. Sonnet 5 is both newer and cheaper —
+ * $2/$10 per million tokens against $3/$15 — so the move is a quality
+ * increase and a bill reduction in the same edit. `pricing.ts` carries
+ * both rates; a brokerage that pins the old one through
+ * `ASSISTANT_MODEL` is still billed correctly.
+ */
+const MODEL = process.env.ASSISTANT_MODEL ?? "claude-sonnet-5";
+
+/**
+ * Thinking, decided rather than inherited.
+ *
+ * This is the one thing the migration forces a choice about. Sonnet 4.6
+ * did not think unless asked; **Sonnet 5 thinks by default when the
+ * request omits the parameter**, so saying nothing here would have
+ * silently added reasoning tokens and latency to every reply.
+ *
+ * Off, for now, because of the budget directly below it: the promise is
+ * a reply in seconds, `AbortSignal.timeout(8000)` enforces it, and the
+ * failure mode when the model is slow is a **handover** — which is
+ * invisible, because a person answering an enquiry looks exactly like a
+ * working inbox. That is the failure this codebase has been caught by
+ * before, so the migration deliberately changes one thing at a time and
+ * keeps today's latency profile.
+ *
+ * `output_config: { effort: "low" }` with adaptive thinking is the
+ * tuning lever to try once there is real traffic to measure against —
+ * but it is a change to make with a stopwatch on it, not blind.
+ */
+const THINKING = { type: "disabled" } as const;
 
 /**
  * One turn of the assistant.
@@ -346,6 +377,7 @@ export async function callModel(system: string, history: { body: string; directi
     body: JSON.stringify({
       model: MODEL,
       max_tokens: 300,
+      thinking: THINKING,
       system,
       messages: history.map((m) => ({
         role: m.direction === "INBOUND" ? "user" : "assistant",
@@ -381,6 +413,7 @@ async function callExtractor(history: { body: string; direction: string }[]): Pr
     body: JSON.stringify({
       model: MODEL,
       max_tokens: 400,
+      thinking: THINKING,
       system:
         "Extract what the lead has actually said about their requirements. " +
         "Return JSON only, no prose and no code fences. Use null for anything " +

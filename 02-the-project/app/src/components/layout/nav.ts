@@ -63,6 +63,11 @@ export const SETTINGS_NAV: NavItem[] = [
   { href: "/deals", labelKey: "nav.deals" },
   { href: "/activity", labelKey: "nav.activity" },
   { href: "/reports", labelKey: "nav.reports" },
+  // What the brokerage earned. Beside Reports rather than under
+  // Settings, because it is the other half of "how are we doing" — and
+  // it refuses for an agent, the same way Compliance does two lines
+  // down, rather than being hidden from a nav everybody shares.
+  { href: "/reports/revenue", labelKey: "nav.revenue" },
   { href: "/me", labelKey: "nav.mine" },
   { href: "/leads", labelKey: "nav.leads" },
   { href: "/listings", labelKey: "nav.listings" },

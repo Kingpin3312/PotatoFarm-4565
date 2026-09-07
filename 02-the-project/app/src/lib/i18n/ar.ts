@@ -47,6 +47,7 @@ export const ar: Messages = {
   "nav.deals": "الصفقات",
   "nav.activity": "ما قام به",
   "nav.reports": "التقارير",
+  "nav.revenue": "الإيرادات",
   "nav.mine": "ما يخصني",
   "nav.leads": "العملاء المحتملون",
   "nav.listings": "العقارات",

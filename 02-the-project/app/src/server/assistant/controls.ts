@@ -1,3 +1,4 @@
+import { priceFils } from "./pricing";
 import { log, report } from "@/lib/log";
 import { aed } from "@/lib/money";
 import { crossTenant } from "@/server/db/client";
@@ -132,36 +133,15 @@ export async function record(u: {
 }
 
 /**
- * Rates in fils per million tokens, kept here so a pricing change is one
- * edit. The cost is written to the ledger at the time of the call rather
- * than computed at billing time — pricing changes, and a historical
- * invoice must not move underneath a customer.
- */
-type Rate = { in: number; out: number };
-
-/**
- * What an unrecognised model costs.
+ * Rates and the arithmetic moved to `pricing.ts`.
  *
- * A real constant rather than a `default` key inside the table, because
- * a key is an index read and `RATES[model] ?? RATES.default` is still
- * possibly undefined — the fallback needed a fallback.
- *
- * Erring high is deliberate: the spend ceiling should stop early against
- * an unknown model rather than let it run because we guessed cheap.
+ * They sat here, and this module opens a database client at module
+ * scope — so the one calculation standing between the assistant and a
+ * brokerage's spend ceiling could not be tested without a Postgres, and
+ * so was never tested. It is pure, it is money, and being wrong about it
+ * is silent, which is the exact profile of everything else in
+ * `npm test`.
  */
-const DEFAULT_RATE: Rate = { in: 1_100, out: 5_500 };
-
-const RATES: Record<string, Rate> = {
-  "claude-sonnet-4-6": { in: 1_100, out: 5_500 },
-};
-
-function priceFils(model: string, inTok: number, outTok: number): bigint {
-  // `RATES.default` is itself an index read and so also possibly
-  // undefined. Named as a constant so the fallback genuinely cannot be.
-  const r = RATES[model] ?? DEFAULT_RATE;
-  const cost = (inTok / 1_000_000) * r.in + (outTok / 1_000_000) * r.out;
-  return BigInt(Math.ceil(cost));
-}
 
 
 /** Turning it off. Deliberately not a general settings update. */

@@ -79,17 +79,34 @@ const ok = (l, p, d = "") => {
 const EXPECT = [
   {
     role: "VIEWER", token: "dev-session-viewer",
-    refused: ["/today", "/blackbook", "/deals", "/activity"],
+    refused: ["/today", "/blackbook", "/deals", "/activity", "/reports/revenue"],
     allowed: ["/search", "/listings", "/pipeline"],
   },
   {
+    /**
+     * `/reports/revenue` is refused here on purpose, and it is the one
+     * entry on this list somebody will try to "fix".
+     *
+     * A compliance officer sees every client file in the brokerage and
+     * every report filed about one. What the firm bills is a separate
+     * matter, and the separation the appointment exists to create only
+     * means something if it cuts both ways — the officer is kept out of
+     * the money for the same reason an admin is kept out of the
+     * reports.
+     */
     role: "COMPLIANCE_OFFICER", token: "dev-session-compliance_officer",
-    refused: ["/today", "/blackbook", "/deals", "/activity"],
+    refused: ["/today", "/blackbook", "/deals", "/activity", "/reports/revenue"],
     allowed: ["/search", "/listings", "/pipeline"],
   },
   {
+    /**
+     * The token is named `manager` and the role is AGENT — an agent is
+     * refused the revenue screen, and this is the assertion that says
+     * so. `commission.mine` is how they see their own earnings, and it
+     * needs no permission at all.
+     */
     role: "AGENT", token: "dev-session-manager",
-    refused: [],
+    refused: ["/reports/revenue"],
     allowed: ["/today", "/search", "/listings", "/blackbook", "/deals", "/activity", "/pipeline"],
   },
 ];
