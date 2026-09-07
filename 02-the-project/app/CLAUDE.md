@@ -664,21 +664,29 @@ with an empirical floor under it.
   designed behaviour, not a bug to tidy away**: the alternative is a
   stub returning no hits, which writes `CLEAR` and states in the record
   that a check happened.
-- **Drafting listing copy.** `copy.draftListing` builds the prompt and
-  never calls the model — the line was `const draft = ""`. It now throws
-  `NOT_IMPLEMENTED` rather than returning `{ draft: "", problems: [],
-  publishable: true }`, which is what it did: **an empty advertisement
-  marked fit to publish**, because `check("")` finds nothing wrong with
-  an empty string.
+- ~~**Drafting listing copy.**~~ **Built, and this entry was read as
+  current months after it stopped being true** — including by a
+  go-live review that reported the feature as missing to the person
+  paying for it. Left struck through for the same reason as the
+  heartbeat below: a stale "not built" line is the more expensive kind
+  of wrong, because it invites somebody to build a second one.
 
-  Its screen, `listings/draft-copy.tsx`, was mounted by nothing and is
-  deleted — recover it from `327f11b` when the model call is wired.
-  Worth knowing it existed: the UI is written, so finishing this is the
-  generation call and re-adding one component, not a feature.
+  What was true: `copy.draftListing` built its prompt and never called
+  the model, returning `{ draft: "", problems: [], publishable: true }`
+  — **an empty advertisement marked fit to publish**, because
+  `check("")` finds nothing wrong with an empty string. Then it threw
+  `NOT_IMPLEMENTED` instead.
 
-  `copy.checkCopy` is unaffected and genuinely works. It needs no model,
-  and checking copy an agent typed against the portal rules is the half
-  of this that is finished.
+  What is true now: it calls `callModel` from `assistant/run.ts` — the
+  assistant's own client, deliberately, because two HTTP clients to one
+  provider is how one of them quietly stops matching the other's model
+  or version header. It refuses with `PRECONDITION_FAILED` when
+  `ANTHROPIC_API_KEY` is absent rather than returning nothing, and it
+  refuses again if the model returns under forty characters, which is
+  the exact shape of the bug it used to be. It is reached from
+  `listings/check-copy.tsx`, so `reachability.py` no longer lists it.
+
+  `copy.checkCopy` needs no model and always worked.
 - **A portal publishing integration.** The structure is built —
   `portals/publish.ts` defines `Publisher`, `portals/queue.ts` drains
   the queue with a retry policy, and `listings.publish-queue` runs it

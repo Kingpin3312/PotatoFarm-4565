@@ -89,8 +89,24 @@ await p.waitForTimeout(2500);
 
 const body = await p.evaluate(()=>document.body.innerText.replace(/\s+/g," "));
 ok("the plan is listed", /from 0 · 50%/.test(body), (body.match(/from [^·]+· \d+%/g)??[]).join(" | "));
-ok("the second band survived the commas", /AED 1m · 60%/.test(body),
-   (body.match(/AED 1m · \d+%/)??["missing"])[0]);
+/**
+ * Pinned to the meaning, not to the money formatter's output.
+ *
+ * This asserted the literal string `AED 1m · 60%`, which was what
+ * `aedShort` rendered when the check was written. The formatter now
+ * produces `AED 1.0M`, so the assertion had been failing — and nothing
+ * ran this suite, so nobody knew. The stored value was correct the
+ * whole time; the later "stored as decimal strings" assertion proves
+ * it, and the screen was right too.
+ *
+ * What this line is *named* for is whether a threshold typed with
+ * commas survives the parse. If it does not, the band is dropped or its
+ * threshold collapses to zero — so what it needs to assert is a 60%
+ * band whose threshold is **not** the literal "from 0", with the
+ * formatted amount left deliberately unconstrained.
+ */
+ok("the second band survived the commas", /from (?!0 )[^·]+· 60%/.test(body),
+   (body.match(/from [^·]+· 60%/) ?? ["missing"])[0]);
 // The count drops by one, not to zero: this brokerage has five members
 // and only one of them has just been given a plan. Asserting "no gap"
 // was asserting a one-person company.

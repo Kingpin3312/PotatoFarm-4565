@@ -1,8 +1,13 @@
 # The gate, run by a machine instead of by memory.
 #
-# Twenty-four check suites and fifteen audit scripts existed before this
-# file did, and every document said they "belong in CI". Nothing ran
-# them. The whole quality argument rested on a person remembering — and
+# Dozens of check suites and audit scripts existed before this file did,
+# and every document said they "belong in CI". Nothing ran them.
+#
+# Counts are deliberately not written here in words any more. They were
+# — "twenty-four check suites", "fifteen audit scripts", "233 unit
+# assertions" — and every one of them went stale, in the file whose
+# entire purpose is that nothing goes unchecked. `counts.py` reads this
+# workflow now, so a number written here has to be true. The whole quality argument rested on a person remembering — and
 # the audit that produced this file found two suites that had been
 # passing while measuring nothing at all, which is exactly what happens
 # when checks are run by hand and their output is skimmed.
@@ -112,8 +117,27 @@ jobs:
             -c "ALTER ROLE potato_app LOGIN PASSWORD 'ci';"
           npm run db:seed
 
-      # `verify` is the whole gate: types, 233 unit assertions, 24 check
-      # suites and the 15 audit scripts. It reports what it did NOT run
+      # The marketing site, served over HTTP.
+      #
+      # `reveal.mjs` is one of the audits `run-all.sh` runs and it needs
+      # a real server — every page on that site hides itself on load and
+      # depends on an IntersectionObserver to bring it back, which cannot
+      # be checked off the filesystem. It was added after this workflow
+      # was last touched and nothing here started a server, so **every
+      # push since has failed at this step**. That is the failure mode
+      # this whole file exists to prevent, in the file itself.
+      - name: Serve the website
+        working-directory: 02-the-project/website
+        run: |
+          python3 -m http.server 8099 &
+          for i in $(seq 1 30); do
+            curl -sf -o /dev/null http://localhost:8099/index.html && exit 0
+            sleep 1
+          done
+          echo "the site server never came up"; exit 1
+
+      # `verify` is the whole gate: types, the unit assertions, the check
+      # suites and every audit script. It reports what it did NOT run
       # rather than counting a skip as a pass, so a green tick here means
       # the list was empty.
       - name: Verify
@@ -167,7 +191,7 @@ jobs:
 
       - run: npm ci
 
-      # Until this workflow existed, all twenty of these scripts imported
+      # Until this workflow existed, these scripts imported
       # Playwright from `/opt/node22/lib/node_modules/playwright/index.js`
       # — an absolute path that is correct on exactly one machine. They
       # could not run anywhere else, which is a large part of why they
@@ -181,6 +205,16 @@ jobs:
           PGPASSWORD=ci psql -h localhost -U postgres -d potatofarm \
             -c "ALTER ROLE potato_app LOGIN PASSWORD 'ci';"
           npm run db:seed
+
+      - name: Serve the website
+        working-directory: 02-the-project/website
+        run: |
+          python3 -m http.server 8099 &
+          for i in $(seq 1 30); do
+            curl -sf -o /dev/null http://localhost:8099/index.html && exit 0
+            sleep 1
+          done
+          echo "the site server never came up"; exit 1
 
       - name: Start the application
         run: |
@@ -209,3 +243,59 @@ jobs:
         run: npm run browser:option1
       - name: Accessibility
         run: npm run browser:a11y
+
+      # ------------------------------------------------------------------
+      # The fifteen that nothing ran.
+      #
+      # Twenty-two browser suites existed and automation ran seven. The
+      # other fifteen were complete, correct and reachable only by
+      # somebody typing their name — the same shape this codebase keeps
+      # producing, applied to its own quality apparatus. Two were red
+      # when they were finally run: `browser:commission-plan` had been
+      # asserting a money format superseded generations ago, and
+      # `browser:chaos` was raising a HIGH about a favicon that only
+      # fails when the site is read off the filesystem.
+      #
+      # **Order is deliberate.** The suites that only read run first;
+      # the ones that move or create rows run last. `optimistic-board`
+      # reads the board's live contents and picks the first card it
+      # finds, so it goes before anything that rearranges leads — it
+      # failed once inside a long mixed run and passed five times in
+      # isolation, which is the profile of a state dependency rather
+      # than a real fault, and the cheap fix is not to create the state.
+      # ------------------------------------------------------------------
+      - name: Palette, as a browser paints it
+        run: npm run browser:palette
+      - name: Links that resolve and go nowhere
+        run: npm run browser:dead-links
+      - name: The links on a viewing card
+        run: npm run browser:viewing-links
+      - name: The command palette, keyboard only
+        run: npm run browser:palette-keys
+      - name: Installable, and works with no signal
+        run: npm run browser:installable
+      - name: What a compliance file calls itself
+        run: npm run browser:screening-heading
+
+      - name: The board's optimistic move
+        run: npm run browser:optimistic-board
+      - name: The optimistic update, and its failure path
+        run: npm run browser:optimistic
+
+      - name: The working week
+        run: npm run browser:working-hours
+      - name: Opening a due diligence file
+        run: npm run browser:kyc-file
+      - name: Recording who the person is
+        run: npm run browser:kyc-details
+      - name: Adding a property
+        run: npm run browser:add-property
+      - name: Setting a commission plan
+        run: npm run browser:commission-plan
+      - name: Connecting a WhatsApp number
+        run: npm run browser:connect-channel
+
+      # Last: a broad sweep over both surfaces, and the one that reads
+      # the marketing site as well as the application.
+      - name: Chaos
+        run: npm run browser:chaos

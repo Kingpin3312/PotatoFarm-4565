@@ -157,6 +157,18 @@ DOCS = [
     # the codebase is before it has looked. A wrong number here is
     # believed for the whole session.
     os.path.join(APP, "CLAUDE.md"),
+    # **The CI workflow, which is not a document and carries counts
+    # anyway.** Its header explained itself with "twenty-four check
+    # suites and fifteen audit scripts", and a step comment said "233
+    # unit assertions, 24 check suites and the 15 audit scripts" — every
+    # one of them stale, in the one file whose entire purpose is that
+    # nothing goes unchecked by hand.
+    #
+    # This list held only `.md` files because a count was assumed to be
+    # a thing documents do. A number is a claim wherever it is written,
+    # and a comment in YAML is read by exactly the people who are about
+    # to trust it.
+    os.path.join(ROOT, ".github", "workflows", "verify.yml"),
 ]
 
 for doc in DOCS:
@@ -168,6 +180,9 @@ for doc in DOCS:
     lines = text.splitlines()
 
     def skip(line):
+        # `counts: ignore` works in an HTML comment or a `#` one — the
+        # marker is the phrase, not the syntax around it, so the same
+        # escape hatch reaches a workflow file as a markdown one.
         return "counts: ignore" in line or bool(HISTORICAL.search(line))
 
     for n, line in enumerate(lines, 1):

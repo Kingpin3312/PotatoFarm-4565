@@ -27,7 +27,39 @@ function chromePath() {
 
 const { chromium, devices } = pw;
 const R = "/home/user/PotatoFarm-4565";
-const SITE = `file://${R}/02-the-project/website`;
+/**
+ * The website, over HTTP when a server is up, and `file://` otherwise.
+ *
+ * It was always `file://`, and that produced a **HIGH severity finding
+ * that was never a fault**: the pages reference `/favicon.ico`
+ * root-relatively, which resolves to the filesystem root under
+ * `file://` and fails with `ERR_FILE_NOT_FOUND`. Served over HTTP — the
+ * way every actual visitor loads it — the same reference is correct.
+ *
+ * A check that cries HIGH about something that is not wrong is worse
+ * than one that stays quiet: this file's own note about the link
+ * checker makes the argument, that 80 false positives is how a suite
+ * stops being read. This one had one, and it was enough to make the
+ * severity meaningless.
+ *
+ * `reveal.mjs` already requires a server on 8099 and `run-all.sh`
+ * already assumes it, so this is the project's existing convention
+ * rather than a new requirement.
+ */
+const SITE_PORT = process.env.SITE_PORT ?? "8099";
+const SITE_HTTP = `http://localhost:${SITE_PORT}`;
+const siteServed = await fetch(`${SITE_HTTP}/index.html`)
+  .then((r) => r.ok)
+  .catch(() => false);
+const SITE = siteServed ? SITE_HTTP : `file://${R}/02-the-project/website`;
+if (!siteServed) {
+  console.log(
+    `  ! no site server on ${SITE_PORT}; reading the pages from disk. Root-relative\n` +
+    "    references cannot resolve that way, so a missing-resource finding here is\n" +
+    "    the loader rather than the site. Start one with:\n" +
+    "      (cd 02-the-project/website && python3 -m http.server 8099)",
+  );
+}
 
 /**
  * Resolve an internal link the way the host will, not the way the
