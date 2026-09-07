@@ -1,0 +1,50 @@
+# One host, and it is the apex.
+#
+# The domain is registered as www.potatofarm.io, and every canonical tag,
+# every sitemap entry and every Open Graph url in this site points at the
+# apex. Both hosts resolving without a redirect is duplicate content:
+# Google indexes two copies, splits the ranking between them, and the
+# canonical tags then contradict the host the visitor is actually on.
+#
+# 301 and `!` — permanent, and forced ahead of any other rule.
+https://www.potatofarm.io/*  https://potatofarm.io/:splat  301!
+
+# Extensionless URLs, because that is what the site claims about itself.
+#
+# **Three of these were missing and it would have been live breakage.**
+# The sitemap submits /trakheesi-permits, /uae-aml-for-brokerages and
+# /whatsapp-24-hour-window to Google, and every one of those pages
+# carries a canonical tag pointing at the extensionless form — but only
+# five rules existed here, so all three fell through to the catch-all and
+# returned 404.
+#
+# They are the guides. They are the entire content-marketing surface, the
+# thing a brokerage owner finds when they search "Trakheesi permit
+# expiry", and they would have been dead on day one while telling the
+# search engine to index them.
+#
+# 200, not 301: the extensionless URL *is* the page, so it is a rewrite.
+# A 301 to the .html would make the .html canonical and contradict every
+# canonical tag on the site.
+/product                   /product.html                   200
+/security                  /security.html                  200
+/demo                      /demo.html                      200
+/guides                    /guides.html                    200
+/legal                     /legal.html                     200
+/trakheesi-permits         /trakheesi-permits.html         200
+/uae-aml-for-brokerages    /uae-aml-for-brokerages.html    200
+/whatsapp-24-hour-window   /whatsapp-24-hour-window.html   200
+
+# The .html forms redirect to the canonical ones, so a link that escaped
+# with the extension on it consolidates rather than competing.
+/product.html                  /product                   301
+/security.html                 /security                  301
+/demo.html                     /demo                      301
+/guides.html                   /guides                    301
+/legal.html                    /legal                     301
+/trakheesi-permits.html        /trakheesi-permits         301
+/uae-aml-for-brokerages.html   /uae-aml-for-brokerages    301
+/whatsapp-24-hour-window.html  /whatsapp-24-hour-window   301
+
+# Anything else.
+/*  /404.html  404

@@ -1,0 +1,7 @@
+# The only third-party dependency across the thirteen scripts.
+# The HTML checks parse the built pages rather than trusting the
+# templates that produced them.
+#
+#   pip install -r 04-audit-scripts/requirements.txt
+#
+beautifulsoup4>=4.12
