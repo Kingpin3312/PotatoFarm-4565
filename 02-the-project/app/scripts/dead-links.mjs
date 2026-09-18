@@ -28,7 +28,8 @@
  */
 import fs from "node:fs";
 import path from "node:path";
-import pw from "/opt/node22/lib/node_modules/playwright/index.js";
+import pw from "playwright";
+import { chromePath as cp } from "./_browser.mjs";
 import { sessionCookies } from "./lib/session-cookie.mjs";
 import { countRequests, open } from "./lib/settle.mjs";
 
@@ -46,9 +47,7 @@ const SCREENS = [
   "/reports", "/team", "/activity", "/search", "/me", "/settings",
 ];
 
-const b = await pw.chromium.launch({
-  executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome",
-});
+const b = await pw.chromium.launch({ executablePath: cp() });
 const ctx = await b.newContext({ viewport: { width: 1440, height: 900 } });
 await ctx.addCookies(sessionCookies("dev-session-token-ask-history"));
 

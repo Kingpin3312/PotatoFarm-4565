@@ -16,9 +16,7 @@ import { sessionCookies } from "./lib/session-cookie.mjs";
  *     npm run dev
  *     npm run check:availability
  */
-function cp(){const r="/opt/pw-browsers";if(fs.existsSync(`${r}/chromium`))return `${r}/chromium`;
- for(const d of fs.readdirSync(r).filter(x=>x.startsWith("chromium")).sort().reverse()){
-   const p=`${r}/${d}/chrome-linux/chrome`;if(fs.existsSync(p))return p;}}
+import { chromePath as cp } from "./_browser.mjs";
 const APP = process.env.APP_URL ?? "http://localhost:3000";
 const SECRET = process.env.WHATSAPP_APP_SECRET;
 if (!SECRET) { console.error("WHATSAPP_APP_SECRET is not set."); process.exit(1); }

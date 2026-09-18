@@ -11,19 +11,7 @@ import { sessionCookies } from "./lib/session-cookie.mjs";
  * start a browser is the same silent-absence failure the product itself
  * is built to catch.
  */
-function chromePath() {
-  const explicit = process.env.CHROME_PATH;
-  if (explicit && fs.existsSync(explicit)) return explicit;
-  const root = process.env.PLAYWRIGHT_BROWSERS_PATH || "/opt/pw-browsers";
-  if (fs.existsSync(`${root}/chromium`)) return `${root}/chromium`;
-  if (fs.existsSync(root)) {
-    for (const d of fs.readdirSync(root).filter((x) => x.startsWith("chromium")).sort().reverse()) {
-      const p = `${root}/${d}/chrome-linux/chrome`;
-      if (fs.existsSync(p)) return p;
-    }
-  }
-  return undefined;   // let Playwright use its own default
-}
+import { chromePath } from "./_browser.mjs";
 
 /**
  * The colours the design system actually declares.

@@ -28,39 +28,7 @@ import { sessionCookies } from "./lib/session-cookie.mjs";
  *     npm run dev
  *     npm run browser:screens
  */
-/**
- * Chromium, the same way the other ten browser scripts find it.
- *
- * What was here was a minified one-liner that went wrong in two
- * independent ways, and this is the suite it broke — the one that opens
- * every screen and is the only check that sees what they actually do.
- *
- * It hardcoded `/opt/pw-browsers` and so **ignored
- * `PLAYWRIGHT_BROWSERS_PATH`**, which is the variable CI sets and the
- * only way to say where the browsers are. And it called `readdirSync`
- * on that directory without asking whether it exists, so on any machine
- * without it the script did not fall back — it threw
- * `ENOENT: scandir '/opt/pw-browsers'` and took the job's first browser
- * step with it, before a single screen was opened.
- *
- * Returning `undefined` is the point of the last line: it hands the
- * decision to Playwright, which then fails with its own instruction to
- * run `playwright install` rather than with a stack trace about a path
- * nobody recognises.
- */
-function cp() {
-  const explicit = process.env.CHROME_PATH;
-  if (explicit && fs.existsSync(explicit)) return explicit;
-  const root = process.env.PLAYWRIGHT_BROWSERS_PATH || "/opt/pw-browsers";
-  if (fs.existsSync(`${root}/chromium`)) return `${root}/chromium`;
-  if (fs.existsSync(root)) {
-    for (const d of fs.readdirSync(root).filter((x) => x.startsWith("chromium")).sort().reverse()) {
-      const p = `${root}/${d}/chrome-linux/chrome`;
-      if (fs.existsSync(p)) return p;
-    }
-  }
-  return undefined;   // let Playwright use its own default
-}
+import { chromePath as cp } from "./_browser.mjs";
 
 const APP = process.env.APP_URL ?? "http://localhost:3000";
 const SETTLE_MS = Number(process.env.SETTLE_MS ?? 6000);

@@ -1,5 +1,6 @@
 import pw from "./_playwright.mjs";
-const b = await pw.chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome" });
+import { chromePath } from "../app/scripts/_browser.mjs";
+const b = await pw.chromium.launch({ executablePath: chromePath() });
 let bad = 0;
 const ok = (l,p,d="") => { console.log(`  ${p?"✓":"✗"} ${l}${d?`  — ${d}`:""}`); if(!p) bad++; };
 const B = "http://localhost:4321";

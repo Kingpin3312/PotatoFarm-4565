@@ -23,9 +23,7 @@ import pw from "playwright";
 const PROFILE = "/tmp/potatofarm-pwa-profile";
 const OFFLINE = process.env.OFFLINE === "1";
 
-function cp(){const r="/opt/pw-browsers";if(fs.existsSync(`${r}/chromium`))return `${r}/chromium`;
- for(const d of fs.readdirSync(r).filter(x=>x.startsWith("chromium")).sort().reverse()){
-   const p=`${r}/${d}/chrome-linux/chrome`;if(fs.existsSync(p))return p;}}
+import { chromePath as cp } from "./_browser.mjs";
 
 let bad = 0;
 const ok=(l,p,d="")=>{console.log(`  ${p?"\u2713":"\u2717"} ${l}${d?"  \u2014 "+d:""}`);if(!p)bad++;};

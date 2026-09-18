@@ -15,9 +15,7 @@ import { sessionCookies } from "./lib/session-cookie.mjs";
  *     npm run dev
  *     npm run browser:type
  */
-function cp(){const r="/opt/pw-browsers";if(fs.existsSync(`${r}/chromium`))return `${r}/chromium`;
- for(const d of fs.readdirSync(r).filter(x=>x.startsWith("chromium")).sort().reverse()){
-   const p=`${r}/${d}/chrome-linux/chrome`;if(fs.existsSync(p))return p;}}
+import { chromePath as cp } from "./_browser.mjs";
 
 let bad=0;
 const failures=[];

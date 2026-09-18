@@ -6,7 +6,8 @@
  * false: `whatsapp()` was correct from the day it was written and no
  * mounted component had ever called it.
  */
-import pw from "/opt/node22/lib/node_modules/playwright/index.js";
+import pw from "playwright";
+import { chromePath as cp } from "./_browser.mjs";
 import { sessionCookies } from "./lib/session-cookie.mjs";
 
 let failed = 0;
@@ -15,8 +16,7 @@ const ok = (what, cond, detail = "") => {
   if (!cond) failed++;
 };
 
-const chrome = "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
-const b = await pw.chromium.launch({ executablePath: chrome });
+const b = await pw.chromium.launch({ executablePath: cp() });
 const ctx = await b.newContext({ viewport: { width: 1280, height: 900 } });
 await ctx.addCookies(sessionCookies("dev-session-token-ask-history"));
 const p = await ctx.newPage();

@@ -73,9 +73,7 @@ const me = await db.user.findFirst({ where:{email:"omar@marinabay.ae"}, select:{
 
 await db.document.deleteMany({ where: { orgId: org.id } });
 
-function cp(){const r="/opt/pw-browsers";if(fs.existsSync(`${r}/chromium`))return `${r}/chromium`;
- for(const d of fs.readdirSync(r).filter(x=>x.startsWith("chromium")).sort().reverse()){
-   const p=`${r}/${d}/chrome-linux/chrome`;if(fs.existsSync(p))return p;}}
+import { chromePath as cp } from "./_browser.mjs";
 const b=await pw.chromium.launch({executablePath:cp()});
 const ctx=await b.newContext({viewport:{width:1280,height:900}});
 await ctx.addCookies([...sessionCookies("dev-session-token-ask-history")]);

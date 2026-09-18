@@ -1,5 +1,6 @@
 import pw from "./_playwright.mjs";
-const b = await pw.chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome" });
+import { chromePath } from "../app/scripts/_browser.mjs";
+const b = await pw.chromium.launch({ executablePath: chromePath() });
 const ctx = await b.newContext(); const p = await ctx.newPage();
 const B = "http://localhost:4321";
 const seen = new Map(); let bad = 0, hops = 0;
