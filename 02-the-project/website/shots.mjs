@@ -52,9 +52,16 @@ const SHOTS = [
 function chromePath() {
   const root = process.env.PLAYWRIGHT_BROWSERS_PATH || "/opt/pw-browsers";
   if (fs.existsSync(`${root}/chromium`)) return `${root}/chromium`;
-  for (const d of fs.readdirSync(root).filter((x) => x.startsWith("chromium")).sort().reverse()) {
-    const p = `${root}/${d}/chrome-linux/chrome`;
-    if (fs.existsSync(p)) return p;
+  // The `existsSync` the sibling copies have and this one did not.
+  // `readdirSync` on an absent directory throws ENOENT, so the fallback
+  // below was unreachable on exactly the machines that needed it — the
+  // same fault that took out `browser:screens` on the first CI run to
+  // reach it.
+  if (fs.existsSync(root)) {
+    for (const d of fs.readdirSync(root).filter((x) => x.startsWith("chromium")).sort().reverse()) {
+      const p = `${root}/${d}/chrome-linux/chrome`;
+      if (fs.existsSync(p)) return p;
+    }
   }
   return undefined;
 }

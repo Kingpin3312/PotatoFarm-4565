@@ -226,6 +226,12 @@ jobs:
       # posts a signed payment webhook at the real route and so needs the
       # application up. Same throwaway value as the verify job's.
       STRIPE_WEBHOOK_SECRET: whsec_ci_only_webhook_secret
+      # Set here as well as in the verify job, so both resolve a browser
+      # the same way. It was missing, so `playwright install` below put
+      # Chromium in its default cache while the scripts looked in
+      # `/opt/pw-browsers` — a directory that exists on one developer
+      # machine and on no runner.
+      PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.pw-browsers
 
     steps:
       - uses: actions/checkout@v4
