@@ -1,4 +1,6 @@
 import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import pw from "playwright";
 import { sessionCookies } from "./lib/session-cookie.mjs";
 
@@ -14,7 +16,26 @@ import { sessionCookies } from "./lib/session-cookie.mjs";
 import { chromePath } from "./_browser.mjs";
 
 const { chromium, devices } = pw;
-const R = "/home/user/PotatoFarm-4565";
+/**
+ * The repository root, derived rather than declared.
+ *
+ * This line used to read `const R = "/home/user/PotatoFarm-4565"` —
+ * one developer's home directory — directly beneath the comment above
+ * explaining that an absolute path is "correct on exactly one machine
+ * and silently wrong everywhere else". The lesson had been written down
+ * and applied to the browser on the next line but not to the
+ * repository on this one.
+ *
+ * It failed as loudly as it could once it finally ran somewhere else:
+ * on a runner the checkout is under `/home/runner/work/...`, so the
+ * first thing this suite does — list the website's pages — threw
+ * `ENOENT: scandir` and took the last step of the job with it. And it
+ * could never have been caught here, because here the path is right.
+ *
+ * `import.meta.url` is where this file actually is, so three levels up
+ * is the root wherever the repository is checked out.
+ */
+const R = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 /**
  * The website, over HTTP when a server is up, and `file://` otherwise.
  *
