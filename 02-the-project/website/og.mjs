@@ -22,23 +22,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import pw from "./_playwright.mjs";
+import { chromePath } from "../app/scripts/_browser.mjs";
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const SITE = process.env.SITE ?? "http://localhost:4321";
-
-function chromePath() {
-  const explicit = process.env.CHROME_PATH;
-  if (explicit && fs.existsSync(explicit)) return explicit;
-  const root = process.env.PLAYWRIGHT_BROWSERS_PATH || "/opt/pw-browsers";
-  if (fs.existsSync(`${root}/chromium`)) return `${root}/chromium`;
-  if (fs.existsSync(root)) {
-    for (const d of fs.readdirSync(root).filter((x) => x.startsWith("chromium")).sort().reverse()) {
-      const p = `${root}/${d}/chrome-linux/chrome`;
-      if (fs.existsSync(p)) return p;
-    }
-  }
-  return undefined;
-}
 
 const MARK = fs.readFileSync(path.join(ROOT, "assets/mark.svg"), "utf8");
 

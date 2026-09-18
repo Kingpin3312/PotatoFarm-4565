@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
 import pw from "./_playwright.mjs";
+import { chromePath } from "../app/scripts/_browser.mjs";
 
 /**
  * Every product screenshot on the marketing site, regenerated.
@@ -48,23 +49,6 @@ const SHOTS = [
   // 500-character guard caught that on the first run.
   { file: "shot-leads-desktop.webp", path: "/leads", w: 1040, h: 760, cap: [1600, 1600] },
 ];
-
-function chromePath() {
-  const root = process.env.PLAYWRIGHT_BROWSERS_PATH || "/opt/pw-browsers";
-  if (fs.existsSync(`${root}/chromium`)) return `${root}/chromium`;
-  // The `existsSync` the sibling copies have and this one did not.
-  // `readdirSync` on an absent directory throws ENOENT, so the fallback
-  // below was unreachable on exactly the machines that needed it — the
-  // same fault that took out `browser:screens` on the first CI run to
-  // reach it.
-  if (fs.existsSync(root)) {
-    for (const d of fs.readdirSync(root).filter((x) => x.startsWith("chromium")).sort().reverse()) {
-      const p = `${root}/${d}/chrome-linux/chrome`;
-      if (fs.existsSync(p)) return p;
-    }
-  }
-  return undefined;
-}
 
 const b = await pw.chromium.launch({ executablePath: chromePath() });
 const greetings = new Set();
