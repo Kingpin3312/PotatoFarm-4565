@@ -1,0 +1,10 @@
+node_modules/
+.next/
+.env
+.env.local
+*.tsbuildinfo
+next-env.d.ts
+.DS_Store
+
+# Bundled output from `npm run check:tenancy`. Regenerated every run.
+.tmp/

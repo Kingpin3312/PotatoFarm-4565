@@ -1,0 +1,22 @@
+-- AlterEnum
+ALTER TYPE "PublishState" ADD VALUE 'NOT_CONNECTED';
+
+-- NOTE: `prisma migrate dev` generated eight `DROP INDEX` statements
+-- alongside the line above and they have been removed by hand.
+--
+-- The trigram indexes and the composite lead index are created in
+-- `20260810090000_search_indexes` with raw SQL, because Prisma's schema
+-- language cannot express a `gin_trgm_ops` operator class. The schema
+-- file therefore does not know they exist, so `migrate dev` diffs the
+-- shadow database against the real one, sees eight indexes it cannot
+-- account for, and removes them as drift.
+--
+-- Dropping them does not fail anything: every query still returns the
+-- right rows. Search simply goes from an index scan to a sequential one
+-- — measured at 46-65ms on 5,000 leads before, and unbounded after.
+-- A migration that silently un-tunes the database is the worst shape
+-- this project keeps finding, so it is written down here rather than
+-- only fixed.
+--
+-- **Any future `migrate dev` will generate these drops again.** Check
+-- the generated SQL before committing it.

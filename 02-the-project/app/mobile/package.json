@@ -1,0 +1,42 @@
+{
+  "name": "potatofarm-mobile",
+  "version": "0.1.0",
+  "private": true,
+  "main": "expo-router/entry",
+  "scripts": {
+    "start": "expo start",
+    "ios": "expo run:ios",
+    "android": "expo run:android",
+    "check": "python3 _check.py && tsc --noEmit"
+  },
+  "//": [
+    "Every dependency here is derived from what the source actually",
+    "imports, not from memory. There was no manifest at all until now —",
+    "the app has never been installable, which is worth knowing before",
+    "anyone plans a pilot around it.",
+    "",
+    "Versions are pinned rather than caret-ranged. These are native",
+    "modules: a minor bump means a rebuild and a resubmission, not an",
+    "npm install, and a range turns that into a surprise."
+  ],
+  "dependencies": {
+    "expo": "51.0.28",
+    "expo-router": "3.5.23",
+    "expo-notifications": "0.28.16",
+    "expo-linking": "6.3.1",
+    "expo-web-browser": "13.0.3",
+    "expo-secure-store": "13.0.2",
+    "expo-device": "6.0.2",
+    "expo-av": "14.0.7",
+    "expo-file-system": "17.0.1",
+    "react": "18.2.0",
+    "react-native": "0.74.5",
+    "react-native-svg": "15.2.0",
+    "@react-native-async-storage/async-storage": "1.23.1",
+    "@react-native-community/netinfo": "11.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "18.2.79",
+    "typescript": "5.3.3"
+  }
+}
