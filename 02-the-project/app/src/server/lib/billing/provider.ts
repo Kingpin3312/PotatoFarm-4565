@@ -94,6 +94,14 @@ export const stripe: Provider = {
 
   verify(rawBody, signature, secret) {
     if (!signature) return false;
+    // A missing secret cannot verify anything, so it must not be able to
+    // return true. The caller checks this too and gives the better
+    // message; this line is here so the property holds by construction
+    // rather than by the caller remembering. `createHmac` throws on an
+    // absent key, and a throw out of a verifier reads to the framework
+    // above as a server fault rather than as a refusal — which is how
+    // this became a 500 on the payment path.
+    if (!secret) return false;
     const parts = Object.fromEntries(
       signature.split(",").map((p) => p.split("=") as [string, string])
     );

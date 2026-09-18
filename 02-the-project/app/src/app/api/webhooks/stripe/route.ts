@@ -29,7 +29,39 @@ export const dynamic = "force-dynamic";
 export async function POST(req: NextRequest) {
   const raw = await req.text();
 
-  if (!stripe.verify(raw, req.headers.get("stripe-signature"), process.env.STRIPE_WEBHOOK_SECRET!)) {
+  /**
+   * No secret, no verification — so refuse, and say why.
+   *
+   * This was `process.env.STRIPE_WEBHOOK_SECRET!`, and the `!` was a
+   * lie on every environment that had not set it, which included CI and
+   * a bare development machine. `verify` reaches
+   * `createHmac("sha256", undefined)`, Node throws
+   * `ERR_INVALID_ARG_TYPE`, and the throw is *above* the try below, so
+   * nothing caught it: Next answered **500**.
+   *
+   * 500 is the one status that makes the provider retry. An endpoint
+   * with no secret configured would have sat in a permanent redelivery
+   * loop — the exact failure the comment beneath the switch warns
+   * about, arriving through the one line that could not reach it. And
+   * the operator's only signal was a 500 with no message, on the path
+   * that takes the company's money.
+   *
+   * A refusal is also the correct answer on its own terms. An
+   * unverifiable payment webhook must never be accepted, and the
+   * unsigned case two lines down already answers 401, so a server that
+   * cannot verify anything answers the same way rather than inventing a
+   * third meaning. It is logged because nothing else in the product
+   * would ever mention it: there is no boot banner for this key, and a
+   * brokerage whose payments silently stopped being confirmed is
+   * precisely the silent failure this codebase is built to refuse.
+   */
+  const secret = process.env.STRIPE_WEBHOOK_SECRET;
+  if (!secret) {
+    log.warn("[billing] STRIPE_WEBHOOK_SECRET is unset — every payment webhook is refused", {});
+    return NextResponse.json({ error: "Webhooks are not configured." }, { status: 401 });
+  }
+
+  if (!stripe.verify(raw, req.headers.get("stripe-signature"), secret)) {
     return NextResponse.json({ error: "Bad signature." }, { status: 401 });
   }
 

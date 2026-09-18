@@ -26,7 +26,14 @@
  * failure is distinguishable from a slow one.
  */
 import fs from "node:fs";
-import pw from "/opt/node22/lib/node_modules/playwright/index.js";
+// Resolved, not hardcoded. This file was the third home of the same
+// one-machine import — `/opt/node22/lib/node_modules/playwright` — after
+// the application's scripts and the six in `website/`. The helper's own
+// notes say the fix "stopped at `02-the-project/app/scripts/` and never
+// reached the six files here"; it never reached this one either, and
+// this is the copy that ran inside `run-all.sh` and so inside the CI
+// gate, where neither path exists.
+import pw from "../02-the-project/website/_playwright.mjs";
 
 const BASE = process.env.SITE_BASE ?? "http://localhost:8099";
 const DIR = process.argv[2] ?? "02-the-project/website";
@@ -43,8 +50,33 @@ if (pages.length === 0) {
   process.exit(1);
 }
 
-const chrome = "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
-const b = await pw.chromium.launch({ executablePath: chrome });
+/**
+ * The same resolution the other ten browser scripts use.
+ *
+ * What was here named one build of Chromium — `chromium-1194` — inside
+ * one directory, so it broke twice over: on any machine without
+ * `/opt/pw-browsers`, and on this one the day Playwright's pinned
+ * revision moved. Returning `undefined` hands the decision to
+ * Playwright, which is the right answer when nothing is installed
+ * where we looked: it fails with its own instruction to run
+ * `playwright install` rather than with ENOENT on a path nobody
+ * recognises.
+ */
+function chromePath() {
+  const explicit = process.env.CHROME_PATH;
+  if (explicit && fs.existsSync(explicit)) return explicit;
+  const root = process.env.PLAYWRIGHT_BROWSERS_PATH || "/opt/pw-browsers";
+  if (fs.existsSync(`${root}/chromium`)) return `${root}/chromium`;
+  if (fs.existsSync(root)) {
+    for (const d of fs.readdirSync(root).filter((x) => x.startsWith("chromium")).sort().reverse()) {
+      const p = `${root}/${d}/chrome-linux/chrome`;
+      if (fs.existsSync(p)) return p;
+    }
+  }
+  return undefined;   // let Playwright use its own default
+}
+
+const b = await pw.chromium.launch({ executablePath: chromePath() });
 
 console.log("Reveal\n");
 let checked = 0;

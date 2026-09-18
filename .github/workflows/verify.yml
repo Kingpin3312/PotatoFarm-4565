@@ -78,6 +78,14 @@ jobs:
       WHATSAPP_APP_SECRET: ci-only-webhook-signing-secret
       NEXT_PUBLIC_APP_URL: http://localhost:3000
       SEAT_PRICE_FILS: "9900"
+      # Any value works, like WHATSAPP_APP_SECRET above: `check:billing`
+      # signs its own fake delivery with it, so both ends agree. Unset
+      # is what the first run to reach this gate hit — and unset used to
+      # make the payment route answer 500 rather than refuse, because
+      # `createHmac` throws on an absent key above the handler's try.
+      # The route refuses now, so leaving this out no longer crashes
+      # anything; it would simply mean the accept path went untested.
+      STRIPE_WEBHOOK_SECRET: whsec_ci_only_webhook_secret
       PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.pw-browsers
 
     steps:
@@ -91,6 +99,25 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      # One of the twenty-two audits drives a browser, and this job runs
+      # all twenty-two through `run-all.sh`.
+      #
+      # `reveal.mjs` checks that nothing on the marketing site is left
+      # invisible — every page hides itself on load and depends on an
+      # IntersectionObserver to bring it back, so a change to that
+      # observer's margins can strand whole sections: present in the
+      # HTML, indexed by search engines, and unreadable by a person.
+      # Nothing else looks for that, and it cannot be seen in a build or
+      # a screenshot.
+      #
+      # The last commit gave this job the site server that audit needs
+      # and stopped there; it still had no browser, so the audit failed
+      # on the first run that ever reached it. A server and a browser are
+      # two requirements, and having fixed one it was easy to believe
+      # the step was done.
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
 
       - uses: actions/setup-python@v5
         with:
@@ -195,6 +222,10 @@ jobs:
       WHATSAPP_APP_SECRET: ci-only-webhook-signing-secret
       NEXT_PUBLIC_APP_URL: http://localhost:3000
       SEAT_PRICE_FILS: "9900"
+      # This job is the one that runs `check:billing`, because that suite
+      # posts a signed payment webhook at the real route and so needs the
+      # application up. Same throwaway value as the verify job's.
+      STRIPE_WEBHOOK_SECRET: whsec_ci_only_webhook_secret
 
     steps:
       - uses: actions/checkout@v4
@@ -298,6 +329,14 @@ jobs:
       # procedure over HTTP, which needs the application up.
       - name: What the brokerage earned
         run: npm run check:revenue
+
+      # And whether the company can take money at all. Here rather than
+      # in the verify job for the same reason as the line above: the
+      # invoice arithmetic is database-only, but the payment webhook is
+      # posted at the real route, and the fault this caught on its first
+      # CI run was in the route and not the arithmetic.
+      - name: Whether the company can take money
+        run: npm run check:billing
 
       - name: The board's optimistic move
         run: npm run browser:optimistic-board

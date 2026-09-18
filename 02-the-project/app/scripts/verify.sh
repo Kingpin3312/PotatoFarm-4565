@@ -48,7 +48,13 @@ bold=$'\033[1m'; red=$'\033[31m'; green=$'\033[32m'; yellow=$'\033[33m'; off=$'\
 # Suites that open a connection. Kept as a list rather than inferred,
 # because inferring it from imports is the sort of cleverness that goes
 # quietly wrong the day somebody adds a query to a pure check.
-NEEDS_DB="tenancy notify-isolation intake intelligence autonomy killswitch buyers search qualification quiet migration vault visibility billing load"
+NEEDS_DB="tenancy notify-isolation intake intelligence autonomy killswitch buyers search qualification quiet migration vault visibility load"
+# `billing` needs Postgres *and* the application — it posts a signed
+# payment webhook at the real route — so it sits in the end-to-end block
+# below rather than here. It was in this loop, which is why the first CI
+# run to reach the gate failed on it: most of the suite passed against
+# the database and the webhook section then reported the application
+# unreachable, in a job that never starts one.
 # `routing` needs the application running as well as Postgres — it posts a
 # signed webhook — so it sits with check:whatsapp-inbound below rather
 # than in the loop.
@@ -137,7 +143,7 @@ printf '\n%sUnit tests%s\n' "$bold" "$off"
 step "vitest" npm run --silent test
 
 printf '\n%sChecks%s\n' "$bold" "$off"
-for name in tenancy notify-isolation intake intelligence voice deals autonomy killswitch buyers search qualification quiet migration vault visibility bands sigv4 storage limits preflight billing load; do
+for name in tenancy notify-isolation intake intelligence voice deals autonomy killswitch buyers search qualification quiet migration vault visibility bands sigv4 storage limits preflight load; do
   if [ "$name" = "load" ] && [ "$WITH_LOAD" -eq 0 ]; then
     skipped+=("check:load (use --load; it seeds a database)"); continue
   fi
@@ -189,6 +195,15 @@ else
   # Enforcement. The negative assertion is the one that matters: a
   # brokerage with no documents recorded is not stopped from working.
   step "check:blocking" npm run --silent check:blocking
+  # Whether the company can take money, which is the other half of a
+  # business the revenue screen only reports on. The invoice arithmetic
+  # is database-only, but the payment webhook is posted at the real
+  # route over HTTP — and it has to be, because the fault it just
+  # caught lived in the route rather than in the arithmetic: a missing
+  # `STRIPE_WEBHOOK_SECRET` made `createHmac` throw above the handler's
+  # try, so the endpoint answered 500 to a correctly signed event. 500
+  # is the one status the provider retries.
+  step "check:billing" npm run --silent check:billing
   # What the brokerage earned, against the ledger it came from.
   #
   # Needs the application rather than just Postgres, deliberately: read
@@ -227,7 +242,14 @@ printf '\n%sAudits%s\n' "$bold" "$off"
 # Counted rather than stated. The label read "14 audit scripts" while
 # there were fifteen — a number in a string that nothing checked, which
 # is the exact thing `counts.py` was written to stop.
-AUDIT_N=$(ls "$ROOT/04-audit-scripts"/*.py 2>/dev/null | wc -l | tr -d ' ')
+#
+# And then the count itself was wrong, one glob narrower than the thing
+# it describes: `*.py` alone, while `run-all.sh` dispatches on the
+# extension precisely because one audit is not Python. It reported "21
+# audit scripts" for a run of 22, so the one that needs a browser — the
+# only one that reads the site as a reader sees it — was missing from
+# the number in the very line that ran it.
+AUDIT_N=$(ls "$ROOT/04-audit-scripts"/*.py "$ROOT/04-audit-scripts"/*.mjs 2>/dev/null | wc -l | tr -d ' ')
 step "$AUDIT_N audit scripts" bash "$ROOT/04-audit-scripts/run-all.sh"
 
 printf '\n%s\n' "──────────────────────────────────────────────────────────"
