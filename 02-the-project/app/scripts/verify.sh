@@ -48,7 +48,7 @@ bold=$'\033[1m'; red=$'\033[31m'; green=$'\033[32m'; yellow=$'\033[33m'; off=$'\
 # Suites that open a connection. Kept as a list rather than inferred,
 # because inferring it from imports is the sort of cleverness that goes
 # quietly wrong the day somebody adds a query to a pure check.
-NEEDS_DB="tenancy notify-isolation intake intelligence autonomy buyers search qualification quiet migration vault visibility billing load"
+NEEDS_DB="tenancy notify-isolation intake intelligence autonomy killswitch buyers search qualification quiet migration vault visibility billing load"
 # `routing` needs the application running as well as Postgres — it posts a
 # signed webhook — so it sits with check:whatsapp-inbound below rather
 # than in the loop.
@@ -56,9 +56,40 @@ NEEDS_DB="tenancy notify-isolation intake intelligence autonomy buyers search qu
 failed=(); skipped=(); ran=0
 
 have_db() {
-  [ -n "${DATABASE_URL:-}" ] || grep -q '^DATABASE_URL=' .env 2>/dev/null || return 1
+  local url="${DATABASE_URL:-}"
+  # The laptop case: the value is in `.env` and this shell has not
+  # sourced it. Read it out rather than only noting that it exists,
+  # because the probe below needs the value and not its presence.
+  if [ -z "$url" ] && [ -f .env ]; then
+    url=$(sed -n 's/^DATABASE_URL=//p' .env | head -1 | tr -d "\"'")
+  fi
+  [ -n "$url" ] || return 1
   command -v pg_isready >/dev/null 2>&1 || return 0   # cannot tell; try it
-  pg_isready -q 2>/dev/null
+
+  # Probe the database this run will actually use, not libpq's default.
+  #
+  # A bare `pg_isready` cost this project its entire CI history. With no
+  # arguments libpq connects to a **local Unix socket**; on a CI runner
+  # Postgres is a service container on TCP at the host and port
+  # `DATABASE_URL` names, and there is no socket at all. So this gate
+  # failed on every push ever made — first step, nothing tested, while
+  # the steps either side of it connected to that same database over TCP
+  # without complaint.
+  #
+  # It passed on a laptop for a reason unrelated to what it was asking:
+  # a developer machine has a socket, so the probe answered "yes, some
+  # Postgres is up" to the question "is *our* Postgres up". That is this
+  # repository's oldest pattern — a check that cannot fail where it
+  # matters, green for an accident of its environment.
+  #
+  # The query string goes because `?schema=public` is Prisma's parameter
+  # and libpq rejects it outright — `invalid URI query parameter:
+  # "schema"`, exit 3 — which would fail the probe for the wrong reason
+  # and read identically to a database that is down.
+  #
+  # Proved in both directions before being trusted: exit 0 against the
+  # live port, exit 2 against a port with nothing listening.
+  pg_isready -q -d "${url%%\?*}" 2>/dev/null
 }
 
 DB=0; have_db && DB=1
@@ -81,15 +112,15 @@ printf '%s\n' "─────────────────────�
 
 if [ "$DB" -eq 0 ]; then
   if [ "${VERIFY_ALLOW_NO_DB:-0}" = "1" ]; then
-    printf '%s!  No database. Seven suites will not run.%s\n' "$yellow" "$off"
+    printf '%s!  No database. The suites that need one will not run.%s\n' "$yellow" "$off"
     printf '   Tenant isolation is one of them — this run does not\n'
     printf '   prove one brokerage cannot read another'"'"'s leads.\n\n'
   else
     printf '\n%s✗  Postgres is not accepting connections.%s\n\n' "$red" "$off"
-    printf '   Seven of the eleven suites need it, including the\n'
+    printf '   Most of the check suites need it, including the\n'
     printf '   tenant-isolation check. Start it:\n\n'
     printf '     pg_ctlcluster 16 main start\n     npx prisma migrate deploy\n\n'
-    printf '   Or run only the four that do not need a database, which\n'
+    printf '   Or run only the suites that do not need a database, which\n'
     printf '   will say so in its summary:\n\n'
     printf '     VERIFY_ALLOW_NO_DB=1 npm run verify\n\n'
     exit 1
@@ -106,7 +137,7 @@ printf '\n%sUnit tests%s\n' "$bold" "$off"
 step "vitest" npm run --silent test
 
 printf '\n%sChecks%s\n' "$bold" "$off"
-for name in tenancy notify-isolation intake intelligence voice deals autonomy buyers search qualification quiet migration vault visibility bands sigv4 storage limits preflight billing load; do
+for name in tenancy notify-isolation intake intelligence voice deals autonomy killswitch buyers search qualification quiet migration vault visibility bands sigv4 storage limits preflight billing load; do
   if [ "$name" = "load" ] && [ "$WITH_LOAD" -eq 0 ]; then
     skipped+=("check:load (use --load; it seeds a database)"); continue
   fi
