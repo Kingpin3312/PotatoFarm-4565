@@ -367,7 +367,7 @@ export const commissionRouter = router({
           where: { status: "RECEIVED", receivedAt: { gte: from, lte: to } },
           select: {
             grossFils: true, vatFils: true, receivedAt: true,
-            deal: { select: { valueFils: true } },
+            deal: { select: { id: true, valueFils: true } },
             splits: {
               select: { amountFils: true, paidAt: true, userId: true, externalName: true, role: true },
             },
@@ -465,8 +465,27 @@ export const commissionRouter = router({
         received: aed(receivedFils),
         vat: aed(earned.reduce((n, c) => n + c.vatFils, 0n)),
         deals: earned.length,
-        /** The property value those fees were earned on. */
-        transacted: aed(earned.reduce((n, c) => n + c.deal.valueFils, 0n)),
+        /**
+         * The property value those fees were earned on, counted **once
+         * per property**.
+         *
+         * This summed `deal.valueFils` per commission, and there is no
+         * unique constraint on `Commission.dealId` — deliberately,
+         * because a deal can carry more than one fee: both sides of the
+         * same transaction, or a referral alongside the selling
+         * commission. The deals screen has a "Record another" button for
+         * exactly that.
+         *
+         * So two fees on one eleven-million-dirham sale reported
+         * **twenty-two million of property transacted**. Nothing errors;
+         * the headline commission stays right and the context figure
+         * beside it silently doubles, which is the worst direction for a
+         * number an owner quotes to somebody else.
+         */
+        transacted: aed(
+          [...new Map(earned.map((c) => [c.deal.id, c.deal.valueFils])).values()]
+            .reduce((n, v) => n + v, 0n),
+        ),
         undated,
         /** Where the brokerage stands today, at any date. */
         invoiced: aed(totalOf("INVOICED")),

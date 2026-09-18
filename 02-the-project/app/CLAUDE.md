@@ -102,7 +102,7 @@ What is verified today, measured rather than assumed:
   `/api/health` returns `200 {"ok":true}` against a real Postgres.
 - The boot log names every unconfigured service with its consequence —
   six of them in a bare development environment.
-- 296 assertions in 15 files, 32 check suites, 22 audits, all green.
+- 296 assertions in 15 files, 34 check suites, 22 audits, all green.
 
 Type errors on a fresh checkout are no longer expected. If you get one,
 it is new.
@@ -469,7 +469,7 @@ send path read it.
 ## Run the tests
 
     npm test          # 296 assertions, pure functions, no database
-    npm run verify    # tsc, the tests, 32 check suites, 22 audits
+    npm run verify    # tsc, the tests, 34 check suites, 22 audits
 
 **The gate is now green end to end, including the two things that used
 to skip.** `verify` reports what it did not run rather than counting a
@@ -646,7 +646,7 @@ with an empirical floor under it.
 ## What is not built
 
 - ~~Most React screens.~~ **Out of date and left here as a warning.**
-  There are 41, every one of them opens in a browser, and
+  There are 44, every one of them opens in a browser, and
   `browser:screens` fails the build if one stops rendering or starts a
   refetch loop. This line survived the screens being built, which is the
   same drift the audit scripts exist to catch — in the file that warns

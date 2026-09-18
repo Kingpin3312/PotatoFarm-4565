@@ -4,6 +4,8 @@ import { seedHours } from "../src/server/lib/hours/defaults";
 import { seedQualification } from "../src/server/lib/assistant/qualification";
 import { seedRoutingRule } from "../src/server/lib/routing/apply";
 import { openKycFile } from "../src/server/lib/aml/open";
+import { accept } from "../src/server/lib/offers/negotiate";
+import { sweepIntelligence } from "../src/server/lib/intelligence/sweep";
 
 /**
  * A development brokerage, from nothing — or the one already there.
@@ -892,9 +894,42 @@ async function main() {
   await vendors(org.id);
   await offers(org.id);
   await compliance(org.id);
+  // Before commissions, which has nothing to price without deals.
+  await deals(org.id, owner);
   await commissions(org.id);
   await blackbook(org.id, owner, agent);
   await register(org.id, owner, agent);
+
+  /**
+   * The nightly intelligence sweep, run once so the front door has
+   * something on it.
+   *
+   * ## Why this is not padding
+   *
+   * `/today` is the screen an agent opens the product on, and its five
+   * ranked actions come from `Recommendation` — a table **only**
+   * `intelligence.sweep` writes. A freshly seeded brokerage therefore
+   * had a greeting, an input box, and no actions: the best screen in
+   * the product, empty, on every clean database.
+   *
+   * It was invisible for the usual reason. A developer's container had
+   * the sweep behind it from some earlier run, so the screen looked
+   * right locally and was blank for anybody starting fresh. The check
+   * that catches it — `browser:optimistic`, which clicks a "Done" on
+   * one of those rows — was not in CI, so nothing said so.
+   *
+   * ## Through the job, not by writing rows
+   *
+   * Same discipline as `accept()` and `openKycFile()` above: the sweep
+   * scores every lead, writes a `LeadScoreEvent` so "warming — up 12
+   * points this week" has something to compare against, and derives the
+   * recommendations from the scores. Writing `Recommendation` rows by
+   * hand would produce a screen that looks identical and proves
+   * nothing about the engine behind it.
+   *
+   * Last, because it reads everything the rest of this file created.
+   */
+  await sweepIntelligence();
 
   await report(org.id, org.name, existing === 0);
 }
@@ -1184,6 +1219,125 @@ async function report(orgId: string, name: string, fresh: boolean) {
                           ["gone quiet", counts.quiet]] as const) {
     if (n === 0 || n === leads) {
       console.warn(`  ! "${tab}" matches ${n} of ${leads} — that tab cannot catch a regression.`);
+    }
+  }
+}
+
+/**
+ * Deals, by accepting offers the way the product accepts them.
+ *
+ * ## Why this was missing and what it cost
+ *
+ * A freshly seeded brokerage had **no deals and no commissions**. The
+ * three that a developer saw locally had been left behind by a check
+ * script, so every screen downstream of a deal was empty on a clean
+ * database and nobody noticed — including `/reports/revenue`, which is
+ * the screen an owner is shown first and which read **AED 0.00** on a
+ * brokerage with sixteen listings and eleven live offers.
+ *
+ * `commissions()` returns early with no deals to price, so the whole
+ * money story — received, invoiced, forecast, who earned it — was
+ * absent from the demo rather than broken in it. Absence is the harder
+ * one to see, which is the argument this file makes everywhere else.
+ *
+ * ## Through `accept()`, not by writing rows
+ *
+ * The same discipline the stages, hours, routing rule and KYC files
+ * already follow: a fixture that differs from what the product creates
+ * is worse than no fixture. `accept()` is what `offers.accept` calls.
+ * It writes the `OfferResponse`, moves the offer, closes the other live
+ * offers on that property, opens a due diligence file, and creates the
+ * deal — so the fixture exercises every one of those instead of
+ * asserting them.
+ *
+ * Two details it gets right that a hand-written row would not:
+ *
+ * - **DM-507 is a countered offer**, and `accept()` records the deal at
+ *   the *latest counter* rather than the opening figure. Accepting one
+ *   here means the fixture proves that rule instead of describing it.
+ * - Accepting closes the losing offers on the same listing. So the
+ *   three-way comparison on **DH-101 is deliberately left alone** —
+ *   that is the screen where "strongest, not highest" is visible, and
+ *   accepting one of those three would have deleted the demo's best
+ *   argument to gain a deal it can get elsewhere.
+ */
+async function deals(orgId: string, actorId: string) {
+  /**
+   * One per listing, and none of them on DH-101.
+   *
+   * Chosen so the three deals differ in the ways the deals screen
+   * reasons about: a comfortable completion date, one that has already
+   * slipped, and one just agreed with no date at all.
+   */
+  const wanted: { ref: string; completesInDays: number | null }[] = [
+    { ref: "AR-508", completesInDays: 45 },
+    { ref: "DM-507", completesInDays: -6 },
+    { ref: "CT-515", completesInDays: null },
+  ];
+
+  for (const w of wanted) {
+    const listing = await db.listing.findFirst({
+      where: { orgId, reference: w.ref },
+      select: { id: true },
+    });
+    if (!listing) continue;
+
+    // Per listing, not "does any deal exist". A whole-table guard hands
+    // the fixture's fate to whatever ran last, which is the mistake
+    // `commissions()` records directly below.
+    const already = await db.deal.findFirst({
+      where: { orgId, listingId: listing.id },
+      select: { id: true },
+    });
+
+    let dealId = already?.id ?? null;
+
+    if (!dealId) {
+      // The strongest live offer on the property, which is what a vendor
+      // would actually be advised to take.
+      const offer = await db.offer.findFirst({
+        where: {
+          orgId, listingId: listing.id,
+          status: { in: ["SUBMITTED", "PRESENTED", "COUNTERED"] },
+        },
+        orderBy: { amountFils: "desc" },
+        select: { id: true },
+      });
+      if (!offer) continue;
+
+      const result = await accept({ orgId, offerId: offer.id, actorId });
+      if (!result.ok) continue;
+
+      const made = await db.deal.findFirst({
+        where: { orgId, listingId: listing.id },
+        select: { id: true },
+      });
+      dealId = made?.id ?? null;
+    }
+
+    if (!dealId) continue;
+
+    /**
+     * The completion date, which `accept()` does not set.
+     *
+     * It cannot: nobody has agreed one at the moment an offer is
+     * accepted. It is agreed afterwards and written by the deal screen,
+     * so setting it here is the fixture standing in for that edit
+     * rather than inventing a column the product never writes.
+     *
+     * A date in the past is not a mistake. `assessRisk` is built to
+     * notice exactly that and say so, and a demo where nothing is ever
+     * late cannot show the feature the product leads on.
+     */
+    if (w.completesInDays !== null) {
+      await db.deal.update({
+        where: { id: dealId },
+        data: {
+          contractualCompletionAt: new Date(
+            Date.now() + w.completesInDays * 86_400_000,
+          ),
+        },
+      });
     }
   }
 }

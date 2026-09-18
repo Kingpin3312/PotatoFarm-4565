@@ -1,4 +1,4 @@
-import pw from "/opt/node22/lib/node_modules/playwright/index.js";
+import pw from "./_playwright.mjs";
 const b = await pw.chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome" });
 let bad = 0;
 const ok = (l,p,d="") => { console.log(`  ${p?"✓":"✗"} ${l}${d?`  — ${d}`:""}`); if(!p) bad++; };

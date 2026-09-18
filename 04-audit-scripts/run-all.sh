@@ -126,6 +126,39 @@ for entry in "${CHECKS[@]}"; do
   # shellcheck disable=SC2086
   out=$("${runner[@]}" "$S/$script" $args 2>&1); code=$?
 
+  # A check that could not START is not a check that FAILED, and until
+  # now the summary could not tell you which had happened.
+  #
+  # `responsive.py` and `audit.py` import BeautifulSoup at module scope.
+  # On a machine without it they die on a Python traceback,
+  # `run-all.sh` counted that as a finding, and the summary printed the
+  # script name with `exit 1` and nothing underneath — because the line
+  # it greps for (`  x `) is never written by a script that never
+  # reached its own checks. Two audits read as "broken product" when
+  # the real answer was "pip install".
+  #
+  # `palette.py` is deliberately **not** in that set and is worth the
+  # contrast: it needs Pillow and catches the ImportError, reporting
+  # "Pillow missing — rasters unchecked" as a finding and failing. That
+  # is the better behaviour and it needs no help from this branch. The
+  # first version of this comment claimed palette.py crashed too, which
+  # was wrong — proving the branch against bs4 rather than Pillow is
+  # what showed it.
+  #
+  # That is the same defect this file was written to prevent, one level
+  # out: **a check that cannot run must not be indistinguishable from a
+  # check that ran.** It still fails the suite — a missing dependency is
+  # not something to shrug at — but it says which it is.
+  if printf '%s' "$out" | grep -qE 'ModuleNotFoundError|ImportError|^Traceback'; then
+    fail=$((fail + 1)); failed+=("$script (could not run)")
+    missing=$(printf '%s' "$out" | grep -oE "No module named '[^']+'" | head -1)
+    printf '  \033[31m!\033[0m %-18s could not run — %s\n' "$script" \
+      "${missing:-it crashed before checking anything}"
+    printf '      pip install -r 04-audit-scripts/requirements.txt\n'
+    [ "$VERBOSE" -eq 1 ] && printf '%s\n' "$out" | sed 's/^/    │ /'
+    continue
+  fi
+
   if [ "$code" -eq 0 ]; then
     pass=$((pass + 1))
     # Warnings and notes do not fail a run, but they should be visible

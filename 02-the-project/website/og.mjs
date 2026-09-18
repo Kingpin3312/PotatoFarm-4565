@@ -21,7 +21,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import pw from "/opt/node22/lib/node_modules/playwright/index.js";
+import pw from "./_playwright.mjs";
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const SITE = process.env.SITE ?? "http://localhost:4321";

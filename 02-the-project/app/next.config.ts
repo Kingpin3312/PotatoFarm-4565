@@ -25,16 +25,43 @@ const config: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
 
+  /**
+   * The image optimiser is **off**, and that is a security decision.
+   *
+   * ## What was here
+   *
+   * `formats: ["image/avif", "image/webp"]` — AVIF encoding enabled on
+   * `/_next/image`, a route `middleware.ts` excludes from the auth
+   * matcher by name. Measured against the running production build: it
+   * returned **200 and `content-type: image/avif` to a request carrying
+   * no session cookie**, while `/today` correctly redirected to
+   * sign-in. That is precisely the precondition for the advisory
+   * "Unauthenticated Remote Code Execution in Image Optimization API
+   * when AVIF files are used", and `sharp`'s own libvips and libheif
+   * CVEs sit underneath it on the same parsing path.
+   *
+   * ## Why off rather than upgraded
+   *
+   * The whole of Next 15 is inside the affected range — the fix lands
+   * in 16.3.0, a major upgrade that is not something to do in a hurry.
+   * And **nothing in this application renders through `next/image`**:
+   * the only file that names it is `middleware.ts`, and only to exclude
+   * the route. So the optimiser was pure attack surface with no product
+   * benefit, and turning it off costs exactly nothing.
+   *
+   * Property photographs are served from object storage, not through
+   * this route. If `next/image` is ever adopted, the framework upgrade
+   * has to come first — and `check:preflight` is the place to assert
+   * that, not a comment.
+   *
+   * `remotePatterns` stays empty for the older reason, which is still
+   * true: it once allowed `cdn.sanity.io`, left over from a CMS this
+   * application has never used, and an allowed remote host on the
+   * optimiser is a request this server will make on behalf of anyone
+   * who can put a URL in front of it.
+   */
   images: {
-    formats: ["image/avif", "image/webp"],
-    /**
-     * Empty, deliberately.
-     *
-     * This allowed `cdn.sanity.io`, left over from the CMS in
-     * `99-superseded` that this application has never used. An allowed
-     * remote host on the image optimiser is a request this server will
-     * make on behalf of anyone who can put a URL in front of it.
-     */
+    unoptimized: true,
     remotePatterns: [],
   },
 

@@ -96,8 +96,24 @@ jobs:
         with:
           python-version: "3.12"
 
+      # Pillow was missing from this file's requirements until now, and
+      # `palette.py` needs it — so the audit guaranteeing the product
+      # ships one orange could never have run here.
       - name: Install audit dependencies
         run: pip install -r ../../04-audit-scripts/requirements.txt
+
+      # `package.py` compares the deployable archive against the site it
+      # was built from. The archive is gitignored, so in CI it does not
+      # exist until something builds it — and a missing archive fails
+      # that audit, which fails `run-all.sh`, which fails `verify`. This
+      # was a second standing reason the gate was red, independent of
+      # the missing site server below.
+      #
+      # Built rather than skipped: an audit that shrugs when its subject
+      # is absent is the thing this repository keeps deleting.
+      - name: Build the deployable site archive
+        working-directory: .
+        run: bash 02-the-project/website/package-site.sh
 
       - name: Prepare the database
         run: |
@@ -276,6 +292,12 @@ jobs:
         run: npm run browser:installable
       - name: What a compliance file calls itself
         run: npm run browser:screening-heading
+
+      # The money on the owner's screen against the ledger behind it.
+      # Runs here rather than in the verify job because it reads the
+      # procedure over HTTP, which needs the application up.
+      - name: What the brokerage earned
+        run: npm run check:revenue
 
       - name: The board's optimistic move
         run: npm run browser:optimistic-board

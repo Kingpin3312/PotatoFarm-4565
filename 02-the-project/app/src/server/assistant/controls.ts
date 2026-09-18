@@ -153,9 +153,37 @@ export async function pause(orgId: string, byUserId: string, reason: string) {
   });
 }
 
+/**
+ * Turning it on — and it **must** upsert, which it did not.
+ *
+ * `AssistantSettings` has no row until something writes one. `pause()`
+ * directly above upserts, so stopping the assistant creates the row.
+ * This used `update()`, so on a brokerage that had never touched the
+ * setting — which is every brokerage on its first day — pressing
+ * "Start answering" returned a 500: *"No operation failed because it
+ * depends on one or more records that were required but not found."*
+ *
+ * The product's one-line promise is that an assistant answers enquiries
+ * within seconds. The single button that switches that on did not work
+ * on a fresh install, and the only route to a working assistant was to
+ * **pause** it first so the row existed, then resume. Nobody would
+ * guess that, and nothing said so.
+ *
+ * The same shape as the twelve in CLAUDE.md, on the headline feature:
+ * what writes the first row? Here, nothing did — and the asymmetry
+ * between the two halves of one switch is what hid it, because reading
+ * `pause` proves the row gets created and reading `resume` looks
+ * correct beside it.
+ *
+ * `create` sets `enabled: true` because that is what the caller asked
+ * for. Nothing else is defaulted: the budget, the warning threshold and
+ * the prompt version keep their schema defaults, and `gate()` still
+ * reads the row it has just created on the very next assistant turn.
+ */
 export async function resume(orgId: string) {
-  await crossTenant("sweep").assistantSettings.update({
+  await crossTenant("sweep").assistantSettings.upsert({
     where: { orgId },
-    data: { enabled: true, pausedReason: null, pausedAt: null, pausedById: null },
+    create: { orgId, enabled: true },
+    update: { enabled: true, pausedReason: null, pausedAt: null, pausedById: null },
   });
 }

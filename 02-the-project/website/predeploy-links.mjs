@@ -1,4 +1,4 @@
-import pw from "/opt/node22/lib/node_modules/playwright/index.js";
+import pw from "./_playwright.mjs";
 const b = await pw.chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome" });
 const ctx = await b.newContext(); const p = await ctx.newPage();
 const B = "http://localhost:4321";

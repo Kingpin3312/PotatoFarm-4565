@@ -158,6 +158,16 @@ else
   # Enforcement. The negative assertion is the one that matters: a
   # brokerage with no documents recorded is not stopped from working.
   step "check:blocking" npm run --silent check:blocking
+  # What the brokerage earned, against the ledger it came from.
+  #
+  # Needs the application rather than just Postgres, deliberately: read
+  # over HTTP it exercises the permission gate, the row-level security
+  # scope and superjson on the wire in the arrangement that ships. The
+  # assertion that matters is that every agent's share sums to the
+  # received total **exactly** — shares of a fee added to the fee again
+  # reports a year's earnings at twice its value, with no error
+  # anywhere, in front of whoever is reading the number.
+  step "check:revenue" npm run --silent check:revenue
   # The logo as a browser draws it. `consistency.py` reads the source
   # and fingerprints the potato; it cannot see that the wordmark beside
   # it is the wrong colour on every screen, which it was.

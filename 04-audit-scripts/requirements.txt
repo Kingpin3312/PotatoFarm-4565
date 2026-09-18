@@ -1,7 +1,24 @@
-# The only third-party dependency across the thirteen scripts.
-# The HTML checks parse the built pages rather than trusting the
-# templates that produced them.
+# Third-party dependencies for the audit scripts.
 #
 #   pip install -r 04-audit-scripts/requirements.txt
 #
+# This file said "the only third-party dependency across the thirteen
+# scripts" and named beautifulsoup4 alone. Both halves were wrong.
+#
+# **Pillow was missing, and `palette.py` imports it.** That audit is the
+# one guaranteeing the product ships a single orange, and without Pillow
+# it refuses to report green — correctly, because it cannot read the
+# raster assets. So the effect was not a quiet gap: `run-all.sh` failed,
+# `npm run verify` failed, and CI was red for a reason nobody traced,
+# because the summary line for a check that cannot start looked exactly
+# like the line for a check that found something.
+#
+# The script count is left out on purpose. It was written here as
+# "thirteen" against a real 22, and `counts.py` does not read this file.
+# A number nothing checks is a number that goes stale.
 beautifulsoup4>=4.12
+
+# `palette.py` composites raster assets over their background to measure
+# hue, because an RGBA pixel read without its alpha reports the colour of
+# nothing at all.
+Pillow>=10.0
