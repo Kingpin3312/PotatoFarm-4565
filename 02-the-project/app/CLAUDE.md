@@ -575,6 +575,43 @@ red at the exact call site before trusting it green** — put the bug
 back, watch it fail, put it right. Doing that is what found this, and
 what found the next one.
 
+**A check that only runs on one machine has never run, and the gate
+itself was the worst case.** CI was red on every commit this repository
+has ever had, and nobody knew, because it failed at the *first* step
+having tested nothing: `verify.sh` called a bare `pg_isready`, which
+probes a local Unix socket. On a runner Postgres is a service container
+on TCP and there is no socket, so the gate reported "Postgres is not
+accepting connections" about a database that `prisma migrate deploy` had
+connected to seconds earlier in the same job. It passed on a laptop for
+a reason unrelated to what it was asking — a developer machine has a
+socket, so it answered "some Postgres is up" to the question "is *our*
+Postgres up".
+
+Making it run found a real defect immediately: the Stripe webhook
+answered **500 to a correctly signed event** whenever
+`STRIPE_WEBHOOK_SECRET` was unset, because `createHmac` throws on an
+absent key and that call sat *above* the handler's try. 500 is the one
+status the provider retries, which the comment beneath that handler says
+in as many words — the single line that could not reach the protection
+was the one that crashed.
+
+Then the same shape five more times, in the apparatus rather than the
+product: **thirty-two scripts launch a browser and twenty-one hardcoded
+`/opt/pw-browsers`**, four pinned one Chromium build, two hardcoded the
+Playwright module, and one hardcoded a developer's home directory as the
+repository root. The copies had drifted — nine guarded the directory
+read and the rest did not, so the fallback they appeared to share was
+unreachable in most of them; six read `PLAYWRIGHT_BROWSERS_PATH` and
+twenty-six ignored it. Fixed one file at a time it cost a CI run each,
+about eleven minutes, finding the identical bug in the next file along.
+**A class of bug fixed one instance at a time is not being fixed.**
+
+`scripts/_browser.mjs` is now the only thing that answers "where is
+Chromium", with thirty-one importers. A new browser script imports it
+rather than writing its own, and **an absolute path to anything outside
+the repository is the smell** — derive the root from `import.meta.url`,
+not from where the author happened to be standing.
+
 **A check pinned to specific values goes quiet exactly when those values
 are superseded.** Two in the palette work, found the same afternoon.
 `mobile/_check.py` compared the native palette against a hardcoded list
