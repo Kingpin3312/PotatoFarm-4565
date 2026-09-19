@@ -55,6 +55,35 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
   providers: [
     Resend({
+      /**
+       * Passed explicitly, because the inferred name is not ours.
+       *
+       * Auth.js derives a provider's key from `AUTH_<ID>_KEY`
+       * (`@auth/core/lib/utils/env.js`), which for this provider is
+       * `AUTH_RESEND_KEY`. Every other part of this project documents
+       * and reads `RESEND_API_KEY` — `lib/mail.ts` does, and
+       * `.env.example` calls it **"the only way into the product"**.
+       *
+       * Those were different variables, and nothing connected them. An
+       * operator who set the documented key exactly as instructed left
+       * this provider with `apiKey: undefined`, so every sign-in email
+       * was sent as `Authorization: Bearer undefined`, Resend answered
+       * 401, and the provider threw — on the one path a new customer
+       * cannot route around. It could not be caught by checking that
+       * `RESEND_API_KEY` was set, because it was.
+       *
+       * So the documented name is authoritative and there is **one key
+       * for the whole product**, which `check:preflight` now asserts.
+       *
+       * This deliberately does not also accept `AUTH_RESEND_KEY`. That
+       * was the first fix, and `crm-audit.py` rejected it: an env var
+       * read in code and absent from `.env.example` is one nobody
+       * deploying this will know to set. Documenting it instead would
+       * have put two names for one Resend account in front of the
+       * operator — the same confusion this comment exists to end, moved
+       * one file along. One name, asserted.
+       */
+      apiKey: process.env.RESEND_API_KEY,
       from: process.env.MAIL_FROM,
       // 10 minutes. Long enough to switch to a phone, short enough that a
       // forwarded email is not a standing key.

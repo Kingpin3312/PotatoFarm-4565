@@ -30,6 +30,22 @@ import path from "node:path";
 const APP = path.resolve(import.meta.dirname, "..");
 const read = (p) => { try { return fs.readFileSync(path.join(APP, p), "utf8"); } catch { return ""; } };
 
+/**
+ * The same source with its comments removed.
+ *
+ * Needed because a file in this repository explains its own bugs at
+ * length, so the prose contains the very strings a check looks for. The
+ * first version of the sign-in assertion below matched `apiKey:` inside
+ * the comment describing the day `apiKey` was missing — it passed with
+ * the bug reinstated, which is the definition of decoration. Caught by
+ * proving it red at the call site, which is the only reason it is here.
+ */
+const code = (src) => src
+  .replace(/\/\*[\s\S]*?\*\//g, " ")                 // block and JSDoc comments
+  .split("\n")
+  .filter((l) => !/^\s*(\/\/|\*)/.test(l))           // line comments and stray continuations
+  .join("\n");
+
 let bad = 0, skipped = 0;
 const fails = [];
 const ok = (label, pass, detail = "") => {
@@ -67,6 +83,41 @@ ok("an undelivered alert is loud",
 ok("the health sweep emits a heartbeat",
    /await\s+heartbeat\(\)/.test(alertSrc),
    /await\s+heartbeat\(\)/.test(alertSrc) ? "" : "nothing external can tell this process stopped");
+
+/* ------------------------------------------------------------------ */
+console.log("\nThe way in:");
+
+/**
+ * The sign-in provider is handed a key, rather than left to infer one.
+ *
+ * Auth.js resolves a provider's key from `AUTH_<ID>_KEY` — here
+ * `AUTH_RESEND_KEY`. This project documents `RESEND_API_KEY` and
+ * `.env.example` calls it "the only way into the product". They are
+ * different variables, and for the life of the project nothing joined
+ * them: the documented key was set, `apiKey` was `undefined`, and every
+ * magic link went out as `Authorization: Bearer undefined`.
+ *
+ * This is the exact failure this file was written for. An environment
+ * check asking "is RESEND_API_KEY set?" answers **yes** on a deployment
+ * where nobody can sign in, which is why the assertion is on the source
+ * and not on the variable.
+ */
+const authSrc = code(read("src/server/auth/config.ts"));
+const mailSrc = code(read("src/server/lib/mail.ts"));
+
+ok("the sign-in provider is given an API key explicitly",
+   /Resend\(\{[\s\S]*?apiKey\s*:/.test(authSrc),
+   /Resend\(\{[\s\S]*?apiKey\s*:/.test(authSrc)
+     ? "" : "Auth.js would infer AUTH_RESEND_KEY, which this project never sets");
+
+ok("and it reads the key this project documents",
+   /apiKey\s*:[^,\n]*RESEND_API_KEY/.test(authSrc),
+   /apiKey\s*:[^,\n]*RESEND_API_KEY/.test(authSrc)
+     ? "" : "sign-in must use RESEND_API_KEY, the name .env.example tells an operator to set");
+
+ok("sign-in and the mailer draw on the same key",
+   /RESEND_API_KEY/.test(mailSrc) && /RESEND_API_KEY/.test(authSrc),
+   "two names for one account is how half a product mails and the other half does not");
 
 /* ------------------------------------------------------------------ */
 console.log("\nThe deploy target:");
