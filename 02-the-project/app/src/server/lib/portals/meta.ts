@@ -25,10 +25,35 @@ import crypto from "node:crypto";
  * log. **The token failing is the failure**, and it is silent — which is
  * the exact shape this whole product is built to catch.
  */
+/**
+ * Where the lead is fetched back from.
+ *
+ * Graph, always, unless `META_GRAPH_BASE` names a **loopback** address —
+ * and that exception exists for exactly one reason: without it this
+ * function cannot be tested at all. Meta sends an id and nothing else,
+ * so the one assertion worth having — *an inbound lead ad becomes a lead
+ * on the board* — cannot be made without somewhere to fetch from. The
+ * WhatsApp webhook carries its message inline and needs no equivalent.
+ *
+ * The loopback restriction is the whole guard. `pageToken` reads a
+ * brokerage's leads, so an override free to name any host would be an
+ * exfiltration primitive wearing a configuration flag. Refusing rather
+ * than falling back to Graph is deliberate: a misconfigured override
+ * silently talking to Facebook would hide the mistake.
+ */
+function graphBase(): string {
+  const override = process.env.META_GRAPH_BASE;
+  if (!override) return "https://graph.facebook.com/v21.0";
+  if (!/^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?(\/|$)/.test(override)) {
+    throw new Error("META_GRAPH_BASE is only honoured for a loopback address");
+  }
+  return override.replace(/\/+$/, "");
+}
+
 export async function fetchLead(leadgenId: string, pageToken: string): Promise<RawEnquiry | null> {
   try {
     const res = await fetch(
-      `https://graph.facebook.com/v21.0/${leadgenId}?fields=created_time,field_data,ad_id,campaign_name,form_name,platform`,
+      `${graphBase()}/${leadgenId}?fields=created_time,field_data,ad_id,campaign_name,form_name,platform`,
       { headers: { Authorization: `Bearer ${pageToken}` }, signal: AbortSignal.timeout(12_000) }
     );
 

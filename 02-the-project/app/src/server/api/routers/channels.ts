@@ -183,9 +183,29 @@ export const channelsRouter = router({
        * — it appears on screen and in an environment variable — so the
        * randomness is only to stop two brokerages generating the same
        * one, not to resist an attacker.
+       *
+       * **Which types get one, and the bug that made this a set.**
+       *
+       * This read `input.type === "WHATSAPP"`, and `TOKENED` above is a
+       * different axis entirely — it is about per-channel webhook URLs,
+       * not about credentials. So a Facebook Page was accepted with an
+       * access token, given no reference, and the token was written
+       * nowhere: the `writeSecret` call below is guarded on `secretRef`.
+       *
+       * Meta lead ads is the one channel that cannot survive that. Its
+       * webhook carries only an id and the answers must be fetched back
+       * with the Page token, so with no token **every lead was lost at
+       * the credential lookup** — logged, 200 returned to Meta, and gone
+       * permanently, because the fetch has a retention window. The
+       * screen meanwhile reported the token stored. `check:meta-inbound`
+       * found this on its first run.
        */
-      const secretRef =
-        input.type === "WHATSAPP" ? `wa_${randomBytes(6).toString("hex")}` : undefined;
+      const CREDENTIALLED: Partial<Record<(typeof TYPES)[number], string>> = {
+        WHATSAPP: "wa",       // to send
+        META_LEAD_ADS: "meta", // to fetch the lead back
+      };
+      const refPrefix = CREDENTIALLED[input.type];
+      const secretRef = refPrefix ? `${refPrefix}_${randomBytes(6).toString("hex")}` : undefined;
 
       /**
        * Refused up front rather than after the row exists.
@@ -236,13 +256,23 @@ export const channelsRouter = router({
           // account reference and there is no reason for it to sit in an
           // audit row that a wider group can read.
           after: { type: channel.type, label: channel.label,
-                   // Whether, never what.
-                   tokenStored: Boolean(input.accessToken) },
+                   // Whether, never what — and whether it was *stored*,
+                   // not whether one was offered. Those differed for
+                   // every channel type that had no `secretRef`.
+                   tokenStored: Boolean(input.accessToken && secretRef) },
         });
 
-        // Whether, never what. The screen needs to know if it should
-        // still be asking for a token; it must never be handed one.
-        return { ...channel, tokenStored: Boolean(input.accessToken) };
+        /**
+         * Whether, never what. The screen needs to know if it should
+         * still be asking for a token; it must never be handed one.
+         *
+         * `&& secretRef` because this reported a stored token whenever
+         * one was *supplied*. On a channel type with no reference the
+         * token went nowhere and the screen said it was connected —
+         * which is the difference between "not set up yet" and "set up
+         * and quietly broken".
+         */
+        return { ...channel, tokenStored: Boolean(input.accessToken && secretRef) };
       } catch (e) {
         if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
           const target = (e.meta?.target as string[] | string | undefined) ?? "";

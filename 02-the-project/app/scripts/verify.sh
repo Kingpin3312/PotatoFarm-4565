@@ -186,6 +186,33 @@ elif ! curl -sf -o /dev/null --max-time 3 "$APP_URL/api/health" 2>/dev/null \
   skipped+=("check:whatsapp-inbound (no application at $APP_URL — run npm run dev)")
 else
   step "check:whatsapp-inbound" npm run --silent check:whatsapp-inbound
+  # The other inbound front door, and the one whose failure is
+  # unrecoverable. A Meta webhook carries only a `leadgen_id`; the
+  # answers are fetched back with the Page token inside a retention
+  # window, so a token that has stopped working is leads **lost**, not
+  # delayed. It needs a third thing the WhatsApp check does not: the
+  # application must be running against the suite's loopback stand-in,
+  # because there is no payload to replay.
+  #
+  # `META_GRAPH_BASE` is read here as a proxy for that, and the proxy
+  # holds for the reason it is set in `.env` — Next loads the same file,
+  # so a value this shell can see is a value the server was started
+  # with. Guarded rather than attempted, because the failure mode of
+  # running it against a server pointed at the real Graph is a red gate
+  # that blames the product for a configuration difference.
+  meta_ready=1
+  for v in META_APP_SECRET META_VERIFY_TOKEN META_GRAPH_BASE; do
+    eval "val=\${$v:-}"
+    if [ -z "$val" ] && [ -f .env ]; then
+      val=$(sed -n "s/^$v=//p" .env | head -1 | tr -d "\"'")
+    fi
+    [ -z "$val" ] && { meta_ready=0; missing_meta="$v"; break; }
+  done
+  if [ "$meta_ready" -eq 0 ]; then
+    skipped+=("check:meta-inbound ($missing_meta is not set)")
+  else
+    step "check:meta-inbound" npm run --silent check:meta-inbound
+  fi
   step "check:routing" npm run --silent check:routing
   step "check:availability" npm run --silent check:availability
   # The register, and then the real nightly job over its own cron route.

@@ -45,6 +45,7 @@
     "browser:add-property": "node scripts/add-property.mjs",
     "browser:connect-channel": "node scripts/connect-channel.mjs",
     "check:whatsapp-inbound": "node --env-file-if-exists=.env scripts/whatsapp-inbound.mjs",
+    "check:meta-inbound": "node --env-file-if-exists=.env scripts/meta-inbound.mjs",
     "browser:commission-plan": "node --env-file-if-exists=.env scripts/commission-plan.mjs",
     "browser:working-hours": "node --env-file-if-exists=.env scripts/working-hours.mjs",
     "browser:kyc-file": "node --env-file-if-exists=.env scripts/kyc-file.mjs",

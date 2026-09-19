@@ -68,7 +68,14 @@ jobs:
       # Anthropic key, no Resend key, no Stripe key, so no test run can
       # message a customer or spend money.
       AUTH_SECRET: ci-only-not-a-real-secret
-      SECRETS_KEY: Y2ktb25seS0zMi1ieXRlcy1vZi1iYXNlNjQtdmFsdWUh
+      # 32 bytes exactly. The previous value decoded to the string
+      # "ci-only-32-bytes-of-base64-value!", which is 33 characters — so
+      # `masterKey()` threw, `vaultReady()` caught it and returned false,
+      # and **the secrets vault has never worked in CI**. Nothing noticed:
+      # connecting a channel without a token is a supported path, so the
+      # browser suite passed, and the preflight assertion that measures
+      # this key only runs under PREFLIGHT_ENV=1, which CI does not set.
+      SECRETS_KEY: Y2ktb25seS0zMi1ieXRlcy1vZi1iYXNlNjQta2V5ISE=
       CRON_SECRET: ci-only-cron-secret
       # Any value works: the check signs its own fake delivery with it,
       # so both ends agree. Leaving it unset does not fail
@@ -217,9 +224,35 @@ jobs:
       DATABASE_URL_UNSCOPED: postgresql://postgres:ci@localhost:5432/potatofarm?schema=public
       DATABASE_URL_DIRECT: postgresql://postgres:ci@localhost:5432/potatofarm?schema=public
       AUTH_SECRET: ci-only-not-a-real-secret
-      SECRETS_KEY: Y2ktb25seS0zMi1ieXRlcy1vZi1iYXNlNjQtdmFsdWUh
+      # 32 bytes exactly. The previous value decoded to the string
+      # "ci-only-32-bytes-of-base64-value!", which is 33 characters — so
+      # `masterKey()` threw, `vaultReady()` caught it and returned false,
+      # and **the secrets vault has never worked in CI**. Nothing noticed:
+      # connecting a channel without a token is a supported path, so the
+      # browser suite passed, and the preflight assertion that measures
+      # this key only runs under PREFLIGHT_ENV=1, which CI does not set.
+      SECRETS_KEY: Y2ktb25seS0zMi1ieXRlcy1vZi1iYXNlNjQta2V5ISE=
       CRON_SECRET: ci-only-cron-secret
       WHATSAPP_APP_SECRET: ci-only-webhook-signing-secret
+      # The same arrangement as WHATSAPP_APP_SECRET, plus one more piece.
+      # `check:meta-inbound` signs its own delivery with the first and
+      # answers Meta's handshake with the second, so any values work as
+      # long as both ends agree.
+      META_APP_SECRET: ci-only-meta-signing-secret
+      META_VERIFY_TOKEN: ci-only-meta-verify-token
+      # The third piece, and the reason this check lives in *this* job:
+      # a Meta webhook carries only a `leadgen_id` and the lead has to
+      # be fetched back over HTTP, so the suite stands a loopback Graph
+      # up on 4319 and the **application** must be pointed at it. Set on
+      # the job rather than the step because `npm run start` below is
+      # what has to inherit it — set on the step, the check would talk
+      # to its own stand-in while the server called the real Graph, and
+      # the suite would report the product broken.
+      #
+      # `graphBase()` refuses any non-loopback value outright rather
+      # than falling back to Graph, so a typo here fails loudly instead
+      # of quietly sending a customer's Page token somewhere else.
+      META_GRAPH_BASE: http://127.0.0.1:4319
       NEXT_PUBLIC_APP_URL: http://localhost:3000
       SEAT_PRICE_FILS: "9900"
       # This job is the one that runs `check:billing`, because that suite
@@ -343,6 +376,22 @@ jobs:
       # CI run was in the route and not the arithmetic.
       - name: Whether the company can take money
         run: npm run check:billing
+
+      # The inbound path for the lead source the brokerage pays for by
+      # the click, and the one whose failure cannot be replayed: Meta
+      # sends an id, the answers are fetched back with the Page token
+      # inside a retention window, and a token that has stopped working
+      # means those leads are **gone**, not queued.
+      #
+      # It found two faults on its first run, both invisible to every
+      # check that existed. `channels.connect` generated a `secretRef`
+      # for WhatsApp only, so a connected Facebook Page had its access
+      # token written nowhere and every lead died at the credential
+      # lookup — while the screen reported the token stored. And the
+      # `SECRETS_KEY` above decoded to 33 bytes, so the vault this job
+      # is supposed to exercise had never once initialised here.
+      - name: An advert becomes a lead
+        run: npm run check:meta-inbound
 
       - name: The board's optimistic move
         run: npm run browser:optimistic-board
