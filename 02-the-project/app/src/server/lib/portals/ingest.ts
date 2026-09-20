@@ -137,6 +137,23 @@ export async function ingestEnquiry(
         channelId,
         externalId: raw.externalId,
         message: raw.message,
+        /**
+         * Which advert paid for this enquiry.
+         *
+         * `RawEnquiry.source` is documented in `types.ts` as the thing
+         * "a brokerage spending on ads needs to know", Meta's adapter
+         * builds it — "instagram · Marina Q4 · Marina 2-bed enquiry" —
+         * and **this function used to drop it on the floor**.
+         * `Lead.source` two fields up is a fixed per-portal enum, so it
+         * was never able to hold this and nothing else read it.
+         *
+         * The result was a brokerage that could see a buyer came from
+         * Meta and never which campaign, which is the only figure that
+         * decides whether to double the spend or stop it. Read by
+         * `reports.byChannel`, which groups on it;
+         * `check:meta-inbound` asserts both ends.
+         */
+        campaign: raw.source ?? null,
         createdAt: raw.receivedAt,
       },
     });

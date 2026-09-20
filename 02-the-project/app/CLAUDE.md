@@ -102,7 +102,7 @@ What is verified today, measured rather than assumed:
   `/api/health` returns `200 {"ok":true}` against a real Postgres.
 - The boot log names every unconfigured service with its consequence —
   six of them in a bare development environment.
-- 296 assertions in 15 files, 35 check suites, 22 audits, all green.
+- 296 assertions in 15 files, 35 check suites, 23 audits, all green.
 
 Type errors on a fresh checkout are no longer expected. If you get one,
 it is new.
@@ -176,6 +176,28 @@ against and pulls the joins of a **connected** script into each other.
 And `formattingLocale()` returns `ar-AE-u-nu-latn` to pin Western
 digits — the comment there records that `ar-AE` already defaults that
 way and `ar-EG` does not, so it is a guarantee, not a fix.
+
+**`prisma migrate dev` will silently drop the search indexes.** Eight of
+them — the trigram indexes behind search and the composite index behind
+the pipeline board — are created by raw SQL in
+`20260810090000_search_indexes`. Prisma cannot see them in
+`schema.prisma`, so it reads them as drift: adding one nullable column
+to `Enquiry` generated a migration with **eight `DROP INDEX` statements
+above the `ALTER TABLE`**, and applied them locally before anybody
+looked at the file.
+
+Nothing fails. Search falls from an index scan to a sequential scan on
+every query, on a table `check:load` sizes at 5,000 leads, and the only
+symptom is that the product feels slow — which is indistinguishable from
+it being busy. `04-audit-scripts/migrations.py` exists for exactly this
+and caught it on the next run.
+
+So: after `prisma migrate dev`, **read the generated SQL before
+committing it**. Delete any `DropIndex` you did not ask for, and
+re-apply the ones already lost by running the original migration file
+against the database. The audit compares every `CREATE INDEX` in the
+migration history against every `DROP`, so it catches this whoever
+causes it.
 
 **The audit log has `REVOKE UPDATE, DELETE`.** Erasure scrubs rows rather
 than deleting them. `privacy/README.md` explains how both can be true.
@@ -497,7 +519,7 @@ send path read it.
 ## Run the tests
 
     npm test          # 296 assertions, pure functions, no database
-    npm run verify    # tsc, the tests, 35 check suites, 22 audits
+    npm run verify    # tsc, the tests, 35 check suites, 23 audits
 
 **The gate is now green end to end, including the two things that used
 to skip.** `verify` reports what it did not run rather than counting a
@@ -555,8 +577,8 @@ tenant isolation cannot be proved against a mock.
 
 ## Run the audits
 
-There are **twenty-two**, in `04-audit-scripts/` at the repository
-root. All twenty-two are green and all of them belong in CI. Twenty-one
+There are **twenty-three**, in `04-audit-scripts/` at the repository
+root. All twenty-three are green and all of them belong in CI. Twenty-two
 are Python; `reveal.mjs` needs a browser, which is why `run-all.sh`
 dispatches on the extension rather than assuming an interpreter.
 

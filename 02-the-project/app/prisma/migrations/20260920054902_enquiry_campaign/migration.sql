@@ -1,0 +1,26 @@
+-- Which advert produced this enquiry.
+--
+-- `Lead.source` is a fixed per-portal enum and cannot hold a campaign
+-- name, so the string Meta's adapter builds — "instagram · Marina Q4 ·
+-- Marina 2-bed enquiry" — had nowhere to go and was discarded.
+-- `reports.byChannel` groups on this.
+ALTER TABLE "Enquiry" ADD COLUMN "campaign" TEXT;
+
+-- The eight DROP INDEX statements `migrate dev` wrote above this have
+-- been removed, and that removal is the point of this comment.
+--
+-- Those indexes are created by raw SQL in an earlier migration —
+-- trigram indexes for search and one composite index for the pipeline
+-- board. Prisma cannot see them in schema.prisma, so it concluded they
+-- were drift and generated statements to drop all eight while adding
+-- one nullable column.
+--
+-- Nothing would have failed. Search would have gone from an index scan
+-- to a sequential scan on every query, on a table that `check:load`
+-- sizes at 5,000 leads, and the only symptom is that the product feels
+-- slow — which is indistinguishable from it being busy.
+--
+-- `04-audit-scripts/migrations.py` exists for exactly this and caught
+-- it on the run after the migration was generated. If you run
+-- `prisma migrate dev` and see DropIndex statements you did not ask
+-- for, delete them.

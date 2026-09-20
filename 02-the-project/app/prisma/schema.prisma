@@ -740,6 +740,17 @@ model Enquiry {
   /// cannot become a second enquiry on the board.
   externalId String?
   message    String?
+  /// Which advert or form produced this enquiry — "instagram · Marina Q4
+  /// · Marina 2-bed enquiry". `Lead.source` is a fixed per-portal enum
+  /// and cannot hold it, so `ingestEnquiry` used to compute this string
+  /// and throw it away: a brokerage could see that a buyer came from
+  /// Meta but never which advert they had paid for, which is the figure
+  /// that decides whether to double the spend or stop it.
+  ///
+  /// Read by `reports.sources`, which groups on it. Nullable because
+  /// only Meta sets it today; the portals have one source and it is
+  /// already the channel.
+  campaign   String?
   createdAt  DateTime @default(now())
 
   lead    Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)

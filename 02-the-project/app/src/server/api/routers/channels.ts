@@ -65,6 +65,45 @@ const TYPES = [
  */
 const TOKENED = new Set(["PROPERTY_FINDER", "BAYUT", "DUBIZZLE", "WEBSITE_FORM"]);
 
+/**
+ * Types that hold a credential of their own, and the prefix its
+ * reference is named with.
+ *
+ * Module scope, next to `TOKENED`, because this exact fact was stated
+ * in two places that disagreed and that is the whole bug. `connect`
+ * decided which channels get a `secretRef`; `list` separately decided
+ * which channels are worth asking "can this actually send". One said
+ * WhatsApp and Meta, the other said WhatsApp — so a Facebook Page
+ * whose token had stopped resolving was a state no screen in the
+ * product could show, and Meta is the channel where that means leads
+ * lost rather than a message that fails loudly.
+ *
+ * One declaration, every reader. `check:channel-surfaces` fails the
+ * build if a new channel type is added without an entry here.
+ */
+export const CREDENTIALLED: Partial<Record<(typeof TYPES)[number], string>> = {
+  WHATSAPP: "wa",        // to send
+  META_LEAD_ADS: "meta", // to fetch the lead back
+};
+
+/**
+ * Types that deliberately hold no credential of their own.
+ *
+ * Stated rather than left implicit, and `04-audit-scripts/channels.py`
+ * fails the build on a channel type that appears in neither list. The
+ * portals push to a per-channel URL guarded by `webhookToken` — we
+ * never call them, so there is nothing to authenticate as and no token
+ * to store.
+ *
+ * The point is not the contents. It is that adding a seventh channel
+ * type forces somebody to answer the question, instead of inheriting
+ * the answer from whichever branch they happened to copy. Meta was
+ * added by copying a branch that said WhatsApp.
+ */
+export const NO_CREDENTIAL: readonly (typeof TYPES)[number][] = [
+  "PROPERTY_FINDER", "BAYUT", "DUBIZZLE", "WEBSITE_FORM",
+];
+
 export const channelsRouter = router({
   health: requirePermission("channel:read").query(async ({ ctx }) => {
     const channels = await ctx.db.channel.findMany({
@@ -138,7 +177,16 @@ export const channelsRouter = router({
        * find out. Resolved here so the screen can say so while nobody
        * is waiting.
        */
-      canSend: c.type === "WHATSAPP" ? await resolves(c.secretRef) : null,
+      /**
+       * Asked of every channel that holds a credential, not just
+       * WhatsApp. A Facebook Page reads a brokerage's leads with this
+       * token and those leads cannot be replayed, so it is the one
+       * this question matters most about — and it was the one not
+       * being asked.
+       */
+      canSend: CREDENTIALLED[c.type as (typeof TYPES)[number]]
+        ? await resolves(c.secretRef)
+        : null,
     })));
   }),
 
@@ -200,10 +248,6 @@ export const channelsRouter = router({
        * screen meanwhile reported the token stored. `check:meta-inbound`
        * found this on its first run.
        */
-      const CREDENTIALLED: Partial<Record<(typeof TYPES)[number], string>> = {
-        WHATSAPP: "wa",       // to send
-        META_LEAD_ADS: "meta", // to fetch the lead back
-      };
       const refPrefix = CREDENTIALLED[input.type];
       const secretRef = refPrefix ? `${refPrefix}_${randomBytes(6).toString("hex")}` : undefined;
 

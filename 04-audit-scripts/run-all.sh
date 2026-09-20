@@ -96,6 +96,13 @@ CHECKS=(
   # cases found were not screens: an outbound WhatsApp nudge to a lead
   # the brokerage had removed, and a closed brokerage still sweeping.
   "erasure.py|$APP"
+  # Every channel type, accounted for on every surface that must decide
+  # about it. Meta lead ads was added correctly to the enum, the adapter,
+  # the route and the ingest — and missed in three places, each found
+  # separately, days apart, by writing a check for that one symptom.
+  # Adding a channel type touches six files and nothing made you visit
+  # them.
+  "channels.py|$APP"
   # A second money formatter. The rule is in CLAUDE.md and was enforced
   # by nothing, so two had grown back — one of them building the price
   # in a WhatsApp message to a buyer. Neither printed a wrong number,

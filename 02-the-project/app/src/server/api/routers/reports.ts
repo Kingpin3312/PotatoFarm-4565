@@ -292,7 +292,27 @@ export const reportsRouter = router({
       viewings: bigint; median_s: number | null;
     }[]>`
       SELECT
-        ch.label AS channel,
+        /* The advert where there is one, the channel otherwise.
+
+           The table is headed "where they come from" and answered
+           "Meta lead ads" for every campaign a brokerage was running,
+           which is the channel they already knew. Enquiry.campaign
+           carries what Meta actually said, so a brokerage can see that
+           Marina Q4 produced eleven enquiries and two viewings while
+           another campaign produced forty and none.
+
+           COALESCE rather than a second column: the portals genuinely
+           have one source and it is the channel, so a campaign column
+           would be empty for most rows and the screen would have to
+           explain why.
+
+           A SQL comment, and no backticks anywhere in it. This began as
+           a JSDoc block quoting the column name the way the rest of
+           this file quotes an identifier — and a backtick inside a
+           template literal ends the string. The type error it caused
+           landed forty lines further down and named neither the cause
+           nor this line. */
+        COALESCE(NULLIF(e.campaign, ''), ch.label) AS channel,
         COUNT(DISTINCT e.id) AS enquiries,
         COUNT(DISTINCT e.id) FILTER (WHERE l.phone NOT LIKE 'pending:%') AS reachable,
         COUNT(DISTINCT l.id) FILTER (WHERE l."budgetMaxFils" IS NOT NULL AND l.intent IS NOT NULL) AS qualified,

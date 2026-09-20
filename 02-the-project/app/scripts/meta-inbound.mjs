@@ -226,6 +226,25 @@ console.log("\n=== once the Page is connected, the lead lands on the board ===")
  * update would prove nothing about them.
  */
 const OWNER = "dev-session-token-ask-history";
+/**
+ * One tRPC **query** as the owner.
+ *
+ * A separate helper because tRPC serves queries over GET and mutations
+ * over POST, and posting to a query procedure is a 405 that reads like
+ * the procedure being broken. `reports.byChannel` takes an optional
+ * range that defaults to the last thirty days, so no input is sent —
+ * the enquiry this asserts on is created seconds earlier.
+ */
+async function trpcQuery(proc) {
+  const input = encodeURIComponent(JSON.stringify({ 0: { json: null, meta: { values: ["undefined"] } } }));
+  const r = await fetch(`${APP}/api/trpc/${proc}?batch=1&input=${input}`, {
+    headers: { cookie: `authjs.session-token=${OWNER}; __Secure-authjs.session-token=${OWNER}` },
+  });
+  const text = await r.text();
+  if (r.status !== 200) throw new Error(`${proc} → HTTP ${r.status} ${text.slice(0, 160)}`);
+  return text;
+}
+
 async function trpc(proc, json) {
   const r = await fetch(`${APP}/api/trpc/${proc}?batch=1`, {
     method: "POST",
@@ -334,11 +353,39 @@ async function trpc(proc, json) {
    */
   const enquiry = await db.enquiry.findFirst({
     where: { orgId: org.id, externalId: LEADGEN },
-    select: { id: true, channel: { select: { type: true, identifier: true } } },
+    select: { id: true, campaign: true, channel: { select: { type: true, identifier: true } } },
   });
   ok("the delivery is recorded against the Page it arrived on",
      enquiry?.channel?.type === "META_LEAD_ADS" && enquiry?.channel?.identifier === PAGE_ID,
      enquiry ? `${enquiry.channel?.type} ${enquiry.channel?.identifier}` : "no enquiry row");
+
+  /**
+   * Which advert paid for it.
+   *
+   * `normalise()` has always built this string and `ingestEnquiry`
+   * used to drop it: `Lead.source` is a fixed per-portal enum, so a
+   * brokerage could see a buyer came from Meta and never which
+   * campaign — the only figure that decides whether to double the
+   * spend or stop it. Asserted at both ends, because a column with a
+   * writer and no reader is this project's own worst habit.
+   */
+  ok("the campaign survives the ingest",
+     /Marina Q4/.test(enquiry?.campaign ?? ""),
+     enquiry?.campaign ?? "null — which advert produced this lead is unrecoverable");
+  ok("and names the platform, not just the campaign",
+     /instagram|facebook/i.test(enquiry?.campaign ?? ""),
+     enquiry?.campaign ?? "null");
+
+  /**
+   * And something reads it. `reports.byChannel` groups on the campaign
+   * where there is one, so the table headed "where they come from"
+   * answers with the advert rather than repeating the channel the
+   * brokerage already knew.
+   */
+  const rpt = await trpcQuery("reports.byChannel");
+  ok("and a report reads it back",
+     /Marina Q4/.test(rpt),
+     /Marina Q4/.test(rpt) ? "grouped by campaign" : "the campaign is stored and no screen shows it");
 }
 
 /* ---------------- the answers nobody maps -------------------------- */
