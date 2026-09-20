@@ -75,6 +75,8 @@ let mode = "lead";
 let fetched = 0;
 /** Set once the Page is connected with a resolvable credential. */
 let connected = false;
+/** The connected channel's row id, for the procedures that take one. */
+let channelId = null;
 
 const graph = http.createServer((req, res) => {
   fetched++;
@@ -215,8 +217,30 @@ console.log("\n=== once the Page is connected, the lead lands on the board ===")
  * that writes its own row asserts a path no customer takes and proves
  * the wrong thing.
  */
+/**
+ * One tRPC mutation as the owner.
+ *
+ * The same session the connect call uses. Written as a helper because
+ * the assertions below have to go through the real procedures — the
+ * faults they cover were *in* those procedures, and a direct row
+ * update would prove nothing about them.
+ */
+const OWNER = "dev-session-token-ask-history";
+async function trpc(proc, json) {
+  const r = await fetch(`${APP}/api/trpc/${proc}?batch=1`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      cookie: `authjs.session-token=${OWNER}; __Secure-authjs.session-token=${OWNER}`,
+    },
+    body: JSON.stringify({ 0: { json } }),
+  });
+  const text = await r.text();
+  if (r.status !== 200) throw new Error(`${proc} → HTTP ${r.status} ${text.slice(0, 160)}`);
+  return text;
+}
+
 {
-  const OWNER = "dev-session-token-ask-history";
   const r = await fetch(`${APP}/api/trpc/channels.connect?batch=1`, {
     method: "POST",
     headers: {
@@ -239,8 +263,9 @@ console.log("\n=== once the Page is connected, the lead lands on the board ===")
 
   const row = await db.channel.findFirst({
     where: { orgId: org.id, identifier: PAGE_ID },
-    select: { secretRef: true },
+    select: { id: true, secretRef: true },
   });
+  channelId = row?.id ?? null;
   connected = !!row?.secretRef;
   ok("a credential reference exists to read the token back with",
      connected, row?.secretRef ?? "none — every lead will fail at the credential lookup");
@@ -383,7 +408,61 @@ console.log("\n=== a dead token becomes an incident, not a log line ===");
   ok("and says the leads are lost, not delayed",
      /permanently|lost/i.test(chan?.lastError ?? ""),
      (chan?.lastError ?? "none").slice(0, 70));
+
+  /**
+   * And the incident has to be closable.
+   *
+   * The message tells whoever reads it to reconnect the Page in
+   * Settings → Channels. Doing that left `lastError` exactly where it
+   * was, so the screen went on reporting lost leads about a channel
+   * that had just been fixed and `health/alert.ts` went on sweeping
+   * it. Asserted through the real `setActive` procedure, because the
+   * bug was in the procedure and a direct row update would prove
+   * nothing about it.
+   */
+  await trpc("channels.setActive", { id: channelId, active: false });
+  await trpc("channels.setActive", { id: channelId, active: true });
+  const after = await db.channel.findFirst({
+    where: { id: channelId }, select: { lastError: true, active: true },
+  });
+  ok("reconnecting closes the incident", after?.lastError === null && after?.active === true,
+     after?.lastError ? "still alarming after a reconnect" : "cleared");
+
   mode = "lead";
+}
+
+/* ---------------- the failure nothing was watching for ------------- */
+console.log("\n=== a Page that simply stops delivering is noticed ===");
+{
+  /**
+   * The silence alarm reads `lastSyncAt` and skips any channel where
+   * it is null — "never connected, a different problem". Nothing wrote
+   * it for a Meta channel, so `checkChannelSilence()` gave Meta the
+   * shortest window of any channel and then never looked at one.
+   */
+  await db.channel.updateMany({ where: { identifier: PAGE_ID }, data: { lastSyncAt: null } });
+  const status = await post(body("77" + String(Date.now()).slice(-10), PAGE_ID));
+  ok("the delivery is accepted", status === 200, `HTTP ${status}`);
+
+  let chan = null;
+  for (let i = 0; i < 24; i++) {
+    await wait(500);
+    chan = await db.channel.findFirst({
+      where: { orgId: org.id, identifier: PAGE_ID },
+      select: { lastSyncAt: true, lastError: true },
+    });
+    if (chan?.lastSyncAt) break;
+  }
+  ok("the Page is recorded as having delivered", !!chan?.lastSyncAt,
+     chan?.lastSyncAt
+       ? chan.lastSyncAt.toISOString()
+       : "lastSyncAt is null — checkChannelSilence() skips this channel for ever");
+  ok("so the silence alarm can see it at all",
+     !!chan?.lastSyncAt && Date.now() - chan.lastSyncAt.getTime() < 120_000,
+     chan?.lastSyncAt ? "fresh" : "nothing to compare against");
+  // A delivery is also the evidence that clears a stale incident.
+  ok("and a delivery clears a stale incident", chan?.lastError === null,
+     chan?.lastError ? "still alarming while leads are arriving" : "cleared");
 }
 
 /* ---------------- leave nothing behind ----------------------------- */

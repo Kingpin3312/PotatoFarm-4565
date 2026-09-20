@@ -323,7 +323,27 @@ export const channelsRouter = router({
       try {
         await ctx.db.channel.update({
           where: { id: input.id },
-          data: { active: input.active },
+          data: {
+            active: input.active,
+            /**
+             * Reconnecting closes the incident that asked for it.
+             *
+             * `lastError` carries the runbook — for Meta it reads
+             * "leads are arriving and cannot be collected... reconnect
+             * in Settings → Channels". Doing exactly that left the
+             * message in place, so the screen went on reporting lost
+             * leads about a channel that had just been fixed, and
+             * `health/alert.ts`, which sweeps this column, went on
+             * raising it. **An alarm nothing can close is one somebody
+             * switches off** — and then the next real one is missed.
+             *
+             * Only on the way back on. Switching a channel off is not
+             * a statement that the last error was resolved, and
+             * clearing it there would erase the reason somebody is
+             * reading the row.
+             */
+            ...(input.active ? { lastError: null } : {}),
+          },
         });
       } catch (e) {
         if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {

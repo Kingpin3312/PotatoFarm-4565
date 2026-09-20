@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { crossTenant } from "@/server/db/client";
 import { fetchLead, verifySignature, TokenExpired } from "@/server/lib/portals/meta";
-import { ingestEnquiry } from "@/server/lib/portals/ingest";
+import { ingestEnquiry, markChannelHealthy } from "@/server/lib/portals/ingest";
 import { getChannelCredentials } from "@/server/lib/secrets";
 import { log } from "@/lib/log";
 
@@ -79,6 +79,32 @@ export async function POST(req: NextRequest) {
           // calls it. This passed a single object.
           await ingestEnquiry(channel.orgId, channel.id, "META_LEAD_ADS", enquiry);
         }
+        /**
+         * Record that the Page delivered. The portal webhook has always
+         * done this and Meta did not, which had two consequences and
+         * both of them defeated the alarm written for this exact case.
+         *
+         * `checkChannelSilence()` opens by calling itself the most
+         * important file in the portal integration, gives Meta the
+         * shortest window of any channel — 24 hours, because Meta going
+         * quiet means either the ads stopped or our token died — and
+         * then skips every channel whose `lastSyncAt` is null, on the
+         * grounds that it was never connected. Nothing wrote
+         * `lastSyncAt` for a Meta channel, ever. **So the one channel
+         * it was tuned hardest for was the one channel it never
+         * checked**, permanently, and a Page that simply stopped
+         * receiving was invisible.
+         *
+         * It also clears `lastError`, which is how a token incident
+         * closes. An alarm that nothing can close is one somebody
+         * switches off.
+         *
+         * Outside the `if`, deliberately: a delivery that produced no
+         * lead — a duplicate, or an enquiry with no contact details —
+         * is still proof the Page is alive, and treating it as silence
+         * would alarm on a working channel.
+         */
+        await markChannelHealthy(channel.id);
       } catch (err) {
         if (err instanceof TokenExpired) {
           /**
