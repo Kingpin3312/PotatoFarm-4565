@@ -9,6 +9,7 @@ import { crossTenant } from "@/server/db/client";
 import { audit } from "@/server/lib/audit";
 import { sendInvite } from "@/server/lib/mail";
 import { DAY_NAMES, DEFAULT_HOURS, hhmm, fromHhmm } from "@/server/lib/hours/defaults";
+import { FEED_SILENT_HOURS } from "@/server/lib/portals/health";
 
 const hash = (token: string) => createHash("sha256").update(token).digest("hex");
 
@@ -80,13 +81,33 @@ export const orgRouter = router({
   listingFeed: requirePermission("org:update").query(async ({ ctx }) => {
     const org = await ctx.db.organisation.findUnique({
       where: { id: ctx.orgId },
-      select: { feedToken: true, feedTokenAt: true },
+      select: { feedToken: true, feedTokenAt: true, feedFetchedAt: true },
     });
+    /**
+     * Whether anybody is actually pulling it, beside the URL itself.
+     *
+     * The screen showed a URL and the date it was issued, and those two
+     * facts together look like a working arrangement while being
+     * perfectly consistent with no portal ever having fetched it. The
+     * question a brokerage needs answered is not "do I have a feed" but
+     * "is my inventory reaching the portal", and only the fetch
+     * timestamp answers that.
+     *
+     * `lastFetchedAt: null` is rendered as *not yet fetched*, which is
+     * the honest state today — no portal agreement is signed, so nobody
+     * has the URL. It is deliberately not rendered as a fault.
+     */
+    const hours = org?.feedFetchedAt
+      ? (Date.now() - org.feedFetchedAt.getTime()) / 3_600_000
+      : null;
     return {
       url: org?.feedToken
         ? `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/api/feed/${org.feedToken}/listings.xml`
         : null,
       createdAt: org?.feedTokenAt ?? null,
+      lastFetchedAt: org?.feedFetchedAt ?? null,
+      /** Null when nothing has ever fetched — unused, rather than broken. */
+      quiet: hours === null ? null : hours > FEED_SILENT_HOURS,
     };
   }),
 

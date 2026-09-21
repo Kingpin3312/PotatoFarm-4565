@@ -193,6 +193,11 @@ else
   # Needs no secret of any kind, so unlike the two Meta suites it can
   # never be skipped for want of configuration.
   step "check:website-form" npm run --silent check:website-form
+  # Listings going out, which is the other half and had no check at all.
+  # A portal fetches the feed on a schedule; nothing recorded that it
+  # had, so a portal that stopped collecting was invisible while the
+  # route's own comment claimed the silence alarm was watching.
+  step "check:listing-feed" npm run --silent check:listing-feed
   # The other inbound front door, and the one whose failure is
   # unrecoverable. A Meta webhook carries only a `leadgen_id`; the
   # answers are fetched back with the Page token inside a retention

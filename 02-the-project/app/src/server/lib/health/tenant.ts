@@ -1,6 +1,6 @@
 import { crossTenant } from "@/server/db/client";
 import { messagingWindow } from "@/server/lib/whatsapp";
-import { checkChannelSilence } from "@/server/lib/portals/health";
+import { checkChannelSilence, checkFeedSilence } from "@/server/lib/portals/health";
 
 /**
  * Health, per brokerage — not per service.
@@ -88,15 +88,40 @@ async function whatsappCheck(orgId: string): Promise<Check[]> {
 }
 
 async function portalCheck(orgId: string): Promise<Check[]> {
-  const silent = (await checkChannelSilence()).filter((a) => a.orgId === orgId);
-  if (!silent.length) return [{ key: "portals", state: "ok", detail: "All feeds delivering." }];
+  const [silent, feedSilent] = await Promise.all([
+    checkChannelSilence().then((a) => a.filter((x) => x.orgId === orgId)),
+    /**
+     * Listings going *out*, which had no check here at all.
+     *
+     * Everything above this line watches enquiries arriving. A portal
+     * that stops fetching the listing feed stops refreshing a
+     * brokerage's advertising — stale prices, withdrawn properties
+     * still on sale — and nothing errored, so this page reported "All
+     * feeds delivering" while the outbound half was dead.
+     */
+    checkFeedSilence().then((a) => a.filter((x) => x.orgId === orgId)),
+  ]);
 
-  return silent.map((s) => ({
+  const checks: Check[] = silent.map((s) => ({
     key: `portal:${s.label}`,
     state: "degraded" as const,
     detail: `Nothing for ${Math.round(s.quietHours)}h — normally every ${Math.round(s.expected / 3)}h.`,
     action: "Check the credentials and the webhook. A silent feed does not error.",
   }));
+
+  for (const f of feedSilent) {
+    checks.push({
+      key: "listing-feed",
+      state: "degraded" as const,
+      detail: `No portal has fetched the listing feed for ${Math.round(f.quietHours)}h.`,
+      // Rotation is the likeliest innocent cause: it is the revocation
+      // mechanism, and a portal holding the old URL stops dead.
+      action: "If the feed URL was rotated, the portal still has the old one — send them the new URL.",
+    });
+  }
+
+  if (!checks.length) return [{ key: "portals", state: "ok", detail: "All feeds delivering." }];
+  return checks;
 }
 
 async function assistantCheck(orgId: string): Promise<Check[]> {

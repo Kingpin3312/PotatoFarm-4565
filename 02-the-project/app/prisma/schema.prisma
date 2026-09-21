@@ -105,6 +105,23 @@ model Organisation {
   /// question somebody has to be able to answer.
   feedToken       String?                @unique
   feedTokenAt     DateTime?
+  /// When a portal last actually fetched the feed.
+  ///
+  /// `feedTokenAt` above records when the URL was *issued*, which says
+  /// nothing about whether anyone is using it. The route that serves
+  /// the feed wrote neither — it logged a line and returned XML — and
+  /// the comment above that log claimed `portals/health.ts` "alarms on
+  /// silence from a feed". It could not: health sweeps `Channel`, a
+  /// feed is not a channel, and nothing in the database changed when a
+  /// portal fetched. **A portal that quietly stopped pulling listings
+  /// was detected by nobody**, which is the exact failure the feed
+  /// route's own comment describes.
+  ///
+  /// Null means no portal has ever fetched, which today is the normal
+  /// state — no agreement is signed, so nobody has the URL. That is
+  /// not a fault and is not alarmed on; the sweep starts watching a
+  /// brokerage only once this has been set at least once.
+  feedFetchedAt   DateTime?
 
   @@index([deletedAt])
 }

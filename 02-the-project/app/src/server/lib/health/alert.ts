@@ -40,7 +40,26 @@ function severityFor(check: Check, scope: "platform" | "tenant"): Severity {
   // fixable now.
   if (scope === "platform") return "PAGE";
 
-  if (check.state !== "broken") return "LOG";
+  /**
+   * Degraded: recorded quietly, except where quiet is the failure.
+   *
+   * Most degraded states are ordinary facts about a customer's account
+   * — the assistant not switched on, no subscription on a demo
+   * brokerage — and delivering those would page somebody daily about
+   * nothing, which is how the real alarm gets muted.
+   *
+   * The two exceptions are the silences. A portal feed that has stopped
+   * delivering enquiries, or a portal that has stopped collecting the
+   * listing feed, is a churn event in progress: nothing errors, leads
+   * or listings simply stop, and the brokerage finds out a fortnight
+   * later by wondering why the market went quiet. Somebody has to be
+   * told, in the morning — an engineer cannot fix either one, because
+   * both usually end with the customer being handed a URL.
+   */
+  if (check.state !== "broken") {
+    if (check.key.startsWith("portal") || check.key === "listing-feed") return "TICKET";
+    return "LOG";
+  }
 
   switch (true) {
     // Needs the customer. Nobody rings a brokerage at midnight.
@@ -102,7 +121,31 @@ export async function evaluate() {
     });
   } else {
     for (const t of tenants) {
-      for (const c of t.checks.filter((c) => c.state === "broken")) {
+      /**
+       * Degraded as well as broken, and this filter is why the portal
+       * silence alarm never alarmed.
+       *
+       * `portals/health.ts` opens by calling itself the most important
+       * file in the portal integration, and `portalCheck` reports a
+       * silent feed as **degraded** — as it should, since the rest of
+       * the customer's system is working. This loop read `=== "broken"`,
+       * so every degraded check in the product was computed every five
+       * minutes and discarded. Nothing anywhere consumed one: no screen
+       * reads `tenantHealth`, and this was its only other reader.
+       *
+       * The tell was in `severityFor` below, which opens with
+       * `if (check.state !== "broken") return "LOG"` — a branch that
+       * could never execute, because nothing but a broken check ever
+       * reached it. **A branch nothing can run is the same shape as a
+       * module nothing calls**, and it was sitting directly underneath
+       * the line that made it unreachable.
+       *
+       * Noise is the risk, and severity is the answer rather than this
+       * filter: a degraded check becomes a recorded, deduplicated,
+       * self-closing alert, and only the ones worth a person's morning
+       * are delivered. `notify()` drops LOG before it reaches anybody.
+       */
+      for (const c of t.checks.filter((c) => c.state === "broken" || c.state === "degraded")) {
         found.push({
           key: `tenant:${t.orgId}:${c.key}`,
           orgId: t.orgId,

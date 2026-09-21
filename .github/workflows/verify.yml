@@ -402,6 +402,13 @@ jobs:
       - name: A website enquiry becomes a lead
         run: npm run check:website-form
 
+      # And listings going the other way. This is the only route by
+      # which a brokerage's properties reach a portal today — no
+      # publishing integration exists and a feed needs no partner
+      # agreement — and nothing had ever fetched it.
+      - name: A portal collects the listings
+        run: npm run check:listing-feed
+
       - name: The board's optimistic move
         run: npm run browser:optimistic-board
       - name: The optimistic update, and its failure path

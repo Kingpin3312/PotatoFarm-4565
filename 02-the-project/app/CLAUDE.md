@@ -102,7 +102,7 @@ What is verified today, measured rather than assumed:
   `/api/health` returns `200 {"ok":true}` against a real Postgres.
 - The boot log names every unconfigured service with its consequence —
   six of them in a bare development environment.
-- 296 assertions in 15 files, 36 check suites, 23 audits, all green.
+- 296 assertions in 15 files, 37 check suites, 23 audits, all green.
 
 Type errors on a fresh checkout are no longer expected. If you get one,
 it is new.
@@ -198,6 +198,26 @@ re-apply the ones already lost by running the original migration file
 against the database. The audit compares every `CREATE INDEX` in the
 migration history against every `DROP`, so it catches this whoever
 causes it.
+
+**Editing an applied migration breaks the local checksum, and Prisma's
+remedy is a reset.** The corollary of the entry above: strip the
+unwanted `DropIndex` statements and the next `prisma migrate dev` says
+"We need to reset the public schema… all data will be lost", because
+the file no longer matches the checksum recorded in `_prisma_migrations`
+when it was applied.
+
+**Do not reset.** Production has never seen that migration, so it will
+apply the corrected file and record the right checksum; only the local
+database's bookkeeping is stale. Recompute and update that one row:
+
+    sha256sum prisma/migrations/<name>/migration.sql
+    psql "$DB" -c "UPDATE _prisma_migrations SET checksum='<new>' \
+                   WHERE migration_name='<name>';"
+
+Better still, for a one-column change, **write the migration by hand**
+and apply it with `migrate deploy`. A single `ALTER TABLE` does not
+need a generator, and the generator is what produced the eight
+unrequested drops.
 
 **The audit log has `REVOKE UPDATE, DELETE`.** Erasure scrubs rows rather
 than deleting them. `privacy/README.md` explains how both can be true.
@@ -299,7 +319,7 @@ not want.
 
 ## The shape that keeps recurring
 
-Fourteen times a complete, tested, documented module has turned out to have
+Fifteen times a complete, tested, documented module has turned out to have
 nothing that starts it — and the sixth is the product itself:
 
 1. **Billing** could invoice a customer no code path could create.
@@ -464,6 +484,45 @@ nothing that starts it — and the sixth is the product itself:
    `queue.ts` refuses to tell when it marks an unpublishable listing
    FAILED rather than PENDING.
 
+15. **The listing feed, and the alarm that was never wired to
+   anything.** Found by asking of every HTTP route what had ever
+   exercised it. Four had nothing; this was the one that mattered,
+   because `/api/feed/<token>/listings.xml` is **the only way a
+   brokerage's properties reach a portal today** — no publishing
+   integration exists, each needs a partner agreement, and a feed needs
+   none.
+
+   The route served the XML and wrote **nothing**, beneath a comment
+   stating that "`portals/health.ts` alarms on silence from a feed;
+   this is the line that gives it something to measure". Health sweeps
+   `Channel`, a feed is not a channel, and a `log.info` is not a
+   measurement. A portal that quietly stopped collecting was detected
+   by nobody: stale prices, withdrawn properties still advertised, and
+   it reads as a quiet market.
+
+   **And the bigger half.** Writing the sweep exposed that
+   `evaluate()` filtered `c.state === "broken"`, while every silence
+   check reports **degraded** — correctly, since the rest of the
+   customer's system is working. So *nothing in the product consumed a
+   degraded check at all*: no screen reads `tenantHealth`, and the
+   alert sweep was its only other reader. The portal silence alarm,
+   which its own file calls the most important thing in the
+   integration, had been computing an answer every five minutes and
+   discarding it.
+
+   The tell was sitting directly underneath the line that caused it.
+   `severityFor` opens `if (check.state !== "broken") return "LOG"` —
+   **a branch that could never execute**, because the filter above it
+   guaranteed nothing but a broken check arrived. A branch nothing can
+   run is the same shape as a module nothing calls, and it is worth
+   grepping for on purpose.
+
+   Fixed by severity rather than by widening the filter alone: degraded
+   checks now reach the sweep, most are recorded at LOG and delivered
+   to nobody, and the two silences — a feed not delivering, a portal
+   not collecting — are TICKET, because both are churn in progress and
+   both end with somebody handing the customer a URL.
+
 **The same shape, one layer up: fifteen finished components no screen
 imported.** `architecture.py` grew a `KNOWN_UNMOUNTED` ratchet and it
 started at nine, went to fifteen when the resolver was fixed, and is
@@ -549,7 +608,7 @@ send path read it.
 ## Run the tests
 
     npm test          # 296 assertions, pure functions, no database
-    npm run verify    # tsc, the tests, 36 check suites, 23 audits
+    npm run verify    # tsc, the tests, 37 check suites, 23 audits
 
 **The gate is now green end to end, including the two things that used
 to skip.** `verify` reports what it did not run rather than counting a

@@ -118,6 +118,37 @@ export function ListingFeed() {
             </p>
           )}
 
+          {/*
+            * Whether anybody is actually collecting it.
+            *
+            * A URL and the date it was created look like a working
+            * arrangement, and are perfectly consistent with no portal
+            * ever having fetched it once. This is the line that tells
+            * the difference, and until now nothing recorded a fetch at
+            * all — the route served the XML and wrote nothing down.
+            *
+            * "Not collected yet" is stated plainly rather than styled
+            * as a fault, because today it is the ordinary state: no
+            * portal has the URL until somebody sends it to them.
+            */}
+          <p className="mt-1 text-note text-ink-3" data-feed-fetch>
+            {data.lastFetchedAt ? (
+              <>
+                Last collected{" "}
+                {new Date(data.lastFetchedAt).toLocaleString("en-GB", {
+                  day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
+                })}
+                {data.quiet && (
+                  <span className="text-accent-type">
+                    {" "}— nothing since. If you replaced this link, the portal still has the old one.
+                  </span>
+                )}
+              </>
+            ) : (
+              <>Not collected yet — no portal has fetched this address.</>
+            )}
+          </p>
+
           <div className="mt-5">
             {!confirming ? (
               <Button variant="secondary" onClick={() => setConfirming(true)}>
