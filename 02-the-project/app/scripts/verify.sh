@@ -186,6 +186,13 @@ elif ! curl -sf -o /dev/null --max-time 3 "$APP_URL/api/health" 2>/dev/null \
   skipped+=("check:whatsapp-inbound (no application at $APP_URL — run npm run dev)")
 else
   step "check:whatsapp-inbound" npm run --silent check:whatsapp-inbound
+  # The brokerage's own website, which is the one inbound channel that
+  # needs nobody's agreement — and was the one that did not work. Every
+  # post to the URL the settings screen printed answered 404 for the
+  # life of the product, because `adapters` held only PROPERTY_FINDER.
+  # Needs no secret of any kind, so unlike the two Meta suites it can
+  # never be skipped for want of configuration.
+  step "check:website-form" npm run --silent check:website-form
   # The other inbound front door, and the one whose failure is
   # unrecoverable. A Meta webhook carries only a `leadgen_id`; the
   # answers are fetched back with the Page token inside a retention

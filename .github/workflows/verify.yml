@@ -393,6 +393,15 @@ jobs:
       - name: An advert becomes a lead
         run: npm run check:meta-inbound
 
+      # The brokerage's own website form. Registered last of the inbound
+      # channels and the only one needing no agreement from anybody,
+      # which is why its absence was the expensive one: a brokerage
+      # could connect the form, the settings screen printed a webhook
+      # URL, and every post to it answered 404 "Unknown portal." Needs
+      # no secret, so this step cannot skip.
+      - name: A website enquiry becomes a lead
+        run: npm run check:website-form
+
       - name: The board's optimistic move
         run: npm run browser:optimistic-board
       - name: The optimistic update, and its failure path

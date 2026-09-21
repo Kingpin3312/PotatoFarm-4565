@@ -173,6 +173,37 @@ else:
         if named not in TYPES_ENUM:
             fails.append(f"SILENCE_HOURS names {named}, which is not a ChannelType — a threshold guarding nothing")
 
+# 2b. A channel a brokerage can connect must have something able to
+#     deliver to it, or connect must refuse it.
+#
+#     WEBSITE_FORM was connectable, issued a webhookToken, and the
+#     settings screen printed a webhook URL — while `adapters` held only
+#     PROPERTY_FINDER, so every post to that URL answered 404 "Unknown
+#     portal." for the life of the product. For a brokerage with no
+#     Facebook Page and no portal agreement that was the only inbound
+#     channel there was.
+index_ts = strip_comments(read("src/server/lib/portals/index.ts"))
+registered = set(re.findall(r"^\s*([A-Z][A-Z_]+)\s*:", block(index_ts, "const adapters"), re.M))
+tokened = block(channels, "const TOKENED")
+for t in TYPES_ENUM:
+    if t not in tokened:
+        continue  # not delivered over the portal route at all
+    checked += 1
+    if t in registered:
+        continue
+    # No adapter is legitimate only if `connect` refuses the type.
+    if "TOKENED.has(input.type) && !adapters[input.type]" in channels:
+        notes.append(
+            f"{t} has no inbound adapter and connect() refuses it — honest, and it "
+            f"means a brokerage cannot receive from it yet"
+        )
+        continue
+    fails.append(
+        f"{t} can be connected and no adapter can deliver to it — every post to the "
+        f"webhook URL the settings screen prints answers 404, for ever. Write the "
+        f"adapter, or refuse the type in connect()."
+    )
+
 # 3. THE ONE THAT WOULD HAVE CAUGHT META. A route that ingests must report.
 routes = sorted((app / "src/app/api/webhooks").rglob("route.ts"))
 ingesting = []

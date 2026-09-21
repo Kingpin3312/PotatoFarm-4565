@@ -102,7 +102,7 @@ What is verified today, measured rather than assumed:
   `/api/health` returns `200 {"ok":true}` against a real Postgres.
 - The boot log names every unconfigured service with its consequence —
   six of them in a bare development environment.
-- 296 assertions in 15 files, 35 check suites, 23 audits, all green.
+- 296 assertions in 15 files, 36 check suites, 23 audits, all green.
 
 Type errors on a fresh checkout are no longer expected. If you get one,
 it is new.
@@ -299,7 +299,7 @@ not want.
 
 ## The shape that keeps recurring
 
-Thirteen times a complete, tested, documented module has turned out to have
+Fourteen times a complete, tested, documented module has turned out to have
 nothing that starts it — and the sixth is the product itself:
 
 1. **Billing** could invoice a customer no code path could create.
@@ -434,6 +434,36 @@ nothing that starts it — and the sixth is the product itself:
    broken. **A check that sets up its own preconditions cannot test how
    they are created.**
 
+14. **The website form**, and it is the cheapest one to have prevented
+   and the most expensive to have shipped. `channels.connect` accepted
+   `WEBSITE_FORM`, issued a `webhookToken`, and the settings screen
+   printed the brokerage a webhook URL. `adapters` in `portals/index.ts`
+   held **one entry, `PROPERTY_FINDER`**, and the portal route resolves
+   its segment against that map — so every enquiry posted to the URL on
+   screen came back **404 "Unknown portal."**, for ever.
+
+   Every other gap in this list had an excuse outside the codebase: the
+   portals need a partner agreement, screening needs a vendor contract,
+   Meta lead ads needs a Facebook Page. **This one needed nobody's
+   permission.** It is the brokerage's own site posting to a URL we
+   issue, in a format we define. Nothing was blocking it and it was
+   missing anyway.
+
+   What made it urgent rather than merely wrong: a brokerage with no
+   portal agreement and no Facebook Page has exactly one inbound
+   channel, and it was this one. The product could not receive a lead
+   at all, and the settings screen showed a connected channel while it
+   could not.
+
+   Found by asking a question nothing in thirty-five check suites had
+   asked: **what posts to this route?** Nothing did. `check:website-form`
+   does now, and `channels.py` fails the build on any channel type a
+   brokerage can connect with nothing able to deliver to it. `connect`
+   refuses such a type outright — Bayut and Dubizzle today — because a
+   connected channel that silently receives nothing is the same lie
+   `queue.ts` refuses to tell when it marks an unpublishable listing
+   FAILED rather than PENDING.
+
 **The same shape, one layer up: fifteen finished components no screen
 imported.** `architecture.py` grew a `KNOWN_UNMOUNTED` ratchet and it
 started at nine, went to fifteen when the resolver was fixed, and is
@@ -519,7 +549,7 @@ send path read it.
 ## Run the tests
 
     npm test          # 296 assertions, pure functions, no database
-    npm run verify    # tsc, the tests, 35 check suites, 23 audits
+    npm run verify    # tsc, the tests, 36 check suites, 23 audits
 
 **The gate is now green end to end, including the two things that used
 to skip.** `verify` reports what it did not run rather than counting a

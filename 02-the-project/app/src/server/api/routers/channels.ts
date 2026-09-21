@@ -2,6 +2,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { Prisma } from "@prisma/client";
 import { randomBytes } from "node:crypto";
+import { adapters } from "@/server/lib/portals";
 import { router, requirePermission } from "../trpc";
 import { audit } from "@/server/lib/audit";
 import { readSecret, invalidate, writeSecret, vaultReady, NOT_CONFIGURED }
@@ -64,6 +65,16 @@ const TYPES = [
  * signature.
  */
 const TOKENED = new Set(["PROPERTY_FINDER", "BAYUT", "DUBIZZLE", "WEBSITE_FORM"]);
+
+/** What a person calls each one, for a message a person reads. */
+const LABEL: Partial<Record<(typeof TYPES)[number], string>> = {
+  WHATSAPP: "WhatsApp",
+  META_LEAD_ADS: "Meta lead ads",
+  PROPERTY_FINDER: "Property Finder",
+  BAYUT: "Bayut",
+  DUBIZZLE: "Dubizzle",
+  WEBSITE_FORM: "Your website form",
+};
 
 /**
  * Types that hold a credential of their own, and the prefix its
@@ -226,6 +237,39 @@ export const channelsRouter = router({
       accessToken: z.string().trim().min(20).max(500).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
+      /**
+       * Refused if nothing can deliver to it.
+       *
+       * A `TOKENED` channel is given a per-channel webhook URL on
+       * `/api/webhooks/portals/[portal]`, and that route resolves the
+       * portal segment against `adapters`. A type with no adapter there
+       * answers **404 "Unknown portal."** to every delivery, for ever.
+       *
+       * It was doing exactly that for `WEBSITE_FORM`: a brokerage could
+       * connect their own enquiry form, the settings screen printed
+       * them a URL, and nothing could ever post to it. The adapter is
+       * written now, and this guard exists so the next type added to
+       * `TYPES` without one is refused with a sentence instead of
+       * issuing a dead URL.
+       *
+       * Refusing is the honest behaviour and it matches what this
+       * codebase already does elsewhere: `queue.ts` marks an
+       * unpublishable listing FAILED rather than PENDING, because a
+       * word that means "on its way" is the most expensive kind of
+       * wrong. A connected channel that silently receives nothing is
+       * the same lie in a different place.
+       */
+      if (TOKENED.has(input.type) && !adapters[input.type]) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message:
+            `${LABEL[input.type] ?? input.type} cannot receive enquiries yet — it needs a ` +
+            "partner agreement and the delivery format that comes with it. Connecting " +
+            "it now would give you a webhook address that accepts nothing, so it is " +
+            "refused rather than left looking connected.",
+        });
+      }
+
       /**
        * A readable, unguessable reference. It is a *name*, not a secret
        * — it appears on screen and in an environment variable — so the
