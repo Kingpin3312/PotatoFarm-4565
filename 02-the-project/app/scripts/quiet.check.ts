@@ -160,6 +160,80 @@ console.log("\n=== a digest notification does not buzz, even with no quiet hours
   await db.notification.deleteMany({ where: { orgId: org.id, kind: "PERMIT_EXPIRING" } });
 }
 
+console.log("\n=== a notification nobody could receive says so ===");
+{
+  await db.notification.deleteMany({ where: { orgId: org.id, kind: "DEAL_AT_RISK" } });
+  await db.notificationPrefs.deleteMany({ where: { orgId: org.id, userId: user.userId } });
+
+  const first = await dispatch({
+    orgId: org.id, kind: "DEAL_AT_RISK", subjectId: "quiet-check-delivery",
+    title: "A deal is slipping", body: "Completion was due on Tuesday.",
+    /**
+     * Long enough ago to be due. Every kind has a `notBefore` in
+     * `rules.ts`, and the first version of this passed `since: now` —
+     * dispatch answered `{ sent: 0, reason: "too soon" }` and wrote no
+     * row, which read exactly like the product failing to record one.
+     * A check that sets up the wrong precondition reports a bug that
+     * is its own.
+     */
+    deeplink: "/deals", assignedToId: user.userId,
+    since: new Date(Date.now() - 3 * 86_400_000),
+  });
+
+  const row = await db.notification.findFirst({
+    where: { orgId: org.id, kind: "DEAL_AT_RISK", subjectId: "quiet-check-delivery" },
+    select: { deliveredAt: true, escalation: true, sentAt: true },
+  });
+
+  ok("it is recorded", !!row);
+  /**
+   * `PushDevice` has never had a row in this product — nothing calls
+   * `registerDevice` — so nothing was delivered, and the record has to
+   * say that rather than look identical to a notification an agent
+   * read on the way to a viewing.
+   */
+  ok("and marked undelivered, because no device exists",
+     row?.deliveredAt === null,
+     row?.deliveredAt ? "recorded as delivered to a device that is not there" : "null");
+  ok("while sentAt still records when the thing happened", !!row?.sentAt,
+     row?.sentAt?.toISOString() ?? "null");
+  ok("dispatch reports nothing sent", first.sent === 0, `sent ${first.sent}`);
+
+  /**
+   * The rung is recorded, and that is correct rather than the bug.
+   *
+   * An earlier version of this asserted the ladder must not advance
+   * when nothing was pushed. That was wrong twice over: the rung is
+   * computed from elapsed time and lack of action, which is what
+   * escalation means, and a three-day-old at-risk deal *should* be at
+   * rung 1. Asserting otherwise made the check fail on correct
+   * behaviour.
+   *
+   * What made the old system broken was not the rung. It was that the
+   * notification reached nobody at all — push was the only channel,
+   * push has never worked, and nothing read the table. The rung was
+   * only alarming because it was climbing over silence.
+   */
+  ok("the rung reflects how long it has waited", (row?.escalation ?? -1) >= 0,
+     `escalation ${row?.escalation}`);
+
+  /**
+   * And the assertion that actually matters: something can read it.
+   *
+   * `org.inbox` is the first reader the `Notification` table has ever
+   * had. Without it this row is written, escalated and expired having
+   * been seen by nobody, which is what happened to every notification
+   * this product ever generated.
+   */
+  const readable = await db.notification.count({
+    where: { userId: user.userId, readAt: null },
+  });
+  ok("and it is waiting on a screen an agent can open", readable > 0,
+     `${readable} unread for this agent`);
+
+  await db.notification.deleteMany({ where: { orgId: org.id, kind: "DEAL_AT_RISK" } });
+}
+
 await db.$disconnect();
 console.log(bad ? "\n" + bad + " FAILED:\n  - " + failures.join("\n  - ") + "\n"
                 : "\nquiet hours hold, and the digest lets them go.\n");

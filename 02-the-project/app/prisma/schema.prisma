@@ -1130,6 +1130,22 @@ model Notification {
   deeplink  String
 
   sentAt     DateTime  @default(now())
+  /// When it actually reached a device, as distinct from `sentAt`,
+  /// which is when the thing happened — `digest.ts` is explicit that
+  /// moving `sentAt` would make an overnight lead look like it arrived
+  /// at breakfast, so it was never a delivery receipt, and nothing
+  /// else was either.
+  ///
+  /// `sendPush` returns `{ sent, noDevice }` and `dispatch.push()`
+  /// discarded it, so a notification that reached nobody was
+  /// indistinguishable from one an agent read on the way to a viewing,
+  /// and the escalation ladder climbed its rungs marking each one told.
+  ///
+  /// Null is the honest state for every brokerage today: nothing calls
+  /// `registerDevice`, `PushDevice` has never had a row, and the only
+  /// client that could register one is the Expo app, which cannot
+  /// build.
+  deliveredAt DateTime?
   readAt     DateTime?
   actedAt    DateTime?
   /// Which rung of the escalation ladder this was.

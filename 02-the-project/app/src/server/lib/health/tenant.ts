@@ -44,6 +44,7 @@ export async function tenantHealth(orgId: string): Promise<TenantHealth> {
     assistantCheck(orgId),
     backlogCheck(orgId),
     billingCheck(orgId),
+    notifiableCheck(orgId),
   ]);
 
   const flat = checks.flat();
@@ -122,6 +123,56 @@ async function portalCheck(orgId: string): Promise<Check[]> {
 
   if (!checks.length) return [{ key: "portals", state: "ok", detail: "All feeds delivering." }];
   return checks;
+}
+
+/**
+ * Can anybody in this brokerage actually be told anything?
+ *
+ * The notification system has an escalation ladder, quiet hours, a
+ * morning digest and per-kind urgency, and it delivers through exactly
+ * one channel: an Expo push to a registered device. **Nothing in this
+ * product calls `registerDevice`**, `PushDevice` has never had a row,
+ * and the only client that could register one is the Expo app, which
+ * cannot build.
+ *
+ * So every notification this product has ever generated reached
+ * nobody, and until now the sole trace was a `log.warn` per attempt in
+ * a log nothing ships. That is the shape CLAUDE.md records about the
+ * alerting — severity routing, runbooks and deduplication, all correct,
+ * ending in a line nobody read.
+ *
+ * Reported as **degraded** rather than broken, deliberately. The
+ * brokerage's own system is working: leads arrive, the board moves, the
+ * inbox answers. What is not working is our ability to interrupt an
+ * agent, and calling that "broken" would put a tenant in the same state
+ * as one whose WhatsApp has stopped — which is how a health page stops
+ * being read.
+ *
+ * The condition is narrow on purpose: a brokerage nobody has ever tried
+ * to notify is not a fault, it is a quiet week. This only fires once
+ * the product has generated notifications and none of them reached
+ * anything.
+ */
+async function notifiableCheck(orgId: string): Promise<Check[]> {
+  const [devices, undelivered] = await Promise.all([
+    crossTenant("sweep").pushDevice.count({ where: { orgId, failedAt: null } }),
+    crossTenant("sweep").notification.count({ where: { orgId, deliveredAt: null } }),
+  ]);
+
+  if (devices > 0) {
+    return [{ key: "notifications", state: "ok", detail: `${devices} device(s) registered.` }];
+  }
+  if (undelivered === 0) {
+    // Nothing has been generated yet. Not a fault, and saying so keeps
+    // a new brokerage off the degraded list on its first morning.
+    return [{ key: "notifications", state: "ok", detail: "Nothing to deliver yet." }];
+  }
+  return [{
+    key: "notifications",
+    state: "degraded",
+    detail: `No registered device in this brokerage — ${undelivered} notification(s) have reached nobody.`,
+    action: "Nobody here can be interrupted. Until the mobile app ships, agents have to work from the screens.",
+  }];
 }
 
 async function assistantCheck(orgId: string): Promise<Check[]> {

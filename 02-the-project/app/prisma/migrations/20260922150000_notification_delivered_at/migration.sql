@@ -1,0 +1,17 @@
+-- When a notification actually reached a device.
+--
+-- `sentAt` is when the thing happened — the comment on `clear()` in
+-- digest.ts is explicit that moving it would make an overnight lead
+-- look like it arrived at breakfast. So it was never a delivery
+-- receipt, and nothing else was either: `sendPush` returns
+-- `{ sent, noDevice }` and `dispatch.push()` threw the result away.
+--
+-- Null for every existing row, which is correct rather than a
+-- migration compromise: nothing has ever called `registerDevice`,
+-- `PushDevice` has never had a row, and no push has ever been
+-- delivered to anybody.
+--
+-- Hand-written and applied with `migrate deploy`. `migrate dev`
+-- generates unrequested DROP INDEX statements against the raw-SQL
+-- search indexes it cannot see — see CLAUDE.md.
+ALTER TABLE "Notification" ADD COLUMN "deliveredAt" TIMESTAMP(3);

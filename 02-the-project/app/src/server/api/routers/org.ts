@@ -574,6 +574,74 @@ export const orgRouter = router({
       return { ok: true as const };
     }),
 
+  /**
+   * The notifications themselves, which nothing has ever read.
+   *
+   * `notifications` below returns the **preferences** — quiet hours,
+   * push on or off. It is what `/me/notifications` renders, and the
+   * similar name is how this went unnoticed: the `Notification` table
+   * had no reader anywhere in the product.
+   *
+   * That mattered more than a missing screen. Push was the only
+   * delivery route, and push has never worked: nothing calls
+   * `registerDevice`, `PushDevice` has never had a row, and the only
+   * client that could register one is an Expo app that cannot build.
+   * So a handover waiting, a viewing tomorrow, a deal at risk — every
+   * notification the product has ever generated reached nobody, by any
+   * route, while the escalation ladder recorded each rung as told.
+   *
+   * This is the fallback that makes the subsystem work without a phone
+   * in it, and it is deliberately the same rows the push would have
+   * carried rather than a second computation of them.
+   */
+  inbox: orgProcedure
+    .input(z.object({ unreadOnly: z.boolean().default(false) }).optional())
+    .query(async ({ ctx, input }) => {
+      const rows = await ctx.db.notification.findMany({
+        where: {
+          userId: ctx.userId,
+          ...(input?.unreadOnly ? { readAt: null } : {}),
+        },
+        // Unread first, then most recent. An agent opening this wants
+        // what they have not seen, not a reverse-chronological log.
+        orderBy: [{ readAt: "asc" }, { sentAt: "desc" }],
+        take: 50,
+        select: {
+          id: true, kind: true, title: true, body: true, deeplink: true,
+          sentAt: true, readAt: true, actedAt: true, escalation: true,
+          deliveredAt: true,
+        },
+      });
+      return {
+        items: rows.map((r) => ({
+          ...r,
+          /**
+           * Whether a phone ever buzzed for this one.
+           *
+           * Shown rather than hidden, because an agent who thinks they
+           * are being alerted and is not will work differently from one
+           * who knows the screen is the only channel. Today it is null
+           * for every row in the product.
+           */
+          pushed: r.deliveredAt !== null,
+        })),
+        unread: rows.filter((r) => !r.readAt).length,
+      };
+    }),
+
+  /** Marks what the agent has actually looked at. */
+  markNotificationsRead: orgProcedure
+    .input(z.object({ ids: z.array(z.string()).max(50) }))
+    .mutation(async ({ ctx, input }) => {
+      const { count } = await ctx.db.notification.updateMany({
+        // Scoped to the caller: a notification belongs to one person,
+        // and marking a colleague's as read would hide it from them.
+        where: { id: { in: input.ids }, userId: ctx.userId, readAt: null },
+        data: { readAt: new Date() },
+      });
+      return { marked: count };
+    }),
+
   notifications: orgProcedure.query(async ({ ctx }) => {
     const row = await ctx.db.notificationPrefs.findUnique({
       where: { orgId_userId: { orgId: ctx.orgId, userId: ctx.userId } },

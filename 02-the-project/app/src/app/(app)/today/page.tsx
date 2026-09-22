@@ -9,6 +9,7 @@ import { aedShort, aedWhole } from "@/lib/money";
 import { sentence as label } from "@/lib/sentence";
 import { Ask } from "../ask/ask-box";
 import { QueryError } from "@/components/ui/query-state";
+import { Alerts } from "./alerts";
 
 /**
  * The front door.
@@ -159,6 +160,10 @@ export default function Today() {
               onAct={(id) => act.mutate({ id })}
               onDismiss={(id) => dismiss.mutate({ id })}
             />
+            {/* Beneath the day's actions, not above them: an alert is
+                something that happened, an action is something to do,
+                and the list an agent works from should come first. */}
+            <Alerts />
           </div>
 
           {/* The rail, sticky as a pair.

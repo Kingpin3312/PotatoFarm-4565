@@ -1,6 +1,7 @@
 import { crossTenant } from "@/server/db/client";
 import { sendPush } from "./push";
 import { inQuietHours } from "./rules";
+import { log } from "@/lib/log";
 
 /**
  * The morning digest, which `dispatch.ts` has always claimed exists.
@@ -126,6 +127,23 @@ export async function releaseHeld(now = new Date()) {
       urgent: false,
     });
 
+    /**
+     * Cleared whether or not the push landed, and that is correct now
+     * for a reason it was not before.
+     *
+     * An earlier version of this change held the backlog when
+     * `sendPush` reported no device, on the grounds that releasing it
+     * into nothing loses it. That was right while push was the only
+     * way a notification ever reached a person — and it no longer is.
+     * `notifications.list` reads the table, so a released notification
+     * is on the agent's screen whether or not a phone buzzed.
+     *
+     * Holding it instead would grow an unbounded queue on every
+     * brokerage without a registered device, which today is all of
+     * them, and re-push the same backlog every morning for ever.
+     * `deliveredAt` records whether it reached a device; `suppressed`
+     * only ever meant "the digest has not dealt with this yet".
+     */
     await clear(items.map((i) => i.id));
     people += 1;
     released += items.length;

@@ -114,9 +114,79 @@ for _blk in re.finditer(r"^model (\w+) \{(.*?)^\}", schema, re.S | re.M):
             _owners.setdefault(_f.group(2), set()).add((_owner, _f.group(1)))
 
 
+def _code(text: str) -> str:
+    """
+    Source with its prose removed.
+
+    Not optional here, and the first version of the check below proved
+    it on itself. It counted `registerDevice` as called because two
+    comments — the ones explaining that **nothing** calls it — mention
+    the name. The check read the sentence describing the bug as
+    evidence against the bug.
+
+    That is the trap CLAUDE.md records about `palette.py`, which passed
+    because a stylesheet's prose about a rejected colour matched the
+    search for that colour. **Strip prose from both sides of any
+    comparison**, including the side you wrote yourself.
+    """
+    text = re.sub(r"/\*.*?\*/", " ", text, flags=re.S)
+    return re.sub(r"//[^\n]*", " ", text)
+
+
+_allcode = None
+
+
+def _enclosing_fn(text: str, at: int) -> str | None:
+    """The name of the exported function a position sits inside."""
+    head = text[:at]
+    m = None
+    for m in re.finditer(r"export\s+(?:async\s+)?function\s+(\w+)", head):
+        pass
+    return m.group(1) if m else None
+
+
+def _reachable_write(lower: str) -> bool:
+    """
+    A write, inside something that is actually called.
+
+    This used to be a bare search of the whole corpus, and that is how
+    `PushDevice` read as written for the life of the project.
+    `registerDevice()` does `pushDevice.upsert(...)`, so the pattern
+    matched — and **nothing anywhere calls `registerDevice`**. The
+    table has never had a row, no device has ever been registered, and
+    therefore no push notification has ever reached anybody. Every
+    notification the product generated was recorded and delivered to
+    nothing.
+
+    A model whose only writer is a function nobody calls is a model
+    nothing writes. One level of indirection was all it took to hide a
+    whole channel.
+
+    Deliberately shallow: it asks whether the *enclosing exported
+    function* is named anywhere else, not whether that caller is itself
+    reachable. A full call graph would be the honest version and would
+    also produce a cliff of findings on a codebase this size; this
+    catches the single-hop case, which is the one that occurred.
+    """
+    for path, text in src.items():
+        for m in re.finditer(rf"\.{lower}\.(?:create|createMany|upsert)\b", text):
+            fn = _enclosing_fn(text, m.start())
+            if fn is None:
+                return True          # top-level or a method — assume reached
+            # Named anywhere other than its own definition?
+            global _allcode
+            if _allcode is None:
+                _allcode = "\n".join(_code(t) for t in src.values())
+            uses = len(re.findall(rf"\b{fn}\b", _allcode))
+            defs = len(re.findall(rf"function\s+{fn}\b", _allcode))
+            if uses > defs:
+                return True
+    return False
+
+
 def _written(model: str) -> bool:
     lower = model[0].lower() + model[1:]
-    if re.search(rf"\.{lower}\.(?:create|createMany|upsert)\b", allsrc):
+    if _reachable_write(lower):
         return True
     for owner, field in _owners.get(model, ()):
         o = owner[0].lower() + owner[1:]
@@ -180,6 +250,27 @@ KNOWN_UNWRITTEN = {
     # permanent excuse, which is the point of listing them.
     "PlanSubscription": "portal plan subscriptions cannot be created",
     "EmailAccount": "no mailbox can be connected",
+
+    # The whole notification channel, and it read as written for the
+    # life of the project because `registerDevice()` does contain a
+    # `pushDevice.upsert` — the check looked for a write and found one,
+    # without asking whether anything calls the function around it.
+    # Nothing does. The table has never had a row, so **no push
+    # notification has ever reached anybody**: not a handover waiting,
+    # not a viewing tomorrow, not a deal at risk.
+    #
+    # It cannot be wired from here. An Expo push token comes from a
+    # native client, and `mobile/` cannot build — no app.json, no
+    # tsconfig, an SDK two years old. The web app is installable but a
+    # PWA cannot mint an Expo token.
+    #
+    # What has changed is that the product no longer pretends
+    # otherwise: `dispatch` records `deliveredAt` only when a device
+    # actually took it, the escalation ladder no longer climbs rungs
+    # nobody received, the morning digest holds rather than clearing a
+    # backlog it could not deliver, and `tenantHealth` reports a
+    # brokerage where nobody can be interrupted.
+    "PushDevice": "no client can register one — mobile/ cannot build, so no push has ever been delivered",
 }
 
 _all_models = re.findall(r"^model (\w+)", schema, re.M)

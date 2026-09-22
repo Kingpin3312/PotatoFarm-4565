@@ -113,9 +113,28 @@ export async function dispatch(args: {
     if (existing?.actedAt) continue;                 // already dealt with
     if (existing && existing.escalation >= rung) continue;  // already told at this rung
 
-    await push(t.userId, args);
-    await record(args, { ...t, escalation: rung }, null);
-    sent += 1;
+    /**
+     * The result is used now, and discarding it was the bug.
+     *
+     * `sendPush` already answers honestly — `{ sent: 0, noDevice: true }`
+     * when the agent has no working device — and this line threw that
+     * away, so a notification that reached nobody was recorded exactly
+     * like one an agent read on the way to a viewing.
+     *
+     * The expensive half was the rung. `escalation` was written as
+     * `rung` regardless, and the loop above skips anyone already told
+     * at this rung (`existing.escalation >= rung`). So the ladder
+     * climbed to the top against a person who had received nothing,
+     * marking each step delivered, and then stopped — which is the
+     * ladder reporting that a brokerage had been escalated to when
+     * nobody had heard a thing.
+     *
+     * Today that is every brokerage: nothing calls `registerDevice`
+     * and `PushDevice` has never had a row.
+     */
+    const delivery = await push(t.userId, args);
+    await record(args, { ...t, escalation: rung }, null, delivery.sent > 0);
+    if (delivery.sent > 0) sent += 1;
   }
 
   return { sent, rung };
@@ -171,7 +190,14 @@ async function audience(orgId: string, assignedToId: string | null, rung: number
 async function record(
   args: { orgId: string; kind: NotificationKind; subjectId: string; title: string; body: string; deeplink: string },
   t: Target,
-  suppressed: string | null
+  suppressed: string | null,
+  /**
+   * Whether a device actually received it. Distinct from `sentAt`,
+   * which is when the thing happened rather than when anybody heard
+   * about it — `digest.ts` says so where it deliberately leaves
+   * `sentAt` alone.
+   */
+  delivered = false
 ) {
   await crossTenant("sweep").notification.upsert({
     where: {
@@ -183,8 +209,15 @@ async function record(
       orgId: args.orgId, userId: t.userId, kind: args.kind, subjectId: args.subjectId,
       title: args.title, body: args.body, deeplink: args.deeplink,
       escalation: t.escalation, suppressed,
+      deliveredAt: delivered ? new Date() : null,
     },
-    update: { escalation: t.escalation, sentAt: new Date(), suppressed },
+    // `deliveredAt` is only ever set, never cleared: a notification that
+    // reached a phone last Tuesday reached it, whatever happens on a
+    // later rung.
+    update: {
+      escalation: t.escalation, sentAt: new Date(), suppressed,
+      ...(delivered ? { deliveredAt: new Date() } : {}),
+    },
   });
 }
 
@@ -198,5 +231,5 @@ export async function acted(orgId: string, kind: NotificationKind, subjectId: st
 
 async function push(userId: string, args: { title: string; body: string; deeplink: string }) {
   const { sendPush } = await import("./push");
-  await sendPush(userId, { ...args, urgent: true });
+  return sendPush(userId, { ...args, urgent: true });
 }
