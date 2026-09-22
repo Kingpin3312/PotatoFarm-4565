@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { router, requirePermission } from "../trpc";
 import { audit } from "@/server/lib/audit";
+import { compare } from "@/server/lib/offers/negotiate";
 
 /**
  * Vendors.
@@ -68,13 +69,44 @@ export const vendorsRouter = router({
       const since = v.lastReportedAt ?? new Date(Date.now() - 7 * 86_400_000);
       const listingIds = v.listings.map((l) => l.id);
 
-      const [viewings, offers] = await Promise.all([
+      const [viewings, offers, ranked] = await Promise.all([
         ctx.db.viewing.count({
           where: { listingId: { in: listingIds }, scheduledAt: { gte: since } },
         }),
         ctx.db.offer.count({
           where: { listingId: { in: listingIds }, status: { in: ["SUBMITTED", "PRESENTED", "COUNTERED"] } },
         }),
+        /**
+         * Not just how many. What they are.
+         *
+         * This screen exists to answer "what do I say when I ring this
+         * owner", and it said "1 offer" — the first thing the owner
+         * asks is how much, and the agent had to go and look it up on
+         * another screen mid-call.
+         *
+         * `compare()` is reused rather than reimplemented, and that is
+         * load-bearing: it ranks by **strength, not price**, because
+         * cash with no conditions beats a higher mortgage nobody has
+         * pre-approved. A second sort here would eventually disagree
+         * with the offers screen, and an agent would be told two
+         * different things about which offer is best — in front of the
+         * owner.
+         */
+        Promise.all(listingIds.map((id) => compare(ctx.orgId, id))).then((all) =>
+          /**
+           * Strength only, and the tie is already broken.
+           *
+           * `compare()` queries `amountFils: "desc"`, and Array.sort is
+           * stable, so equal-strength offers keep that price order
+           * without this having to re-derive it. It could not anyway:
+           * `current` is what `aedWhole()` produced — "AED 2,500,000",
+           * a string for a person to read — and the first version of
+           * this line tried to subtract two of them. `money.ts` is the
+           * only formatter in this codebase precisely so that money
+           * arrives already formatted; arithmetic belongs upstream of
+           * it, on the fils.
+           */
+          all.flat().sort((a, b) => b.strength - a.strength)),
       ]);
 
       return {
@@ -85,6 +117,18 @@ export const vendorsRouter = router({
         listings: v.listings,
         lastReportedAt: v.lastReportedAt,
         sinceThen: { viewings, liveOffers: offers },
+        /**
+         * The strongest, and why. Capped at three: this is a phone
+         * call, not a report, and an agent reading a fourth aloud has
+         * lost the thread.
+         */
+        strongest: ranked.slice(0, 3).map((o) => ({
+          current: o.current,
+          financing: o.financing,
+          preApproved: o.preApproved,
+          hasConditions: Boolean(o.conditions),
+          moves: o.moves,
+        })),
         // Said plainly, because ringing an OFFERS_ONLY vendor for a
         // chat is the fastest way to lose an instruction.
         callAdvice:

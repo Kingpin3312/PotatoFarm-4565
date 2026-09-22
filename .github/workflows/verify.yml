@@ -447,6 +447,14 @@ jobs:
         run: npm run browser:add-property
       - name: Setting a commission plan
         run: npm run browser:commission-plan
+
+      # Before ringing an owner. The procedure behind this screen had
+      # been returning the owner's properties and the date they were
+      # last updated since it was written, and the component rendered
+      # neither — the shape this codebase keeps producing, running out
+      # rather than in.
+      - name: What to say when you ring the owner
+        run: npm run browser:vendor-brief
       - name: Connecting a WhatsApp number
         run: npm run browser:connect-channel
 

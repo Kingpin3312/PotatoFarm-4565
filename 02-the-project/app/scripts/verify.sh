@@ -255,6 +255,11 @@ else
   # A copy of the job's filter here would pass while `documents.expiry`
   # itself found nothing, which is the state this was written to end.
   step "browser:documents" npm run --silent browser:documents
+  # The owner's brief. `vendors.brief` returned `listings` and
+  # `lastReportedAt` from the day it was written and the component read
+  # neither — two queries per page load producing data nobody saw, on
+  # the one screen whose purpose is what to say when you ring an owner.
+  step "browser:vendor-brief" npm run --silent browser:vendor-brief
   # Enforcement. The negative assertion is the one that matters: a
   # brokerage with no documents recorded is not stopped from working.
   step "check:blocking" npm run --silent check:blocking
