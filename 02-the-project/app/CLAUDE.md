@@ -102,7 +102,7 @@ What is verified today, measured rather than assumed:
   `/api/health` returns `200 {"ok":true}` against a real Postgres.
 - The boot log names every unconfigured service with its consequence —
   six of them in a bare development environment.
-- 296 assertions in 15 files, 38 check suites, 23 audits, all green.
+- 296 assertions in 15 files, 39 check suites, 23 audits, all green.
 
 Type errors on a fresh checkout are no longer expected. If you get one,
 it is new.
@@ -608,7 +608,7 @@ send path read it.
 ## Run the tests
 
     npm test          # 296 assertions, pure functions, no database
-    npm run verify    # tsc, the tests, 38 check suites, 23 audits
+    npm run verify    # tsc, the tests, 39 check suites, 23 audits
 
 **The gate is now green end to end, including the two things that used
 to skip.** `verify` reports what it did not run rather than counting a
@@ -627,6 +627,25 @@ skip as a pass, and for a long time it reported two:
   webhook with. Without it the one end-to-end proof that an inbound
   message becomes a lead, a conversation, a stage and a 24-hour window
   simply did not run.
+- **`check:voice-note` needs `TRANSCRIBE_API_KEY` and
+  `TRANSCRIBE_BASE_URL`, and the reason is worse than a skip.**
+  `/api/voice` checks `transcriptionConfigured()` **before** the rate
+  limit and before every piece of validation, so with no provider the
+  only two answers the route can give are 401 and 501. The size caps,
+  the mis-tap guard, the format allowlist, the AiAction record and the
+  confidence threshold are not merely untested without a provider —
+  they are **unreachable**, and had never executed on any machine.
+  Any key works and `TRANSCRIBE_BASE_URL` points at the suite's own
+  stand-in on 4321, the same arrangement as `META_GRAPH_BASE`.
+
+  The assertion that most needed it: **iOS Safari records `audio/mp4`
+  while everything else records `audio/webm`**, and the provider infers
+  the container from the filename. `note.webm` on an mp4 body is a 400
+  that reads like a corrupt recording — the route's own comment calls
+  it "exactly the bug that would have made this work everywhere except
+  the phone it was built for". The only way to see it is to have the
+  stand-in report the filename it was handed.
+
 - **`check:meta-inbound` needs three, and the third is the unusual
   one.** `META_APP_SECRET` and `META_VERIFY_TOKEN` work like the line
   above — any value, both ends agree. `META_GRAPH_BASE` is different:

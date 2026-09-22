@@ -204,6 +204,24 @@ else
   # it are asserted against a counter-example, including the one a
   # single-brokerage fixture cannot see.
   step "check:calendar-feed" npm run --silent check:calendar-feed
+  # The Speak button. Almost none of that route is *reachable* without a
+  # transcription provider — `transcriptionConfigured()` is checked
+  # before the rate limit and before every validation — so the size
+  # caps, the format allowlist and the iOS mp4 filename had never
+  # executed anywhere. Needs a stand-in, like the Meta suite.
+  voice_ready=1
+  for v in TRANSCRIBE_API_KEY TRANSCRIBE_BASE_URL; do
+    eval "val=\${$v:-}"
+    if [ -z "$val" ] && [ -f .env ]; then
+      val=$(sed -n "s/^$v=//p" .env | head -1 | tr -d "\"'")
+    fi
+    [ -z "$val" ] && { voice_ready=0; missing_voice="$v"; break; }
+  done
+  if [ "$voice_ready" -eq 0 ]; then
+    skipped+=("check:voice-note ($missing_voice is not set)")
+  else
+    step "check:voice-note" npm run --silent check:voice-note
+  fi
   # The other inbound front door, and the one whose failure is
   # unrecoverable. A Meta webhook carries only a `leadgen_id`; the
   # answers are fetched back with the Page token inside a retention

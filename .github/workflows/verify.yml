@@ -253,6 +253,14 @@ jobs:
       # than falling back to Graph, so a typo here fails loudly instead
       # of quietly sending a customer's Page token somewhere else.
       META_GRAPH_BASE: http://127.0.0.1:4319
+      # The Speak button needs a transcription provider before any of
+      # its route is reachable: `transcriptionConfigured()` is checked
+      # ahead of the rate limit and every validation, so without these
+      # the only answers the route can give are 401 and 501. The suite
+      # stands a provider up on 4321 and the application must be pointed
+      # at it — set on the job so `npm run start` inherits it.
+      TRANSCRIBE_API_KEY: ci-only-not-a-real-key
+      TRANSCRIBE_BASE_URL: http://127.0.0.1:4321
       NEXT_PUBLIC_APP_URL: http://localhost:3000
       SEAT_PRICE_FILS: "9900"
       # This job is the one that runs `check:billing`, because that suite
@@ -415,6 +423,14 @@ jobs:
       # where clause, and this is what proves it holds.
       - name: An agent's calendar leaks nothing
         run: npm run check:calendar-feed
+
+      # Speech to text, and the iPhone in particular: iOS Safari records
+      # mp4 where everything else records webm, and the provider infers
+      # the container from the filename. Getting that wrong is the bug
+      # that makes a feature work everywhere except the phone it exists
+      # for, and nothing had checked it.
+      - name: A voice note becomes text
+        run: npm run check:voice-note
 
       - name: The board's optimistic move
         run: npm run browser:optimistic-board
