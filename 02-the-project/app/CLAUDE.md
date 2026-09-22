@@ -102,7 +102,7 @@ What is verified today, measured rather than assumed:
   `/api/health` returns `200 {"ok":true}` against a real Postgres.
 - The boot log names every unconfigured service with its consequence —
   six of them in a bare development environment.
-- 296 assertions in 15 files, 37 check suites, 23 audits, all green.
+- 296 assertions in 15 files, 38 check suites, 23 audits, all green.
 
 Type errors on a fresh checkout are no longer expected. If you get one,
 it is new.
@@ -608,7 +608,7 @@ send path read it.
 ## Run the tests
 
     npm test          # 296 assertions, pure functions, no database
-    npm run verify    # tsc, the tests, 37 check suites, 23 audits
+    npm run verify    # tsc, the tests, 38 check suites, 23 audits
 
 **The gate is now green end to end, including the two things that used
 to skip.** `verify` reports what it did not run rather than counting a
@@ -760,6 +760,34 @@ Chromium", with thirty-one importers. A new browser script imports it
 rather than writing its own, and **an absolute path to anything outside
 the repository is the smell** — derive the root from `import.meta.url`,
 not from where the author happened to be standing.
+
+**A test can be wrong about which line it protects, and pass.** The
+calendar feed is the one route in this product where row-level security
+is deliberately off — a calendar client cannot hold a session, so the
+tenant boundary is a hand-written `where: { orgId, agentId, ... }`
+rather than the database. `check:calendar-feed` was written with two
+isolation assertions, one per half of that clause, each with its own
+counter-example: a colleague in the same brokerage, and a rival
+brokerage.
+
+Deleting `agentId` was caught. **Deleting `orgId` failed nothing.**
+Every fixture user belonged to exactly one brokerage, so filtering by
+`agentId` alone already excluded the rival — the assertion named after
+`orgId` passed with `orgId` gone, and would have gone on passing for
+ever.
+
+The case that clause actually guards is one person consulting for two
+brokerages, which the schema allows (`@@unique([orgId, userId])` is per
+membership) and which `org.switch` exists in anticipation of. Their
+token belongs to **one** membership; without `orgId` it serves both
+firms' diaries in one file, which their phone then syncs to Google.
+That fixture is in the suite now and it goes red.
+
+The general rule, and it is sharper than "prove it red": **proving a
+suite red is not enough — prove the specific assertion red by breaking
+the specific line it names.** A suite that goes red for the wrong
+reason is a suite with an untested assertion in it, and that assertion
+is guarding whatever nobody has thought about yet.
 
 **A check pinned to specific values goes quiet exactly when those values
 are superseded.** Two in the palette work, found the same afternoon.

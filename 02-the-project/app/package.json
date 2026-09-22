@@ -47,6 +47,7 @@
     "check:whatsapp-inbound": "node --env-file-if-exists=.env scripts/whatsapp-inbound.mjs",
     "check:website-form": "node --env-file-if-exists=.env scripts/website-form.mjs",
     "check:listing-feed": "node --env-file-if-exists=.env scripts/listing-feed.mjs",
+    "check:calendar-feed": "node --env-file-if-exists=.env scripts/calendar-feed.mjs",
     "check:meta-inbound": "node --env-file-if-exists=.env scripts/meta-inbound.mjs",
     "browser:commission-plan": "node --env-file-if-exists=.env scripts/commission-plan.mjs",
     "browser:working-hours": "node --env-file-if-exists=.env scripts/working-hours.mjs",

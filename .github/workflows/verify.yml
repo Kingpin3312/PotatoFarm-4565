@@ -409,6 +409,13 @@ jobs:
       - name: A portal collects the listings
         run: npm run check:listing-feed
 
+      # One agent's diary, and nobody else's. This is the only route in
+      # the product that switches row-level security off — a calendar
+      # client cannot hold a session — so the tenant boundary here is a
+      # where clause, and this is what proves it holds.
+      - name: An agent's calendar leaks nothing
+        run: npm run check:calendar-feed
+
       - name: The board's optimistic move
         run: npm run browser:optimistic-board
       - name: The optimistic update, and its failure path

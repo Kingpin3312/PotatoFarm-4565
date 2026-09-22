@@ -198,6 +198,12 @@ else
   # had, so a portal that stopped collecting was invisible while the
   # route's own comment claimed the silence alarm was watching.
   step "check:listing-feed" npm run --silent check:listing-feed
+  # The one route where row-level security is deliberately off — a
+  # calendar client cannot sign in, so the tenant boundary is a
+  # hand-written where clause rather than the database. Both halves of
+  # it are asserted against a counter-example, including the one a
+  # single-brokerage fixture cannot see.
+  step "check:calendar-feed" npm run --silent check:calendar-feed
   # The other inbound front door, and the one whose failure is
   # unrecoverable. A Meta webhook carries only a `leadgen_id`; the
   # answers are fetched back with the Page token inside a retention
