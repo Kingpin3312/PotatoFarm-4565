@@ -102,7 +102,7 @@ What is verified today, measured rather than assumed:
   `/api/health` returns `200 {"ok":true}` against a real Postgres.
 - The boot log names every unconfigured service with its consequence —
   six of them in a bare development environment.
-- 303 assertions in 16 files, 39 check suites, 23 audits, all green.
+- 310 assertions in 17 files, 40 check suites, 23 audits, all green.
 
 Type errors on a fresh checkout are no longer expected. If you get one,
 it is new.
@@ -319,7 +319,7 @@ not want.
 
 ## The shape that keeps recurring
 
-Fifteen times a complete, tested, documented module has turned out to have
+Sixteen times a complete, tested, documented module has turned out to have
 nothing that starts it — and the sixth is the product itself:
 
 1. **Billing** could invoice a customer no code path could create.
@@ -523,6 +523,48 @@ nothing that starts it — and the sixth is the product itself:
    not collecting — are TICKET, because both are churn in progress and
    both end with somebody handing the customer a URL.
 
+16. **Four jobs that recorded contact nobody made.** Each had careful
+   rules for *whether* to message somebody — the fortnight cap, the
+   opt-out, sending hours, the reply window — and a comment saying the
+   message went "through the normal outbound path". There was no path.
+   What they did instead was write the record of having sent it:
+
+   - `matching.new-listings` stamped `Lead.lastOutreachAt` and counted
+     the buyer as `messaged`. The Buyers screen reads that stamp, so an
+     agent was told a buyer had been **"messaged 3 days ago"** by a
+     message that never existed — and held off. A `return` inside its
+     loop also ended the whole brokerage at the first buyer who failed
+     a gate.
+   - `feedback.ask` stamped `askedAt` on every viewing. Nothing writes an
+     answer either, so the weekly vendor report is composed from
+     feedback that was never collected.
+   - the visa sweep stamped `visaNudgedAt`, which kept the lead out of
+     the sweep for ninety days. Nothing can record a visa date, so it
+     had also never found anybody.
+   - `plans.advance` took every nurture step and logged it, and timed
+     each next step by the *current* step's delay.
+
+   **The fix was not a sender.** `intelligence/autonomy.ts` caps every
+   message to a client at CONFIRM — a person presses send, at every
+   mode — and the settings screen promises owners that. Building the
+   obvious fix would have broken the product's own rule. The first was
+   retired, because `intelligence.sweep` already puts matches on the
+   agent's list as SEND_PROPERTY needing their yes; the other three now
+   put a task on the responsible agent's list with a draft, and stamp or
+   advance only in the same transaction. `check:agent-tasks` runs the
+   real jobs and asserts nobody is recorded as contacted.
+
+   The tell is a counter named for a verb — `sent`, `messaged`, `asked`,
+   `nudged` — incremented in a block that calls nothing that delivers.
+   Grep for the counter and read what precedes it.
+
+   **And the list those tasks land on did not exist.** `FollowUp` had
+   writers (voice notes, the sweep on Autopilot), a count on Today and
+   a reminder push — and no list and no way to complete one, so "3
+   follow-ups due" only ever went up and the reminder linked to a screen
+   that does not show them. Today lists them now, with Done. **What
+   closes it?** had no answer for the agent's own reminders.
+
 **The same shape, one layer up: fifteen finished components no screen
 imported.** `architecture.py` grew a `KNOWN_UNMOUNTED` ratchet and it
 started at nine, went to fifteen when the resolver was fixed, and is
@@ -607,8 +649,8 @@ send path read it.
 
 ## Run the tests
 
-    npm test          # 303 assertions, pure functions, no database
-    npm run verify    # tsc, the tests, 39 check suites, 23 audits
+    npm test          # 310 assertions, pure functions, no database
+    npm run verify    # tsc, the tests, 40 check suites, 23 audits
 
 **The gate is now green end to end, including the two things that used
 to skip.** `verify` reports what it did not run rather than counting a
@@ -658,7 +700,7 @@ skip as a pass, and for a long time it reported two:
   leaving you to guess.
 
 `npm test` was declared from day one with no test files behind it, so it
-exited 1 and said "No test files found". There are 16 test files now, and
+exited 1 and said "No test files found". There are 17 test files now, and
 they cover the pure logic where being wrong is silent: the fils unit, the
 24-hour window on both sides of the boundary, Dubai sending hours, the
 search parser's plural intents and budget bands, lead scoring, deal
@@ -934,6 +976,23 @@ with an empirical floor under it.
   tell a brokerage their property is live when it is not. Both competitors
   lead on portal distribution, so this is the commercial step that decides
   whether the product competes.
+- **Editing a lead.** `leads` has create, assign and remove, and no
+  update — an agent cannot correct a buyer's name or budget once the
+  lead exists, and cannot record a visa renewal date, which is the only
+  input the visa sweep has. The sweep is correct and has never had
+  anybody to find.
+- **Recording viewing feedback.** `feedback.ask` puts the one question
+  on the agent's list; nothing writes the buyer's answer
+  (`ViewingFeedback.verdict`, `answeredAt`), so the weekly vendor report
+  is composed with no feedback in it.
+- **Creating a nurture plan.** `plans.advance` now turns every due step
+  into a task for the agent. Nothing creates a `TaskPlan` or puts a
+  lead on one — `reachability.py` lists it.
+- **Sending proactive messages without a person.** Deliberately. Every
+  job that decides somebody is worth contacting hands a draft to their
+  agent. If a brokerage ever wants automatic sending, it is a change to
+  the floor in `autonomy.ts` and the promise on the settings screen,
+  made on purpose — not a sender added to a job.
 - goAML submission, image quality checks. Nothing produces a
   `QualityIssue`; `collect.ts` says so at the definition.
 - Migration source adapters.

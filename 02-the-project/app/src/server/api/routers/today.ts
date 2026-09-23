@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { router, requirePermission } from "../trpc";
 import { audit } from "@/server/lib/audit";
+import { leadScope } from "@/server/auth/rbac";
 
 /**
  * What should I do today.
@@ -129,6 +130,78 @@ export const todayRouter = router({
       partOfDay: partOfDay(now, tz),
     };
   }),
+
+  /**
+   * The agent's follow-ups: what they asked to be reminded of, and what
+   * the product has put on their list.
+   *
+   * ## Why this exists
+   *
+   * `FollowUp` had writers — a voice note ("remind me to call Priya
+   * tomorrow"), the overnight sweep on Autopilot — a count on this
+   * screen, a reminder push, and a line in the calendar feed. **It had no
+   * list and nothing could complete one.** The brief said "3 follow-ups
+   * due", the number only ever went up, and the reminder's link went to
+   * the blackbook, which does not show follow-ups. An agent could set a
+   * reminder and never see it again or clear it.
+   *
+   * Exactly the set `brief` counts — open, theirs, due before the end of
+   * their day — so the number in the sentence and the length of the list
+   * cannot disagree. That disagreement is the bug `Summary`'s own comment
+   * records from the last time two halves of this screen counted
+   * different things.
+   */
+  followUps: requirePermission("lead:read:own").query(async ({ ctx }) => {
+    const org = await ctx.db.organisation.findUnique({
+      where: { id: ctx.orgId },
+      select: { timezone: true },
+    });
+    const { end } = dayWindow(new Date(), org?.timezone ?? "Asia/Dubai");
+
+    const rows = await ctx.db.followUp.findMany({
+      where: { agentId: ctx.userId, completedAt: null, dueAt: { lt: end } },
+      orderBy: { dueAt: "asc" },
+      take: 50,
+      select: { id: true, title: true, body: true, dueAt: true, leadId: true },
+    });
+
+    /**
+     * Names through the caller's own lead scope. `FollowUp.leadId` is a
+     * bare column, and a follow-up can outlive the lead being theirs —
+     * reassigned to a colleague, or deleted. The reminder is still
+     * theirs to clear; the other agent's client is not theirs to open.
+     */
+    const ids = [...new Set(rows.map((r) => r.leadId).filter((x): x is string => !!x))];
+    const leads = ids.length
+      ? await ctx.db.lead.findMany({
+          where: { id: { in: ids }, deletedAt: null, ...leadScope(ctx.role, ctx.userId) },
+          select: { id: true, name: true, phone: true },
+        })
+      : [];
+    const byId = new Map(leads.map((l) => [l.id, l]));
+
+    return rows.map((r) => {
+      const lead = r.leadId ? byId.get(r.leadId) : undefined;
+      return {
+        id: r.id, title: r.title, body: r.body, dueAt: r.dueAt,
+        lead: lead ? { id: lead.id, name: lead.name ?? lead.phone } : null,
+      };
+    });
+  }),
+
+  /**
+   * Done. Theirs only: one agent completing another's reminder is not a
+   * thing that should be possible, for the same reason as `dismiss`.
+   */
+  completeFollowUp: requirePermission("lead:read:own")
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const { count } = await ctx.db.followUp.updateMany({
+        where: { id: input.id, agentId: ctx.userId, completedAt: null },
+        data: { completedAt: new Date() },
+      });
+      return { done: count === 1 };
+    }),
 
   /**
    * Not now.

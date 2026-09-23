@@ -53,10 +53,6 @@
       "schedule": "0 5 * * *"
     },
     {
-      "path": "/api/cron/matching.new-listings",
-      "schedule": "0 6 * * *"
-    },
-    {
       "path": "/api/cron/documents.expiry",
       "schedule": "30 4 * * *"
     },

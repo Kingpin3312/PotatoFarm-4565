@@ -55,7 +55,7 @@ const db = new PrismaClient({ datasources:{db:{url:process.env.DATABASE_URL_UNSC
 const org = await db.organisation.findFirst({ where:{deletedAt:null}, select:{id:true} });
 
 /** Real ids, so a dynamic route is exercised rather than skipped. */
-const [lead, kyc, listing, convo, orgSlug, publicListing] = await Promise.all([
+const [lead, kyc, listing, convo, orgSlug, publicListing, vendor] = await Promise.all([
   db.lead.findFirst({ where: { orgId: org.id, deletedAt: null }, select: { id: true } }),
   db.kycRecord.findFirst({ where: { orgId: org.id }, select: { id: true } }),
   db.listing.findFirst({ where: { orgId: org.id, deletedAt: null }, select: { id: true } }),
@@ -71,6 +71,7 @@ const [lead, kyc, listing, convo, orgSlug, publicListing] = await Promise.all([
     where: { orgId: org.id, deletedAt: null, status: "AVAILABLE", permitNumber: { not: null } },
     select: { reference: true },
   }),
+  db.vendor.findFirst({ where: { orgId: org.id }, select: { id: true } }),
 ]);
 
 /**
@@ -94,6 +95,10 @@ const SUBST = {
   // reached with no session at all.
   "[slug]": orgSlug?.slug,
   "[reference]": publicListing?.reference,
+  // The owner's page. Reported as "not opened" from the day it was
+  // mounted, because nothing here knew how to fill the token — honest,
+  // and it meant the one screen an owner is shown was never walked.
+  "[vendorId]": vendor?.id,
 };
 
 const all = routes();

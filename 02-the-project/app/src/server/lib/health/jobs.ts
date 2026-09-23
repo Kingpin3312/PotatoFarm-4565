@@ -55,7 +55,6 @@ const EXPECTED_EVERY_MINUTES: Record<string, number> = {
   // week with no new business.
   "aml.screening": 24 * 60,
   "deals.slippage": 24 * 60,
-  "matching.new-listings": 24 * 60,
   "plans.advance": 24 * 60,
   "feedback.vendor-report": 7 * 24 * 60,
   // If this stops, an enquiry that was never emailed stops being

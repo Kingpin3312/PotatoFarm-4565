@@ -27,10 +27,10 @@ export const REPLY_PAUSES = true;
  * Rule two. A plan can never send more often than the outreach rules
  * allow, and it does not get its own budget.
  *
- * Every message goes through the same path as a match alert — same
- * frequency cap, same quiet hours, same opt-out, same template
- * requirement. A sequence that bypasses those is just spam with a
- * schedule.
+ * A step that would message somebody is handed to the lead's agent, who
+ * sends it the way they send anything else — same opt-out, same
+ * template requirement, and a person pressing send (see `taskForStep`).
+ * A sequence that bypasses those is just spam with a schedule.
  */
 export const USES_OUTREACH_RULES = true;
 
@@ -123,3 +123,69 @@ export const LONG_HORIZON_BUYER: Step[] = [
  * has a property attached or it stays quiet and waits for the next step.
  */
 export const CHECK_MATCHES_SENDS_ONLY_ON_A_MATCH = true;
+
+/**
+ * What a due step puts on the agent's list — or `null`, which means the
+ * step is complete with nothing to do.
+ *
+ * ## Why every step becomes a task for a person
+ *
+ * `plans.advance` logged "plan step due", advanced `currentStep` and
+ * scheduled the next one — for **every** action, including the two that
+ * are supposed to message somebody — beneath a comment saying the step
+ * "goes through the ordinary outbound path". There was no path. A lead
+ * on a five-month nurture would have received nothing, while the plan
+ * recorded each step as taken and ended `COMPLETED` with
+ * `endedReason: "sequence finished"` — which the README reads as *"nobody
+ * engaged"*, a verdict on a sequence that never sent a word.
+ *
+ * `MESSAGE` and `CHECK_MATCHES` are not given a sender here because
+ * `intelligence/autonomy.ts` caps every customer-facing action at
+ * CONFIRM: a person presses send, at every mode. So the step prepares
+ * the message and hands it to the lead's agent, which is what "ours can
+ * just do it, in the conversation that is already open" can honestly
+ * mean under that rule.
+ *
+ * `CHECK_MATCHES` with nothing that fits returns `null` — the README's
+ * third rule: silence is a valid outcome, and a task saying "nothing to
+ * send" is the nurture sequence nobody reads, aimed at the agent.
+ */
+export function taskForStep(args: {
+  step: Step;
+  planName: string;
+  who: string;
+  /** For CHECK_MATCHES: the best current fit, already run through the matcher. */
+  match?: { title: string; draft: string } | null;
+}): { title: string; body: string } | null {
+  const from = `From the "${args.planName}" plan.`;
+  const { step, who } = args;
+
+  switch (step.action) {
+    case "TASK":
+      return { title: step.taskTitle?.trim() || `Plan step for ${who}`, body: from };
+
+    case "REVIEW":
+      return {
+        title: step.taskTitle?.trim() || `Decide whether ${who}'s plan keeps running`,
+        body: `${from} This is the last check-in it has planned.`,
+      };
+
+    case "MESSAGE":
+      return {
+        title: step.template ? `Send ${who} the "${step.template}" message` : `Message ${who}`,
+        // The template is named because outside the 24-hour window it is
+        // the only thing Meta will deliver — a free-form message sent
+        // instead is accepted and never arrives.
+        body: step.template
+          ? `${from} Outside the 24-hour window this has to be the approved "${step.template}" template.`
+          : from,
+      };
+
+    case "CHECK_MATCHES":
+      if (!args.match) return null;
+      return {
+        title: `Send ${who} ${args.match.title}`,
+        body: `${from} It fits what they asked for. A draft:\n\n${args.match.draft}`,
+      };
+  }
+}

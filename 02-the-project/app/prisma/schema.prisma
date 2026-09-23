@@ -306,11 +306,12 @@ model Lead {
   /// resident deciding whether to buy, and it is a real trigger nobody
   /// else in this market uses.
   ///
-  /// A date of birth, not a government ID number or a scan — see
-  /// PRIVACY.md in this folder for why the distinction matters here.
+  /// A date, not a government ID number or a scan — see
+  /// `lib/matching/PRIVACY.md` for why the distinction matters here.
   visaExpiresAt DateTime?
-  /// The last time a visa nudge went out, so the sweep does not repeat
-  /// itself every day once inside the window.
+  /// The last time the lead's agent was asked to get in touch about it,
+  /// so the sweep does not repeat itself every day once inside the
+  /// window. Nothing is sent to the lead automatically.
   visaNudgedAt  DateTime?
 
   // Attribution. Carried from the enquiry so reporting can answer "what

@@ -66,9 +66,14 @@ about the sequence, not just about the lead.
 
 ## Not built yet
 
-- The step actions themselves. Advancement, pausing and scheduling are
-  here and tested; `MESSAGE` and `CHECK_MATCHES` currently log rather
-  than send.
+- ~~The step actions themselves.~~ Each due step now puts a task on the
+  lead's agent's list — a `MESSAGE` names the template, a
+  `CHECK_MATCHES` carries the property and a draft, or says nothing when
+  nothing fits — and the step is taken only in the same transaction.
+  Nothing sends by itself: `intelligence/autonomy.ts` stops every
+  message to a client at a person pressing send.
+- **Creating a plan at all.** Nothing writes a `TaskPlan`, its steps, or
+  a subscription, so none of the above has run outside a check.
 - Auto-subscription. Nothing yet puts a lead on a plan when the assistant
   extracts a long timeframe, which is the obvious trigger.
 - Per-step reporting — which step loses people. That is the number that

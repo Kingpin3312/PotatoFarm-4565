@@ -268,7 +268,13 @@ KNOWN_UNWRITTEN = {
     # has none, and `aml.openFile` calls it on the way in. The ratchet
     # asked for this line to be removed rather than letting it sit as a
     # permanent excuse, which is the point of listing them.
-    "PlanSubscription": "portal plan subscriptions cannot be created",
+    # Nurture plans, not portal plans — this line said "portal plan
+    # subscriptions", which sent a reader to the wrong feature. Nothing
+    # creates a `TaskPlan`, its `PlanStep`s or a subscription to one; the
+    # scan names only this model because the other two are read nested
+    # inside it. `plans.advance` now turns each due step into a task for
+    # the lead's agent, so the day something subscribes a lead, it works.
+    "PlanSubscription": "nurture plans — nothing creates a plan or puts a lead on one",
     "EmailAccount": "no mailbox can be connected",
 
     # The whole notification channel, and it read as written for the

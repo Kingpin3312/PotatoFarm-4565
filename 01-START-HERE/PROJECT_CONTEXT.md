@@ -105,8 +105,8 @@ token, which the web app cannot do. Treat it as a design sketch.
 
 ## 4. What is built
 
-**75 database models · 62 enums · 27 API routers · 157 procedures ·
-44 screens · 28 scheduled jobs · 23 audit scripts · 39 check suites.**
+**75 database models · 62 enums · 27 API routers · 159 procedures ·
+44 screens · 27 scheduled jobs · 23 audit scripts · 40 check suites.**
 
 **Five procedures have no screen, and every one of them deliberately:**
 `aml.checkRear`, `aml.visibilityPolicy`, `onboarding.previewImport`,
@@ -250,7 +250,7 @@ thing it checks and confirming it fails.
 ### The unit tests
 
 ```bash
-npm test                    # 303 assertions, no database, ~3 seconds
+npm test                    # 310 assertions, no database, ~3 seconds
 ```
 
 `package.json` declared `"test": "vitest run"` from the beginning with no
@@ -258,7 +258,7 @@ test files and no config behind it, so the command exited 1 and said "No
 test files found" — a command claiming to run tests that could not, which
 is the same shape as a button that does not do what it says.
 
-16 test files, and the selection is not "whatever was easy to test". Every
+17 test files, and the selection is not "whatever was easy to test". Every
 case is a bug that actually happened here or a rule whose failure would
 be silent:
 
@@ -280,6 +280,7 @@ be silent:
 | `server/jobs/period.test.ts` | Billing months — 31 January clamps to February's last day |
 | `lib/i18n/i18n.test.ts` | Right-to-left follows the locale; Arabic keeps Western digits |
 | `lib/sentence.test.ts` | Enums as sentences, not title case |
+| `server/lib/plans/run.test.ts` | Every nurture step ends with a person doing something, and each waits its own delay |
 
 **They were checked against deliberate breakage, not just run.** Setting
 a new lead's recency back to zero, moving the silence threshold from 7
@@ -370,7 +371,7 @@ your name on them:
    one-time link to a work email, so **email delivery is the only way
    into the product**. An unverified sender puts every sign-in link in a
    junk folder and the failure looks like the application being broken.
-3. **Vercel Pro, about $20/month.** 28 cron jobs and `maxDuration = 300`
+3. **Vercel Pro, about $20/month.** 27 cron jobs and `maxDuration = 300`
    both require it; Hobby allows 2 crons once a day at 60 seconds.
 4. Anthropic, WhatsApp Business, Meta and Stripe credentials, as and when
    each feature is wanted. The application boots without them and says in
@@ -416,12 +417,12 @@ Ask — an agent can see what they asked for earlier and what came back.
 - **Voice recipes** `BOOK_VIEWING` and `COMPARABLES` return a follow-up
   question rather than completing in one step. Deliberate, but the second
   step is not wired to the booking screen.
-**Unit tests cover the pure logic, not the codebase.** 303 assertions in 16 files,
+**Unit tests cover the pure logic, not the codebase.** 310 assertions in 17 files,
   across money, the 24-hour window, Dubai sending hours, the search
   parser, lead scoring, deal risk, the assistant's guardrails and the
   interface's Arabic — the
   pure logic where being wrong is expensive and silent. Everything
-  stateful is still covered only by the 39 check suites and the
+  stateful is still covered only by the 40 check suites and the
   23 browser checks, which is not the same thing as a test suite. What is
   left untested in `assistant/` is everything that needs a model:
   `run.ts` and `prompt.ts` are exercised only through `check:autonomy`
@@ -900,7 +901,7 @@ and refusing to boot over it would be worse than saying so.
 
 ## 12. Deployment
 
-**The application → Vercel.** `app/vercel.json` defines **28 cron jobs**
+**The application → Vercel.** `app/vercel.json` defines **27 cron jobs**
 matching those in `src/server/jobs/index.ts`; a check enforces that they
 stay in step. `prisma generate` is in the build script — without it,
 Vercel's cached `node_modules` gives you a stale client and a guaranteed
