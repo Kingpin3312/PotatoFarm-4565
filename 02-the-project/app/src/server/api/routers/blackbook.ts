@@ -3,6 +3,7 @@ import { router, requirePermission } from "../trpc";
 import { timeline } from "@/server/lib/blackbook/timeline";
 import { audit } from "@/server/lib/audit";
 import { TRPCError } from "@trpc/server";
+import { leadScope } from "@/server/auth/rbac";
 
 /**
  * The blackbook.
@@ -72,9 +73,34 @@ export const blackbookRouter = router({
         });
       }
 
+      /**
+       * Scoped to the caller, the same way `conversations.thread` is.
+       *
+       * This existence check had no `assignedToId`, and `timeline()`
+       * below **declares an `agentId` parameter its body never
+       * mentions** — so the router passed the right value and nothing
+       * used it. An agent editing the id in `/blackbook/<leadId>` got a
+       * colleague's WhatsApp message bodies, email snippets, viewings
+       * and offer amounts. `conversations.thread` guards exactly those
+       * message bodies correctly; this was a second door to the same
+       * data with the lock off.
+       *
+       * CLAUDE.md's shape #7: a declared field that changes no
+       * behaviour is the same shape as a module nothing calls.
+       *
+       * Vendors carry no `assignedToId`, so there is nothing to scope
+       * them by — an owner belongs to the brokerage rather than to one
+       * agent, and RLS already bounds that. Left explicit so the
+       * asymmetry is a decision on the page rather than an oversight.
+       */
       const exists = input.leadId
         ? await ctx.db.lead.findFirst({
-            where: { id: input.leadId, deletedAt: null }, select: { id: true } })
+            where: {
+              id: input.leadId,
+              deletedAt: null,
+              ...leadScope(ctx.role, ctx.userId),
+            },
+            select: { id: true } })
         : await ctx.db.vendor.findFirst({
             where: { id: input.vendorId }, select: { id: true } });
 

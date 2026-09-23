@@ -86,7 +86,11 @@ export async function GET(
       // Portals poll. A short cache absorbs a portal fetching more
       // often than it needs to without letting a price change sit
       // stale for long enough to matter.
-      "Cache-Control": "public, max-age=300",
+      // `private`, not `public`. The file's own comment two paragraphs
+      // up says the URL is a credential, and this is a brokerage's
+      // whole inventory with prices. The calendar route next door,
+      // built the same way, already says `private`.
+      "Cache-Control": "private, max-age=300",
       // The URL is a credential. Keep it out of search engines and out
       // of any referrer a photo host might otherwise receive.
       "X-Robots-Tag": "noindex, nofollow",

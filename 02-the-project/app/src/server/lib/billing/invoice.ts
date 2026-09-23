@@ -30,9 +30,53 @@ export async function generateInvoice(subId: string, from: Date, to: Date) {
    * this period. Deriving from 30 instead means February is quietly more
    * expensive per day than March, and somebody eventually notices.
    */
-  const perSeatDay = Number(sub.seatPriceFils) / fullPeriodDays;
-  const subtotal = BigInt(Math.round(perSeatDay * used));
+  /**
+   * Exact, in fils, rather than through a double.
+   *
+   * `Number(seatPriceFils) / fullPeriodDays * used` then rounded was
+   * accurate to within a fil today, but the rule at the top of this
+   * file is that money never passes through floating point — and this
+   * was the one place in the billing path that did.
+   */
+  const seatFils = (sub.seatPriceFils * BigInt(used)) / BigInt(fullPeriodDays);
+
+  /**
+   * The conversation overage, which was computed, shown to the
+   * customer all month, and then **left off the bill**.
+   *
+   * `usage` was imported at the top of this file and never called.
+   * `subtotalFils` carried seats only, and `seatFils`,
+   * `conversationsAnswered`, `conversationsIncluded` and `overageFils`
+   * — four columns whose stated purpose is that an invoice can be read
+   * six months later without recomputing anything — were left at their
+   * schema defaults of zero on every invoice ever issued.
+   *
+   * Two consequences, both facing the customer. The brokerage was
+   * under-billed, and the VAT with it, so the wrong amount of tax was
+   * charged and remitted. And `explain()` below renders those columns,
+   * so the second line of every bill read "0 conversations answered,
+   * within the 0 included" to a firm that had answered nine hundred —
+   * while `billing.status` had shown a running total all month that
+   * the invoice then contradicted.
+   */
+  const u = await usage(subId, from, to);
+  const subtotal = seatFils + u.overageFils;
+
+  /**
+   * VAT on the whole supply. Computing it on seats alone — which is
+   * what happened while the overage was missing — under-remits.
+   */
   const vat = (subtotal * BigInt(VAT_BP)) / 10_000n;
+
+  /**
+   * The parts must be the whole. Asserted rather than assumed, because
+   * the failure this replaces was silent: an invoice whose subtotal
+   * quietly stopped including a component still looked like a valid
+   * invoice.
+   */
+  if (subtotal !== seatFils + u.overageFils) {
+    throw new Error("Invoice subtotal does not equal seats plus overage.");
+  }
 
   const number = await nextInvoiceNumber(sub.orgId);
 
@@ -45,6 +89,10 @@ export async function generateInvoice(subId: string, from: Date, to: Date) {
       periodTo: to,
       seatDays: used,
       seatDaysFull: fullPeriodDays,
+      seatFils,
+      conversationsAnswered: u.answered,
+      conversationsIncluded: u.included,
+      overageFils: u.overageFils,
       subtotalFils: subtotal,
       vatRateBp: VAT_BP,
       vatFils: vat,

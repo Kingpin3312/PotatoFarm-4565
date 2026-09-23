@@ -70,8 +70,43 @@ export function calculate(args: {
     running += amount;
   }
 
+  /**
+   * One brokerage line, refused rather than silently collapsed.
+   *
+   * `find` returns the first match. With two `BROKERAGE` rows the
+   * second never entered `allocated` and was never written — so a
+   * 50/30 pair became a single row credited with 80% of the fee while
+   * storing a `shareBp` of 50, and AED 16,000 vanished from a record
+   * CLAUDE.md says exists precisely because a commission gets
+   * disputed. `commission.brokerage`'s `byAgent` keys both rows the
+   * same way, so the report could not reveal the loss either.
+   */
+  if (args.splits.filter((s) => s.role === "BROKERAGE").length > 1) {
+    throw new SplitError(
+      "A split set has one brokerage share. Combine them into one line.",
+    );
+  }
+
   const brokerage = args.splits.find((s) => s.role === "BROKERAGE");
   if (brokerage) allocated.push({ ...brokerage, amountFils: net - running });
+
+  /**
+   * The parts are the whole, and now that is true rather than assumed.
+   *
+   * Every agent share is a truncating division, so the remainder has
+   * to land somewhere. It landed on the brokerage — and with **no**
+   * brokerage row it landed nowhere: a three-way 3333/3333/3334 split
+   * of AED 3,050,000 at 1.75% lost 2 fils, under a comment promising
+   * the parts always sum exactly to the whole. Small, and the comment
+   * was still false; an agent who is short by a fil stops trusting
+   * every other number on the screen.
+   *
+   * The last line absorbs it, which is the convention everywhere else
+   * money is apportioned here.
+   */
+  const sum = allocated.reduce((n, s) => n + s.amountFils, 0n);
+  const last = allocated[allocated.length - 1];
+  if (last && sum !== net) last.amountFils += net - sum;
 
   return { grossFils: gross, vatFils: vat, netFils: net, splits: allocated };
 }

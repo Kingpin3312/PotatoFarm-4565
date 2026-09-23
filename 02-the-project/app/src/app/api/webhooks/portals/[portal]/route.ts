@@ -4,6 +4,7 @@ import { crossTenant } from "@/server/db/client";
 import { adapters } from "@/server/lib/portals";
 import { ingestEnquiry, markChannelHealthy } from "@/server/lib/portals/ingest";
 import { getChannelCredentials } from "@/server/lib/secrets";
+import { log } from "@/lib/log";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -56,7 +57,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ por
     }
     await markChannelHealthy(channel.id);
   })().catch(async (err) => {
-    console.error(`[portals] ${portal} ingest failed`, err);
+    // Same reason as the WhatsApp route: a raw error object carries the
+    // field values that failed, and this path handles enquirer names and
+    // phone numbers.
+    log.error("[portals] ingest failed", {}, { portal, reason: String(err).slice(0, 200) });
     await crossTenant("sweep").channel.update({
       where: { id: channel.id },
       data: { lastError: String(err).slice(0, 500) },

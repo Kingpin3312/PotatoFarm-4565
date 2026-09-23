@@ -2,6 +2,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { Prisma } from "@prisma/client";
 import { router, orgProcedure, requirePermission } from "../trpc";
+import { can } from "@/server/auth/rbac";
 import { audit } from "@/server/lib/audit";
 import { availableSlots, offerable, humanSlot } from "@/server/lib/scheduling";
 
@@ -19,12 +20,41 @@ export const viewingsRouter = router({
   day: orgProcedure
     .input(z.object({ date: z.date(), agentId: z.string().optional() }))
     .query(async ({ ctx, input }) => {
+      /**
+       * Whose day this is, checked rather than taken on trust.
+       *
+       * `agentId` arrived from the client and went straight into the
+       * `where`, on a bare `orgProcedure` with no permission and no
+       * comparison against the caller. The select below is the whole
+       * exposure: the buyer's name and **phone number**, the property
+       * address, and the `accessNote` — which is how to get into
+       * somebody's home.
+       *
+       * It was reachable rather than theoretical. `reports.leaderboard`
+       * is a procedure an agent is meant to call, and its RANKED mode
+       * masked a colleague's name and figures while spreading `...r`,
+       * which kept `userId`. Harvest the ids from the board, iterate
+       * this over dates, and you have read every colleague's diary.
+       * Both ends are fixed; this is the one that matters.
+       *
+       * `/api/calendar/[token]` gets the same question right by pinning
+       * both halves from the membership row — see CLAUDE.md. Here the
+       * caller supplies one half, so it has to be checked.
+       */
+      const target = input.agentId ?? ctx.userId;
+      if (target !== ctx.userId && !can(ctx.role, "lead:read:all")) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You can only see your own diary.",
+        });
+      }
+
       const start = new Date(input.date); start.setUTCHours(0, 0, 0, 0);
       const end = new Date(start.getTime() + 86_400_000);
 
       const rows = await ctx.db.viewing.findMany({
         where: {
-          agentId: input.agentId ?? ctx.userId,
+          agentId: target,
           scheduledAt: { gte: start, lt: end },
           status: { not: "CANCELLED" },
         },

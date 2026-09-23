@@ -72,6 +72,21 @@ export async function jobsHealth() {
     state: "ok" | "overdue" | "never run";
   }[] = [];
 
+  /**
+   * How long this deployment has been alive, as the baseline a
+   * never-run job is measured against. The oldest brokerage is the
+   * closest thing to "since when should this have happened".
+   */
+  const oldest = await crossTenant("sweep").organisation.findFirst({
+    // `deletedAt: null`, because the question is how long this
+    // deployment has been serving somebody. A closed brokerage does not
+    // establish that, and `erasure.py` is right to insist the filter is
+    // written rather than assumed.
+    where: { deletedAt: null },
+    orderBy: { createdAt: "asc" }, select: { createdAt: true },
+  });
+  const liveFor = oldest ? oldest.createdAt.getTime() : null;
+
   for (const [job, everyMins] of Object.entries(EXPECTED_EVERY_MINUTES)) {
     const last = await crossTenant("sweep").jobRun.findFirst({
       where: { job, state: "SUCCEEDED" },
@@ -80,7 +95,36 @@ export async function jobsHealth() {
     });
 
     if (!last) {
-      out.push({ job, lastSuccess: null, overdueBy: null, state: "never run" });
+      /**
+       * Never run, and how long it has been never running.
+       *
+       * `overdueBy` was null here, and the alert sweep filters on
+       * `state === "overdue"` — a state only the branch below can
+       * produce, and only for a job that has succeeded at least once.
+       * So **a job that has never worked raised no alert, at any
+       * severity, ever**: the value was computed every five minutes
+       * and discarded. CLAUDE.md records the mirror of this in
+       * `severityFor` — there a branch could never execute, here a
+       * value could never be consumed.
+       *
+       * The case that matters is not a typo in one job name. It is
+       * `CRON_SECRET` wrong in production: every invocation of every
+       * job is refused, no `JobRun` row is ever written, all 28 report
+       * "never run", and the alerting stays perfectly quiet — while
+       * the heartbeat keeps firing, because `health.evaluate` is the
+       * one job that runs in-process.
+       *
+       * Measured against how long this deployment has existed rather
+       * than a fixed date, so a genuinely fresh install does not
+       * alarm on its weekly jobs before they are due.
+       */
+      const liveMins = liveFor === null ? 0 : (Date.now() - liveFor) / 60_000;
+      out.push({
+        job,
+        lastSuccess: null,
+        overdueBy: liveMins > everyMins * 3 ? Math.round(liveMins) : null,
+        state: "never run",
+      });
       continue;
     }
 

@@ -174,8 +174,30 @@ const humanise = (k: string) =>
  */
 export function verifySignature(rawBody: string, header: string | null): boolean {
   if (!header?.startsWith("sha256=")) return false;
+  /**
+   * Refused outright when the secret is absent, because `?? ""` was
+   * fail-open.
+   *
+   * An empty string is a perfectly valid HMAC key. With
+   * `META_APP_SECRET` unset this function did not fail — it computed
+   * `HMAC-SHA256(key="", body)` and returned **true** for anyone who
+   * did the same. The check was present, ran on every delivery, and
+   * enforced nothing, which is worse than having no check at all: a
+   * reviewer reading this route sees a signature verified and
+   * concludes the door is locked. CLAUDE.md records that exact shape
+   * about the rate limit nothing invoked.
+   *
+   * Its two siblings both fail closed — the WhatsApp route throws on
+   * an absent key, and the Stripe route refuses and says so. This one
+   * took neither shape.
+   */
+  const secret = process.env.META_APP_SECRET;
+  if (!secret) {
+    log.warn("[meta] META_APP_SECRET is unset — every lead webhook is refused as unsigned", {});
+    return false;
+  }
   const expected = crypto
-    .createHmac("sha256", process.env.META_APP_SECRET ?? "")
+    .createHmac("sha256", secret)
     .update(rawBody, "utf8")
     .digest("hex");
   const given = header.slice(7);

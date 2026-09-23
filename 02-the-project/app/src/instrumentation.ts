@@ -38,6 +38,10 @@ export async function register() {
   check("RESEND_API_KEY", "no sign-in link is delivered, so nobody can get in");
   check("ANTHROPIC_API_KEY", "the assistant hands every conversation to a person");
   check("WHATSAPP_APP_SECRET", "inbound WhatsApp webhooks are all rejected as unsigned");
+  // Missing from this list, which is the mechanism built to announce
+  // exactly this — so the one unconfigured secret that used to verify
+  // *nothing* was also the one the boot log never mentioned.
+  check("META_APP_SECRET", "inbound Meta lead webhooks are all rejected as unsigned");
   check("STRIPE_SECRET_KEY", "no card can be taken and no invoice settled");
   check("CRON_SECRET", "every scheduled job refuses to run");
   check("SEAT_PRICE_FILS", "sign-up refuses to create a subscription");

@@ -161,14 +161,34 @@ export async function evaluate() {
     }
   }
 
-  for (const j of jobs.filter((j) => j.state === "overdue")) {
+  /**
+   * Both failure states, not just the one.
+   *
+   * This filtered on `"overdue"`, which `jobsHealth()` only produces
+   * for a job that has succeeded before and then stopped. A job that
+   * has **never** succeeded reported `"never run"` and was silently
+   * dropped here — so the alerting could complain about a cron that
+   * broke, and never about one that never worked.
+   */
+  for (const j of jobs.filter((j) => j.state === "overdue" || (j.state === "never run" && j.overdueBy !== null))) {
+    const never = j.state === "never run";
     found.push({
       key: `jobs:${j.job}`,
       // A stopped cron is fixable now and everything downstream of it is
       // silently not happening.
-      severity: "PAGE",
-      title: `Job ${j.job} has stopped running`,
-      detail: `${j.overdueBy} minutes past when it should have run.`,
+      //
+      // A job that has never run once is a TICKET rather than a PAGE:
+      // the likeliest cause is a deployment or configuration that was
+      // never finished, which is a morning job, and paging on it would
+      // wake somebody for every weekly job on a new install.
+      severity: never ? "TICKET" : "PAGE",
+      title: never
+        ? `Job ${j.job} has never run`
+        : `Job ${j.job} has stopped running`,
+      detail: never
+        ? `No successful run in the ${j.overdueBy} minutes this deployment has existed. `
+          + `If every job reports this, check CRON_SECRET.`
+        : `${j.overdueBy} minutes past when it should have run.`,
       runbook: RUNBOOKS.jobs,
     });
   }
