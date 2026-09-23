@@ -3,11 +3,12 @@
 # Dozens of check suites and audit scripts existed before this file did,
 # and every document said they "belong in CI". Nothing ran them.
 #
-# Counts are deliberately not written here in words any more. They were
-# — "twenty-four check suites", "fifteen audit scripts", "233 unit
-# assertions" — and every one of them went stale, in the file whose
-# entire purpose is that nothing goes unchecked. `counts.py` reads this
-# workflow now, so a number written here has to be true. The whole quality argument rested on a person remembering — and
+# Counts are deliberately not written here in words any more. This header
+# used to say "twenty-four check suites", "fifteen audit scripts" and
+# "233 unit assertions", and every one of them went stale, in the file
+# whose entire purpose is that nothing goes unchecked. `counts.py` reads
+# this workflow now, numbers and number words alike, so a count written
+# here has to be true. The whole quality argument rested on a person remembering — and
 # the audit that produced this file found two suites that had been
 # passing while measuring nothing at all, which is exactly what happens
 # when checks are run by hand and their output is skimmed.
@@ -107,8 +108,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # One of the twenty-two audits drives a browser, and this job runs
-      # all twenty-two through `run-all.sh`.
+      # One of the audits drives a browser, and this job runs every one
+      # of them through `run-all.sh`.
       #
       # `reveal.mjs` checks that nothing on the marketing site is left
       # invisible — every page hides itself on load and depends on an
@@ -341,8 +342,8 @@ jobs:
       # ------------------------------------------------------------------
       # The fifteen that nothing ran.
       #
-      # Twenty-two browser suites existed and automation ran seven. The
-      # other fifteen were complete, correct and reachable only by
+      # At the time twenty-two browser suites existed and automation ran
+      # seven. The other fifteen were complete, correct and reachable only by
       # somebody typing their name — the same shape this codebase keeps
       # producing, applied to its own quality apparatus. Two were red
       # when they were finally run: `browser:commission-plan` had been

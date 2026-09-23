@@ -102,7 +102,7 @@ What is verified today, measured rather than assumed:
   `/api/health` returns `200 {"ok":true}` against a real Postgres.
 - The boot log names every unconfigured service with its consequence —
   six of them in a bare development environment.
-- 296 assertions in 15 files, 39 check suites, 23 audits, all green.
+- 303 assertions in 16 files, 39 check suites, 23 audits, all green.
 
 Type errors on a fresh checkout are no longer expected. If you get one,
 it is new.
@@ -475,8 +475,8 @@ nothing that starts it — and the sixth is the product itself:
    at all, and the settings screen showed a connected channel while it
    could not.
 
-   Found by asking a question nothing in thirty-five check suites had
-   asked: **what posts to this route?** Nothing did. `check:website-form`
+   Found by asking a question none of the thirty-five check suites at the time
+   had asked: **what posts to this route?** Nothing did. `check:website-form`
    does now, and `channels.py` fails the build on any channel type a
    brokerage can connect with nothing able to deliver to it. `connect`
    refuses such a type outright — Bayut and Dubizzle today — because a
@@ -607,7 +607,7 @@ send path read it.
 
 ## Run the tests
 
-    npm test          # 296 assertions, pure functions, no database
+    npm test          # 303 assertions, pure functions, no database
     npm run verify    # tsc, the tests, 39 check suites, 23 audits
 
 **The gate is now green end to end, including the two things that used
@@ -658,7 +658,7 @@ skip as a pass, and for a long time it reported two:
   leaving you to guess.
 
 `npm test` was declared from day one with no test files behind it, so it
-exited 1 and said "No test files found". There are fifteen files now, and
+exited 1 and said "No test files found". There are 16 test files now, and
 they cover the pure logic where being wrong is silent: the fils unit, the
 24-hour window on both sides of the boundary, Dubai sending hours, the
 search parser's plural intents and budget bands, lead scoring, deal

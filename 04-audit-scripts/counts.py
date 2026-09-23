@@ -32,7 +32,28 @@ conflated them would be confidently wrong, which is worse than absent.
 
 **Assertions.** Only `npm test` knows, and shelling out to a test runner
 from an audit couples the two in a way that fails for reasons that have
-nothing to do with documentation.
+nothing to do with documentation. `it.each` tables expand at run time
+(231 `it(` calls in source were 303 tests), so no static count is
+honest either. **Test files** are counted, because vitest's `include`
+rule is a glob and the count needs nothing to run.
+
+## Numbers written as words
+
+A count spelled out is still a count. This file matched digits only, so
+"the twenty-four check suites" sat in `PROJECT_CONTEXT.md` against a
+real 39, and "fifteen modules" and "Seven files" against 16 test files —
+all of them read past, in the file that exists to catch exactly that.
+
+Words are read for **the verification kit only** — check suites,
+audits, audit scripts, test files, browser checks — and not for models, routers,
+procedures or jobs. That was measured, not assumed: switched on for
+every noun, it found five stale counts and eleven false ones, and the
+false ones were all the same shape. "Five procedures have no screen",
+"eleven routers written and never mounted", "seven procedures gated
+with `can()`" — a number word before one of those nouns, in these
+documents, is nearly always a *subset*, and a check that reads a subset
+as a total is the conflation the Screens paragraph above refuses. A
+spelled-out count of check suites has so far always meant all of them.
 
 **Historical statements.** README.md says COMPLETION.md "described a
 generation-older codebase (66 models, 20 routers)". That is true, and
@@ -97,7 +118,22 @@ audit_scripts = len([f for f in os.listdir(audit_dir)
                      if f.endswith((".py", ".mjs")) and not f.startswith("_")]) \
     if os.path.isdir(audit_dir) else 0
 
+# vitest's own `include`: ["src/**/*.test.ts"]. Kept as the same glob
+# rather than a looser "anything named test", so a `.test.tsx` somebody
+# adds without widening the config shows up here as a file vitest will
+# not run — which is a finding, not a rounding error.
+test_files = 0
+for base, dirs, files in os.walk(os.path.join(APP, "src")):
+    dirs[:] = [d for d in dirs if d != "node_modules"]
+    test_files += sum(1 for f in files if f.endswith(".test.ts"))
+
 TRUTH = {
+    "test files":    test_files,
+    # Every `browser:` script is a check, and that is kept true rather
+    # than filtered here: the screenshot walk was filed as
+    # `browser:gallery`, asserts nothing and cannot fail, so it counted
+    # as a check that always passes. It is `npm run gallery` now.
+    "browser checks": len([s for s in scripts if s.startswith("browser:")]),
     "models":        len(re.findall(r"^model ", schema, re.M)),
     "enums":         len(re.findall(r"^enum ", schema, re.M)),
     "routers":       len(router_files),
@@ -115,25 +151,56 @@ TRUTH = {
 # same lesson as the acronym allowlist in `browser:type`, where a list
 # written from imagination is how a check comes to pass by accident.
 # ---------------------------------------------------------------------
+_UNITS = ["zero", "one", "two", "three", "four", "five", "six", "seven",
+          "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen",
+          "fifteen", "sixteen", "seventeen", "eighteen", "nineteen"]
+_TENS = ["", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy",
+         "eighty", "ninety"]
+WORDS = {w: i for i, w in enumerate(_UNITS)}
+for t, tw in enumerate(_TENS):
+    if not tw:
+        continue
+    WORDS[tw] = t * 10
+    for u in range(1, 10):
+        WORDS[f"{tw}-{_UNITS[u]}"] = t * 10 + u
+        WORDS[f"{tw} {_UNITS[u]}"] = t * 10 + u
+
+# Longest first, so "twenty-four" is not read as "twenty" and a stray
+# "-four".
+_WORD_RE = "|".join(sorted(map(re.escape, WORDS), key=len, reverse=True))
+N = rf"(\d+|\b(?:{_WORD_RE}))"   # a numeral or a number word
+D = r"(\d+)"                         # a numeral only — see the docstring
+
+
+def as_int(token):
+    token = token.lower()
+    return int(token) if token.isdigit() else WORDS[token]
+
+
 PATTERNS = {
-    "models":        r"(\d+)\s+(?:database\s+)?models\b",
-    "enums":         r"(\d+)\s+enums\b",
-    "routers":       r"(\d+)\s+(?:API\s+)?routers\b",
-    "procedures":    r"(\d+)\s+procedures\b",
+    # "296 assertions in 15 files" and "16 test files". The bare "N
+    # files" is not matched: it is used about every kind of file.
+    "test files":    rf"(?:{N}\s+test\s+files\b|assertions\s+in\s+{N}\s+files\b)",
+    # PROJECT_CONTEXT.md said "eighteen browser checks" against a real 22.
+    "browser checks": rf"{N}\s+browser\s+(?:checks|suites)\b",
+    "models":        rf"{D}\s+(?:database\s+)?models\b",
+    "enums":         rf"{D}\s+enums\b",
+    "routers":       rf"{D}\s+(?:API\s+)?routers\b",
+    "procedures":    rf"{D}\s+procedures\b",
     # "scheduled jobs" *and* "cron jobs" — two documents said "24 cron
     # jobs" against a real 25 and this pattern did not see them, which
     # is the same failure the file exists to prevent, in the file
     # itself.
-    "jobs":          r"(\d+)\s+(?:scheduled|cron)\s+jobs\b",
-    "audit scripts": r"(\d+)\s+audit\s+scripts\b",
+    "jobs":          rf"{D}\s+(?:scheduled|cron)\s+jobs\b",
+    "audit scripts": rf"{N}\s+audit\s+scripts\b",
     # "21 audits", which CLAUDE.md wrote twice and this file did not
     # look for — so the count went stale the moment a twenty-second was
     # added, in exactly the way the pattern above it exists to prevent.
     # The two nouns share a truth because they are the same number:
     # every script in `04-audit-scripts/` is an audit, whatever the
     # sentence around it calls them.
-    "audits":        r"(\d+)\s+audits\b",
-    "check suites":  r"(\d+)\s+check\s+suites\b",
+    "audits":        rf"{N}\s+audits\b",
+    "check suites":  rf"{N}\s+check\s+suites\b",
 }
 
 # A line that is talking about the past, not the present.
@@ -206,12 +273,13 @@ for doc in DOCS:
         seen = set()
         for target in targets:
             for noun, pat in PATTERNS.items():
-                for claimed in re.findall(pat, target, re.I):
-                    if (noun, claimed) in seen:
+                for m in re.finditer(pat, target, re.I):
+                    claimed = next(g for g in m.groups() if g)
+                    if (noun, claimed.lower()) in seen:
                         continue
-                    seen.add((noun, claimed))
+                    seen.add((noun, claimed.lower()))
                     actual = TRUTH[noun]
-                    if int(claimed) != actual:
+                    if as_int(claimed) != actual:
                         FAILS.append(
                             f"{rel}:{n} claims {claimed} {noun}, but there are {actual}"
                             f"\n      {target.strip()[:96]}")

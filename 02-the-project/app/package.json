@@ -56,7 +56,7 @@
     "check:routing": "node --env-file-if-exists=.env scripts/routing.mjs",
     "check:availability": "node --env-file-if-exists=.env scripts/availability.mjs",
     "browser:screens": "node --env-file-if-exists=.env scripts/screens.mjs",
-    "browser:gallery": "node --env-file-if-exists=.env scripts/gallery.mjs",
+    "gallery": "node --env-file-if-exists=.env scripts/gallery.mjs",
     "browser:documents": "node --env-file-if-exists=.env scripts/documents.mjs",
     "check:blocking": "node --env-file-if-exists=.env scripts/blocking.mjs",
     "browser:option1": "node --env-file-if-exists=.env scripts/option1.mjs",

@@ -15,8 +15,12 @@ import { chromePath as cp } from "./_browser.mjs";
  * It is asked by putting the screens in front of the people who would
  * use them.
  *
+ * Not under `browser:`, which is where the checks live. This asserts
+ * nothing and cannot fail, and filed beside them it was counted as one
+ * — a check that always passes, which is decoration.
+ *
  *     npm run start           # a production build, not the dev server
- *     npm run browser:gallery
+ *     npm run gallery
  *
  * Output goes outside the repository by default. These are large binary
  * files that change every time anything moves, and a screenshot
