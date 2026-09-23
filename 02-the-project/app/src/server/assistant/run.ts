@@ -8,6 +8,7 @@ import { getChannelCredentials } from "@/server/lib/secrets";
 import { buildSystemPrompt, PROMPT_VERSION, type GenerationTrace } from "./prompt";
 import { screenInbound, screenOutbound } from "./guardrails";
 import { extraction, sane, needsConfirmation } from "./extract";
+import { storeAnswers } from "./answers";
 import { HANDOVER_TRIGGERS, type HandoverReason } from "./policy";
 import { gate, isMuted, record } from "./controls";
 
@@ -349,6 +350,10 @@ async function extractAndStore(
         notes: unsure.length ? `Confirm with the lead: ${unsure.join(", ")}` : undefined,
       },
     });
+    // And the answers themselves, against the profile's questions — the
+    // reason `profileId` is a parameter. `answers.ts` has the account of
+    // what was missing when it was not used.
+    await storeAnswers(db, { orgId, leadId, profileId, extracted: parsed });
   } catch (err) {
     // Extraction failing is a degraded lead record, not a failed
     // conversation. Never let it surface to the person messaging.

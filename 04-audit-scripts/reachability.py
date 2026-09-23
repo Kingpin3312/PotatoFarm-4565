@@ -136,6 +136,14 @@ def _code(text: str) -> str:
 _allcode = None
 
 
+def _code_all() -> str:
+    """The whole corpus with its comments removed, computed once."""
+    global _allcode
+    if _allcode is None:
+        _allcode = "\n".join(_code(t) for t in src.values())
+    return _allcode
+
+
 def _enclosing_fn(text: str, at: int) -> str | None:
     """The name of the exported function a position sits inside."""
     head = text[:at]
@@ -174,11 +182,9 @@ def _reachable_write(lower: str) -> bool:
             if fn is None:
                 return True          # top-level or a method — assume reached
             # Named anywhere other than its own definition?
-            global _allcode
-            if _allcode is None:
-                _allcode = "\n".join(_code(t) for t in src.values())
-            uses = len(re.findall(rf"\b{fn}\b", _allcode))
-            defs = len(re.findall(rf"function\s+{fn}\b", _allcode))
+            code = _code_all()
+            uses = len(re.findall(rf"\b{fn}\b", code))
+            defs = len(re.findall(rf"function\s+{fn}\b", code))
             if uses > defs:
                 return True
     return False
@@ -192,7 +198,21 @@ def _written(model: str) -> bool:
         o = owner[0].lower() + owner[1:]
         if not re.search(rf"\.{o}\.(?:create|update|upsert)\b", allsrc):
             continue
-        if re.search(rf"\b{field}:\s*\{{\s*(?:create|createMany|connectOrCreate|upsert)\b", allsrc):
+        # Against comment-stripped source, because a comment between the
+        # brace and the `create` defeats this regex — and one does. The
+        # nested write in `seedQualification` reads:
+        #
+        #     questions: {
+        #       // `options` is a scalar-list field, and Prisma types it…
+        #       create: DEFAULT_QUESTIONS.map(…)
+        #
+        # so `Question` reported as having no writer the moment anything
+        # first read it, on a model created during signup. Third time
+        # this trap has bitten in this repository, and CLAUDE.md states
+        # the rule outright: **strip prose from both sides of any
+        # comparison.** The check that finds unwritten models was itself
+        # reading prose.
+        if re.search(rf"\b{field}:\s*\{{\s*(?:create|createMany|connectOrCreate|upsert)\b", _code_all()):
             return True
     return False
 
