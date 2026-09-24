@@ -159,7 +159,7 @@ export function forOrg(orgId: string) {
  * see `.env.example`.
  */
 function extend(orgId: string) {
-  return base.$extends({
+  const extended = base.$extends({
     query: {
       $allModels: {
         async $allOperations({ args, query }) {
@@ -197,6 +197,61 @@ function extend(orgId: string) {
           return result;
         },
       },
+    },
+  });
+
+  /**
+   * `$transaction(async (tx) => …)` — the interactive form — was not a
+   * transaction. Measured, not assumed: an update inside one, followed by
+   * a throw, **stayed written.**
+   *
+   * The query hook above wraps every statement in its own
+   * `base.$transaction([set_config, query])`, and it does that for
+   * statements issued through `tx` as well. So each one ran on a
+   * connection of its own and committed on its own, and the interactive
+   * transaction around them held a connection and did nothing. Scoping
+   * was right — a rival brokerage's row was invisible inside one and
+   * could not be written — but "all of this or none of it" was false at
+   * all thirty-one call sites that asked for it: the WhatsApp and portal
+   * ingest, privacy erasure, offers, the assistant's handover, removing a
+   * member, and every router mutation that writes a row and its audit
+   * entry together. A failure half way left the first half behind.
+   *
+   * So the interactive form is taken over here. It opens a real
+   * transaction on `base`, sets the scope **on that transaction's own
+   * connection** as its first statement, and hands the callback the
+   * plain transaction client — whose queries then run on that one
+   * connection, inside the scope, and commit or roll back together.
+   * `set_config(…, true)` is still transaction-local, so the scope ends
+   * with the transaction and a pooled connection inherits nothing, which
+   * is the rule at the top of this file. Nothing is widened to the
+   * request: code outside an explicit transaction is unchanged.
+   *
+   * The array form is left alone, because it already behaves: measured
+   * the same way, a batch whose second statement fails rolls the first
+   * one back.
+   *
+   * One consequence to know. Inside a real Postgres transaction, an
+   * error that is caught and ignored still aborts everything after it.
+   * None of the thirty-one bodies catches a database error and carries
+   * on — the one `try` among them wraps pure arithmetic — and a new one
+   * must not either: do the "ignore a duplicate" dance outside the
+   * transaction, or with an upsert.
+   */
+  const scopedTransaction = ((arg: unknown, options?: unknown) => {
+    if (typeof arg !== "function") {
+      return (extended.$transaction as (a: unknown, o?: unknown) => unknown)(arg, options);
+    }
+    return base.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT set_config('app.current_org', ${orgId}, true)`;
+      return (arg as (t: typeof tx) => unknown)(tx);
+    }, options as Parameters<typeof base.$transaction>[1]);
+  }) as typeof extended.$transaction;
+
+  return new Proxy(extended, {
+    get(target, prop, receiver) {
+      if (prop === "$transaction") return scopedTransaction;
+      return Reflect.get(target, prop, receiver);
     },
   });
 }

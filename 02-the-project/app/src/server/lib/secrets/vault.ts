@@ -166,12 +166,28 @@ export async function forgetSecret(ref: string) {
 
 /** Whether a token could be stored at all, for a screen to say so. */
 export function vaultReady() {
+  return vaultProblem() === null;
+}
+
+/**
+ * Why the vault cannot be used, in words that name the actual fault.
+ *
+ * `vaultReady()` treated a malformed key as "not ready" — right — and
+ * every caller then reported `NOT_CONFIGURED`, which says the key **is
+ * not set**. A key pasted without its trailing `=` is 44 characters
+ * that decode to 33 bytes: set, present at boot, absent from the boot
+ * report's list of missing services, and described to whoever tries to
+ * connect a WhatsApp number as missing. They would set it again, the
+ * same way, and get the same answer. Found exactly like that.
+ *
+ * Returns `null` when a token can be sealed.
+ */
+export function vaultProblem(): string | null {
   try {
-    return masterKey() !== null;
-  } catch {
-    // A malformed key is not ready either, and the screen should say
-    // "not configured" rather than crash rendering.
-    return false;
+    return masterKey() === null ? NOT_CONFIGURED : null;
+  } catch (err) {
+    // A malformed key: the length is in the message, the value is not.
+    return (err as Error).message;
   }
 }
 

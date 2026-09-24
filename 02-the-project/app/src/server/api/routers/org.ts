@@ -287,11 +287,42 @@ export const orgRouter = router({
       if (a.length !== b.length || !timingSafeEqual(a, b)) throw bad();
 
       await crossTenant("user-scoped").$transaction(async (tx) => {
+        const already = await tx.membership.findUnique({
+          where: { orgId_userId: { orgId: invite.orgId, userId: session.user.id } },
+          select: { id: true },
+        });
         await tx.membership.upsert({
           where: { orgId_userId: { orgId: invite.orgId, userId: session.user.id } },
           create: { orgId: invite.orgId, userId: session.user.id, role: invite.role },
           update: {},
         });
+
+        /**
+         * Their seat starts today — and until now it never did.
+         *
+         * `signup` writes one seat event, the owner, under a comment
+         * saying "every agent invited later adds an event". Nothing did:
+         * `recordSeatChange` had no caller, so every brokerage's ledger
+         * stayed at one seat however many joined. The invoice charged
+         * for one agent, and the conversation allowance — which is per
+         * seat — was a one-person firm's, so a twenty-agent brokerage
+         * would have been billed overage on nearly every conversation.
+         * Wrong in both directions on the same bill, against a team
+         * screen promising "adding someone starts their seat today".
+         *
+         * Only when the membership is new: accepting a second invitation
+         * to a brokerage you already belong to is not another seat.
+         */
+        if (!already) {
+          const sub = await tx.subscription.findUnique({
+            where: { orgId: invite.orgId }, select: { id: true },
+          });
+          if (sub) {
+            await tx.seatEvent.create({
+              data: { orgId: invite.orgId, subId: sub.id, userId: session.user.id, change: 1, reason: "joined" },
+            });
+          }
+        }
         await tx.invitation.update({
           where: { id: invite.id },
           data: { acceptedAt: new Date() },
@@ -309,11 +340,64 @@ export const orgRouter = router({
       return { orgId: invite.orgId, orgName: invite.org.name };
     }),
 
-  removeMember: requirePermission("member:remove")
+  /**
+   * What an agent is holding, asked before they are removed.
+   *
+   * Removal used to be one click with no confirmation, and it unassigned
+   * every lead the person held — so a mis-tap on the team screen sent a
+   * whole book back to the pool with no undo and no record of whose it
+   * had been. The screen now shows this first and asks who takes it.
+   */
+  removalPreview: requirePermission("member:remove")
     .input(z.object({ userId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const now = new Date();
+      const [leads, viewings, followUps] = await Promise.all([
+        ctx.db.lead.count({ where: { assignedToId: input.userId, deletedAt: null } }),
+        ctx.db.viewing.count({
+          where: { agentId: input.userId, scheduledAt: { gte: now }, status: { in: ["SCHEDULED", "CONFIRMED"] } },
+        }),
+        ctx.db.followUp.count({ where: { agentId: input.userId, completedAt: null } }),
+      ]);
+      return { leads, viewings, followUps };
+    }),
+
+  /**
+   * Remove somebody, and hand what they held to somebody else.
+   *
+   * ## What removal left behind
+   *
+   * It deleted the membership and unassigned the person's leads, and
+   * that was all:
+   *
+   *   - **Upcoming viewings** kept the departed agent. Nobody was
+   *     reminded, nothing appeared in anyone's diary, and the buyer
+   *     turned up to a locked door.
+   *   - **Follow-ups** kept them too — reminders nobody could see.
+   *   - **Open recommendations** stayed on a Today screen nobody opens.
+   *   - **Ownership history** was never closed, so each lead's record
+   *     said the departed agent still held it while the lead itself said
+   *     nobody did. `OwnershipReason.AGENT_LEFT` existed for this and
+   *     had never been written.
+   *   - **The seat** was never stopped. Nothing recorded a seat change
+   *     for anybody joining or leaving — see `acceptInvite` — so the
+   *     screen's promise that "removing them stops it the same way" was
+   *     not true either.
+   *
+   * With `handTo`, leads, upcoming viewings and open follow-ups move to
+   * that person, the way a brokerage actually handles somebody leaving.
+   * Without it, leads and viewings go back to the pool and the
+   * follow-ups are closed rather than left where nobody will see them.
+   * Everything happens in one transaction, including the seat.
+   */
+  removeMember: requirePermission("member:remove")
+    .input(z.object({ userId: z.string(), handTo: z.string().nullable().default(null) }))
     .mutation(async ({ ctx, input }) => {
       if (input.userId === ctx.userId) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "You can't remove yourself." });
+      }
+      if (input.handTo === input.userId) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Hand their work to somebody who is staying." });
       }
 
       const target = await ctx.db.membership.findUnique({
@@ -333,23 +417,83 @@ export const orgRouter = router({
         }
       }
 
-      await ctx.db.$transaction(async (tx) => {
+      const moved = await ctx.db.$transaction(async (tx) => {
+        const now = new Date();
+        const successor = input.handTo;
+        if (successor) {
+          const member = await tx.membership.findUnique({
+            where: { orgId_userId: { orgId: ctx.orgId, userId: successor } },
+          });
+          if (!member) throw new TRPCError({ code: "BAD_REQUEST", message: "That person isn't in your team." });
+        }
+
         await tx.membership.delete({ where: { id: target.id } });
 
-        // Their leads stay with the brokerage. Losing an agent must not
-        // lose the pipeline — unassign rather than cascade.
+        // Leads: to the successor, or back to the pool. Never cascaded —
+        // losing an agent must not lose the pipeline. Live leads only: a
+        // deleted person handed to a successor reappears in their book,
+        // which is the thing erasure exists to prevent.
+        const held = await tx.lead.findMany({
+          where: { assignedToId: input.userId, deletedAt: null }, select: { id: true },
+        });
         await tx.lead.updateMany({
-          where: { assignedToId: input.userId },
-          data: { assignedToId: null, assignedAt: null },
+          where: { assignedToId: input.userId, deletedAt: null },
+          data: { assignedToId: successor, assignedAt: successor ? now : null },
+        });
+        if (held.length) {
+          await tx.leadOwnership.updateMany({
+            where: { orgId: ctx.orgId, leadId: { in: held.map((l) => l.id) }, endedAt: null },
+            data: { endedAt: now },
+          });
+          if (successor) {
+            await tx.leadOwnership.createMany({
+              data: held.map((l) => ({
+                orgId: ctx.orgId, leadId: l.id, userId: successor,
+                fromUserId: input.userId, reason: "AGENT_LEFT" as const, actorId: ctx.userId,
+              })),
+            });
+          }
+        }
+
+        // Viewings still to happen. Past ones keep who showed them —
+        // that is history, and a commission can depend on it.
+        const viewings = await tx.viewing.updateMany({
+          where: { agentId: input.userId, scheduledAt: { gte: now }, status: { in: ["SCHEDULED", "CONFIRMED"] } },
+          data: { agentId: successor },
         });
 
+        // Follow-ups move with the work, or are closed rather than left
+        // on a list nobody will open again.
+        const followUps = await tx.followUp.updateMany({
+          where: { agentId: input.userId, completedAt: null },
+          data: successor ? { agentId: successor } : { completedAt: now },
+        });
+
+        // Recommendations are drawn overnight for whoever holds the lead,
+        // so the departed agent's are stale and the sweep draws new ones.
+        await tx.recommendation.updateMany({
+          where: { agentId: input.userId, state: "OPEN" },
+          data: { state: "STALE", resolvedAt: now },
+        });
+
+        // The seat stops today, as the team screen says it does.
+        const sub = await tx.subscription.findUnique({ where: { orgId: ctx.orgId }, select: { id: true } });
+        if (sub) {
+          await tx.seatEvent.create({
+            data: { orgId: ctx.orgId, subId: sub.id, userId: input.userId, change: -1, reason: "removed" },
+          });
+        }
+
+        const counts = { leads: held.length, viewings: viewings.count, followUps: followUps.count };
         await audit(tx, ctx.orgId, {
           actorId: ctx.userId,
           action: "member.remove",
           entity: "Membership",
           entityId: input.userId,
           before: { role: target.role },
+          after: { handTo: successor, ...counts },
         });
+        return counts;
       });
 
       // Drop any session still pointing at this brokerage, so removal
@@ -359,7 +503,7 @@ export const orgRouter = router({
         data: { activeOrgId: null },
       });
 
-      return { ok: true };
+      return { ok: true, handTo: input.handTo, ...moved };
     }),
   /**
    * The working week.

@@ -24,6 +24,7 @@
     "check:killswitch": "esbuild scripts/killswitch.check.ts --bundle --platform=node --format=esm --outfile=.tmp/kill.mjs --external:@prisma/client --log-level=warning && node --env-file-if-exists=.env .tmp/kill.mjs",
     "check:load": "esbuild scripts/load.check.ts --bundle --platform=node --format=esm --outfile=.tmp/load.mjs --external:@prisma/client --log-level=warning && node --env-file-if-exists=.env .tmp/load.mjs",
     "check:agent-tasks": "esbuild scripts/agent-tasks.check.ts --bundle --platform=node --format=esm --outfile=.tmp/agent-tasks.mjs --external:@prisma/client --log-level=warning && node --env-file-if-exists=.env .tmp/agent-tasks.mjs",
+    "check:team-changes": "esbuild scripts/team-changes.check.ts --bundle --platform=node --format=cjs --outfile=.tmp/team-changes.cjs --external:@prisma/client --log-level=warning && node --env-file-if-exists=.env .tmp/team-changes.cjs",
     "check:qualification": "esbuild scripts/qualification.check.ts --bundle --platform=node --format=esm --outfile=.tmp/qual.mjs --external:@prisma/client --log-level=warning && node --env-file-if-exists=.env .tmp/qual.mjs",
     "check:search": "esbuild scripts/search.check.ts --bundle --platform=node --format=esm --outfile=.tmp/search.mjs --external:@prisma/client --log-level=warning && node --env-file-if-exists=.env .tmp/search.mjs",
     "check:buyers": "esbuild scripts/buyers.check.ts --bundle --platform=node --format=esm --outfile=.tmp/buyers.mjs --external:@prisma/client --log-level=warning && node --env-file-if-exists=.env .tmp/buyers.mjs",

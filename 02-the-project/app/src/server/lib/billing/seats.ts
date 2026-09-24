@@ -18,23 +18,25 @@ import { crossTenant } from "@/server/db/client";
  * asking "why is this month different".
  */
 
-export async function recordSeatChange(args: {
-  orgId: string; userId: string; change: 1 | -1; reason?: string;
-}) {
-  const sub = await crossTenant("global-key").subscription.findUnique({
-    where: { orgId: args.orgId }, select: { id: true },
-  });
-  // No subscription yet during onboarding — seats still get recorded once
-  // there is one, from the memberships that already exist.
-  if (!sub) return;
-
-  await crossTenant("global-key").seatEvent.create({
-    data: {
-      orgId: args.orgId, subId: sub.id, userId: args.userId,
-      change: args.change, reason: args.reason,
-    },
-  });
-}
+/*
+ * Where seat changes are written, and why not here.
+ *
+ * `recordSeatChange` lived here and **nothing ever called it**, so the
+ * ledger held one event per brokerage — the owner, from signup — for
+ * ever. It is gone rather than wired, because it wrote through its own
+ * client: called from a mutation, the membership and the seat would
+ * commit separately, and a failure between them is a person on the team
+ * who is not being billed, or billing for somebody who never joined.
+ *
+ * Each writer now records the seat inside its own transaction:
+ *
+ *   - `billing/signup.ts`   +1  the owner
+ *   - `org.acceptInvite`    +1  somebody joining
+ *   - `org.removeMember`    -1  somebody leaving
+ *
+ * and `reconcile.ts` compares the ledger with the team every night, so a
+ * fourth way of joining that forgets this is found rather than billed.
+ */
 
 /**
  * Seat-days across a period.

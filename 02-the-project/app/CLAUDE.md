@@ -102,7 +102,7 @@ What is verified today, measured rather than assumed:
   `/api/health` returns `200 {"ok":true}` against a real Postgres.
 - The boot log names every unconfigured service with its consequence —
   six of them in a bare development environment.
-- 310 assertions in 17 files, 40 check suites, 23 audits, all green.
+- 310 assertions in 17 files, 41 check suites, 23 audits, all green.
 
 Type errors on a fresh checkout are no longer expected. If you get one,
 it is new.
@@ -159,6 +159,26 @@ warm, search 32ms. **There is nothing to reclaim here.** The lever is a
 pooler in front of Postgres, which `check:preflight` enforces. If
 somebody proposes optimising this again, ask them for the measurement
 first.
+
+**`forOrg(orgId).$transaction(async (tx) => …)` is taken over in
+`client.ts`, and must stay that way.** It was not a transaction: the
+query hook wraps every statement in its own batch to set the scope, and
+it did that for statements issued through `tx` too, so each committed
+on its own connection. Measured — an update followed by a throw stayed
+written. Thirty-one call sites asked for all-or-nothing and got
+each-statement-alone: the WhatsApp and portal ingest, erasure, offers,
+the assistant's handover, and every mutation that writes a row with its
+audit entry. Scoping was correct throughout; atomicity was not.
+
+`forOrg` now opens a real transaction on the scoped role and sets the
+scope as its first statement, on that transaction's own connection.
+Still transaction-local, so the next request inherits nothing, and
+nothing outside an explicit transaction changed. `check:tenancy` proves
+rollback, isolation inside a transaction, and that the scope ends with
+it. **One rule follows:** inside a real Postgres transaction, an error
+that is caught and ignored aborts everything after it, so never catch a
+database error inside one and carry on — use an upsert, or do it
+outside.
 
 **`ms-`, `ps-`, `border-s-` and `text-start` are not typos for `ml-`,
 `pl-`, `border-l-` and `text-left`.** They are the logical spellings and
@@ -319,7 +339,7 @@ not want.
 
 ## The shape that keeps recurring
 
-Sixteen times a complete, tested, documented module has turned out to have
+Seventeen times a complete, tested, documented module has turned out to have
 nothing that starts it — and the sixth is the product itself:
 
 1. **Billing** could invoice a customer no code path could create.
@@ -565,6 +585,29 @@ nothing that starts it — and the sixth is the product itself:
    that does not show them. Today lists them now, with Done. **What
    closes it?** had no answer for the agent's own reminders.
 
+17. **The seat ledger.** Every invoice is computed from seat-days, and
+   `signup` wrote the first event under a comment saying "every agent
+   invited later adds an event". `recordSeatChange` existed to do it and
+   **nothing called it**, so accepting an invitation and removing a
+   member both left the ledger alone. Every brokerage was billed for one
+   seat, and — because the conversation allowance is per seat — would
+   have been charged a one-person firm's overage on every conversation
+   past it. Wrong in both directions on one bill, beneath a team screen
+   promising "adding someone starts their seat today".
+
+   Removal had the same shape in miniature: it unassigned leads and left
+   upcoming viewings, follow-ups, recommendations and the ownership
+   history pointing at somebody who could no longer sign in, with
+   `OwnershipReason.AGENT_LEFT` declared and never written — one tap, no
+   confirmation. It now asks who takes the book, and moves it in one
+   transaction with the seat.
+
+   Seats are written inside each transaction that changes the team, and
+   `billing.reconcile` compares the ledger with the team every night and
+   corrects and reports any difference per person — so a fourth way of
+   joining that forgets the ledger is found in a day rather than never.
+   `check:team-changes` drives all of it through the real procedures.
+
 **The same shape, one layer up: fifteen finished components no screen
 imported.** `architecture.py` grew a `KNOWN_UNMOUNTED` ratchet and it
 started at nine, went to fifteen when the resolver was fixed, and is
@@ -650,7 +693,7 @@ send path read it.
 ## Run the tests
 
     npm test          # 310 assertions, pure functions, no database
-    npm run verify    # tsc, the tests, 40 check suites, 23 audits
+    npm run verify    # tsc, the tests, 41 check suites, 23 audits
 
 **The gate is now green end to end, including the two things that used
 to skip.** `verify` reports what it did not run rather than counting a

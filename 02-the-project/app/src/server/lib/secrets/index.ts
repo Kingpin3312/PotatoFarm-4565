@@ -79,7 +79,7 @@ export async function readSecret(ref: string): Promise<string> {
   );
 }
 
-export { writeSecret, forgetSecret, vaultReady, NOT_CONFIGURED } from "./vault";
+export { writeSecret, forgetSecret, vaultReady, vaultProblem, NOT_CONFIGURED } from "./vault";
 
 /** Called when a channel is disconnected or rotated. */
 export function invalidate(orgId: string, channelId: string) {

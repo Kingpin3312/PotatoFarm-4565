@@ -231,6 +231,61 @@ async function main() {
   console.log(`  ${ok ? "✓" : "✗"} A updating B's lead affected ${stolen.count} rows`);
   if (!ok) fails.push(`A wrote to ${stolen.count} of B's rows`);
 
+  /**
+   * Inside `$transaction(async (tx) => …)`, which is where thirty-one of
+   * the product's writes happen — ingest, erasure, offers, handover,
+   * every mutation that writes a row and its audit entry together.
+   *
+   * The scope held there all along. What did not hold was the
+   * transaction: each statement committed on its own connection, so an
+   * update followed by a throw stayed written. `forOrg` now opens a real
+   * transaction and scopes it from the inside, and these are the four
+   * things that has to keep true.
+   */
+  console.log("\nInside a transaction:");
+  const inside = await forOrg(a.id).$transaction(async (tx) =>
+    (await tx.lead.findMany({ where: { phone: { startsWith: TAG } }, select: { name: true } }))
+      .map((l) => l.name ?? ""));
+  check("A's transaction sees only A", inside, ["A-one", "A-two"]);
+
+  const crossed = await forOrg(a.id).$transaction(async (tx) =>
+    tx.lead.updateMany({ where: { phone: `${TAG}00003` }, data: { name: "STOLEN" } }));
+  console.log(`  ${crossed.count === 0 ? "✓" : "✗"} A's transaction writing B's lead affected ${crossed.count} rows`);
+  if (crossed.count !== 0) fails.push(`A's transaction wrote to ${crossed.count} of B's rows`);
+
+  let thrown = false;
+  try {
+    await forOrg(a.id).$transaction(async (tx) => {
+      await tx.lead.updateMany({ where: { phone: `${TAG}00001` }, data: { name: "HALF-DONE" } });
+      throw new Error("the second half failed");
+    });
+  } catch { thrown = true; }
+  const afterThrow = await seen(a.id);
+  const rolledBack = thrown && !afterThrow.includes("HALF-DONE");
+  console.log(`  ${rolledBack ? "✓" : "✗"} a failure half way leaves nothing behind`);
+  if (!rolledBack) fails.push("a transaction that threw kept its first write — it is not a transaction");
+
+  /**
+   * And the scope ends with it. `set_config(…, true)` is
+   * transaction-local; the moment that became session-level, the next
+   * request on the pooled connection would run as brokerage A. A raw
+   * query is not a model operation, so the hook does not scope it — it
+   * reads whatever the connection it lands on is carrying. Ten of them,
+   * because the pool has more than one connection to land on.
+   */
+  for (let i = 0; i < 5; i++) {
+    await forOrg(a.id).$transaction(async (tx) => tx.lead.count());
+  }
+  const leftovers = new Set<string>();
+  for (let i = 0; i < 10; i++) {
+    const [row] = await forOrg(b.id).$queryRaw<{ org: string | null }[]>`
+      SELECT current_setting('app.current_org', true) AS org`;
+    if (row?.org) leftovers.add(row.org);
+  }
+  const clean = !leftovers.has(a.id);
+  console.log(`  ${clean ? "✓" : "✗"} the scope ends with the transaction, not the connection`);
+  if (!clean) fails.push("a transaction's scope was still set on a pooled connection afterwards");
+
   // Facts and recommendations cascade with the organisation, so the two
   // deletes below take everything this script made.
   await root.lead.deleteMany({ where: { phone: { startsWith: TAG } } });

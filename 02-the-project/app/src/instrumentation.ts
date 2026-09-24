@@ -46,6 +46,20 @@ export async function register() {
   check("CRON_SECRET", "every scheduled job refuses to run");
   check("SEAT_PRICE_FILS", "sign-up refuses to create a subscription");
   check("S3_BUCKET", "no file can be uploaded — no brochure, no floor plan, no KYC document");
+  check("SECRETS_KEY", "no WhatsApp number or Facebook Page can be connected — there is nowhere safe to keep its token");
+  /**
+   * Present is not the same as usable. A key that decodes to anything
+   * but 32 bytes passes the line above and refuses every token — and
+   * was then reported to the person connecting a number as "not set".
+   * Checked here by length only; the value is never printed.
+   */
+  const rawKey = process.env.SECRETS_KEY?.trim();
+  if (rawKey && Buffer.from(rawKey, "base64").length !== 32) {
+    missing.push(
+      `SECRETS_KEY — set, but decodes to ${Buffer.from(rawKey, "base64").length} bytes rather than 32; ` +
+      `no token can be stored until it is replaced (openssl rand -base64 32)`,
+    );
+  }
   check("TRANSCRIBE_API_KEY", "the Speak button does nothing on any iPhone");
 
   /**

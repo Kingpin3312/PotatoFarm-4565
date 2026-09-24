@@ -5,7 +5,7 @@ import { randomBytes } from "node:crypto";
 import { adapters } from "@/server/lib/portals";
 import { router, requirePermission } from "../trpc";
 import { audit } from "@/server/lib/audit";
-import { readSecret, invalidate, writeSecret, vaultReady, NOT_CONFIGURED }
+import { readSecret, invalidate, writeSecret, vaultProblem }
   from "@/server/lib/secrets";
 
 /**
@@ -302,8 +302,11 @@ export const channelsRouter = router({
        * leave a connected-looking number that cannot send, which is the
        * state this whole change exists to remove.
        */
-      if (input.accessToken && !vaultReady()) {
-        throw new TRPCError({ code: "PRECONDITION_FAILED", message: NOT_CONFIGURED });
+      const vaultFault = input.accessToken ? vaultProblem() : null;
+      if (vaultFault) {
+        // The actual fault — absent, or present and malformed — rather
+        // than "not set" for both.
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: vaultFault });
       }
 
       try {
