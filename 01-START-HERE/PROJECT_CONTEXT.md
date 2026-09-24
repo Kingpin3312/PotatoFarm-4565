@@ -250,7 +250,7 @@ thing it checks and confirming it fails.
 ### The unit tests
 
 ```bash
-npm test                    # 310 assertions, no database, ~3 seconds
+npm test                    # 314 assertions, no database, ~3 seconds
 ```
 
 `package.json` declared `"test": "vitest run"` from the beginning with no
@@ -258,7 +258,7 @@ test files and no config behind it, so the command exited 1 and said "No
 test files found" — a command claiming to run tests that could not, which
 is the same shape as a button that does not do what it says.
 
-17 test files, and the selection is not "whatever was easy to test". Every
+18 test files, and the selection is not "whatever was easy to test". Every
 case is a bug that actually happened here or a rule whose failure would
 be silent:
 
@@ -281,6 +281,7 @@ be silent:
 | `lib/i18n/i18n.test.ts` | Right-to-left follows the locale; Arabic keeps Western digits |
 | `lib/sentence.test.ts` | Enums as sentences, not title case |
 | `server/lib/plans/run.test.ts` | Every nurture step ends with a person doing something, and each waits its own delay |
+| `lib/log.test.ts` | Nothing personal reaches a log — in the message and context as well as the extras |
 
 **They were checked against deliberate breakage, not just run.** Setting
 a new lead's recency back to zero, moving the silence threshold from 7
@@ -417,7 +418,7 @@ Ask — an agent can see what they asked for earlier and what came back.
 - **Voice recipes** `BOOK_VIEWING` and `COMPARABLES` return a follow-up
   question rather than completing in one step. Deliberate, but the second
   step is not wired to the booking screen.
-**Unit tests cover the pure logic, not the codebase.** 310 assertions in 17 files,
+**Unit tests cover the pure logic, not the codebase.** 314 assertions in 18 files,
   across money, the 24-hour window, Dubai sending hours, the search
   parser, lead scoring, deal risk, the assistant's guardrails and the
   interface's Arabic — the

@@ -35,8 +35,17 @@ const REDACT = new Set([
   "budgetMin", "budgetMax", "ip", "userAgent",
 ]);
 
-/** Patterns that catch the same data arriving inside a string. */
+/**
+ * Patterns that catch the same data arriving inside a string.
+ *
+ * The first is the one error messages need. A Prisma validation error
+ * prints the call it refused — `name: "Priya Nair", phone: "+97150…"` —
+ * and `report()` logs an error's message as the line's message. A name
+ * matches none of the patterns below it, so it takes the field name to
+ * catch it.
+ */
 const PATTERNS: [RegExp, string][] = [
+  [new RegExp(`\\b(${[...REDACT].join("|")}|notes|comment)(\\s*[:=]\\s*)("[^"]*"|'[^']*'|\`[^\`]*\`)`, "g"), "$1$2[redacted]"],
   [/\+\d{8,15}/g, "[phone]"],
   [/[\w.+-]+@[\w-]+\.[\w.]+/g, "[email]"],
   [/\b\d{13,19}\b/g, "[long-number]"],
@@ -66,11 +75,21 @@ export type LogContext = {
 };
 
 function emit(level: Level, message: string, ctx: LogContext, extra?: Record<string, unknown>) {
+  /**
+   * All three parts scrubbed, not only `extra`.
+   *
+   * The message and the context went out as given. The context is typed
+   * as ids, but a type is not a filter; the message is where `report()`
+   * puts an error's own text — which is exactly where a refused database
+   * call or a Meta error quotes the buyer's details back. "Nothing
+   * personal reaches a log" held for the one part of the line least
+   * likely to carry it.
+   */
   const line = {
     ts: new Date().toISOString(),
     level,
-    msg: message,
-    ...ctx,
+    msg: scrub(message) as string,
+    ...(scrub(ctx) as LogContext),
     ...(extra ? (scrub(extra) as Record<string, unknown>) : {}),
   };
   // JSON on one line, so it is queryable wherever it lands rather than

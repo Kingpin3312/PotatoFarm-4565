@@ -101,7 +101,7 @@ async function main() {
     data: { orgId: org.id, subId: sub.id, userId: owner.id, change: 1, reason: "signup", at: periodFrom },
   });
 
-  const as = (userId: string, email: string | null, role: "OWNER" | "AGENT" = "OWNER") =>
+  const as = (userId: string, email: string | null, role: "OWNER" | "MANAGER" | "AGENT" = "OWNER") =>
     orgRouter.createCaller({
       session: { user: { id: userId, email } },
       membership: { orgId: org.id, orgName: org.name, role },
@@ -124,6 +124,25 @@ async function main() {
        fixes.length === 3 && new Set(fixes.map((f) => f.userId)).size === 3 && fixes.every((f) => f.change === 1));
     await reconcileSeats();
     ok("and a second run changes nothing", (await ledger()) === 4);
+  }
+
+  /* ------------------------------------------------------------------ */
+  console.log("\n=== who may invite an admin ===");
+  {
+    const mgr = await person("mgr", "Maya Chen");
+    await root.membership.create({ data: { orgId: org.id, userId: mgr.id, role: "MANAGER" } });
+    let refusedCode: string | undefined;
+    try {
+      await as(mgr.id, EMAIL("mgr"), "MANAGER" as never).invite({ email: EMAIL("would-be-admin"), role: "ADMIN" });
+    } catch (e) { refusedCode = (e as { code?: string }).code; }
+    ok("a manager cannot invite an admin", refusedCode === "FORBIDDEN", refusedCode ?? "allowed");
+    let ownerErr: string | null = null;
+    try {
+      await as(owner.id, EMAIL("owner")).invite({ email: EMAIL("new-admin"), role: "ADMIN" });
+    } catch (e) { ownerErr = (e as Error).message; }
+    ok("an owner can", ownerErr === null, ownerErr ?? "");
+    await root.membership.deleteMany({ where: { orgId: org.id, userId: mgr.id } });
+    await root.invitation.deleteMany({ where: { orgId: org.id } });
   }
 
   /* ------------------------------------------------------------------ */

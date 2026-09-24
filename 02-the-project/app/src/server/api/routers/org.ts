@@ -186,7 +186,11 @@ export const orgRouter = router({
       // An ADMIN cannot mint an OWNER. Enforced by the enum above rather
       // than by hoping nobody posts one — privilege escalation through an
       // unvalidated role field is the oldest bug in multi-tenant software.
-      if (input.role === "ADMIN" && ctx.role !== "OWNER" && ctx.role !== "ADMIN") {
+      // By permission, not by naming roles: whoever may change members'
+      // roles may create an admin. Today that is owners and admins, and
+      // a role added later inherits the right answer instead of a stale
+      // list of names.
+      if (input.role === "ADMIN" && !can(ctx.role, "member:update")) {
         throw new TRPCError({ code: "FORBIDDEN", message: "Only an owner or admin can invite admins." });
       }
 
@@ -407,6 +411,12 @@ export const orgRouter = router({
 
       // Only an owner can remove an owner, and never the last one — an
       // organisation with no owner cannot be billed, transferred or closed.
+      //
+      // Compared by role deliberately, not converted to a permission: the
+      // rule is about the *target*, and "the person being removed is an
+      // owner" is data about them, not something the caller is allowed to
+      // do. Expressing it as `can(ctx.role, "org:delete")` would be true
+      // today and say something else.
       if (target.role === "OWNER") {
         if (ctx.role !== "OWNER") {
           throw new TRPCError({ code: "FORBIDDEN", message: "Only an owner can remove an owner." });

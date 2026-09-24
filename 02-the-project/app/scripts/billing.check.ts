@@ -2,6 +2,7 @@ import { createHmac } from "node:crypto";
 import { crossTenant } from "../src/server/db/client";
 import { signup } from "../src/server/lib/billing/signup";
 import { generateInvoice } from "../src/server/lib/billing/invoice";
+import { recordAnswered } from "../src/server/lib/billing/conversations";
 import { fatal } from "./fatal";
 
 /**
@@ -222,6 +223,38 @@ async function main() {
 
     const events = await root.paymentEvent.count({ where: { providerId: eventId } });
     ok("the duplicate was not recorded twice", events === 1, `${events} row(s)`);
+  }
+
+  /* ---------------- a charge is per the brokerage's day ------------ */
+  console.log("\nConversations are charged per day — the brokerage's day:");
+  if (org && sub) {
+    /**
+     * Charges were bucketed on the UTC day, which in Dubai turns over at
+     * 4am. Once per conversation per day is the rule on the bill, and
+     * the customer's day is the one they are in.
+     */
+    const channel = await root.channel.create({
+      data: { orgId: org.id, type: "WHATSAPP", label: "Billing check", identifier: `+9714${Date.now() % 1e7}` },
+    });
+    const convo = async (n: string) => {
+      const lead = await root.lead.create({ data: { orgId: org.id, phone: `+97150${n}${Date.now() % 1e5}`, name: "Billing Check" } });
+      return root.conversation.create({ data: { orgId: org.id, leadId: lead.id, channelId: channel.id } });
+    };
+    const count = (id: string) => root.conversationCharge.count({ where: { conversationId: id } });
+    // 03:30 and 04:30 Dubai (23:30 and 00:30 UTC) — one Dubai day.
+    const small = await convo("11");
+    await recordAnswered({ orgId: org.id, conversationId: small.id, at: new Date("2026-09-10T23:30:00Z") });
+    await recordAnswered({ orgId: org.id, conversationId: small.id, at: new Date("2026-09-11T00:30:00Z") });
+    ok("3:30am and 4:30am in Dubai are one charge", (await count(small.id)) === 1, `${await count(small.id)} charges`);
+    // 23:30 and 00:30 Dubai (19:30 and 20:30 UTC) — two Dubai days.
+    const late = await convo("22");
+    await recordAnswered({ orgId: org.id, conversationId: late.id, at: new Date("2026-09-10T19:30:00Z") });
+    await recordAnswered({ orgId: org.id, conversationId: late.id, at: new Date("2026-09-10T20:30:00Z") });
+    ok("11:30pm and 12:30am in Dubai are two", (await count(late.id)) === 2, `${await count(late.id)} charges`);
+    await root.conversationCharge.deleteMany({ where: { orgId: org.id } });
+    await root.conversation.deleteMany({ where: { orgId: org.id } });
+    await root.lead.deleteMany({ where: { orgId: org.id } });
+    await root.channel.deleteMany({ where: { orgId: org.id } });
   }
 
   /* ---------------- the one step that needs a key ------------------ */
