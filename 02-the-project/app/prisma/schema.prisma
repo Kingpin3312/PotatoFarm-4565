@@ -2971,6 +2971,9 @@ model FollowUp {
   leadId           String?
   vendorId         String?
   blackbookEntryId String?
+  /// The viewing it asks about. Set by `feedback.ask`, so recording the
+  /// buyer's answer can close the task that asked for it.
+  viewingId        String?
 
   dueAt       DateTime
   completedAt DateTime?
@@ -2982,6 +2985,7 @@ model FollowUp {
 
   @@index([orgId, agentId, dueAt, completedAt])
   @@index([orgId, dueAt, notifiedAt])
+  @@index([viewingId])
 }
 
 // ---------------------------------------------------------- intelligence

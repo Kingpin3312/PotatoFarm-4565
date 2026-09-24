@@ -465,6 +465,16 @@ for rf in routers:
         # has happened once already in this suite.
         keys |= set(re.findall(r'^\s{4,}(\w+),\s*$', m.group(2), re.M))
         router_inputs[f"{rname}.{m.group(1)}"] = keys
+    # A shared schema widened per procedure: `.input(feedbackInput.extend({
+    # viewingId: z.string() }))`. The form above does not match it, so the
+    # procedure was absent from this table and every call to it went
+    # unchecked, without saying so.
+    shared = {name: set(re.findall(r'(\w+)\s*:\s*z\.', fields))
+              for name, fields in re.findall(r'^const (\w+) = z\.object\(\{(.*?)\}\);', rbody, re.M | re.S)}
+    for m in re.finditer(r'^  (\w+): (?:require\w+\([^)]*\)|orgProcedure|publicProcedure)'
+                         r'\s*\n\s*\.input\((\w+)\.extend\(\{(.*?)\}\)\)', rbody, re.M | re.S):
+        if m.group(2) in shared:
+            router_inputs[f"{rname}.{m.group(1)}"] = shared[m.group(2)] | set(re.findall(r'(\w+)\s*:\s*z\.', m.group(3)))
 
 def _keys_only(fragment: str) -> str:
     """
@@ -485,6 +495,36 @@ def _keys_only(fragment: str) -> str:
     return re.sub(r"`[^`]*`|'[^']*'|\"[^\"]*\"", "''", without_comments)
 
 
+def _top_level(after_brace: str) -> str:
+    """
+    The argument object's own level, nested objects blanked out.
+
+    The call was read up to its first `}`, which is the end of the first
+    *nested* object if there is one: `outcome.mutate({ viewingId, feedback:
+    { verdict, reasons } })` was reported as passing `verdict` and
+    `reasons` to a procedure that takes them one level down — and every
+    key after the nested object went unread.
+    """
+    # The brackets themselves are kept and only their contents dropped:
+    # `iso(x) : null` must still read as a call before a ternary, not as
+    # a key called `iso`.
+    depth, out = 0, []
+    for ch in after_brace:
+        if ch in "{([":
+            if depth == 0:
+                out.append(ch)
+            depth += 1
+        elif ch in "})]":
+            if depth == 0:
+                break
+            depth -= 1
+            if depth == 0:
+                out.append(ch)
+        elif depth == 0:
+            out.append(ch)
+    return "".join(out)
+
+
 bad = 0
 for sf in ours(glob.glob(f"{ROOT}/src/app/**/*.tsx", recursive=True)):
     body = open(sf).read()
@@ -499,15 +539,14 @@ for sf in ours(glob.glob(f"{ROOT}/src/app/**/*.tsx", recursive=True)):
         expected = router_inputs.get(key)
         if not expected:
             continue
-        for call in re.finditer(rf'\b{re.escape(var)}\.(?:mutate|mutateAsync)\(\s*\{{([^}}]*)\}}',
-                                body):
+        for call in re.finditer(rf'\b{re.escape(var)}\.(?:mutate|mutateAsync)\(\s*\{{', body):
             # `word:` finds object keys, and also finds the tail of a
             # ternary — `x ?? null : null` reads as a key called `null`.
             # These are the only words that can appear immediately before
             # a colon without being a key, so excluding them is exact
             # rather than a guess.
             LITERALS = {"null", "undefined", "true", "false"}
-            passed = set(re.findall(r'(\w+)\s*:', _keys_only(call.group(1)))) - LITERALS
+            passed = set(re.findall(r'(\w+)\s*:', _top_level(_keys_only(body[call.end():])))) - LITERALS
             unknown = passed - expected
             if unknown:
                 bad += 1

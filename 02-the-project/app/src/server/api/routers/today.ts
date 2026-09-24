@@ -163,7 +163,7 @@ export const todayRouter = router({
       where: { agentId: ctx.userId, completedAt: null, dueAt: { lt: end } },
       orderBy: { dueAt: "asc" },
       take: 50,
-      select: { id: true, title: true, body: true, dueAt: true, leadId: true },
+      select: { id: true, title: true, body: true, dueAt: true, leadId: true, viewingId: true },
     });
 
     /**
@@ -186,6 +186,8 @@ export const todayRouter = router({
       return {
         id: r.id, title: r.title, body: r.body, dueAt: r.dueAt,
         lead: lead ? { id: lead.id, name: lead.name ?? lead.phone } : null,
+        /** A viewing whose buyer's answer can be recorded here. */
+        viewingId: r.viewingId,
       };
     });
   }),

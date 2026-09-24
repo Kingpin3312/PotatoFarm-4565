@@ -695,9 +695,11 @@ export const JOBS = {
        *
        * This stamped `ViewingFeedback.askedAt` and counted the viewing as
        * `asked` without sending anything — no sender was ever wired — so
-       * every buyer was recorded as asked and none was. Nothing writes
-       * an answer either, which means the weekly vendor report has been
-       * composed from feedback that was never collected.
+       * every buyer was recorded as asked and none was. Nothing wrote an
+       * answer either, so the weekly vendor report was composed from
+       * feedback that was never collected; the task now carries the
+       * viewing, and the agent records the answer on it
+       * (`viewings.feedback`), which closes it.
        *
        * It is not given a sender because `intelligence/autonomy.ts` stops
        * every message to a client at CONFIRM: a person presses send. So
@@ -718,7 +720,8 @@ export const JOBS = {
         }),
         crossTenant("sweep").followUp.create({
           data: {
-            orgId: v.orgId, agentId, leadId: v.leadId,
+            // The viewing, so recording the answer closes this task.
+            orgId: v.orgId, agentId, leadId: v.leadId, viewingId: v.id,
             title: `Ask ${firstName ?? v.lead.phone} what they thought of ${title}`,
             body:
               `One question gets an honest answer two hours after a viewing. A draft:\n\n` +
@@ -821,8 +824,8 @@ export const JOBS = {
               select: { verdict: true, reasons: true },
             }),
             crossTenant("sweep").viewing.count({ where: { listingId: l.id, status: "COMPLETED" } }),
-            // Real offers, not feedback verdicts: nothing records a
-            // verdict yet, and an offer is recorded on its own model.
+            // Real offers, not feedback verdicts. "I'd like to make an
+            // offer" is an intention; an offer is recorded on its own model.
             crossTenant("sweep").offer.count({ where: { listingId: l.id } }),
           ]);
           const daysListed = Math.floor((today.getTime() - l.createdAt.getTime()) / 86_400_000);

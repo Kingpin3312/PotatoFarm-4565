@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/trpc";
 import { cn } from "@/lib/cn";
+import { RecordAnswer } from "@/app/(app)/viewings/what-they-thought";
 
 /**
  * The agent's follow-ups, and the one button that clears them.
@@ -21,6 +22,7 @@ export function FollowUps() {
   const utils = api.useUtils();
   const { data } = api.today.followUps.useQuery();
   const [failed, setFailed] = useState<string | null>(null);
+  const [answering, setAnswering] = useState<string | null>(null);
 
   const complete = api.today.completeFollowUp.useMutation({
     onMutate: async ({ id }) => {
@@ -106,16 +108,33 @@ export function FollowUps() {
                   <p className="mt-2 text-sm leading-snug text-ink-2 whitespace-pre-line bg-sunk p-3 rounded-sm">{draft}</p>
                 </details>
               )}
-              <div className="mt-3">
-                <button
-                  type="button"
-                  onClick={() => complete.mutate({ id: f.id })}
-                  className="btn-inline min-h-11"
-                  aria-label={`Done: ${f.title}`}
-                >
-                  Done
-                </button>
-              </div>
+              {answering === f.id && f.viewingId ? (
+                <RecordAnswer viewingId={f.viewingId} onDone={() => {
+                  // Saving the answer closes this task on the server.
+                  setAnswering(null);
+                  void utils.today.followUps.invalidate();
+                  void utils.today.brief.invalidate();
+                }} />
+              ) : (
+                <div className="mt-3 flex flex-wrap gap-x-6">
+                  {/* A question's task is finished by its answer, so that
+                      comes first; Done is still there for "they never
+                      replied". */}
+                  {f.viewingId && (
+                    <button type="button" onClick={() => setAnswering(f.id)} className="btn-inline min-h-11">
+                      Record their answer
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => complete.mutate({ id: f.id })}
+                    className="btn-inline min-h-11"
+                    aria-label={`Done: ${f.title}`}
+                  >
+                    Done
+                  </button>
+                </div>
+              )}
             </li>
           );
         })}

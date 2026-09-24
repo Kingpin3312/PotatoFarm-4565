@@ -92,3 +92,15 @@ export function followUp(verdict: string) {
       : common,
   };
 }
+
+export const VERDICTS = ["OFFERING", "INTERESTED", "NOT_FOR_ME", "WRONG_PROPERTY"] as const;
+
+/**
+ * The reasons that may go with a verdict — the same list the buyer is
+ * offered, so what an agent records and what a buyer taps can be counted
+ * together in the owner's report. None for an offer, for the reason
+ * `followUp` gives.
+ */
+export function reasonsFor(verdict: string): string[] {
+  return followUp(verdict)?.options.map((o) => o.id) ?? [];
+}

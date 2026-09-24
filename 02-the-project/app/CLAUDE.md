@@ -102,7 +102,7 @@ What is verified today, measured rather than assumed:
   `/api/health` returns `200 {"ok":true}` against a real Postgres.
 - The boot log names every unconfigured service with its consequence —
   six of them in a bare development environment.
-- 314 assertions in 18 files, 45 check suites, 23 audits, all green.
+- 314 assertions in 18 files, 46 check suites, 23 audits, all green.
 
 Type errors on a fresh checkout are no longer expected. If you get one,
 it is new.
@@ -728,7 +728,7 @@ send path read it.
 ## Run the tests
 
     npm test          # 314 assertions, pure functions, no database
-    npm run verify    # tsc, the tests, 45 check suites, 23 audits
+    npm run verify    # tsc, the tests, 46 check suites, 23 audits
 
 **The gate is now green end to end, including the two things that used
 to skip.** `verify` reports what it did not run rather than counting a
@@ -1070,10 +1070,19 @@ with an empirical floor under it.
   for an internal "Owner ID" nobody has seen, and `vendors.attach` and
   `listings.update` accepted another brokerage's owner, because a
   foreign key is checked without row-level security. `check:listing-agent`.
-- **Recording viewing feedback.** `feedback.ask` puts the one question
-  on the agent's list; nothing writes the buyer's answer
-  (`ViewingFeedback.verdict`, `answeredAt`), so the weekly vendor report
-  is composed with no feedback in it.
+- ~~**Recording viewing feedback.**~~ **Built.** `viewings.feedback`,
+  from the "Ask … what they thought" task on Today (which now carries its
+  viewing, and closes when the answer is saved) or from "They came" on
+  the viewing card, where "not asked yet" is the default. Same four
+  answers and reasons the buyer is offered in `collect.ts`, so the two
+  count together. Until then the owner's report told every owner "nobody
+  has come back yet" — and the outcome form told agents that its free-text
+  note "is what goes in the owner's weekly report", which nothing read.
+  The buyer's words stay with the agent, reach a subject access request,
+  and are removed by erasure; the owner gets counts. Every viewing
+  mutation is now scoped to the agent's own viewings and buyers — any
+  agent could mark a colleague's viewing a no-show, which also moved
+  that colleague's lead back a stage. `check:viewing-feedback`.
 - **Creating a nurture plan.** `plans.advance` now turns every due step
   into a task for the agent. Nothing creates a `TaskPlan` or puts a
   lead on one — `reachability.py` lists it.

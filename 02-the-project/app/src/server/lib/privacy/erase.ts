@@ -142,6 +142,10 @@ export async function eraseSubject(args: {
     await tx.answer.deleteMany({ where: { leadId: lead.id } });
     await tx.enquiry.updateMany({ where: { leadId: lead.id }, data: { message: null } });
     await tx.viewing.updateMany({ where: { leadId: lead.id }, data: { outcome: null } });
+    // What they said about a property, in their own words. The verdict
+    // and the reasons stay: they are ticks from a short list, counted in
+    // an owner's report, and say nothing about who ticked them.
+    await tx.viewingFeedback.updateMany({ where: { leadId: lead.id }, data: { comment: null } });
 
     /**
      * The lead itself. Tombstoned rather than deleted, so viewing and

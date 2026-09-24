@@ -48,7 +48,7 @@ bold=$'\033[1m'; red=$'\033[31m'; green=$'\033[32m'; yellow=$'\033[33m'; off=$'\
 # Suites that open a connection. Kept as a list rather than inferred,
 # because inferring it from imports is the sort of cleverness that goes
 # quietly wrong the day somebody adds a query to a pure check.
-NEEDS_DB="tenancy notify-isolation intake intelligence autonomy killswitch buyers search qualification quiet migration vault visibility load agent-tasks team-changes commission-lifecycle job-runner lead-editing listing-agent"
+NEEDS_DB="tenancy notify-isolation intake intelligence autonomy killswitch buyers search qualification quiet migration vault visibility load agent-tasks team-changes commission-lifecycle job-runner lead-editing listing-agent viewing-feedback"
 # `billing` needs Postgres *and* the application — it posts a signed
 # payment webhook at the real route — so it sits in the end-to-end block
 # below rather than here. It was in this loop, which is why the first CI
@@ -143,7 +143,7 @@ printf '\n%sUnit tests%s\n' "$bold" "$off"
 step "vitest" npm run --silent test
 
 printf '\n%sChecks%s\n' "$bold" "$off"
-for name in tenancy notify-isolation intake intelligence voice deals autonomy killswitch buyers agent-tasks team-changes commission-lifecycle job-runner lead-editing listing-agent search qualification quiet migration vault visibility bands sigv4 storage limits preflight load; do
+for name in tenancy notify-isolation intake intelligence voice deals autonomy killswitch buyers agent-tasks team-changes commission-lifecycle job-runner lead-editing listing-agent viewing-feedback search qualification quiet migration vault visibility bands sigv4 storage limits preflight load; do
   if [ "$name" = "load" ] && [ "$WITH_LOAD" -eq 0 ]; then
     skipped+=("check:load (use --load; it seeds a database)"); continue
   fi

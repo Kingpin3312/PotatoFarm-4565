@@ -127,6 +127,15 @@ export async function exportSubject(orgId: string, phone: string) {
 
   if (!lead) return null;
 
+  // What they told us about each viewing. Not a relation on `Lead`, so
+  // read separately — and easy to leave out of a subject access request
+  // for exactly that reason.
+  const feedback = await db.viewingFeedback.findMany({
+    where: { leadId: lead.id, answeredAt: { not: null } },
+    select: { viewingId: true, verdict: true, reasons: true, comment: true, answeredAt: true },
+  });
+  const said = new Map(feedback.map((f) => [f.viewingId, f]));
+
   return {
     generatedAt: new Date().toISOString(),
     aboutYou: {
@@ -144,6 +153,12 @@ export async function exportSubject(orgId: string, phone: string) {
     })),
     viewings: lead.viewings.map((v) => ({
       property: v.listing?.title, when: v.scheduledAt, outcome: v.status,
+      ...(said.has(v.id) && {
+        whatYouThought: {
+          verdict: said.get(v.id)!.verdict, reasons: said.get(v.id)!.reasons,
+          inYourWords: said.get(v.id)!.comment, recorded: said.get(v.id)!.answeredAt,
+        },
+      }),
     })),
     messages: lead.conversation?.messages.map((m) => ({
       from: m.author === "LEAD" ? "you" : m.author === "ASSISTANT" ? "our assistant" : "our team",

@@ -1,13 +1,111 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { Prisma } from "@prisma/client";
+import { Prisma, FeedbackReason } from "@prisma/client";
 import { router, orgProcedure, requirePermission } from "../trpc";
-import { can } from "@/server/auth/rbac";
-import { audit } from "@/server/lib/audit";
+import { can, leadScope } from "@/server/auth/rbac";
+import { audit, type AuditWriter } from "@/server/lib/audit";
 import { availableSlots, offerable, humanSlot } from "@/server/lib/scheduling";
+import { VERDICTS, reasonsFor } from "@/server/lib/feedback/collect";
+import type { Role } from "@prisma/client";
 
 /** Postgres raises this when the exclusion constraint refuses an overlap. */
 const EXCLUSION_VIOLATION = "23P01";
+
+/**
+ * The viewings a caller may act on.
+ *
+ * `confirm`, `reschedule` and `outcome` each updated by id alone, so any
+ * agent in the brokerage could mark a colleague's viewing a no-show —
+ * which also moves that colleague's lead back a stage — or move it, or
+ * confirm a hold. Row-level security keeps the brokerage out; it does not
+ * keep one agent out of another's diary. Theirs to act on if they are
+ * showing it or the buyer is theirs; a manager's, like every lead.
+ */
+function viewingScope(role: Role, userId: string): Prisma.ViewingWhereInput {
+  return can(role, "lead:read:all") ? {} : { OR: [{ agentId: userId }, { lead: { assignedToId: userId } }] };
+}
+
+const feedbackInput = z.object({
+  verdict: z.enum(VERDICTS),
+  reasons: z.array(z.nativeEnum(FeedbackReason)).max(6).default([]),
+  /** Their words. Kept for the agent; never sent to the owner. */
+  comment: z.string().trim().max(500).optional(),
+});
+
+type FeedbackWriter = AuditWriter & {
+  viewingFeedback: {
+    findUnique(args: { where: { viewingId: string }; select: { askedAt: true } }): PromiseLike<{ askedAt: Date | null } | null>;
+    upsert(args: {
+      where: { viewingId: string };
+      create: Prisma.ViewingFeedbackUncheckedCreateInput;
+      update: Prisma.ViewingFeedbackUncheckedUpdateInput;
+    }): PromiseLike<unknown>;
+  };
+  followUp: {
+    updateMany(args: { where: { viewingId: string; completedAt: null }; data: { completedAt: Date } }): PromiseLike<{ count: number }>;
+  };
+};
+
+/**
+ * What the buyer thought, recorded.
+ *
+ * ## Why this exists
+ *
+ * `ViewingFeedback.verdict` and `answeredAt` had no writer. `feedback.ask`
+ * put the question on the agent's list, the buyer answered, and there
+ * was nowhere to put the answer — so the owner's weekly report, which
+ * reads only answered rows, told every owner "nobody has come back yet"
+ * and could never reach its own point: "three of five viewers named the
+ * price".
+ *
+ * Recording it closes the task that asked for it, whoever holds it. The
+ * comment is kept and never reaches the owner: `report.ts` composes from
+ * the verdict and the reasons only, and says why.
+ */
+async function recordFeedback(
+  tx: FeedbackWriter,
+  ctx: { orgId: string; userId: string },
+  v: { id: string; leadId: string; listingId: string | null },
+  input: z.infer<typeof feedbackInput>,
+) {
+  const allowed = reasonsFor(input.verdict);
+  const stray = input.reasons.filter((r) => !allowed.includes(r));
+  if (stray.length) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: input.verdict === "OFFERING"
+        ? "Somebody making an offer isn't asked why."
+        : "Those reasons don't go with that answer.",
+    });
+  }
+  const reasons = [...new Set(input.reasons)];
+  const now = new Date();
+  const before = await tx.viewingFeedback.findUnique({ where: { viewingId: v.id }, select: { askedAt: true } });
+  const data = {
+    verdict: input.verdict, reasons, comment: input.comment || null,
+    // A row written before `listingId` was set would not reach the report.
+    listingId: v.listingId,
+    // An answer means they were asked, whether or not we wrote it down.
+    askedAt: before?.askedAt ?? now,
+    answeredAt: now,
+    source: "AGENT",
+  };
+  await tx.viewingFeedback.upsert({
+    where: { viewingId: v.id },
+    create: { orgId: ctx.orgId, viewingId: v.id, leadId: v.leadId, ...data },
+    update: data,
+  });
+  const closed = await tx.followUp.updateMany({
+    where: { viewingId: v.id, completedAt: null },
+    data: { completedAt: now },
+  });
+  await audit(tx, ctx.orgId, {
+    actorId: ctx.userId, action: "viewing.feedback", entity: "Viewing", entityId: v.id,
+    // The ticks, not their words.
+    after: { verdict: input.verdict, reasons },
+  });
+  return { tasksClosed: closed.count };
+}
 
 export const viewingsRouter = router({
   /**
@@ -141,7 +239,7 @@ export const viewingsRouter = router({
    * the hold. Fifteen minutes: long enough to answer a WhatsApp message,
    * short enough that an unanswered offer does not block a Saturday.
    */
-  hold: orgProcedure
+  hold: requirePermission("viewing:write")
     .input(z.object({
       leadId: z.string(),
       /** Defaults to the caller, as `slots` does — an agent booking their
@@ -188,6 +286,14 @@ export const viewingsRouter = router({
        * `leads.assign` and `pipeline.bulkAssign` have always done this.
        * This procedure took the same class of input and did not.
        */
+      // Somebody whose file the caller may open — the same rule as
+      // `leads.detail`, so an agent cannot book a colleague's buyer.
+      const lead = await ctx.db.lead.findFirst({
+        where: { id: input.leadId, deletedAt: null, ...leadScope(ctx.role, ctx.userId) },
+        select: { id: true },
+      });
+      if (!lead) throw new TRPCError({ code: "NOT_FOUND" });
+
       const agentId = input.agentId ?? ctx.userId;
       if (agentId !== ctx.userId) {
         const member = await ctx.db.membership.findUnique({
@@ -225,10 +331,14 @@ export const viewingsRouter = router({
       }
     }),
 
-  confirm: orgProcedure
+  confirm: requirePermission("viewing:write")
     .input(z.object({ viewingId: z.string() }))
     .mutation(async ({ ctx, input }) =>
       ctx.db.$transaction(async (tx) => {
+        const mine = await tx.viewing.findFirst({
+          where: { id: input.viewingId, ...viewingScope(ctx.role, ctx.userId) }, select: { id: true },
+        });
+        if (!mine) throw new TRPCError({ code: "NOT_FOUND" });
         const v = await tx.viewing.update({
           where: { id: input.viewingId },
           data: { status: "CONFIRMED", heldUntil: null },
@@ -246,7 +356,9 @@ export const viewingsRouter = router({
     .mutation(async ({ ctx, input }) => {
       try {
         return await ctx.db.$transaction(async (tx) => {
-          const before = await tx.viewing.findUnique({ where: { id: input.viewingId } });
+          const before = await tx.viewing.findFirst({
+            where: { id: input.viewingId, ...viewingScope(ctx.role, ctx.userId) },
+          });
           if (!before) throw new TRPCError({ code: "NOT_FOUND" });
 
           const after = await tx.viewing.update({
@@ -281,15 +393,28 @@ export const viewingsRouter = router({
   /**
    * Outcome. The field the whole pipeline hangs on and the one agents
    * never fill in — so it is two taps, and the reminder chases it.
+   *
+   * With "they came", what the buyer thought can go in the same save, if
+   * the agent already knows. Usually they do not yet — `collect.ts` asks
+   * two hours later on purpose — and `feedback.ask` puts the question on
+   * their list then.
    */
   outcome: requirePermission("viewing:write")
     .input(z.object({
       viewingId: z.string(),
       status: z.enum(["COMPLETED", "NO_SHOW", "CANCELLED"]),
       note: z.string().max(500).optional(),
+      feedback: feedbackInput.optional(),
     }))
-    .mutation(async ({ ctx, input }) =>
-      ctx.db.$transaction(async (tx) => {
+    .mutation(async ({ ctx, input }) => {
+      if (input.feedback && input.status !== "COMPLETED") {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Only somebody who came can say what they thought." });
+      }
+      return ctx.db.$transaction(async (tx) => {
+        const mine = await tx.viewing.findFirst({
+          where: { id: input.viewingId, ...viewingScope(ctx.role, ctx.userId) }, select: { id: true },
+        });
+        if (!mine) throw new TRPCError({ code: "NOT_FOUND" });
         const v = await tx.viewing.update({
           where: { id: input.viewingId },
           data: { status: input.status, outcome: input.note },
@@ -305,11 +430,40 @@ export const viewingsRouter = router({
           });
         }
 
+        // Corrected to "didn't happen": nobody viewed, so nobody has an
+        // opinion to count in the owner's report, and nobody should be
+        // asked for one.
+        if (input.status !== "COMPLETED") {
+          await tx.viewingFeedback.deleteMany({ where: { viewingId: v.id } });
+          await tx.followUp.updateMany({ where: { viewingId: v.id, completedAt: null }, data: { completedAt: new Date() } });
+        }
+
         await audit(tx, ctx.orgId, {
           actorId: ctx.userId, action: `viewing.${input.status.toLowerCase()}`,
           entity: "Viewing", entityId: v.id, after: { note: input.note },
         });
+        if (input.feedback) await recordFeedback(tx, ctx, v, input.feedback);
         return v;
+      });
+    }),
+
+  /**
+   * What the buyer said when they were asked — on the phone, or in reply
+   * to the question `feedback.ask` drafted.
+   */
+  feedback: requirePermission("viewing:write")
+    .input(feedbackInput.extend({ viewingId: z.string() }))
+    .mutation(async ({ ctx, input }) =>
+      ctx.db.$transaction(async (tx) => {
+        const v = await tx.viewing.findFirst({
+          where: { id: input.viewingId, ...viewingScope(ctx.role, ctx.userId) },
+          select: { id: true, leadId: true, listingId: true, status: true },
+        });
+        if (!v) throw new TRPCError({ code: "NOT_FOUND" });
+        if (v.status !== "COMPLETED") {
+          throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Mark that they came first." });
+        }
+        return recordFeedback(tx, ctx, v, input);
       })
     ),
 
