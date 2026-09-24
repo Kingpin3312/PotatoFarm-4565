@@ -30,10 +30,21 @@ more expensive per day than March, and somebody eventually notices.
 brokerage that cannot reclaim the VAT because the invoice was malformed
 will ask for it to be reissued, every month, forever.
 
-**Invoice numbers are sequential per brokerage and gapless.** A tax
-authority expects them not to skip. A random id, or a global counter,
-leaves every customer's sequence full of holes — which is a conversation
-nobody wants during an audit.
+**Invoice numbers are one gapless series for the supplier** —
+`PF-000001`, `PF-000002`, never reset. This used to say the opposite,
+and was wrong: the sequence Article 59 of the VAT Executive Regulation
+asks for belongs to whoever issues the invoice, which is PotatoFarm with
+one TRN, and a gap in *that* series is what an auditor reads as a supply
+left off the return. A customer does not need unbroken numbers; the
+supplier does. The series is a counter row incremented inside the
+invoice's own transaction (`InvoiceSequence`), so a failed invoice gives
+its number back — a Postgres sequence would not.
+
+**No VAT without a registration.** Only a registered business may charge
+VAT, so an invoice is refused until `SUPPLIER_TRN` is set, and each one
+records both parties' TRNs as they stood on the day. What is still
+needed for a document a brokerage can reclaim against — the words "Tax
+Invoice", both parties' names and addresses — is in "Not built" below.
 
 Everything is in fils. Money in a floating point number is how a customer
 ends up with a bill for 0.30000000000000004.
@@ -137,3 +148,20 @@ The seat price. `seatPriceFils` is stored on the subscription rather than
 looked up from a price list, so a future price change never silently
 reprices an existing customer — but the first number has to come from
 you, and it is the same number that has to go on the pricing page.
+
+## Not built
+
+- **The tax invoice itself, as a document.** The billing screen lists
+  each invoice's arithmetic, and the charge carries its number — but
+  nothing renders a document with the words "Tax Invoice", PotatoFarm's
+  legal name and address, and the brokerage's name and address, which
+  Article 59 requires alongside the TRNs recorded here. A brokerage
+  cannot reclaim input VAT without one. It needs the company's registered
+  details, which cannot come from inside this repository.
+- **Keeping invoices.** UAE VAT law requires tax records to be kept for
+  five years, and a deleted invoice is also a hole in the supplier's
+  series. Nothing in the application deletes one, but `Invoice` cascades
+  from `Subscription`, so removing a subscription row by hand would take
+  its invoices with it. A database-level guard (as `AuditLog` has) was
+  left out because the check suites clean up their own brokerages; the
+  cascade should become `Restrict` before real invoices exist.

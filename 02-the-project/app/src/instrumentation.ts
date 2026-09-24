@@ -45,6 +45,7 @@ export async function register() {
   check("STRIPE_SECRET_KEY", "no card can be taken and no invoice settled");
   check("CRON_SECRET", "every scheduled job refuses to run");
   check("SEAT_PRICE_FILS", "sign-up refuses to create a subscription");
+  check("SUPPLIER_TRN", "no invoice is issued — VAT may only be charged under PotatoFarm's own registration, and a tax invoice must carry it");
   check("S3_BUCKET", "no file can be uploaded — no brochure, no floor plan, no KYC document");
   check("SECRETS_KEY", "no WhatsApp number or Facebook Page can be connected — there is nowhere safe to keep its token");
   /**

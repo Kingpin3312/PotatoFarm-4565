@@ -2,6 +2,7 @@ import { usage } from "./conversations";
 import { aed } from "@/lib/money";
 import { crossTenant } from "@/server/db/client";
 import { seatDays } from "./seats";
+import { supplierTrn, invoiceNumber } from "./number";
 
 /**
  * Invoicing.
@@ -18,6 +19,9 @@ import { seatDays } from "./seats";
 const VAT_BP = 500; // 5.00%
 
 export async function generateInvoice(subId: string, from: Date, to: Date) {
+  // First, before any arithmetic: nothing is issued without it.
+  const trn = supplierTrn();
+
   const sub = await crossTenant("sweep").subscription.findUniqueOrThrow({
     where: { id: subId },
     select: { id: true, orgId: true, seatPriceFils: true, currency: true, trn: true },
@@ -78,48 +82,49 @@ export async function generateInvoice(subId: string, from: Date, to: Date) {
     throw new Error("Invoice subtotal does not equal seats plus overage.");
   }
 
-  const number = await nextInvoiceNumber(sub.orgId);
+  /**
+   * The number and the invoice together, or neither.
+   *
+   * The counter row is locked by the UPDATE until this commits, so a
+   * second invoice waits for the first rather than reading the same
+   * number; and if the insert fails the increment rolls back with it,
+   * so the series has no hole where the failure was.
+   */
+  return crossTenant("sweep").$transaction(async (tx) => {
+    const [row] = await tx.$queryRaw<{ n: number }[]>`
+      UPDATE "InvoiceSequence" SET "next" = "next" + 1
+      WHERE "id" = 'supplier'
+      RETURNING "next" - 1 AS n`;
+    // Seeded by the migration that created the table. Missing, it is a
+    // deployment fault — never a reason to invent a number.
+    if (!row) throw new Error("The invoice series has no row; migration 20260928090000_invoice_sequence creates it.");
 
-  return crossTenant("sweep").invoice.create({
-    data: {
-      orgId: sub.orgId,
-      subId: sub.id,
-      number,
-      periodFrom: from,
-      periodTo: to,
-      seatDays: used,
-      seatDaysFull: fullPeriodDays,
-      seatFils,
-      conversationsAnswered: u.answered,
-      conversationsIncluded: u.included,
-      overageFils: u.overageFils,
-      subtotalFils: subtotal,
-      vatRateBp: VAT_BP,
-      vatFils: vat,
-      totalFils: subtotal + vat,
-      status: "OPEN",
-      // Fourteen days. Long enough for a finance department, short enough
-      // that a genuine problem surfaces inside the same month.
-      dueAt: new Date(Date.now() + 14 * 86_400_000),
-    },
+    return tx.invoice.create({
+      data: {
+        orgId: sub.orgId,
+        subId: sub.id,
+        number: invoiceNumber(Number(row.n)),
+        supplierTrn: trn,
+        customerTrn: sub.trn?.trim() || null,
+        periodFrom: from,
+        periodTo: to,
+        seatDays: used,
+        seatDaysFull: fullPeriodDays,
+        seatFils,
+        conversationsAnswered: u.answered,
+        conversationsIncluded: u.included,
+        overageFils: u.overageFils,
+        subtotalFils: subtotal,
+        vatRateBp: VAT_BP,
+        vatFils: vat,
+        totalFils: subtotal + vat,
+        status: "OPEN",
+        // Fourteen days. Long enough for a finance department, short enough
+        // that a genuine problem surfaces inside the same month.
+        dueAt: new Date(Date.now() + 14 * 86_400_000),
+      },
+    });
   });
-}
-
-/**
- * Sequential per brokerage, gapless.
- *
- * A tax authority expects invoice numbers not to skip. Using a random id
- * or a global counter means every customer's sequence has holes in it,
- * which is a conversation nobody wants to have during an audit.
- */
-async function nextInvoiceNumber(orgId: string) {
-  const last = await crossTenant("sweep").invoice.findFirst({
-    where: { orgId },
-    orderBy: { issuedAt: "desc" },
-    select: { number: true },
-  });
-  const n = last ? Number(last.number.split("-").at(-1)) + 1 : 1;
-  return `INV-${orgId.slice(-6).toUpperCase()}-${String(n).padStart(5, "0")}`;
 }
 
 /** The line-by-line explanation, so a bill can be argued with. */

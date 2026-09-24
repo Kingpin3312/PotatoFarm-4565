@@ -1321,6 +1321,7 @@ model Invoice {
   orgId String
   subId String
 
+  /// From the supplier's one series — see `InvoiceSequence`.
   number     String   @unique
   periodFrom DateTime
   periodTo   DateTime
@@ -1342,6 +1343,11 @@ model Invoice {
   vatRateBp    Int    @default(500) // 5.00% as basis points
   vatFils      BigInt
   totalFils    BigInt
+
+  /// Both parties' TRNs as they were on the day it was issued. A tax
+  /// invoice may not change afterwards, and either registration can.
+  supplierTrn String?
+  customerTrn String?
 
   /// The provider's own id for the charge. Unique, so a webhook that
   /// arrives twice cannot settle the same invoice twice.
@@ -1379,6 +1385,14 @@ enum InvoiceStatus {
 /// pooled connection, so it leaked and every later run of the job in
 /// that process was skipped. See `jobs/runner.ts`. Not tenant data: a job
 /// runs across every brokerage.
+/// The supplier's invoice series: one row, incremented inside the
+/// transaction that writes the invoice, so a failure gives its number
+/// back. A Postgres SEQUENCE would not — `nextval()` survives a rollback.
+model InvoiceSequence {
+  id   String @id
+  next Int
+}
+
 model JobLease {
   job        String   @id
   holder     String

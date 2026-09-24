@@ -713,6 +713,20 @@ async function main() {
    */
   await listings(org.id);
 
+  /**
+   * Who looks after each property.
+   *
+   * `Listing.agentId` arrived after these rows, so every demo listing
+   * read "Nobody yet" and the weekly owner report fell back to guessing.
+   * Given to the brokerage's owner — and only where nobody has been
+   * given one, so an agent chosen on the Owner panel is not undone by
+   * the next seed.
+   */
+  const bookHolder = byEmail.get("omar@marinabay.ae");
+  if (bookHolder) {
+    await db.listing.updateMany({ where: { orgId: org.id, agentId: null }, data: { agentId: bookHolder } });
+  }
+
   const owner2 = byEmail.get("omar@marinabay.ae");
   const allListings = await db.listing.findMany({
     where: { orgId: org.id }, orderBy: { reference: "asc" }, select: { id: true },

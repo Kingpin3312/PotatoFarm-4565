@@ -102,7 +102,7 @@ What is verified today, measured rather than assumed:
   `/api/health` returns `200 {"ok":true}` against a real Postgres.
 - The boot log names every unconfigured service with its consequence —
   six of them in a bare development environment.
-- 322 assertions in 18 files, 47 check suites, 23 audits, all green.
+- 328 assertions in 19 files, 47 check suites, 23 audits, all green.
 
 Type errors on a fresh checkout are no longer expected. If you get one,
 it is new.
@@ -292,6 +292,16 @@ were five formatters and two assumed AED. `Lead.budgetMax` and
 `Listing.price` were `Decimal` AED while everything else was fils; the
 first thing to join them would have shown a buyer a property at a
 hundred times their budget.
+
+**Invoice numbers are one series for PotatoFarm, not one per
+brokerage.** The sequence the UAE VAT regulation asks for belongs to the
+issuer — one company, one TRN — and a gap in it reads as a supply left
+off the return. They were per brokerage, on the reasoning that each
+customer's run should be unbroken, which is the wrong party. The series
+is a counter row bumped inside the invoice's own transaction; a Postgres
+`SEQUENCE` would look tidier and leaves a hole on every rollback. And no
+invoice is issued without `SUPPLIER_TRN` — VAT may only be charged under
+a registration. `billing/README.md` has both.
 
 **Card ordering is a Postgres NUMERIC, not a string key.** The clever
 base-62 version was written first, tested, and was wrong.
@@ -737,7 +747,7 @@ send path read it.
 
 ## Run the tests
 
-    npm test          # 322 assertions, pure functions, no database
+    npm test          # 328 assertions, pure functions, no database
     npm run verify    # tsc, the tests, 47 check suites, 23 audits
 
 **The gate is now green end to end, including the two things that used
@@ -788,7 +798,7 @@ skip as a pass, and for a long time it reported two:
   leaving you to guess.
 
 `npm test` was declared from day one with no test files behind it, so it
-exited 1 and said "No test files found". There are 18 test files now, and
+exited 1 and said "No test files found". There are 19 test files now, and
 they cover the pure logic where being wrong is silent: the fils unit, the
 24-hour window on both sides of the boundary, Dubai sending hours, the
 search parser's plural intents and budget bands, lead scoring, deal

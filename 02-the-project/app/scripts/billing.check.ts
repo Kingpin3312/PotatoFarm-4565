@@ -2,6 +2,7 @@ import { createHmac } from "node:crypto";
 import { crossTenant } from "../src/server/db/client";
 import { signup } from "../src/server/lib/billing/signup";
 import { generateInvoice } from "../src/server/lib/billing/invoice";
+import { invoiceNumber } from "../src/server/lib/billing/number";
 import { recordAnswered } from "../src/server/lib/billing/conversations";
 import { fatal } from "./fatal";
 
@@ -93,6 +94,8 @@ async function main() {
     ownerEmail: "billing-check@example.com",
     ownerName: "Billing Check Owner",
     seats: 10,
+    // So "carries the brokerage's TRN" compares a number, not two nulls.
+    trn: "100000000000011",
     seatPriceFils: seatPrice,
   });
 
@@ -174,6 +177,64 @@ async function main() {
       ok("the invoice is prorated, not a full month",
          Number(d.subtotalFils) < monthly,
          `${d.subtotalFils} fils billed against ${monthly} for a full month — seat-days, not a flat charge`);
+    }
+
+    /* ---------------- the number on it ---------------------------- */
+    /**
+     * One series for the supplier. Numbers were per brokerage, prefixed
+     * with six characters of an internal id — dozens of parallel series
+     * under one TRN, where the VAT regulation expects the issuer's
+     * sequence to show every supply.
+     */
+    console.log("\nThe invoice number:");
+    const seq = async () => (await root.invoiceSequence.findUniqueOrThrow({ where: { id: "supplier" } })).next;
+    const at = (days: number) => new Date(to.getTime() + days * 86_400_000);
+    const n = (num: string) => Number(num.replace(/^PF-/, ""));
+
+    ok("it comes from the supplier's one series", /^PF-\d{6}$/.test(draft.number), draft.number);
+    ok("and carries PotatoFarm's VAT registration and the brokerage's",
+       draft.supplierTrn === process.env.SUPPLIER_TRN?.replace(/\s/g, "") && draft.customerTrn === "100000000000011",
+       `${draft.supplierTrn} / ${draft.customerTrn}`);
+
+    const second = await signup({
+      brokerageName: "Billing Check Second", ownerEmail: "billing-check-second@example.com",
+      ownerName: "Second Owner", seats: 8, seatPriceFils: seatPrice,
+    });
+    const otherSub = second.ok ? await root.subscription.findFirst({ where: { orgId: second.orgId } }) : null;
+    if (otherSub) {
+      // Two brokerages, invoiced at the same moment.
+      const [a, b] = await Promise.all([
+        generateInvoice(sub.id, at(0), at(30)),
+        generateInvoice(otherSub.id, at(0), at(30)),
+      ]);
+      ok("two brokerages invoiced at once share the one series, one after the other",
+         Math.abs(n(a.number) - n(b.number)) === 1, `${a.number}, ${b.number}`);
+
+      // A failure must give its number back. Plant an invoice holding the
+      // next number, so the insert fails after the number is taken.
+      const next = await seq();
+      const { id: _id, providerRef: _ref, ...copy } = a;
+      const planted = await root.invoice.create({ data: { ...copy, number: invoiceNumber(next) } });
+      let failed = false;
+      try { await generateInvoice(sub.id, at(30), at(60)); } catch { failed = true; }
+      ok("an invoice that fails to save gives its number back", failed && (await seq()) === next,
+         `failed ${failed}, series at ${await seq()} (was ${next})`);
+      await root.invoice.delete({ where: { id: planted.id } });
+      const c = await generateInvoice(sub.id, at(30), at(60));
+      ok("so the next one takes it and the series has no hole", c.number === invoiceNumber(next), c.number);
+
+      // Without PotatoFarm's registration, nothing is issued and no
+      // number is used up.
+      const held = process.env.SUPPLIER_TRN;
+      const before = { count: await root.invoice.count(), next: await seq() };
+      delete process.env.SUPPLIER_TRN;
+      let refused = false;
+      try { await generateInvoice(sub.id, at(60), at(90)); } catch { refused = true; }
+      process.env.SUPPLIER_TRN = held;
+      ok("no VAT invoice is issued without PotatoFarm's VAT registration",
+         refused && (await root.invoice.count()) === before.count && (await seq()) === before.next);
+    } else {
+      ok("a second brokerage to invoice alongside the first", false, second.ok ? "no subscription" : second.reason);
     }
   }
 
