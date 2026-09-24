@@ -102,7 +102,7 @@ What is verified today, measured rather than assumed:
   `/api/health` returns `200 {"ok":true}` against a real Postgres.
 - The boot log names every unconfigured service with its consequence —
   six of them in a bare development environment.
-- 314 assertions in 18 files, 43 check suites, 23 audits, all green.
+- 314 assertions in 18 files, 44 check suites, 23 audits, all green.
 
 Type errors on a fresh checkout are no longer expected. If you get one,
 it is new.
@@ -728,7 +728,7 @@ send path read it.
 ## Run the tests
 
     npm test          # 314 assertions, pure functions, no database
-    npm run verify    # tsc, the tests, 43 check suites, 23 audits
+    npm run verify    # tsc, the tests, 44 check suites, 23 audits
 
 **The gate is now green end to end, including the two things that used
 to skip.** `verify` reports what it did not run rather than counting a
@@ -1054,11 +1054,14 @@ with an empirical floor under it.
   tell a brokerage their property is live when it is not. Both competitors
   lead on portal distribution, so this is the commercial step that decides
   whether the product competes.
-- **Editing a lead.** `leads` has create, assign and remove, and no
-  update — an agent cannot correct a buyer's name or budget once the
-  lead exists, and cannot record a visa renewal date, which is the only
-  input the visa sweep has. The sweep is correct and has never had
-  anybody to find.
+- ~~**Editing a lead.**~~ **Built.** `leads.detail` and `leads.update`
+  behind the person page, which until then never said who the person
+  was. The phone number stays fixed (it is the WhatsApp identity), the
+  audit entry names fields rather than values, a new visa date re-arms
+  the renewal prompt, and "they asked not to be messaged" can be
+  recorded by an agent rather than only by the buyer typing STOP.
+  `check:lead-editing`. Left struck through, as the entries below are,
+  so it is not built twice.
 - **Who looks after a listing or an owner.** Neither `Listing` nor
   `Vendor` records an agent, so the owner's weekly report goes to
   whoever showed one of their properties most recently, else whoever

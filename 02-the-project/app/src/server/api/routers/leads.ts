@@ -3,6 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { router, orgProcedure, requirePermission } from "../trpc";
 import { leadScope } from "@/server/auth/rbac";
 import { audit } from "@/server/lib/audit";
+import { aedToFils, filsToAed } from "@/lib/money";
 import { Prisma } from "@prisma/client";
 import { BANDS, band } from "@/server/lib/intelligence/score";
 import { entryStageId } from "@/server/lib/pipeline/defaults";
@@ -422,6 +423,134 @@ export const leadsRouter = router({
    * number already on file is a conflict naming who owns it, rather than
    * a duplicate record splitting one buyer's history in two.
    */
+  /**
+   * Who this person is, as the agent can see and correct it.
+   *
+   * The person page showed a private note and a history and never said
+   * who the person was — no name, no number, no budget. And nothing
+   * could change any of it: `leads` had create, assign and remove. A
+   * name the assistant misheard, a budget the buyer revised on the
+   * phone, the visa date the visa-renewal prompt depends on — all fixed
+   * for ever at whatever was first written.
+   */
+  detail: requirePermission("lead:read:own")
+    .input(z.object({ leadId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const l = await ctx.db.lead.findFirst({
+        where: { id: input.leadId, deletedAt: null, ...leadScope(ctx.role, ctx.userId) },
+        select: {
+          id: true, name: true, phone: true, email: true, language: true, status: true,
+          budgetMinFils: true, budgetMaxFils: true, intent: true, timeframe: true,
+          financing: true, notes: true, visaExpiresAt: true,
+          optedOutOfOutreach: true, optedOutAt: true,
+          assignedTo: { select: { name: true, email: true } },
+        },
+      });
+      if (!l) throw new TRPCError({ code: "NOT_FOUND", message: "There is nobody here." });
+      return {
+        ...l,
+        // Whole dirhams for the form; fils stay on the server.
+        budgetMinAed: l.budgetMinFils === null ? null : filsToAed(l.budgetMinFils),
+        budgetMaxAed: l.budgetMaxFils === null ? null : filsToAed(l.budgetMaxFils),
+        agent: l.assignedTo?.name ?? l.assignedTo?.email ?? null,
+      };
+    }),
+
+  /**
+   * Correct what we know about somebody.
+   *
+   * **The phone number is not editable, on purpose.** It is the
+   * WhatsApp identity: the conversation, the 24-hour window and every
+   * inbound message are matched on it. Changing it would quietly attach
+   * this person's history to a different number. A new number is a new
+   * lead, which is what the inbound path makes of it anyway.
+   *
+   * **The audit entry names the fields, not their values.** The audit
+   * log cannot be deleted from, and a buyer's budget and email written
+   * into it on every correction would be personal data kept for ever in
+   * the one table erasure has to scrub rather than delete.
+   *
+   * **A changed visa date re-arms the renewal prompt.** `visaNudgedAt`
+   * keeps the sweep quiet for ninety days after it raises a renewal; a
+   * new date is a new renewal, and the old stamp would have hidden it.
+   *
+   * **Opting somebody out is here too**, because "they asked us to stop
+   * messaging them" is usually said on the phone, and the only way to
+   * record it was for them to type STOP.
+   */
+  update: requirePermission("lead:update")
+    .input(z.object({
+      leadId: z.string(),
+      name: z.string().trim().max(120).nullable().optional(),
+      email: z.string().trim().toLowerCase().email().max(200).nullable().optional()
+        .or(z.literal("").transform(() => null)),
+      language: z.enum(["en", "ar"]).optional(),
+      budgetMinAed: z.number().int().min(0).max(1_000_000_000).nullable().optional(),
+      budgetMaxAed: z.number().int().min(0).max(1_000_000_000).nullable().optional(),
+      intent: z.enum(["BUY_TO_LIVE", "BUY_TO_INVEST", "RENT", "SELL", "LIST"]).nullable().optional(),
+      timeframe: z.string().trim().max(60).nullable().optional(),
+      financing: z.enum(["CASH", "MORTGAGE", "UNKNOWN"]).nullable().optional(),
+      notes: z.string().trim().max(1_000).nullable().optional(),
+      visaExpiresAt: z.date().nullable().optional(),
+      optedOut: z.boolean().optional(),
+    }))
+    .mutation(async ({ ctx, input }) =>
+      ctx.db.$transaction(async (tx) => {
+        const before = await tx.lead.findFirst({
+          where: { id: input.leadId, deletedAt: null, ...leadScope(ctx.role, ctx.userId) },
+          select: { id: true, budgetMinFils: true, budgetMaxFils: true, visaExpiresAt: true, optedOutOfOutreach: true },
+        });
+        if (!before) throw new TRPCError({ code: "NOT_FOUND", message: "There is nobody here." });
+
+        const min = input.budgetMinAed === undefined
+          ? before.budgetMinFils
+          : input.budgetMinAed === null ? null : aedToFils(input.budgetMinAed);
+        const max = input.budgetMaxAed === undefined
+          ? before.budgetMaxFils
+          : input.budgetMaxAed === null ? null : aedToFils(input.budgetMaxAed);
+        if (min !== null && max !== null && min > max) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "The lower budget is above the upper one." });
+        }
+
+        const data: Prisma.LeadUpdateInput = {};
+        const set = <K extends keyof Prisma.LeadUpdateInput>(k: K, v: Prisma.LeadUpdateInput[K] | undefined) => {
+          if (v !== undefined) data[k] = v;
+        };
+        set("name", input.name === "" ? null : input.name);
+        set("email", input.email);
+        set("language", input.language);
+        if (input.budgetMinAed !== undefined) data.budgetMinFils = min;
+        if (input.budgetMaxAed !== undefined) data.budgetMaxFils = max;
+        set("intent", input.intent);
+        set("timeframe", input.timeframe === "" ? null : input.timeframe);
+        set("financing", input.financing);
+        set("notes", input.notes === "" ? null : input.notes);
+        if (input.visaExpiresAt !== undefined) {
+          data.visaExpiresAt = input.visaExpiresAt;
+          const changed = (input.visaExpiresAt?.getTime() ?? null) !== (before.visaExpiresAt?.getTime() ?? null);
+          if (changed) data.visaNudgedAt = null;
+        }
+        if (input.optedOut !== undefined && input.optedOut !== before.optedOutOfOutreach) {
+          data.optedOutOfOutreach = input.optedOut;
+          data.optedOutAt = input.optedOut ? new Date() : null;
+        }
+
+        const fields = Object.keys(data).filter((k) => k !== "visaNudgedAt" && k !== "optedOutAt");
+        if (!fields.length) return { id: before.id, changed: [] as string[] };
+
+        await tx.lead.update({ where: { id: before.id }, data });
+        await audit(tx, ctx.orgId, {
+          actorId: ctx.userId,
+          action: input.optedOut !== undefined && data.optedOutOfOutreach !== undefined
+            ? (input.optedOut ? "lead.opted_out" : "lead.opted_in")
+            : "lead.update",
+          entity: "Lead", entityId: before.id,
+          after: { fields },
+        });
+        return { id: before.id, changed: fields };
+      })
+    ),
+
   create: requirePermission("lead:create")
     .input(z.object({
       phone,

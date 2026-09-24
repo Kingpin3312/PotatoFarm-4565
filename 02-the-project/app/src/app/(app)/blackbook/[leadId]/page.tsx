@@ -5,6 +5,7 @@ import { api } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { QueryError } from "@/components/ui/query-state";
 import { cn } from "@/lib/cn";
+import { Details } from "./details";
 
 /**
  * One person, everything said to them.
@@ -38,6 +39,10 @@ export default function Person({ params }: { params: Promise<{ leadId: string }>
           ← Blackbook
         </a>
       </header>
+
+      {/* Who they are, first. The page showed a history and a note and
+          never said whose they were. */}
+      <Details leadId={leadId} />
 
       {/* The reply window, on the person rather than the thread. This is
           the moment it matters — an agent looking at somebody's history
