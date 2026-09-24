@@ -46,6 +46,8 @@ export type Subscription = {
   currentStep: number;
   state: SubscriptionState;
   startedAt: Date;
+  /** Set when an agent restarts a paused plan. */
+  resumedAt?: Date | null;
   nextDueAt: Date | null;
 };
 
@@ -80,7 +82,10 @@ export function shouldAdvance(args: {
 
   if (args.sub.state !== "RUNNING") return { act: false, reason: `plan is ${args.sub.state.toLowerCase()}` };
 
-  if (REPLY_PAUSES && args.leadRepliedSince && args.leadRepliedSince > args.sub.startedAt) {
+  // Replies since it last started. A reply before a resume is the one
+  // that paused it — the agent has read it and chosen to carry on.
+  const since = args.sub.resumedAt ?? args.sub.startedAt;
+  if (REPLY_PAUSES && args.leadRepliedSince && args.leadRepliedSince > since) {
     return {
       act: false,
       reason: "they replied — a person has this now",
@@ -188,4 +193,53 @@ export function taskForStep(args: {
         body: `${from} It fits what they asked for. A draft:\n\n${args.match.draft}`,
       };
   }
+}
+
+/**
+ * A step in words, for the screens that show a plan to the people it
+ * will give work to. The same sentence on the plan and on the person, so
+ * an agent reading "next: …" on somebody's page recognises the plan.
+ */
+export function describeStep(step: Step): string {
+  switch (step.action) {
+    case "CHECK_MATCHES":
+      return "Look for a property that fits — and only if one does, you're given it to send";
+    case "MESSAGE":
+      return step.template?.trim()
+        ? `You're asked to send the "${step.template.trim()}" message`
+        : "You're asked to send a message";
+    case "TASK":
+      return step.taskTitle?.trim() || "A task for you";
+    case "REVIEW":
+      return step.taskTitle?.trim() || "Decide whether to keep this plan running";
+  }
+}
+
+/**
+ * What a plan must be before anybody can be put on it. Returned as
+ * sentences rather than thrown, so the screen that builds a plan can
+ * say all of them at once.
+ *
+ * Each rule is a way a step would otherwise do nothing: a message with
+ * no template cannot be sent outside the 24-hour window, and a task with
+ * no words is a line on somebody's list saying "Plan step".
+ */
+export const PLAN_LIMITS = { maxSteps: 12, maxDays: 365 } as const;
+
+export function planProblems(steps: Step[]): string[] {
+  const out: string[] = [];
+  if (!steps.length) out.push("A plan needs at least one step.");
+  if (steps.length > PLAN_LIMITS.maxSteps) out.push(`A plan can have up to ${PLAN_LIMITS.maxSteps} steps.`);
+  steps.forEach((s, i) => {
+    const n = `Step ${i + 1}`;
+    if (!Number.isInteger(s.afterDays) || s.afterDays < 1 || s.afterDays > PLAN_LIMITS.maxDays) {
+      // Nought days would put two touches on one day.
+      out.push(`${n}: wait between 1 and ${PLAN_LIMITS.maxDays} days.`);
+    }
+    if (s.action === "MESSAGE" && !s.template?.trim()) {
+      out.push(`${n}: name the approved WhatsApp template — nothing else arrives outside the 24-hour window.`);
+    }
+    if (s.action === "TASK" && !s.taskTitle?.trim()) out.push(`${n}: say what the agent should do.`);
+  });
+  return out;
 }

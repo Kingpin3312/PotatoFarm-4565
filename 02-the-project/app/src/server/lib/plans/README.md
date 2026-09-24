@@ -72,8 +72,11 @@ about the sequence, not just about the lead.
   nothing fits — and the step is taken only in the same transaction.
   Nothing sends by itself: `intelligence/autonomy.ts` stops every
   message to a client at a person pressing send.
-- **Creating a plan at all.** Nothing writes a `TaskPlan`, its steps, or
-  a subscription, so none of the above has run outside a check.
+- ~~Creating a plan at all.~~ `plans.create` from Settings → Nurture
+  plans, and `plans.subscribe` / `resume` / `stop` from the person's
+  page. A resume records `resumedAt`, so the reply that paused a plan
+  does not pause it again — rule one says restarting is the agent's
+  decision, and without it the decision did nothing.
 - Auto-subscription. Nothing yet puts a lead on a plan when the assistant
   extracts a long timeframe, which is the obvious trigger.
 - Per-step reporting — which step loses people. That is the number that

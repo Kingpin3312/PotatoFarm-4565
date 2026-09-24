@@ -496,6 +496,9 @@ export const JOBS = {
   "plans.advance": () => run("plans.advance", async () => {
     const due = await crossTenant("sweep").planSubscription.findMany({
       where: { state: "RUNNING", nextDueAt: { lte: new Date() } },
+      // Oldest first, so a backlog past the batch is worked through
+      // rather than the same five hundred read every run.
+      orderBy: { nextDueAt: "asc" },
       take: 500,
       include: {
         plan: { include: { steps: { orderBy: { order: "asc" } } } },
@@ -517,13 +520,28 @@ export const JOBS = {
           conversation: { select: { lastInboundAt: true } },
         },
       });
-      if (!lead || lead.deletedAt) return;
+      /**
+       * Somebody removed from the book comes off the plan.
+       *
+       * This returned and left the plan RUNNING and due, so it was read
+       * again every run, for ever — and enough of them would fill the
+       * batch above and starve everybody else's plans.
+       */
+      if (!lead || lead.deletedAt) {
+        await crossTenant("sweep").planSubscription.update({
+          where: { id: sub.id },
+          data: { state: "STOPPED", finishedAt: new Date(), endedReason: "removed from the book" },
+        });
+        finished++;
+        return;
+      }
 
       const call = shouldAdvance({
         sub: {
           currentStep: sub.currentStep,
           state: sub.state,
           startedAt: sub.startedAt,
+          resumedAt: sub.resumedAt,
           nextDueAt: sub.nextDueAt,
         },
         steps: sub.plan.steps,
@@ -620,25 +638,33 @@ export const JOBS = {
        *
        * Advancing first and failing the create is the old bug in a new
        * place: a step recorded as taken that nobody was asked to take.
+       *
+       * And only if nobody moved it meanwhile. An agent can stop or pause
+       * a plan now, and an unconditional write here would have restarted
+       * it — or marked a stopped plan "sequence finished" — with a task
+       * for a step they had just called off.
        */
-      await crossTenant("sweep").$transaction([
-        ...(task
-          ? [crossTenant("sweep").followUp.create({
-              data: {
-                orgId: sub.orgId, agentId: lead.assignedToId, leadId: sub.leadId,
-                title: task.title, body: task.body, dueAt: new Date(),
-              },
-            })]
-          : []),
-        crossTenant("sweep").planSubscription.update({
-          where: { id: sub.id },
+      const took = await crossTenant("sweep").$transaction(async (tx) => {
+        const moved = await tx.planSubscription.updateMany({
+          where: { id: sub.id, state: "RUNNING", currentStep: sub.currentStep },
           data: {
             currentStep: call.step.order,
             nextDueAt: next?.dueAt ?? null,
             ...(next ? {} : { state: "COMPLETED", finishedAt: new Date(), endedReason: "sequence finished" }),
           },
-        }),
-      ]);
+        });
+        if (moved.count !== 1) return false;
+        if (task) {
+          await tx.followUp.create({
+            data: {
+              orgId: sub.orgId, agentId: lead.assignedToId!, leadId: sub.leadId,
+              title: task.title, body: task.body, dueAt: new Date(),
+            },
+          });
+        }
+        return true;
+      });
+      if (!took) return;
       task ? acted++ : quiet++;
     });
 

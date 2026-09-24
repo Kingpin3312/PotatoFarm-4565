@@ -94,7 +94,7 @@ What is verified today, measured rather than assumed:
 
 - `npm run build` exits 0 with no warnings — the production build, not a
   dev server.
-- 56 routes, **every one of them `ƒ` (dynamic) and none prerendered**,
+- 61 routes, **every one of them `ƒ` (dynamic) and none prerendered**,
   which is the `force-dynamic`/CSP-nonce invariant below holding rather
   than having quietly drifted. A static route in that list is the tell
   that somebody removed the line.
@@ -102,7 +102,7 @@ What is verified today, measured rather than assumed:
   `/api/health` returns `200 {"ok":true}` against a real Postgres.
 - The boot log names every unconfigured service with its consequence —
   six of them in a bare development environment.
-- 314 assertions in 18 files, 46 check suites, 23 audits, all green.
+- 322 assertions in 18 files, 47 check suites, 23 audits, all green.
 
 Type errors on a fresh checkout are no longer expected. If you get one,
 it is new.
@@ -339,7 +339,7 @@ not want.
 
 ## The shape that keeps recurring
 
-Nineteen times a complete, tested, documented module has turned out to have
+Twenty times a complete, tested, documented module has turned out to have
 nothing that starts it — and the sixth is the product itself:
 
 1. **Billing** could invoice a customer no code path could create.
@@ -643,6 +643,16 @@ nothing that starts it — and the sixth is the product itself:
    assertion also checks the second run was not skipped. **A check that
    passes because its action was refused has tested the refusal.**
 
+20. **Nurture plans.** `plans.advance` ran every morning with rules for
+   replies, opt-outs and closed files, and its unit tests passed — and
+   nothing could create a plan or put anybody on one, so it had only
+   ever run inside a check that inserted its own rows. Building the way
+   in found two faults the inserted rows could never have shown: "carry
+   on" after a reply did nothing, because the same reply paused the plan
+   again on the next sweep; and a removed person's plan stayed due and
+   was re-read every run for ever. **A job tested only on rows it did not
+   have to earn is tested on the cases its author imagined.**
+
 **The same shape, one layer up: fifteen finished components no screen
 imported.** `architecture.py` grew a `KNOWN_UNMOUNTED` ratchet and it
 started at nine, went to fifteen when the resolver was fixed, and is
@@ -727,8 +737,8 @@ send path read it.
 
 ## Run the tests
 
-    npm test          # 314 assertions, pure functions, no database
-    npm run verify    # tsc, the tests, 46 check suites, 23 audits
+    npm test          # 322 assertions, pure functions, no database
+    npm run verify    # tsc, the tests, 47 check suites, 23 audits
 
 **The gate is now green end to end, including the two things that used
 to skip.** `verify` reports what it did not run rather than counting a
@@ -999,7 +1009,7 @@ with an empirical floor under it.
 ## What is not built
 
 - ~~Most React screens.~~ **Out of date and left here as a warning.**
-  There are 44, every one of them opens in a browser, and
+  There are 45, every one of them opens in a browser, and
   `browser:screens` fails the build if one stops rendering or starts a
   refetch loop. This line survived the screens being built, which is the
   same drift the audit scripts exist to catch — in the file that warns
@@ -1083,9 +1093,19 @@ with an empirical floor under it.
   mutation is now scoped to the agent's own viewings and buyers — any
   agent could mark a colleague's viewing a no-show, which also moved
   that colleague's lead back a stage. `check:viewing-feedback`.
-- **Creating a nurture plan.** `plans.advance` now turns every due step
-  into a task for the agent. Nothing creates a `TaskPlan` or puts a
-  lead on one — `reachability.py` lists it.
+- ~~**Creating a nurture plan.**~~ **Built.** A manager writes plans
+  under Settings → Nurture plans (the six-touch buyer plan is one tap
+  away as a starting point); an agent puts their own person on one from
+  the person's page, where it also says what comes next, and carries on
+  or stops it. One plan at a time per person; nobody opted out, closed
+  or without an agent; a retired plan takes nobody new; a plan is not
+  edited under the people part-way through it. Two faults in the job
+  surfaced on the way: a resumed plan paused itself again on the next
+  sweep, because the reply that paused it was still "after it started"
+  (`PlanSubscription.resumedAt`), and a removed person's plan stayed
+  due and was re-read every run for ever. `check:nurture-plans`.
+  Still not built: putting somebody on a plan automatically when they
+  say "in six months", and which step loses people.
 - **Sending proactive messages without a person.** Deliberately. Every
   job that decides somebody is worth contacting hands a draft to their
   agent. If a brokerage ever wants automatic sending, it is a change to

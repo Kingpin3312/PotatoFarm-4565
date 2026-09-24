@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { LONG_HORIZON_BUYER, scheduleNext, taskForStep, type Step } from "./run";
+import { LONG_HORIZON_BUYER, scheduleNext, taskForStep, shouldAdvance, planProblems, describeStep, type Step } from "./run";
 
 describe("taskForStep — every due step ends with a person doing something", () => {
   const base = { planName: "Long horizon buyer", who: "Priya" };
@@ -54,5 +54,63 @@ describe("scheduleNext — each step waits its own delay", () => {
 
   it("has nothing after the last step, so the plan completes when it is taken", () => {
     expect(scheduleNext(LONG_HORIZON_BUYER, 6, from)).toBeNull();
+  });
+});
+
+describe("shouldAdvance — a reply pauses, and a resume is not undone by it", () => {
+  const started = new Date("2026-09-01T07:00:00Z");
+  const replied = new Date("2026-09-10T07:00:00Z");
+  const now = new Date("2026-09-20T07:00:00Z");
+  const base = {
+    steps: LONG_HORIZON_BUYER, leadRepliedSince: replied, leadOptedOut: false, leadStatus: "CONTACTED", now,
+  };
+  const sub = { currentStep: 1, state: "RUNNING" as const, startedAt: started, nextDueAt: new Date("2026-09-15T07:00:00Z") };
+
+  it("pauses on a reply after the plan started", () => {
+    const r = shouldAdvance({ ...base, sub });
+    expect(r.act).toBe(false);
+    expect(!r.act && r.newState).toBe("PAUSED");
+  });
+  it("carries on after an agent resumes it, although the reply is after it started", () => {
+    // Without `resumedAt` the same reply paused it again on the next
+    // sweep, so "Resume" did nothing an agent could see.
+    const r = shouldAdvance({ ...base, sub: { ...sub, resumedAt: new Date("2026-09-12T07:00:00Z") } });
+    expect(r.act).toBe(true);
+  });
+  it("and pauses again on a new reply after the resume", () => {
+    const r = shouldAdvance({
+      ...base, leadRepliedSince: new Date("2026-09-13T07:00:00Z"),
+      sub: { ...sub, resumedAt: new Date("2026-09-12T07:00:00Z") },
+    });
+    expect(!r.act && r.newState).toBe("PAUSED");
+  });
+});
+
+describe("planProblems — a step that would do nothing is refused", () => {
+  it("accepts the worked example", () => {
+    expect(planProblems(LONG_HORIZON_BUYER)).toEqual([]);
+  });
+  it("refuses an empty plan", () => {
+    expect(planProblems([])).toEqual(["A plan needs at least one step."]);
+  });
+  it("refuses a message with no template, a task with no words and a same-day step", () => {
+    const p = planProblems([
+      { order: 1, afterDays: 7, action: "MESSAGE", template: " " },
+      { order: 2, afterDays: 7, action: "TASK", taskTitle: "" },
+      { order: 3, afterDays: 0, action: "REVIEW" },
+    ]);
+    expect(p).toHaveLength(3);
+    expect(p[0]).toMatch(/^Step 1: name the approved WhatsApp template/);
+    expect(p[1]).toMatch(/^Step 2: say what/);
+    expect(p[2]).toMatch(/^Step 3: wait between 1 and 365/);
+  });
+});
+
+describe("describeStep", () => {
+  it("says a property is only sent when one fits", () => {
+    expect(describeStep(LONG_HORIZON_BUYER[0]!)).toMatch(/only if one does/);
+  });
+  it("names the template", () => {
+    expect(describeStep(LONG_HORIZON_BUYER[1]!)).toBe('You\'re asked to send the "market_note" message');
   });
 });

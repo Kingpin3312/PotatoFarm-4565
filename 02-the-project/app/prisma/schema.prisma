@@ -2275,6 +2275,10 @@ model PlanSubscription {
   nextDueAt   DateTime?
 
   startedAt   DateTime  @default(now())
+  /// When an agent last restarted it after a reply paused it. Replies
+  /// before this are the conversation that paused it, not a new one —
+  /// without it a resumed plan paused itself again on the next sweep.
+  resumedAt   DateTime?
   finishedAt  DateTime?
   /// Why it stopped. "They replied" is the good ending and the most
   /// common one — a plan that runs to completion usually means nobody

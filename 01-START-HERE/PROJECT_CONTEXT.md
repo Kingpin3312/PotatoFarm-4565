@@ -105,8 +105,8 @@ token, which the web app cannot do. Treat it as a design sketch.
 
 ## 4. What is built
 
-**76 database models · 62 enums · 27 API routers · 167 procedures ·
-44 screens · 27 scheduled jobs · 23 audit scripts · 46 check suites.**
+**76 database models · 62 enums · 28 API routers · 174 procedures ·
+45 screens · 27 scheduled jobs · 23 audit scripts · 47 check suites.**
 
 **Five procedures have no screen, and every one of them deliberately:**
 `aml.checkRear`, `aml.visibilityPolicy`, `onboarding.previewImport`,
@@ -250,7 +250,7 @@ thing it checks and confirming it fails.
 ### The unit tests
 
 ```bash
-npm test                    # 314 assertions, no database, ~3 seconds
+npm test                    # 322 assertions, no database, ~3 seconds
 ```
 
 `package.json` declared `"test": "vitest run"` from the beginning with no
@@ -280,7 +280,7 @@ be silent:
 | `server/jobs/period.test.ts` | Billing months — 31 January clamps to February's last day |
 | `lib/i18n/i18n.test.ts` | Right-to-left follows the locale; Arabic keeps Western digits |
 | `lib/sentence.test.ts` | Enums as sentences, not title case |
-| `server/lib/plans/run.test.ts` | Every nurture step ends with a person doing something, and each waits its own delay |
+| `server/lib/plans/run.test.ts` | Every nurture step ends with a person doing something, each waits its own delay, a resume is not undone by the reply that paused it, and a step that would do nothing is refused |
 | `lib/log.test.ts` | Nothing personal reaches a log — in the message and context as well as the extras |
 
 **They were checked against deliberate breakage, not just run.** Setting
@@ -418,12 +418,12 @@ Ask — an agent can see what they asked for earlier and what came back.
 - **Voice recipes** `BOOK_VIEWING` and `COMPARABLES` return a follow-up
   question rather than completing in one step. Deliberate, but the second
   step is not wired to the booking screen.
-**Unit tests cover the pure logic, not the codebase.** 314 assertions in 18 files,
+**Unit tests cover the pure logic, not the codebase.** 322 assertions in 18 files,
   across money, the 24-hour window, Dubai sending hours, the search
   parser, lead scoring, deal risk, the assistant's guardrails and the
   interface's Arabic — the
   pure logic where being wrong is expensive and silent. Everything
-  stateful is still covered only by the 46 check suites and the
+  stateful is still covered only by the 47 check suites and the
   23 browser checks, which is not the same thing as a test suite. What is
   left untested in `assistant/` is everything that needs a model:
   `run.ts` and `prompt.ts` are exercised only through `check:autonomy`

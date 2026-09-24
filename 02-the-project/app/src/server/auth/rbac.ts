@@ -94,6 +94,14 @@ export const PERMISSIONS = [
    * and the revenue report said the brokerage had earned nothing.
    */
   "commission:settle",
+
+  /**
+   * Writing the brokerage's nurture plans — the sequences every agent
+   * then puts their own people on. A manager's, because a plan is a
+   * house decision about how often clients hear from the firm; any agent
+   * with `lead:update` may put their own lead on one, pause it or stop it.
+   */
+  "plan:manage",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -114,7 +122,7 @@ const AGENT: Permission[] = [
 const MANAGER: Permission[] = [
   ...AGENT, "lead:read:all", "lead:assign", "lead:delete",
   "listing:write", "channel:read", "audit:read", "member:invite",
-  "document:write",
+  "document:write", "plan:manage",
   // A sales manager runs the floor and is measured on what it bills.
   // Withholding the number they are accountable for makes the board an
   // instrument of management rather than a tool they use.

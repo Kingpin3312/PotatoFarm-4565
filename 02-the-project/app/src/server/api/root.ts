@@ -26,6 +26,7 @@ import { dealsRouter } from "./routers/deals";
 import { activityRouter } from "./routers/activity";
 import { searchRouter } from "./routers/search";
 import { documentsRouter } from "./routers/documents";
+import { plansRouter } from "./routers/plans";
 
 /**
  * The API surface.
@@ -75,6 +76,9 @@ export const appRouter = router({
   // with nothing able to put a row in it.
   documents: documentsRouter,
   routing: routingRouter,
+  // Nurture plans. The nightly job that works them had been running
+  // over a table nothing could write.
+  plans: plansRouter,
 
   privacy: privacyRouter,
   support: supportRouter,

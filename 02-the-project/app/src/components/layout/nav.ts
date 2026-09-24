@@ -82,6 +82,7 @@ export const SETTINGS_NAV: NavItem[] = [
   { href: "/settings/assistant", labelKey: "nav.assistantQuestions" },
   { href: "/settings/hours", labelKey: "nav.hours" },
   { href: "/settings/routing", labelKey: "nav.routing" },
+  { href: "/settings/plans", labelKey: "nav.plans" },
   { href: "/settings/channels", labelKey: "nav.channels" },
   { href: "/settings/import", labelKey: "nav.import" },
   { href: "/team", labelKey: "nav.team" },

@@ -48,6 +48,7 @@ export const en = {
   "nav.assistantQuestions": "What it asks",
   "nav.hours": "Working hours",
   "nav.routing": "Routing",
+  "nav.plans": "Nurture plans",
   "nav.channels": "Channels",
   "nav.import": "Import",
   "nav.team": "Team",

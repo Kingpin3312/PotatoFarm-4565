@@ -59,6 +59,7 @@ export const ar: Messages = {
   "nav.assistantQuestions": "ما يسأل عنه",
   "nav.hours": "ساعات العمل",
   "nav.routing": "توزيع العملاء",
+  "nav.plans": "خطط المتابعة",
   "nav.channels": "القنوات",
   "nav.import": "الاستيراد",
   "nav.team": "الفريق",
