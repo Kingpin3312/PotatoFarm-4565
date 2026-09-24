@@ -70,7 +70,7 @@
     },
     {
       "path": "/api/cron/feedback.vendor-report",
-      "schedule": "0 8 * * 1"
+      "schedule": "0 5 * * *"
     },
     {
       "path": "/api/cron/billing.trials",

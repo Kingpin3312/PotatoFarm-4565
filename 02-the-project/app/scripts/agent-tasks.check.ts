@@ -62,6 +62,7 @@ async function cleanup() {
   if (!ids.length) return;
   const where = { orgId: { in: ids } };
   await root.followUp.deleteMany({ where });
+  await root.vendorReport.deleteMany({ where });
   await root.viewingFeedback.deleteMany({ where });
   await root.planSubscription.deleteMany({ where });
   await root.planStep.deleteMany({ where });
@@ -71,6 +72,7 @@ async function cleanup() {
   await root.conversation.deleteMany({ where });
   await root.lead.deleteMany({ where });
   await root.listing.deleteMany({ where });
+  await root.vendor.deleteMany({ where });
   await root.channel.deleteMany({ where });
   await root.membership.deleteMany({ where });
   await root.organisation.deleteMany({ where: { id: { in: ids } } });
@@ -320,6 +322,73 @@ async function main() {
   }
 
   /* ------------------------------------------------------------------ */
+  console.log("\n=== an owner's weekly report reaches an agent, on the owner's day ===");
+  {
+    const dow = new Date().getUTCDay() === 0 ? 7 : new Date().getUTCDay();
+    const other = (dow % 7) + 1;
+    const boss = await root.user.upsert({
+      where: { email: EMAIL("owner") }, create: { email: EMAIL("owner"), name: "Omar Haddad" }, update: {},
+    });
+    await root.membership.create({ data: { orgId: org.id, userId: boss.id, role: "OWNER" } });
+    const vendor = (name: string, o: Record<string, unknown>) =>
+      root.vendor.create({ data: { orgId: org.id, name, phone: `+9715099${Math.floor(Math.random() * 1e5)}`, reportDay: dow, ...o } });
+    const property = (ref: string, vendorId: string) => root.listing.create({
+      data: { orgId: org.id, reference: ref, title: `${ref} flat`, community: "Marina", bedrooms: 2,
+              priceFils: M(2_000_000), purpose: "SALE", status: "AVAILABLE", vendorId },
+    });
+    const due = await vendor("Hana Suleiman", { prefers: "WHATSAPP" });
+    const caller = await vendor("Rashid Al Amiri", { prefers: "CALL" });
+    const offersOnly = await vendor("Offers Only Owner", { prefers: "OFFERS_ONLY" });
+    const muted = await vendor("Reports Off Owner", { reportsOff: true });
+    const notToday = await vendor("Not Today Owner", { reportDay: other });
+    const shown = await property("VR-1", due.id);
+    await property("VR-2", caller.id);
+    for (const v of [offersOnly, muted, notToday]) await property(`VR-${v.id.slice(-4)}`, v.id);
+    await root.viewing.create({
+      data: { orgId: org.id, leadId: (await lead("Viewer For Report")).id, listingId: shown.id, agentId: agent.id,
+              scheduledAt: new Date(Date.now() - 3 * 86_400_000), durationMins: 30, status: "COMPLETED" },
+    });
+
+    const res = (await JOBS["feedback.vendor-report"]()) as Record<string, unknown>;
+    ok("the job ran and nothing failed", res.ok === true && res.failed === 0, JSON.stringify(res));
+    const taskFor = (name: string) => root.followUp.findFirst({ where: { orgId: org.id, title: { contains: name } } });
+
+    const t1 = await taskFor("Hana Suleiman");
+    ok("the owner due today gets a report, on WhatsApp as they asked",
+       t1?.title === "Send Hana Suleiman this week's update on WhatsApp", t1?.title ?? "no task");
+    ok("to the agent who showed their property, and it says why",
+       t1?.agentId === agent.id && !!t1?.body?.includes("you showed one of their properties"));
+    const row = await root.vendorReport.findFirst({ where: { listingId: shown.id } });
+    ok("the report is kept, and not recorded as sent", !!row && row.sentAt === null);
+
+    // No viewings at all is still a report: an owner who hears nothing
+    // assumes nobody is trying.
+    const t2 = await taskFor("Rashid Al Amiri");
+    ok("an owner who asked for a call gets a call, even with no viewings to report",
+       t2?.title === "Call Rashid Al Amiri with this week's update" && t2?.agentId === boss.id,
+       `${t2?.title ?? "no task"} → ${t2?.agentId === boss.id ? "the brokerage owner" : t2?.agentId}`);
+
+    for (const [who, label] of [[offersOnly, "offers only"], [muted, "reports switched off"], [notToday, "a different day"]] as const) {
+      const ids = (await root.listing.findMany({ where: { vendorId: who.id }, select: { id: true } })).map((l) => l.id);
+      ok(`nothing for an owner who asked for ${label}`,
+         !(await taskFor(who.name)) && !(await root.vendorReport.findFirst({ where: { listingId: { in: ids } } })));
+    }
+
+    const again = (await JOBS["feedback.vendor-report"]()) as Record<string, unknown>;
+    // Asserted as ran-not-skipped too: a second run that is skipped
+    // outright passes the count below without testing anything — which
+    // is how a leaked job lock hid a missing once-a-week guard here.
+    ok("run again the same week, nobody gets it twice",
+       !("skipped" in again) &&
+       (await root.followUp.count({ where: { orgId: org.id, title: { contains: "this week's update" } } })) === 2,
+       JSON.stringify(again));
+
+    const crons = JSON.parse(fs.readFileSync("vercel.json", "utf8")).crons as { path: string; schedule: string }[];
+    ok("it runs every day, so every report day comes round",
+       crons.find((c) => c.path.endsWith("/feedback.vendor-report"))?.schedule.split(" ")[4] === "*");
+  }
+
+  /* ------------------------------------------------------------------ */
   console.log("\n=== and nobody was recorded as contacted ===");
   {
     const stamped = await root.lead.count({ where: { orgId: org.id, lastOutreachAt: { not: null } } });
@@ -346,9 +415,9 @@ async function main() {
     });
 
     const mine = await caller(agent.id).followUps();
-    // Five: three plan steps (one was silent, one had nobody), one
-    // viewing, one visa renewal.
-    ok("the agent sees every task due today", mine.length === 5, `${mine.length} listed`);
+    // Six: three plan steps (one was silent, one had nobody), one
+    // viewing, one visa renewal, one owner's weekly report.
+    ok("the agent sees every task due today", mine.length === 6, `${mine.length} listed`);
     ok("and not the one due later in the week", !mine.some((f) => f.id === later.id));
     ok("with the person it is about",
        mine.some((f) => f.lead?.name === "Priya Nair"));

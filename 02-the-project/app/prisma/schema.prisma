@@ -1130,7 +1130,7 @@ model Notification {
   body      String
   deeplink  String
 
-  sentAt     DateTime  @default(now())
+  sentAt      DateTime  @default(now())
   /// When it actually reached a device, as distinct from `sentAt`,
   /// which is when the thing happened — `digest.ts` is explicit that
   /// moving `sentAt` would make an overnight lead look like it arrived
@@ -1147,11 +1147,11 @@ model Notification {
   /// client that could register one is the Expo app, which cannot
   /// build.
   deliveredAt DateTime?
-  readAt     DateTime?
-  actedAt    DateTime?
+  readAt      DateTime?
+  actedAt     DateTime?
   /// Which rung of the escalation ladder this was.
-  escalation Int       @default(0)
-  suppressed String?
+  escalation  Int       @default(0)
+  suppressed  String?
 
   @@unique([orgId, userId, kind, subjectId])
   @@index([orgId, userId, readAt])
@@ -1365,6 +1365,20 @@ enum InvoiceStatus {
 /// A run of a scheduled job. Kept because a job that silently stops
 /// running is the same failure mode as everything else in this system —
 /// nothing errors, things just quietly stop happening.
+/// Who is running a scheduled job, and until when.
+///
+/// Replaces a session-level advisory lock, which belongs to the
+/// connection that took it — and the runner released it on a different
+/// pooled connection, so it leaked and every later run of the job in
+/// that process was skipped. See `jobs/runner.ts`. Not tenant data: a job
+/// runs across every brokerage.
+model JobLease {
+  job        String   @id
+  holder     String
+  until      DateTime
+  acquiredAt DateTime @default(now())
+}
+
 model JobRun {
   id         String    @id @default(cuid())
   job        String

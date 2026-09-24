@@ -102,7 +102,7 @@ What is verified today, measured rather than assumed:
   `/api/health` returns `200 {"ok":true}` against a real Postgres.
 - The boot log names every unconfigured service with its consequence —
   six of them in a bare development environment.
-- 314 assertions in 18 files, 42 check suites, 23 audits, all green.
+- 314 assertions in 18 files, 43 check suites, 23 audits, all green.
 
 Type errors on a fresh checkout are no longer expected. If you get one,
 it is new.
@@ -339,7 +339,7 @@ not want.
 
 ## The shape that keeps recurring
 
-Eighteen times a complete, tested, documented module has turned out to have
+Nineteen times a complete, tested, documented module has turned out to have
 nothing that starts it — and the sixth is the product itself:
 
 1. **Billing** could invoice a customer no code path could create.
@@ -624,6 +624,25 @@ nothing that starts it — and the sixth is the product itself:
    drives a fee from forecast to paid and reads each screen's own query
    back at every step.
 
+19. **The owner's weekly report**, written every Monday to a table and
+   never read or sent. `vendorsDueToday()` — reports off, offers only,
+   which day — had no caller, so every owner's instructions were
+   ignored; the default report day is Thursday and the job ran on
+   Mondays; and a listing with no viewings was skipped beneath a module
+   saying that is exactly when an owner most needs to hear from us. It
+   now runs daily, takes the owners due, and puts each report on an
+   agent's list in the channel the owner chose.
+
+   Proving it found the worst bug of the batch, in the apparatus: the
+   **job runner's lock leaked**. A session-level advisory lock was taken
+   on one pooled connection and released on another, so after any run
+   that opened more than one connection, every later run of that job in
+   the process was skipped as "already running". A test asserting "run
+   twice, nothing duplicated" passed *because the second run never
+   happened*. The lock is a lease row now (`check:job-runner`), and the
+   assertion also checks the second run was not skipped. **A check that
+   passes because its action was refused has tested the refusal.**
+
 **The same shape, one layer up: fifteen finished components no screen
 imported.** `architecture.py` grew a `KNOWN_UNMOUNTED` ratchet and it
 started at nine, went to fifteen when the resolver was fixed, and is
@@ -709,7 +728,7 @@ send path read it.
 ## Run the tests
 
     npm test          # 314 assertions, pure functions, no database
-    npm run verify    # tsc, the tests, 42 check suites, 23 audits
+    npm run verify    # tsc, the tests, 43 check suites, 23 audits
 
 **The gate is now green end to end, including the two things that used
 to skip.** `verify` reports what it did not run rather than counting a
@@ -1040,6 +1059,12 @@ with an empirical floor under it.
   lead exists, and cannot record a visa renewal date, which is the only
   input the visa sweep has. The sweep is correct and has never had
   anybody to find.
+- **Who looks after a listing or an owner.** Neither `Listing` nor
+  `Vendor` records an agent, so the owner's weekly report goes to
+  whoever showed one of their properties most recently, else whoever
+  handled an offer, else the brokerage's owner — and the task says
+  which, so a wrong guess is visible. A listing agent is a field most
+  brokerages would expect to set.
 - **Recording viewing feedback.** `feedback.ask` puts the one question
   on the agent's list; nothing writes the buyer's answer
   (`ViewingFeedback.verdict`, `answeredAt`), so the weekly vendor report

@@ -13,11 +13,21 @@ twice, and that one does not get forgiven.
 
 Two overlapping defences, on purpose:
 
-1. **A Postgres advisory lock** — one run of a job at a time across every
-   instance. No Redis and no new dependency; the database is already
-   there and already the thing everything else agrees on. `try_lock`
-   rather than `lock`, because a second run should skip rather than wait —
-   waiting just means two runs happen back to back.
+1. **A lease row per job** (`JobLease`) — one run of a job at a time
+   across every instance. No Redis and no new dependency; the database is
+   already there and already the thing everything else agrees on. A
+   second run skips rather than waits, because waiting just means two
+   runs back to back.
+
+   It was a session-level advisory lock, and that was the bug: the lock
+   belongs to the connection that took it, and the release ran on
+   whichever pooled connection came next. After any run that used more
+   than one connection the lock leaked and every later run of that job
+   in the process was skipped as "already running" — measured, one run
+   then five skips. A lease row is taken and released by single
+   statements that work on any connection, and expires on its own if a
+   process dies mid-run. `check:job-runner` proves it runs every time,
+   never twice at once, and recovers from a dead holder.
 2. **Every job is independently idempotent.** The lock is not trusted on
    its own, because a lock is a runtime guarantee and money is not a
    runtime concern. Invoices are keyed on subscription and period,
