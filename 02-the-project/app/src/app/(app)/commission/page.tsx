@@ -30,11 +30,17 @@ export default function CommissionPage() {
         </h1>
       </header>
 
-      <div className="grid grid-cols-3 max-[640px]:grid-cols-1 border-t border-ink mt-8">
+      {/* Two by two. Four across an 860px column put every amount over
+          two lines — "AED" above "84,000.00" — which is the one thing
+          on this screen that has to read at a glance. */}
+      <div className="grid grid-cols-2 max-[480px]:grid-cols-1 border-t border-ink mt-8">
         <Figure label="Paid" value={data.paid} />
         {/* The one that matters. Earned, confirmed received by the
             brokerage, and not yet in their account. */}
         <Figure label="Owed to you" value={data.owed} highlight />
+        {/* Billed to the client, not yet received. It fell between the
+            other three and disappeared from this screen until now. */}
+        <Figure label="Invoiced, awaiting payment" value={data.invoiced} />
         <Figure label="Forecast" value={data.forecast} muted />
       </div>
 
@@ -67,7 +73,7 @@ export default function CommissionPage() {
 
 function Figure({ label, value, highlight, muted }: { label: string; value: string; highlight?: boolean; muted?: boolean }) {
   return (
-    <div className="px-5 py-5 border-e border-b border-rule last:border-e-0 max-[640px]:border-e-0">
+    <div className="px-5 py-5 border-b border-rule odd:border-e max-[480px]:odd:border-e-0">
       <div className={`font-sans font-semibold text-title leading-none ${highlight ? "text-accent-deep" : muted ? "text-ink-3" : "text-ink"}`}>
         {value}
       </div>

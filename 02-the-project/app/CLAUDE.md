@@ -102,7 +102,7 @@ What is verified today, measured rather than assumed:
   `/api/health` returns `200 {"ok":true}` against a real Postgres.
 - The boot log names every unconfigured service with its consequence —
   six of them in a bare development environment.
-- 310 assertions in 17 files, 41 check suites, 23 audits, all green.
+- 310 assertions in 17 files, 42 check suites, 23 audits, all green.
 
 Type errors on a fresh checkout are no longer expected. If you get one,
 it is new.
@@ -339,7 +339,7 @@ not want.
 
 ## The shape that keeps recurring
 
-Seventeen times a complete, tested, documented module has turned out to have
+Eighteen times a complete, tested, documented module has turned out to have
 nothing that starts it — and the sixth is the product itself:
 
 1. **Billing** could invoice a customer no code path could create.
@@ -608,6 +608,22 @@ nothing that starts it — and the sixth is the product itself:
    joining that forgets the ledger is found in a day rather than never.
    `check:team-changes` drives all of it through the real procedures.
 
+18. **Commission that could never be received.** `CommissionStatus`
+   had four values and nothing set it past FORECAST; `CommissionSplit.paidAt`
+   was read by three screens and written by none. "Owed to you" is
+   received-and-unpaid, and the revenue report dates everything it
+   earned by `receivedAt` — so every agent was owed nothing and every
+   brokerage had earned nothing, on two screens whose own comments warn
+   that zero "reads as 'we earned nothing', which is the reassuring
+   direction to be wrong in". An INVOICED fee also fell into none of the
+   agent's figures, so it would have vanished the moment it was billed.
+
+   `commission.setStatus` and `markPaid` now move money along, behind a
+   `commission:settle` permission held by owners and admins — a sales
+   manager reads the book and does not pay people. `check:commission-lifecycle`
+   drives a fee from forecast to paid and reads each screen's own query
+   back at every step.
+
 **The same shape, one layer up: fifteen finished components no screen
 imported.** `architecture.py` grew a `KNOWN_UNMOUNTED` ratchet and it
 started at nine, went to fifteen when the resolver was fixed, and is
@@ -693,7 +709,7 @@ send path read it.
 ## Run the tests
 
     npm test          # 310 assertions, pure functions, no database
-    npm run verify    # tsc, the tests, 41 check suites, 23 audits
+    npm run verify    # tsc, the tests, 42 check suites, 23 audits
 
 **The gate is now green end to end, including the two things that used
 to skip.** `verify` reports what it did not run rather than counting a

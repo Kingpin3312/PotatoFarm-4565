@@ -80,6 +80,20 @@ export const PERMISSIONS = [
    * before anybody asks.
    */
   "revenue:read",
+
+  /**
+   * Moving money along: a commission invoiced, received or written off,
+   * and an agent's share marked paid.
+   *
+   * Separate from `revenue:read` because seeing what the firm earned and
+   * recording that somebody has been paid are different acts, and the
+   * second is the one an agent's pay depends on. A sales manager reads
+   * the board; the owner and the admin run the books. Nothing held this
+   * permission's work before it existed — no procedure moved a
+   * commission past FORECAST — so every agent's "owed to you" was zero
+   * and the revenue report said the brokerage had earned nothing.
+   */
+  "commission:settle",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -108,7 +122,7 @@ const MANAGER: Permission[] = [
 ];
 
 const ADMIN: Permission[] = [
-  ...MANAGER, "org:update",
+  ...MANAGER, "org:update", "commission:settle",
   "member:update", "member:remove", "channel:write", "export:all",
   "kyc:approve",
   // Deliberately absent: compliance:read and compliance:file. An admin

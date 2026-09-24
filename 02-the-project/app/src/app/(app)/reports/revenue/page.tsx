@@ -4,6 +4,7 @@ import { api } from "@/lib/trpc";
 import { Bars } from "@/components/ui/chart";
 import { QueryError } from "@/components/ui/query-state";
 import { aedShort } from "@/lib/money";
+import { ToSettle } from "./to-settle";
 
 /**
  * What the brokerage earned.
@@ -125,6 +126,11 @@ export default function Revenue() {
           becomes a habit.
         </p>
       )}
+
+      {/* Directly under the figures it moves. Every number on this page
+          that depends on money arriving read zero until something could
+          mark a fee received — this is that something. */}
+      <ToSettle />
 
       <h2 className="font-sans font-semibold text-section text-ink mt-12 mb-1">By month</h2>
       <p className="text-sm text-ink-3 max-w-[60ch]">
