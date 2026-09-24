@@ -1,4 +1,5 @@
 import { crossTenant } from "@/server/db/client";
+import { endpoint } from "@/server/lib/loopback";
 import { buildSystemPrompt } from "./prompt";
 import { screenOutbound } from "./guardrails";
 
@@ -60,6 +61,9 @@ export async function replay(args: {
       orgId: args.orgId,
       updatedAt: { gte: since },
       messages: { some: { author: "ASSISTANT" } },
+      // Buyers only. The assistant never speaks to an owner, so an owner's
+      // thread is not a case it can be replayed against.
+      leadId: { not: null },
     },
     take: sample,
     orderBy: { updatedAt: "desc" },
@@ -88,6 +92,8 @@ export async function replay(args: {
   const cases: ReplayCase[] = [];
 
   for (const c of conversations) {
+    if (!c.lead) continue;
+    const lead = c.lead;
     // Cut the thread at the last lead message the assistant answered, so
     // the candidate is asked the same question the original was.
     const lastAssistantAt = c.messages.map((m) => m.author).lastIndexOf("ASSISTANT");
@@ -98,7 +104,7 @@ export async function replay(args: {
     // compiler cannot see that through the guard above.
     const original = c.messages[lastAssistantAt]?.body;
     if (original === undefined) continue;
-    const listing = c.lead.enquiries[0]?.listing ?? null;
+    const listing = lead.enquiries[0]?.listing ?? null;
 
     const facts = new Set(
       [
@@ -119,7 +125,7 @@ export async function replay(args: {
       agentName: null,
       questions: profile.questions.map((q) => ({ key: q.key, prompt: q.prompt, required: q.required })),
       listing: listing as any,
-      language: c.lead.language ?? "en",
+      language: lead.language ?? "en",
       tone: profile.tone,
     });
 
@@ -128,7 +134,7 @@ export async function replay(args: {
 
     cases.push({
       conversationId: c.id,
-      leadName: c.lead.name,
+      leadName: lead.name,
       transcript: context.map((m) => ({
         role: m.direction === "INBOUND" ? "lead" : "assistant",
         body: m.body,
@@ -158,7 +164,7 @@ const normalise = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
 
 /** Generation only. No send path exists from this module. */
 async function draft(system: string, history: { body: string; direction: string }[]) {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
+  const res = await fetch(`${endpoint("ASSISTANT_API_BASE", "https://api.anthropic.com")}/v1/messages`, {
     method: "POST",
     headers: {
       "content-type": "application/json",

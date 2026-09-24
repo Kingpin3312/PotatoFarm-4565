@@ -1,4 +1,5 @@
 import { log, report } from "@/lib/log";
+import { endpoint } from "@/server/lib/loopback";
 import { aedToFils } from "@/lib/money";
 import { forOrg } from "@/server/db/client";
 import { audit } from "@/server/lib/audit";
@@ -91,6 +92,19 @@ export async function respond(orgId: string, conversationId: string) {
   });
   if (!convo) return { sent: false, reason: "no_conversation" };
 
+  /**
+   * Never to an owner.
+   *
+   * The assistant qualifies buyers: its questions, its facts block and
+   * its guardrails are all written for somebody asking about a property.
+   * An owner writing about their own home — the price, an offer, the
+   * keys — is talking to their agent, and a qualifying question in reply
+   * is how a brokerage loses an instruction. No handover is raised
+   * either: nothing was being handled by the assistant to hand over.
+   */
+  if (!convo.lead) return { sent: false, reason: "owner_conversation" };
+  const lead = convo.lead;
+
   // 1. A human already has it. The assistant does not "assist" alongside
   //    them — it is silent until released.
   if (convo.humanHandover) return { sent: false, reason: "handover_active" };
@@ -117,7 +131,7 @@ export async function respond(orgId: string, conversationId: string) {
   });
   if (!profile) return handover(db, orgId, convo.id, "low_confidence");
 
-  const listing = convo.lead.enquiries[0]?.listing ?? null;
+  const listing = lead.enquiries[0]?.listing ?? null;
 
   /**
    * The price, in dirhams, as a plain digit string.
@@ -153,7 +167,7 @@ export async function respond(orgId: string, conversationId: string) {
 
   const system = buildSystemPrompt({
     brokerage: convo.org.name,
-    agentName: convo.lead.assignedTo?.name ?? null,
+    agentName: lead.assignedTo?.name ?? null,
     questions: profile.questions.map((q) => ({ key: q.key, prompt: q.prompt, required: q.required })),
     // Built explicitly rather than passed through as `any`. The cast was
     // hiding the fact that the row and the prompt's Listing type disagree
@@ -169,7 +183,7 @@ export async function respond(orgId: string, conversationId: string) {
       purpose: listing.purpose as "SALE" | "RENT",
       status: listing.status,
     },
-    language: convo.lead.language ?? "en",
+    language: lead.language ?? "en",
     tone: profile.tone,
   });
 
@@ -194,19 +208,6 @@ export async function respond(orgId: string, conversationId: string) {
   } catch (err) {
     // A model outage must not leave a lead unanswered and unowned.
     report(err, { orgId }, { conversationId: convo.id, stage: "generation" });
-    /**
-     * The billable event.
-     *
-     * Recorded here and nowhere else — after the message actually left,
-     * not when the model was called. A reply that failed to send is a
-     * reply the brokerage did not get, and charging for it would be
-     * charging for our own failure.
-     *
-     * Deduplicated by a unique constraint on (conversation, day), so a
-     * buyer messaging six times in an afternoon is one charge.
-     */
-    await recordAnswered({ orgId, conversationId: convo.id });
-
     await record({
       orgId, conversationId: convo.id, purpose: "reply", model: MODEL,
       promptVersion: PROMPT_VERSION, inputTokens: 0, outputTokens: 0,
@@ -223,19 +224,6 @@ export async function respond(orgId: string, conversationId: string) {
     log.warn(`[assistant] draft rejected: ${checked.reason}`);
     // A blocked draft still cost money. Recording only successes gives a
     // ledger that under-reports exactly when something is going wrong.
-    /**
-     * The billable event.
-     *
-     * Recorded here and nowhere else — after the message actually left,
-     * not when the model was called. A reply that failed to send is a
-     * reply the brokerage did not get, and charging for it would be
-     * charging for our own failure.
-     *
-     * Deduplicated by a unique constraint on (conversation, day), so a
-     * buyer messaging six times in an afternoon is one charge.
-     */
-    await recordAnswered({ orgId, conversationId: convo.id });
-
     await record({
       orgId, conversationId: convo.id, purpose: "reply", model: MODEL,
       promptVersion: PROMPT_VERSION,
@@ -251,10 +239,11 @@ export async function respond(orgId: string, conversationId: string) {
   const { externalId } = await sendText({
     phoneNumberId: creds.phoneNumberId,
     accessToken: creds.accessToken,
-    to: convo.lead.phone.replace("+", ""),
+    to: lead.phone.replace("+", ""),
     body: checked.text,
   });
 
+  await db.conversation.update({ where: { id: convo.id }, data: { lastOutboundAt: new Date() } });
   await db.message.create({
     data: {
       orgId,
@@ -267,6 +256,24 @@ export async function respond(orgId: string, conversationId: string) {
     },
   });
 
+  /**
+   * The billable event.
+   *
+   * Recorded here and nowhere else — after the message actually left,
+   * not when the model was called. A reply that failed to send is a
+   * reply the brokerage did not get, and charging for it would be
+   * charging for our own failure.
+   *
+   * That paragraph sat, twice, on the two paths where nothing was sent —
+   * the model failing and the draft being blocked — and this, the one
+   * path where a reply did leave, recorded nothing. Every charge would
+   * have been for a failure and no success would ever have been billed.
+   *
+   * Deduplicated by a unique constraint on (conversation, day), so a
+   * buyer messaging six times in an afternoon is one charge.
+   */
+  await recordAnswered({ orgId, conversationId: convo.id });
+
   await record({
     orgId, conversationId: convo.id, purpose: "reply", model: MODEL,
     promptVersion: PROMPT_VERSION,
@@ -276,7 +283,7 @@ export async function respond(orgId: string, conversationId: string) {
 
   // 8. Extraction runs separately, and never blocks the reply. The lead
   //    has their answer before any of this happens.
-  void extractAndStore(db, orgId, convo.lead.id, profile.id, history, checked.text);
+  void extractAndStore(db, orgId, lead.id, profile.id, history, checked.text);
 
   return { sent: true, latencyMs: Date.now() - started, trace };
 }
@@ -372,7 +379,7 @@ async function extractAndStore(
  * forget the kill switch — callers must still call `gate()` first.
  */
 export async function callModel(system: string, history: { body: string; direction: string }[]) {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
+  const res = await fetch(`${endpoint("ASSISTANT_API_BASE", "https://api.anthropic.com")}/v1/messages`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -408,7 +415,7 @@ async function callExtractor(history: { body: string; direction: string }[]): Pr
     .map((m) => `${m.direction === "INBOUND" ? "Lead" : "Assistant"}: ${m.body}`)
     .join("\n");
 
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
+  const res = await fetch(`${endpoint("ASSISTANT_API_BASE", "https://api.anthropic.com")}/v1/messages`, {
     method: "POST",
     headers: {
       "content-type": "application/json",

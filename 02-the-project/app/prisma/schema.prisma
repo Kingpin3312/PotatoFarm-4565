@@ -418,7 +418,12 @@ enum Intent {
 model Conversation {
   id     String @id @default(cuid())
   orgId  String
-  leadId String @unique
+  /// Exactly one of these — a conversation is with a buyer or with a
+  /// property owner. The database enforces it (`Conversation_one_party`);
+  /// Prisma cannot express it. A conversation with nobody is invisible
+  /// in every list and impossible to reach.
+  leadId   String? @unique
+  vendorId String? @unique
 
   channelId String
 
@@ -455,7 +460,8 @@ model Conversation {
   updatedAt   DateTime @updatedAt
 
   org      Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  lead     Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  lead     Lead?        @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  vendor   Vendor?      @relation(fields: [vendorId], references: [id], onDelete: Cascade)
   channel  Channel      @relation(fields: [channelId], references: [id])
   messages Message[]
 
@@ -1178,6 +1184,10 @@ enum NotificationKind {
   /// A personal follow-up the agent set themselves, usually from a
   /// voice note. Theirs, so it goes to them and nobody else.
   FOLLOW_UP_DUE
+  /// A property owner wrote and nobody has answered. Nothing else
+  /// announces it: the assistant never replies to an owner, so no
+  /// handover is ever raised on their thread.
+  OWNER_WAITING
 }
 
 // ----------------------------------------------------------- onboarding
@@ -2618,6 +2628,8 @@ model Vendor {
   /// because row-level security, not a foreign key, is what enforces
   /// tenancy. Relations are added where something actually walks them.
   listings Listing[]
+  /// Their WhatsApp thread with the brokerage, once there is one.
+  conversation Conversation?
 
   @@index([orgId])
   @@index([orgId, phone])

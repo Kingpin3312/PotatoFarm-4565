@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { api } from "@/lib/trpc";
 import { cn } from "@/lib/cn";
 
@@ -16,6 +17,12 @@ import { cn } from "@/lib/cn";
  */
 export function VendorBrief({ vendorId }: { vendorId: string }) {
   const { data, isLoading } = api.vendors.brief.useQuery({ vendorId });
+  const router = useRouter();
+  // Their thread in the inbox, opened the first time. Until this existed
+  // every message to an owner went from the agent's own phone.
+  const open = api.vendors.openConversation.useMutation({
+    onSuccess: ({ conversationId }) => router.push(`/inbox/${conversationId}`),
+  });
   if (isLoading || !data) return null;
 
   const dontCall = data.prefers === "OFFERS_ONLY";
@@ -35,13 +42,20 @@ export function VendorBrief({ vendorId }: { vendorId: string }) {
         {data.actingFor && (
           <span className="text-sm text-ink-2">acting for {data.actingFor}</span>
         )}
+        {data.whatsapp && (
+          <button type="button" onClick={() => open.mutate({ vendorId })} disabled={open.isPending}
+            className="ms-auto btn-inline">
+            WhatsApp
+          </button>
+        )}
         {data.phone && (
           <a href={`tel:${data.phone}`}
-             className={cn("ms-auto btn-inline", dontCall && "opacity-60")}>
+             className={cn("btn-inline", !data.whatsapp && "ms-auto", dontCall && "opacity-60")}>
             Call
           </a>
         )}
       </div>
+      {open.error && <p role="alert" className="text-sm text-danger mt-2 max-w-[52ch]">{open.error.message}</p>}
 
       {/* Before the number, not after. */}
       {data.callAdvice && (

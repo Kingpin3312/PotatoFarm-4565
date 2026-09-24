@@ -102,7 +102,7 @@ What is verified today, measured rather than assumed:
   `/api/health` returns `200 {"ok":true}` against a real Postgres.
 - The boot log names every unconfigured service with its consequence —
   six of them in a bare development environment.
-- 328 assertions in 19 files, 47 check suites, 23 audits, all green.
+- 328 assertions in 19 files, 48 check suites, 23 audits, all green.
 
 Type errors on a fresh checkout are no longer expected. If you get one,
 it is new.
@@ -322,10 +322,23 @@ missing that no audit had looked for.
 
 **A conversation is with a party, and a party is a buyer or an owner.**
 `Conversation.leadId` used to be required and unique, so half of an
-agent's talking happened outside the system. `rls.sql` carries a check
-constraint enforcing exactly one of `leadId` / `vendorId` — Prisma
-cannot express it and a conversation belonging to nobody is invisible in
-every list and impossible to reach.
+agent's talking happened outside the system. **This paragraph described
+that as done for months while it was not** — there was no `vendorId`
+column, and the constraint it named sat in `rls.sql` unapplied. It is
+done now: `leadId` and `vendorId` are both optional, the database holds
+exactly one (`Conversation_one_party`, migration
+`20260929090000_owner_conversations`), and **every reader asks
+`lib/conversations/party.ts`** who the thread is with and who may open it.
+Filtering conversations by `lead: { … }` silently hides every owner's
+thread — from managers too, since a relation filter on a null relation is
+false — so use `conversationScope`, not `leadScope`.
+
+An owner writing to the brokerage's number lands on their own thread,
+matched by their normalised number, rather than becoming a new buyer
+handed to the rotation. The assistant never replies there (`respond()`
+returns `owner_conversation`); the agent who looks after their property
+is told if nobody answers in half an hour (`OWNER_WAITING`). "Stop" from
+an owner turns their weekly report off. `check:owner-conversations`.
 
 **The reply window applies to owners too.** Meta's rule is about the
 number on the other end, not about how we filed them. Owners go quiet for
@@ -349,7 +362,7 @@ not want.
 
 ## The shape that keeps recurring
 
-Twenty times a complete, tested, documented module has turned out to have
+Twenty-one times a complete, tested, documented module has turned out to have
 nothing that starts it — and the sixth is the product itself:
 
 1. **Billing** could invoice a customer no code path could create.
@@ -663,6 +676,29 @@ nothing that starts it — and the sixth is the product itself:
    was re-read every run for ever. **A job tested only on rows it did not
    have to earn is tested on the cases its author imagined.**
 
+21. **The assistant's reply.** `respond()` screens the enquiry, asks the
+   model, checks every figure against the listing and sends — and
+   **nothing calls it**. No webhook, job or route: the WhatsApp ingest
+   stores the message and stops. So the product's one-line promise, "an
+   assistant answers property enquiries within seconds", has never
+   executed anywhere, including in a check, because its model and
+   WhatsApp addresses were fixed and no stand-in could reach them. Item 6
+   above fixed the profile it needed and did not notice it had no caller.
+
+   Running it for the first time found its billing inverted: the
+   paragraph saying a conversation is charged "after the message
+   actually left" sat, twice, on the two paths where nothing was sent —
+   the model failing and the draft being blocked — and the one path
+   where a reply did leave recorded nothing. Fixed and proven in
+   `check:owner-conversations`, against loopback stand-ins
+   (`lib/loopback.ts`).
+
+   **It is still not wired, on purpose.** Calling it from the ingest
+   sends messages to buyers with no person pressing send, which is the
+   line this product has drawn for proactive messages. Whether a reply
+   to somebody who wrote first is on the same side of that line is the
+   owner's decision, and it has been put to them.
+
 **The same shape, one layer up: fifteen finished components no screen
 imported.** `architecture.py` grew a `KNOWN_UNMOUNTED` ratchet and it
 started at nine, went to fifteen when the resolver was fixed, and is
@@ -748,7 +784,7 @@ send path read it.
 ## Run the tests
 
     npm test          # 328 assertions, pure functions, no database
-    npm run verify    # tsc, the tests, 47 check suites, 23 audits
+    npm run verify    # tsc, the tests, 48 check suites, 23 audits
 
 **The gate is now green end to end, including the two things that used
 to skip.** `verify` reports what it did not run rather than counting a
@@ -1116,6 +1152,14 @@ with an empirical floor under it.
   due and was re-read every run for ever. `check:nurture-plans`.
   Still not built: putting somebody on a plan automatically when they
   say "in six months", and which step loses people.
+- **The assistant replying by itself.** `respond()` works end to end
+  against stand-ins and nothing calls it — see item 21 above. Wiring it
+  is one call after the ingest stores a buyer's message; it waits on a
+  decision, not on code.
+- **Erasure and data export for owners.** Both are keyed on a buyer's
+  phone number (`privacy/erase.ts`, `privacy/export.ts`). An owner's
+  WhatsApp thread is personal data too, and a request from one is
+  currently answered by hand.
 - **Sending proactive messages without a person.** Deliberately. Every
   job that decides somebody is worth contacting hands a draft to their
   agent. If a brokerage ever wants automatic sending, it is a change to

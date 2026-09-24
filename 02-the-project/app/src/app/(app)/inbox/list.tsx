@@ -93,7 +93,7 @@ export function InboxList({
                 <span aria-label="unread" className="size-[7px] rounded-full bg-accent shrink-0" />
               )}
               <span className="text-ui font-medium text-ink">
-                {c.lead.name ?? c.lead.phone}
+                {c.party.name ?? c.party.phone}
               </span>
               {/* The last message, not `updatedAt`.
                   `updatedAt` moves on any write to the row — a mute, a
@@ -112,8 +112,11 @@ export function InboxList({
             </span>
 
             <span className="flex gap-2.5 mt-2 flex-wrap items-center">
+              {/* Said in words: an owner writing about their own flat
+                  and a buyer asking about it read the same in a list. */}
+              {c.party.kind === "OWNER" && <Tag>Owner</Tag>}
               {c.humanHandover && <Tag highlight>Handover</Tag>}
-              {c.lead.budgetMaxFils && <Tag>{aedShort(c.lead.budgetMaxFils)}</Tag>}
+              {c.lead?.budgetMaxFils && <Tag>{aedShort(c.lead.budgetMaxFils)}</Tag>}
               <Tag dashed={!c.window.open}>
                 {c.window.open ? `Window ${c.window.hoursLeft}h` : "Window closed"}
               </Tag>

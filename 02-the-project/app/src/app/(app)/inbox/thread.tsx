@@ -81,17 +81,24 @@ export function Thread({ conversationId }: { conversationId: string }) {
   if (isError) return <QueryError retry={() => void refetch()} what="this" error={error} />;
   if (!data) return null;
 
-  const { window: w } = data;
+  const { window: w, party } = data;
+  const owner = party.kind === "OWNER";
 
   return (
     <div className="flex flex-col min-h-0 h-full">
       <header className="px-6 py-3.5 border-b border-ink flex items-center gap-3.5 flex-wrap">
         <div>
           <div className="font-sans font-semibold text-section text-ink">
-            {data.lead.name ?? data.lead.phone}
+            {party.name ?? party.phone}
           </div>
           <div className="font-mono text-label text-ink-3">
-            {data.lead.phone} · {data.lead.language}
+            {owner ? (
+              // Who this is, in words, and the way to everything else
+              // about them: their properties, offers and report day.
+              <a href={`/vendors/${party.id}`} className="no-underline hover:underline">Owner · their page</a>
+            ) : (
+              <>{party.phone} · {party.language}</>
+            )}
           </div>
         </div>
 
@@ -102,7 +109,7 @@ export function Thread({ conversationId }: { conversationId: string }) {
             still right, because the component that fixed it was
             imported by nothing. The number was here all along as plain
             text you cannot press. */}
-        <ContactRow phone={data.lead.phone} name={data.lead.name} compact quiet />
+        {party.phone && <ContactRow phone={party.phone} name={party.name} compact quiet />}
         {data.humanHandover && (
           // Says why the assistant stopped. Silence with no explanation
           // reads as a fault, and the agent rings support.
@@ -126,7 +133,8 @@ export function Thread({ conversationId }: { conversationId: string }) {
             header because it is a state to notice while reading, not a
             control to reach for: an agent scrolls to the bottom to
             reply, and what is outstanding is the last thing they pass. */}
-        <div className="px-6 pb-2">
+        {/* A buyer's file and routing. An owner has neither. */}
+        {data.lead && <div className="px-6 pb-2">
           <KycPanel leadId={data.lead.id} />
 
           {/* Why this lead is yours, and the two things you can do
@@ -136,7 +144,7 @@ export function Thread({ conversationId }: { conversationId: string }) {
               null when there is no routing history, so it is invisible
               where it has nothing to say. */}
           <LeadRouting leadId={data.lead.id} />
-        </div>
+        </div>}
 
         <div ref={endRef} />
       </div>
@@ -227,6 +235,8 @@ export function Thread({ conversationId }: { conversationId: string }) {
             muted={data.assistantMuted}
             windowOpen={w.open}
             handover={data.humanHandover}
+            owner={owner}
+            neverWrote={!data.lastInboundAt}
           />
         </div>
       </div>

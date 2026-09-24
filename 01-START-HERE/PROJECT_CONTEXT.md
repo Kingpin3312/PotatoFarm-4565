@@ -105,8 +105,8 @@ token, which the web app cannot do. Treat it as a design sketch.
 
 ## 4. What is built
 
-**77 database models · 62 enums · 28 API routers · 174 procedures ·
-45 screens · 27 scheduled jobs · 23 audit scripts · 47 check suites.**
+**77 database models · 62 enums · 28 API routers · 175 procedures ·
+45 screens · 27 scheduled jobs · 23 audit scripts · 48 check suites.**
 
 **Five procedures have no screen, and every one of them deliberately:**
 `aml.checkRear`, `aml.visibilityPolicy`, `onboarding.previewImport`,
@@ -148,13 +148,16 @@ chart; spoken requests ("Ask").
 ### What has been proved, not assumed
 
 - `npx tsc --noEmit` exits 0. It began at **352 errors**.
-- `npm run build` succeeds. Every route compiles: 38 pages and 11 API
-  routes. **None of the 38 is prerendered, and that is deliberate** —
+- `npm run build` succeeds. Every route compiles — 61 in the last
+  build, pages and API routes together. **None is prerendered, and that
+  is deliberate** —
   the nonce in `script-src` requires per-request rendering. See the
   security note in section 13. It costs little here: every page is
   behind sign-in and fetches through tRPC on the client, so what used to
   be prerendered was an empty shell.
-- Seven migrations exist and apply cleanly to an empty database.
+- All 25 migrations apply cleanly to an empty database — last checked
+  by creating one and running `migrate deploy` against it, not by
+  trusting the development database, which only ever sees the newest.
 - **Row-level security was tested with two brokerages in one database.**
   The second cannot see the first's leads. This is the whole security
   promise of the product and it is the one thing worth re-testing after
@@ -424,7 +427,7 @@ Ask — an agent can see what they asked for earlier and what came back.
   parser, lead scoring, deal risk, the assistant's guardrails and the
   interface's Arabic — the
   pure logic where being wrong is expensive and silent. Everything
-  stateful is still covered only by the 47 check suites and the
+  stateful is still covered only by the 48 check suites and the
   23 browser checks, which is not the same thing as a test suite. What is
   left untested in `assistant/` is everything that needs a model:
   `run.ts` and `prompt.ts` are exercised only through `check:autonomy`
@@ -794,7 +797,7 @@ Full spec: `03-brand/logo/SPEC.md`.
 ## 10. Database, API, auth, integrations
 
 **Database:** PostgreSQL via Prisma. `app/prisma/schema.prisma`, 77
-models. 22 migrations in `app/prisma/migrations/`. **`rls.sql` is
+models. 25 migrations in `app/prisma/migrations/`. **`rls.sql` is
 appended to the init migration** — it is not a file somebody has to
 remember to run, because the tenant boundary is not something to leave to
 memory.

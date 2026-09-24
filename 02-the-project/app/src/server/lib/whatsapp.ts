@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { endpoint } from "@/server/lib/loopback";
 // The bytes to forward to Meta. See storage.ts — the three functions the
 // file feature depends on had no implementation at all.
 import { readObject } from "./files/storage";
@@ -14,7 +15,8 @@ import { readObject } from "./files/storage";
  * team keeps working a pipeline that has gone silent.
  */
 
-const GRAPH = "https://graph.facebook.com/v21.0";
+/** Meta's Graph, or a loopback stand-in in a check — see `loopback.ts`. */
+const graph = () => endpoint("WHATSAPP_GRAPH_BASE", "https://graph.facebook.com/v21.0");
 const WINDOW_MS = 24 * 60 * 60 * 1000;
 
 export type WindowState = { open: boolean; closesAt: Date | null; hoursLeft: number | null };
@@ -76,7 +78,7 @@ export async function sendTemplate(args: Omit<SendArgs, "body"> & {
 }
 
 async function post(phoneNumberId: string, accessToken: string, payload: unknown) {
-  const res = await fetch(`${GRAPH}/${phoneNumberId}/messages`, {
+  const res = await fetch(`${graph()}/${phoneNumberId}/messages`, {
     method: "POST",
     headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -166,7 +168,7 @@ export async function sendDocument(args: {
   const blob = new Blob([new Uint8Array(bytes).buffer as ArrayBuffer], { type: args.mimeType });
   form.append("file", blob, args.fileName);
 
-  const up = await fetch(`https://graph.facebook.com/v21.0/${args.phoneNumberId}/media`, {
+  const up = await fetch(`${graph()}/${args.phoneNumberId}/media`, {
     method: "POST",
     headers: { Authorization: `Bearer ${args.accessToken}` },
     body: form,
@@ -179,7 +181,7 @@ export async function sendDocument(args: {
 
   // Step two: send it.
   const isImage = args.mimeType.startsWith("image/");
-  const res = await fetch(`https://graph.facebook.com/v21.0/${args.phoneNumberId}/messages`, {
+  const res = await fetch(`${graph()}/${args.phoneNumberId}/messages`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${args.accessToken}`,

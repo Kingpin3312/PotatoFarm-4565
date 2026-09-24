@@ -3,12 +3,43 @@ import { sendFile, libraryFor } from "@/server/lib/files/send";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { router, orgProcedure, requirePermission } from "../trpc";
-import { leadScope } from "@/server/auth/rbac";
+import { conversationScope, mineOnly, partyOf, partySelect, waNumber } from "@/server/lib/conversations/party";
 import { audit } from "@/server/lib/audit";
 import {
   messagingWindow, sendText, sendTemplate, WindowClosedError, WhatsAppError,
 } from "@/server/lib/whatsapp";
 import { getChannelCredentials } from "@/server/lib/secrets";
+
+/**
+ * The conversation, if the caller may act on it.
+ *
+ * `mute` and `takeover` updated by id alone, so any agent could silence
+ * the assistant on — or take over — a colleague's buyer. Row-level
+ * security keeps other brokerages out; this keeps one agent out of
+ * another's threads.
+ */
+async function theirs(
+  tx: { conversation: { findFirst(a: object): PromiseLike<unknown> } },
+  ctx: { role: Parameters<typeof conversationScope>[0]; userId: string },
+  id: string,
+) {
+  const c = await tx.conversation.findFirst({
+    where: { id, ...conversationScope(ctx.role, ctx.userId) }, select: { id: true },
+  });
+  if (!c) throw new TRPCError({ code: "NOT_FOUND" });
+}
+
+/** The number to send to, or a refusal that says what to fix. */
+function reachable(party: ReturnType<typeof partyOf>): string {
+  const to = waNumber(party.phone);
+  if (!to) {
+    throw new TRPCError({
+      code: "PRECONDITION_FAILED",
+      message: `${party.name ?? "They"} ha${party.name ? "s" : "ve"} no WhatsApp number we can read. Add it with the country code, e.g. +971 50 123 4567.`,
+    });
+  }
+  return to;
+}
 
 export const conversationsRouter = router({
   /**
@@ -28,6 +59,9 @@ export const conversationsRouter = router({
       caption: z.string().trim().max(1024).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
+      // `sendFile` finds the thread by id within the brokerage; whether
+      // it is this agent's to send to is decided here.
+      await theirs(ctx.db, ctx, input.conversationId);
       const res = await sendFile({
         orgId: ctx.orgId,
         conversationId: input.conversationId,
@@ -105,6 +139,7 @@ export const conversationsRouter = router({
     .input(z.object({ conversationId: z.string(), muted: z.boolean() }))
     .mutation(async ({ ctx, input }) =>
       ctx.db.$transaction(async (tx) => {
+        await theirs(tx, ctx, input.conversationId);
         const c = await tx.conversation.update({
           where: { id: input.conversationId },
           data: {
@@ -167,11 +202,15 @@ export const conversationsRouter = router({
     }))
     .query(async ({ ctx, input }) => {
       const rows = await ctx.db.conversation.findMany({
+        // AND, not spread: the scope and "mine" are both an OR, and
+        // spreading one over the other keeps only the second.
         where: {
-          lead: { deletedAt: null, ...leadScope(ctx.role, ctx.userId) },
+          AND: [
+            conversationScope(ctx.role, ctx.userId),
+            ...(input.filter === "mine" ? [mineOnly(ctx.userId)] : []),
+          ],
           ...(input.filter === "unread" && { unreadCount: { gt: 0 } }),
           ...(input.filter === "handover" && { humanHandover: true }),
-          ...(input.filter === "mine" && { lead: { assignedToId: ctx.userId } }),
         },
         take: input.limit + 1,
         cursor: input.cursor ? { id: input.cursor } : undefined,
@@ -186,6 +225,7 @@ export const conversationsRouter = router({
               assignedTo: { select: { id: true, name: true } },
             },
           },
+          vendor: { select: { id: true, name: true, phone: true } },
           messages: {
             take: 1,
             orderBy: { sentAt: "desc" },
@@ -200,6 +240,7 @@ export const conversationsRouter = router({
         nextCursor,
         rows: rows.map((c) => ({
           ...c,
+          party: partyOf(c),
           // The window state travels with the row so the list can show a
           // closed conversation without a second round trip per item.
           window: messagingWindow(c.lastInboundAt),
@@ -211,7 +252,7 @@ export const conversationsRouter = router({
     .input(z.object({ conversationId: z.string(), limit: z.number().max(200).default(60) }))
     .query(async ({ ctx, input }) => {
       const c = await ctx.db.conversation.findFirst({
-        where: { id: input.conversationId, lead: leadScope(ctx.role, ctx.userId) },
+        where: { id: input.conversationId, ...conversationScope(ctx.role, ctx.userId) },
         select: {
           id: true, humanHandover: true, handoverReason: true, lastInboundAt: true,
           // Whether the assistant is muted on this thread. The control
@@ -219,6 +260,7 @@ export const conversationsRouter = router({
           // reflects had never needed to be on the wire.
           assistantMuted: true,
           lead: { select: { id: true, name: true, phone: true, language: true, status: true } },
+          vendor: partySelect.vendor,
           messages: {
             take: input.limit,
             orderBy: { sentAt: "desc" },
@@ -238,7 +280,7 @@ export const conversationsRouter = router({
         data: { unreadCount: 0 },
       });
 
-      return { ...c, messages: c.messages.reverse(), window: messagingWindow(c.lastInboundAt) };
+      return { ...c, party: partyOf(c), messages: c.messages.reverse(), window: messagingWindow(c.lastInboundAt) };
     }),
 
   send: requirePermission("conversation:send")
@@ -248,10 +290,11 @@ export const conversationsRouter = router({
     }))
     .mutation(async ({ ctx, input }) => {
       const c = await ctx.db.conversation.findFirst({
-        where: { id: input.conversationId, lead: leadScope(ctx.role, ctx.userId) },
-        select: { id: true, lastInboundAt: true, channelId: true, lead: { select: { phone: true } } },
+        where: { id: input.conversationId, ...conversationScope(ctx.role, ctx.userId) },
+        select: { id: true, lastInboundAt: true, channelId: true, ...partySelect },
       });
       if (!c) throw new TRPCError({ code: "NOT_FOUND" });
+      const to = reachable(partyOf(c));
 
       // Checked server side, always. The UI disables the composer when the
       // window is shut, but a disabled input is a courtesy, not a control.
@@ -279,10 +322,14 @@ export const conversationsRouter = router({
         const { externalId } = await sendText({
           phoneNumberId: creds.phoneNumberId,
           accessToken: creds.accessToken,
-          to: c.lead.phone.replace("+", ""),
+          to,
           body: input.body,
         });
 
+        // When we last spoke to them. Read by lead scoring and written by
+        // nothing until now, so "days since we were last in touch" was
+        // blank for every lead.
+        await ctx.db.conversation.update({ where: { id: c.id }, data: { lastOutboundAt: new Date() } });
         return ctx.db.message.update({
           where: { id: pending.id },
           data: { externalId, status: "SENT" },
@@ -311,21 +358,24 @@ export const conversationsRouter = router({
     }))
     .mutation(async ({ ctx, input }) => {
       const c = await ctx.db.conversation.findFirst({
-        where: { id: input.conversationId, lead: leadScope(ctx.role, ctx.userId) },
-        select: { id: true, channelId: true, lead: { select: { phone: true, language: true } } },
+        where: { id: input.conversationId, ...conversationScope(ctx.role, ctx.userId) },
+        select: { id: true, channelId: true, ...partySelect },
       });
       if (!c) throw new TRPCError({ code: "NOT_FOUND" });
+      const party = partyOf(c);
+      const to = reachable(party);
 
       const creds = await getChannelCredentials(ctx.orgId, c.channelId);
       const { externalId } = await sendTemplate({
         phoneNumberId: creds.phoneNumberId,
         accessToken: creds.accessToken,
-        to: c.lead.phone.replace("+", ""),
+        to,
         template: input.template,
-        language: c.lead.language ?? "en",
+        language: party.language,
         variables: input.variables,
       });
 
+      await ctx.db.conversation.update({ where: { id: c.id }, data: { lastOutboundAt: new Date() } });
       return ctx.db.message.create({
         data: {
           orgId: ctx.orgId,
@@ -350,6 +400,7 @@ export const conversationsRouter = router({
     .input(z.object({ conversationId: z.string(), on: z.boolean(), reason: z.string().max(200).optional() }))
     .mutation(async ({ ctx, input }) =>
       ctx.db.$transaction(async (tx) => {
+        await theirs(tx, ctx, input.conversationId);
         const row = await tx.conversation.update({
           where: { id: input.conversationId },
           data: {

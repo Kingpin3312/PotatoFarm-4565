@@ -1,5 +1,6 @@
 "use client";
 
+import { use } from "react";
 import { api } from "@/lib/trpc";
 import { ViewingCard } from "@/components/ui/viewing-card";
 import { QueryError } from "@/components/ui/query-state";
@@ -18,7 +19,11 @@ import { MyViewings } from "./mine";
  * instead is **warn** when two stops are too far apart for the gap, and
  * leave the agent to decide.
  */
-export default function Viewings() {
+export default function Viewings({ searchParams }: {
+  // Next 15 hands a page its search params as a Promise.
+  searchParams: Promise<{ date?: string }>;
+}) {
+  const { date } = use(searchParams);
   /**
    * Midnight, not now.
    *
@@ -33,8 +38,20 @@ export default function Viewings() {
    */
   const today = new Date();
   today.setUTCHours(0, 0, 0, 0);
+  /**
+   * Another day, when a link asks for one.
+   *
+   * "How did the viewing go?" is sent three hours after a viewing — often
+   * the next day — and linked to `/viewings/<id>`, which has never
+   * existed. The diary only showed today, so yesterday's viewing, the one
+   * the notification was about, could not be reached anywhere. It now
+   * links here with the day, and the card carries an anchor.
+   */
+  const asked = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? new Date(`${date}T00:00:00.000Z`) : null;
+  const day = asked && !Number.isNaN(asked.getTime()) ? asked : today;
+  const isToday = day.getTime() === today.getTime();
   const { data, isLoading, isError, refetch, error } = api.viewings.day.useQuery({
-    date: today,
+    date: day,
   });
 
   if (isError) return <QueryError retry={() => void refetch()} what="today's viewings" error={error} />;
@@ -47,11 +64,12 @@ export default function Viewings() {
       <header className="pt-10 pb-6">
         <span className="t-label text-ink-3 block mb-3">
           {new Intl.DateTimeFormat("en-GB", {
-            weekday: "long", day: "numeric", month: "long", timeZone: "Asia/Dubai",
-          }).format(new Date())}
+            weekday: "long", day: "numeric", month: "long", timeZone: isToday ? "Asia/Dubai" : "UTC",
+          }).format(isToday ? new Date() : day)}
+          {!isToday && <a href="/viewings" className="ms-3 btn-inline">Today</a>}
         </span>
         <h1 className="font-sans font-semibold text-page text-ink">
-          {list.length === 0 ? "Nothing today." : `${list.length} viewing${list.length === 1 ? "" : "s"}.`}
+          {list.length === 0 ? (isToday ? "Nothing today." : "Nothing that day.") : `${list.length} viewing${list.length === 1 ? "" : "s"}.`}
         </h1>
       </header>
 
@@ -90,9 +108,11 @@ export default function Viewings() {
           tree for `api.viewings.mine`, and this file is in that tree,
           so the procedure looked called. The component calling it was
           the thing nobody reached. */}
-      <div className="mt-10">
-        <MyViewings />
-      </div>
+      {isToday && (
+        <div className="mt-10">
+          <MyViewings />
+        </div>
+      )}
     </div>
   );
 }

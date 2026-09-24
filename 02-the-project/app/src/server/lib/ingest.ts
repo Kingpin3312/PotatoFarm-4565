@@ -4,6 +4,7 @@ import { forOrg } from "@/server/db/client";
 import { Prisma } from "@prisma/client";
 import { entryStageId } from "@/server/lib/pipeline/defaults";
 import { assignmentFor } from "@/server/lib/routing/apply";
+import { normalisePhone } from "@/server/lib/portals/normalise";
 
 /**
  * Inbound WhatsApp.
@@ -63,9 +64,26 @@ async function inbound(db: any, channel: { id: string; orgId: string }, msg: any
       where: { orgId: channel.orgId, phone: from },
       data: { optedOutOfOutreach: true, optedOutAt: new Date() },
     });
+    // An owner's scheduled messages are the weekly report. "Stop" from
+    // them turns it off, the same instruction in the only form it has.
+    const owners = await ownersWithNumber(db, from);
+    if (owners.length) {
+      await db.vendor.updateMany({ where: { id: { in: owners.map((o) => o.id) } }, data: { reportsOff: true } });
+    }
   }
 
   await db.$transaction(async (tx: Prisma.TransactionClient) => {
+    /**
+     * A redelivery changes nothing.
+     *
+     * The file opens by promising that "a duplicate is a no-op", and the
+     * message row was — but the conversation update beside it ran again
+     * each time: another unread on the badge for a message already read,
+     * and the reply clock moved to whatever the old message said.
+     */
+    const seen = await tx.message.findUnique({ where: { externalId: msg.id }, select: { id: true } });
+    if (seen) return;
+
     // The lead is identified by phone. Upsert rather than create, because
     // a returning enquirer is the same person, not a new one.
     // Placed on the board at the moment it is created. Without this the
@@ -92,6 +110,25 @@ async function inbound(db: any, channel: { id: string; orgId: string }, msg: any
       where: { orgId_phone: { orgId: channel.orgId, phone: from } },
       select: { id: true, assignedToId: true },
     });
+
+    /**
+     * Not a buyer we know — perhaps an owner.
+     *
+     * Every number that was not a lead became one, so an owner replying
+     * to their agent about their own flat was filed as a new enquiry,
+     * handed to the routing rotation, and qualified as a buyer. A known
+     * buyer still wins: somebody who enquired first is in that thread
+     * already, and moving them would split one conversation into two.
+     */
+    if (!known) {
+      const owner = (await ownersWithNumber(tx, from))[0];
+      if (owner) {
+        const conversation = await arrived(tx, { vendorId: owner.id }, channel, sentAt);
+        await store(tx, channel.orgId, conversation.id, msg.id, body, sentAt);
+        return;
+      }
+    }
+
     const assignment = known
       ? null
       : await assignmentFor(tx, { orgId: channel.orgId, source: "WHATSAPP_AD" });
@@ -158,38 +195,72 @@ async function inbound(db: any, channel: { id: string; orgId: string }, msg: any
       });
     }
 
-    const conversation = await tx.conversation.upsert({
-      where: { leadId: lead.id },
-      create: {
-        orgId: channel.orgId,
-        leadId: lead.id,
-        channelId: channel.id,
-        lastInboundAt: sentAt,
-        unreadCount: 1,
-      },
-      update: {
-        // Only move the clock forward — a redelivered old message must not
-        // reopen a window that has actually closed.
-        lastInboundAt: sentAt,
-        unreadCount: { increment: 1 },
-      },
-    });
+    const conversation = await arrived(tx, { leadId: lead.id }, channel, sentAt);
+    await store(tx, channel.orgId, conversation.id, msg.id, body, sentAt);
+  });
+}
 
-    await tx.message.upsert({
-      // The provider id is unique, so a redelivery updates nothing.
-      where: { externalId: msg.id },
-      create: {
-        orgId: channel.orgId,
-        conversationId: conversation.id,
-        externalId: msg.id,
-        direction: "INBOUND",
-        author: "LEAD",
-        body,
-        status: "DELIVERED",
-        sentAt,
-      },
-      update: {},
+/**
+ * The owners whose number this is. Owners' numbers are typed by agents —
+ * "050 123 4567" — so they are compared once normalised, never as typed.
+ * The one with a thread already comes first, then the most recent.
+ */
+async function ownersWithNumber(db: any, from: string): Promise<{ id: string }[]> {
+  const rows: { id: string; phone: string | null; updatedAt: Date; conversation: { id: string } | null }[] =
+    await db.vendor.findMany({
+      where: { phone: { not: null } },
+      select: { id: true, phone: true, updatedAt: true, conversation: { select: { id: true } } },
+      take: 5000,
     });
+  return rows
+    .filter((v) => normalisePhone(v.phone ?? undefined) === from)
+    .sort((a, b) => Number(!!b.conversation) - Number(!!a.conversation) || b.updatedAt.getTime() - a.updatedAt.getTime());
+}
+
+/**
+ * The party's thread, with the message counted on it.
+ *
+ * The reply clock only moves forward — the comment here always said so
+ * and the code set it to whatever arrived. Meta delivers out of order,
+ * and an older message landing second would have closed a window that
+ * was open.
+ */
+async function arrived(
+  tx: any,
+  party: { leadId: string } | { vendorId: string },
+  channel: { id: string; orgId: string },
+  sentAt: Date,
+): Promise<{ id: string }> {
+  const existing = await tx.conversation.findUnique({ where: party, select: { id: true, lastInboundAt: true } });
+  if (!existing) {
+    return tx.conversation.create({
+      data: { orgId: channel.orgId, ...party, channelId: channel.id, lastInboundAt: sentAt, unreadCount: 1 },
+      select: { id: true },
+    });
+  }
+  return tx.conversation.update({
+    where: { id: existing.id },
+    data: {
+      unreadCount: { increment: 1 },
+      ...(!existing.lastInboundAt || sentAt > existing.lastInboundAt ? { lastInboundAt: sentAt } : {}),
+    },
+    select: { id: true },
+  });
+}
+
+async function store(tx: any, orgId: string, conversationId: string, externalId: string, body: string, sentAt: Date) {
+  await tx.message.upsert({
+    // The provider id is unique, so a redelivery racing this one updates nothing.
+    where: { externalId },
+    create: {
+      orgId, conversationId, externalId,
+      direction: "INBOUND",
+      // The party, whoever they are. `LEAD` is the enum's name for
+      // "the other side", and an owner is the other side too.
+      author: "LEAD",
+      body, status: "DELIVERED", sentAt,
+    },
+    update: {},
   });
 }
 

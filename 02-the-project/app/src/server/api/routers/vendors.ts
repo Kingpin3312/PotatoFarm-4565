@@ -3,6 +3,8 @@ import { z } from "zod";
 import { router, requirePermission } from "../trpc";
 import { audit } from "@/server/lib/audit";
 import { compare } from "@/server/lib/offers/negotiate";
+import { normalisePhone } from "@/server/lib/portals/normalise";
+import { can } from "@/server/auth/rbac";
 
 /**
  * Vendors.
@@ -22,9 +24,25 @@ export const vendorsRouter = router({
       actingFor: z.string().trim().max(120).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
+      /**
+       * Stored as E.164, or refused.
+       *
+       * Typed as it was said — "050 123 4567" — the number could not be
+       * matched when the owner wrote in on WhatsApp, which arrives as
+       * +971501234567, and could not be sent to either. A number that
+       * cannot be read is refused in words rather than saved to fail
+       * later, in front of the owner.
+       */
+      const phone = input.phone ? normalisePhone(input.phone) : null;
+      if (input.phone && !phone) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "That phone number can't be read. Include the country code, e.g. +971 50 123 4567.",
+        });
+      }
       const v = await ctx.db.vendor.create({
         data: {
-          orgId: ctx.orgId, ...input,
+          orgId: ctx.orgId, ...input, phone,
           reportsOff: input.prefers === "OFFERS_ONLY" || input.reportDay === null,
         },
       });
@@ -33,6 +51,63 @@ export const vendorsRouter = router({
         entity: "Vendor", entityId: v.id, after: { name: v.name },
       });
       return { id: v.id };
+    }),
+
+  /**
+   * The owner's WhatsApp thread, opened if there is none yet.
+   *
+   * Until now an agent's whole conversation with an owner happened on
+   * their own phone: no thread, no reply window, and nothing for the
+   * colleague who takes the listing over. A conversation is created with
+   * no messages; the thread screen then says what can be sent — outside
+   * the 24-hour window, only an approved template, as for a buyer.
+   *
+   * The same rule as the inbox: an agent may open an owner's thread if
+   * they look after one of the owner's properties; a manager, any.
+   */
+  openConversation: requirePermission("conversation:send")
+    .input(z.object({ vendorId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const vendor = await ctx.db.vendor.findFirst({
+        where: {
+          id: input.vendorId,
+          ...(can(ctx.role, "lead:read:all")
+            ? {}
+            : { listings: { some: { agentId: ctx.userId, deletedAt: null } } }),
+        },
+        select: { id: true, name: true, phone: true, conversation: { select: { id: true } } },
+      });
+      if (!vendor) throw new TRPCError({ code: "NOT_FOUND" });
+      if (vendor.conversation) return { conversationId: vendor.conversation.id };
+      if (!normalisePhone(vendor.phone ?? undefined)) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: `There's no WhatsApp number we can read for ${vendor.name}. Add one with the country code.`,
+        });
+      }
+      const channel = await ctx.db.channel.findFirst({
+        where: { type: "WHATSAPP", active: true },
+        orderBy: { createdAt: "asc" }, select: { id: true },
+      });
+      if (!channel) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: "Connect the brokerage's WhatsApp number first, under Settings → Channels.",
+        });
+      }
+      return ctx.db.$transaction(async (tx) => {
+        // Upsert: two agents pressing it at once get one thread.
+        const c = await tx.conversation.upsert({
+          where: { vendorId: vendor.id },
+          create: { orgId: ctx.orgId, vendorId: vendor.id, channelId: channel.id },
+          update: {},
+          select: { id: true },
+        });
+        await audit(tx, ctx.orgId, {
+          actorId: ctx.userId, action: "conversation.opened", entity: "Vendor", entityId: vendor.id,
+        });
+        return { conversationId: c.id };
+      });
     }),
 
   /** Attach an owner to a listing. */
@@ -132,6 +207,8 @@ export const vendorsRouter = router({
       return {
         name: v.name,
         phone: v.phone,
+        /** Whether the WhatsApp button can work, said before it is pressed. */
+        whatsapp: Boolean(normalisePhone(v.phone ?? undefined)),
         prefers: v.prefers,
         actingFor: v.actingFor,
         listings: v.listings,

@@ -20,11 +20,12 @@ export async function sweep() {
     qualifiedUnclaimed(),
     viewingsSoon(),
     outcomesMissing(),
+    ownersWaiting(),
   ]);
 
   results.forEach((r, i) => {
     if (r.status === "rejected") {
-      log.error(`[notify] sweep ${["handovers", "unclaimed", "viewings", "outcomes"][i]} failed`, r.reason);
+      log.error(`[notify] sweep ${["handovers", "unclaimed", "viewings", "outcomes", "owners"][i]} failed`, r.reason);
     }
   });
 }
@@ -37,6 +38,9 @@ async function handoversWaiting() {
       handoverAt: { not: null, lte: new Date(Date.now() - 3 * 60_000) },
       // No outbound message since the handover means nobody has replied.
       messages: { none: { direction: "OUTBOUND", author: "AGENT" } },
+      // A handover is the assistant stepping back from a buyer. It never
+      // speaks to an owner, so an owner's thread has nothing to hand over.
+      leadId: { not: null },
     },
     take: 200,
     select: {
@@ -46,6 +50,7 @@ async function handoversWaiting() {
   });
 
   for (const c of rows) {
+    if (!c.lead) continue;
     await dispatch({
       orgId: c.orgId,
       kind: "HANDOVER_WAITING",
@@ -55,6 +60,62 @@ async function handoversWaiting() {
       deeplink: `/inbox/${c.id}`,
       assignedToId: c.lead.assignedToId,
       since: c.handoverAt!,
+    });
+  }
+}
+
+/**
+ * An owner wrote, and the last word in the thread is still theirs.
+ *
+ * One notification per unanswered message rather than per thread: the
+ * dedup key is the subject, and keyed on the conversation it would have
+ * told the agent about an owner's first message and never again.
+ *
+ * Addressed to whoever looks after one of the owner's properties. With
+ * nobody given one, `audience` falls through to the managers, which is
+ * the right place for an owner nobody is looking after.
+ */
+async function ownersWaiting() {
+  const rows = await crossTenant("sweep").conversation.findMany({
+    where: {
+      vendorId: { not: null },
+      // A week back is plenty: anything older has been escalated already
+      // or is not going to be answered by a push.
+      lastInboundAt: { gte: new Date(Date.now() - 7 * 86_400_000) },
+    },
+    take: 200,
+    select: {
+      id: true, orgId: true,
+      vendor: {
+        select: {
+          name: true,
+          listings: {
+            where: { deletedAt: null, agentId: { not: null } },
+            orderBy: { updatedAt: "desc" }, take: 1, select: { agentId: true },
+          },
+        },
+      },
+      messages: {
+        take: 1, orderBy: { sentAt: "desc" },
+        select: { id: true, direction: true, body: true, sentAt: true },
+      },
+    },
+  });
+
+  for (const c of rows) {
+    const last = c.messages[0];
+    if (!c.vendor || !last || last.direction !== "INBOUND") continue;
+    await dispatch({
+      orgId: c.orgId,
+      kind: "OWNER_WAITING",
+      subjectId: last.id,
+      title: `${c.vendor.name} (owner) is waiting for a reply`,
+      // The first line only. A push on a lock screen is read by whoever
+      // is standing next to the phone.
+      body: last.body.split("\n")[0]!.slice(0, 80),
+      deeplink: `/inbox/${c.id}`,
+      assignedToId: c.vendor.listings[0]?.agentId ?? null,
+      since: last.sentAt,
     });
   }
 }
@@ -113,7 +174,8 @@ async function viewingsSoon() {
       subjectId: v.id,
       title: `Viewing in an hour`,
       body: `${v.lead.name ?? v.lead.phone} · ${v.listing?.title ?? "property"}`,
-      deeplink: `/viewings/${v.id}`,
+      // Today's diary. `/viewings/<id>` has never been a page.
+      deeplink: `/viewings#viewing-${v.id}`,
       assignedToId: v.agentId,
       since: new Date(now),
     });
@@ -141,7 +203,9 @@ async function outcomesMissing() {
       subjectId: v.id,
       title: "How did the viewing go?",
       body: `${v.lead.name ?? v.lead.phone} · two taps`,
-      deeplink: `/viewings/${v.id}?outcome=1`,
+      // The day it happened, on the card that asks. The diary shows one
+      // day, by UTC date, and this is often yesterday.
+      deeplink: `/viewings?date=${v.scheduledAt.toISOString().slice(0, 10)}#viewing-${v.id}`,
       assignedToId: v.agentId,
       since: v.scheduledAt,
     });

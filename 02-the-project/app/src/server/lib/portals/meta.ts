@@ -1,4 +1,5 @@
 import type { RawEnquiry } from "./types";
+import { endpoint } from "@/server/lib/loopback";
 import { log } from "@/lib/log";
 import crypto from "node:crypto";
 
@@ -42,12 +43,7 @@ import crypto from "node:crypto";
  * silently talking to Facebook would hide the mistake.
  */
 function graphBase(): string {
-  const override = process.env.META_GRAPH_BASE;
-  if (!override) return "https://graph.facebook.com/v21.0";
-  if (!/^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?(\/|$)/.test(override)) {
-    throw new Error("META_GRAPH_BASE is only honoured for a loopback address");
-  }
-  return override.replace(/\/+$/, "");
+  return endpoint("META_GRAPH_BASE", "https://graph.facebook.com/v21.0");
 }
 
 export async function fetchLead(leadgenId: string, pageToken: string): Promise<RawEnquiry | null> {

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { mineOnly } from "@/server/lib/conversations/party";
 import { router, requirePermission } from "../trpc";
 import { audit } from "@/server/lib/audit";
 import { leadScope } from "@/server/auth/rbac";
@@ -72,8 +73,10 @@ export const todayRouter = router({
 
       // Somebody has written to us and nobody has answered. The one
       // number in this product with a clock on it.
+      // Owners of the properties they look after count too: the same
+      // "mine" the inbox filters by, so the number here is the number there.
       ctx.db.conversation.count({
-        where: { unreadCount: { gt: 0 }, lead: { assignedToId: ctx.userId } },
+        where: { unreadCount: { gt: 0 }, ...mineOnly(ctx.userId) },
       }),
 
       /**

@@ -78,6 +78,19 @@ export const RULES: Record<NotificationKind, {
   ASSISTANT_STOPPED: { urgency: "normal", afterMinutes: 0, escalateAfterMinutes: [], why: "So nobody assumes the silence is a fault." },
 
   /**
+   * An owner wrote and nobody has answered. Not urgent the way a buyer
+   * mid-conversation is — but "my agent never gets back to me" is the
+   * most common complaint owners make, and it ends instructions. Half an
+   * hour to the agent who looks after their property, then a manager.
+   */
+  OWNER_WAITING: {
+    urgency: "normal",
+    afterMinutes: 30,
+    escalateAfterMinutes: [240],
+    why: "A property owner is waiting for a reply.",
+  },
+
+  /**
    * A follow-up the agent set for themselves, usually from a voice note.
    *
    * No escalation ladder and no urgency. This is somebody's own note to
