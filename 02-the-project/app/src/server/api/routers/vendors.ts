@@ -1,3 +1,4 @@
+import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { router, requirePermission } from "../trpc";
 import { audit } from "@/server/lib/audit";
@@ -35,9 +36,28 @@ export const vendorsRouter = router({
     }),
 
   /** Attach an owner to a listing. */
+  /**
+   * The brokerage's owners, by name, for picking one.
+   *
+   * Attaching an owner asked the agent to type an "Owner ID" — the
+   * database's internal key, which no agent has ever seen. So in
+   * practice no owner could be attached from the listings screen.
+   */
+  list: requirePermission("listing:read").query(({ ctx }) =>
+    ctx.db.vendor.findMany({
+      orderBy: { name: "asc" },
+      take: 500,
+      select: { id: true, name: true, phone: true },
+    })),
+
   attach: requirePermission("listing:write")
     .input(z.object({ listingId: z.string(), vendorId: z.string() }))
     .mutation(async ({ ctx, input }) => {
+      // Scoped reads: the owner must be one of ours. The foreign key is
+      // checked without row-level security, so it would accept another
+      // brokerage's owner.
+      const vendor = await ctx.db.vendor.findFirst({ where: { id: input.vendorId }, select: { id: true } });
+      if (!vendor) throw new TRPCError({ code: "BAD_REQUEST", message: "That owner isn't one of yours." });
       await ctx.db.listing.update({
         where: { id: input.listingId }, data: { vendorId: input.vendorId },
       });

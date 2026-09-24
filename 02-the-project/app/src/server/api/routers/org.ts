@@ -356,14 +356,15 @@ export const orgRouter = router({
     .input(z.object({ userId: z.string() }))
     .query(async ({ ctx, input }) => {
       const now = new Date();
-      const [leads, viewings, followUps] = await Promise.all([
+      const [leads, viewings, followUps, listings] = await Promise.all([
         ctx.db.lead.count({ where: { assignedToId: input.userId, deletedAt: null } }),
         ctx.db.viewing.count({
           where: { agentId: input.userId, scheduledAt: { gte: now }, status: { in: ["SCHEDULED", "CONFIRMED"] } },
         }),
         ctx.db.followUp.count({ where: { agentId: input.userId, completedAt: null } }),
+        ctx.db.listing.count({ where: { agentId: input.userId, deletedAt: null } }),
       ]);
-      return { leads, viewings, followUps };
+      return { leads, viewings, followUps, listings };
     }),
 
   /**
@@ -479,6 +480,14 @@ export const orgRouter = router({
           data: successor ? { agentId: successor } : { completedAt: now },
         });
 
+        // The listings they looked after. With nobody named they are
+        // nobody's, and the owner's weekly report falls back to asking
+        // who showed the property last.
+        const listings = await tx.listing.updateMany({
+          where: { agentId: input.userId, deletedAt: null },
+          data: { agentId: successor },
+        });
+
         // Recommendations are drawn overnight for whoever holds the lead,
         // so the departed agent's are stale and the sweep draws new ones.
         await tx.recommendation.updateMany({
@@ -494,7 +503,7 @@ export const orgRouter = router({
           });
         }
 
-        const counts = { leads: held.length, viewings: viewings.count, followUps: followUps.count };
+        const counts = { leads: held.length, viewings: viewings.count, followUps: followUps.count, listings: listings.count };
         await audit(tx, ctx.orgId, {
           actorId: ctx.userId,
           action: "member.remove",

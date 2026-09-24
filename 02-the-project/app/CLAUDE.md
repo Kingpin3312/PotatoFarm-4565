@@ -102,7 +102,7 @@ What is verified today, measured rather than assumed:
   `/api/health` returns `200 {"ok":true}` against a real Postgres.
 - The boot log names every unconfigured service with its consequence —
   six of them in a bare development environment.
-- 314 assertions in 18 files, 44 check suites, 23 audits, all green.
+- 314 assertions in 18 files, 45 check suites, 23 audits, all green.
 
 Type errors on a fresh checkout are no longer expected. If you get one,
 it is new.
@@ -728,7 +728,7 @@ send path read it.
 ## Run the tests
 
     npm test          # 314 assertions, pure functions, no database
-    npm run verify    # tsc, the tests, 44 check suites, 23 audits
+    npm run verify    # tsc, the tests, 45 check suites, 23 audits
 
 **The gate is now green end to end, including the two things that used
 to skip.** `verify` reports what it did not run rather than counting a
@@ -1062,12 +1062,14 @@ with an empirical floor under it.
   recorded by an agent rather than only by the buyer typing STOP.
   `check:lead-editing`. Left struck through, as the entries below are,
   so it is not built twice.
-- **Who looks after a listing or an owner.** Neither `Listing` nor
-  `Vendor` records an agent, so the owner's weekly report goes to
-  whoever showed one of their properties most recently, else whoever
-  handled an offer, else the brokerage's owner — and the task says
-  which, so a wrong guess is visible. A listing agent is a field most
-  brokerages would expect to set.
+- ~~**Who looks after a listing.**~~ **Built.** `Listing.agentId`,
+  defaulting to whoever adds the listing, set from the Owner panel,
+  handed on when an agent is removed, and the first choice for the
+  owner's weekly report — the old guess is now only for listings nobody
+  has been given. The same panel picks owners by name: it used to ask
+  for an internal "Owner ID" nobody has seen, and `vendors.attach` and
+  `listings.update` accepted another brokerage's owner, because a
+  foreign key is checked without row-level security. `check:listing-agent`.
 - **Recording viewing feedback.** `feedback.ask` puts the one question
   on the agent's list; nothing writes the buyer's answer
   (`ViewingFeedback.verdict`, `answeredAt`), so the weekly vendor report

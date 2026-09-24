@@ -165,6 +165,7 @@ model User {
   auditLogs     AuditLog[]
   accounts      Account[]
   sessions      Session[]
+  listingsHeld  Listing[]    @relation("ListingAgent")
 }
 
 /// A user's place in one brokerage. Users can belong to several — agents
@@ -653,6 +654,10 @@ model Listing {
   /// before the paperwork lands — but publishing without one should be
   /// a question rather than a surprise.
   vendorId String?
+  /// Who looks after it. The owner's weekly report goes to them, and
+  /// removing an agent hands these on. Nullable: a listing can exist
+  /// before anybody is given it.
+  agentId  String?
 
   permitNumber    String?
   permitExpiresAt DateTime?
@@ -675,11 +680,13 @@ model Listing {
   /// SetNull, not Cascade: losing an owner record must not delete the
   /// property. The listing simply has no vendor attached until one is.
   vendor    Vendor?      @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  agent     User?        @relation("ListingAgent", fields: [agentId], references: [id], onDelete: SetNull)
   deals     Deal[]
 
   @@unique([orgId, reference])
   @@index([orgId, status])
   @@index([orgId, permitExpiresAt])
+  @@index([orgId, agentId])
 }
 
 /// One row per listing per portal. Separate from the listing because the

@@ -761,11 +761,12 @@ export const JOBS = {
      * message to an owner is a message to a client, and
      * `intelligence/autonomy.ts` stops those at a person pressing send.
      *
-     * **Which agent** is a guess the schema forces. Neither a listing
-     * nor an owner records who looks after it, so the report goes to
-     * whoever showed one of the owner's properties most recently, else
-     * whoever handled an offer on one, else the brokerage's owner — and
-     * the task says so, so a wrong guess is visible rather than silent.
+     * **Which agent**: the one who looks after the property
+     * (`Listing.agentId`). For a listing nobody has been given yet it
+     * falls back to whoever showed one of the owner's properties most
+     * recently, else whoever handled an offer on one, else the
+     * brokerage's owner — and the task says which, so a guess is
+     * visible rather than silent.
      */
     const today = new Date();
     const since = new Date(today.getTime() - 6 * 86_400_000);
@@ -779,7 +780,7 @@ export const JOBS = {
         due += 1;
         const listings = await crossTenant("sweep").listing.findMany({
           where: { orgId: o.id, vendorId: v.id, status: { in: ["AVAILABLE", "UNDER_OFFER"] }, deletedAt: null },
-          select: { id: true, title: true, createdAt: true },
+          select: { id: true, title: true, createdAt: true, agentId: true },
         });
         if (!listings.length) continue;
 
@@ -791,19 +792,23 @@ export const JOBS = {
         if (recent) continue;
 
         const ids = listings.map((l) => l.id);
-        const lastViewing = await crossTenant("sweep").viewing.findFirst({
+        // The listing agent first. Everything after it is a guess, kept
+        // for listings nobody has been given yet.
+        const listingAgent = listings.find((l) => l.agentId)?.agentId ?? null;
+        const lastViewing = listingAgent ? null : await crossTenant("sweep").viewing.findFirst({
           where: { orgId: o.id, listingId: { in: ids }, agentId: { not: null } },
           orderBy: { scheduledAt: "desc" }, select: { agentId: true },
         });
-        const lastOffer = lastViewing ? null : await crossTenant("sweep").offer.findFirst({
+        const lastOffer = listingAgent || lastViewing ? null : await crossTenant("sweep").offer.findFirst({
           where: { orgId: o.id, listingId: { in: ids }, agentId: { not: null } },
           orderBy: { submittedAt: "desc" }, select: { agentId: true },
         });
-        const owner = lastViewing || lastOffer ? null : await crossTenant("sweep").membership.findFirst({
+        const owner = listingAgent || lastViewing || lastOffer ? null : await crossTenant("sweep").membership.findFirst({
           where: { orgId: o.id, role: "OWNER" }, select: { userId: true },
         });
-        const agentId = lastViewing?.agentId ?? lastOffer?.agentId ?? owner?.userId ?? null;
-        const why = lastViewing ? "you showed one of their properties most recently"
+        const agentId = listingAgent ?? lastViewing?.agentId ?? lastOffer?.agentId ?? owner?.userId ?? null;
+        const why = listingAgent ? "you look after their property"
+          : lastViewing ? "nobody has been given their property, and you showed it most recently"
           : lastOffer ? "you handled the latest offer on one of their properties"
           : "nobody has shown their properties yet, so it came to the owner of the brokerage";
         if (!agentId) { unassigned += 1; continue; }

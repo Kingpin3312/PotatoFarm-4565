@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
+import type { forOrg } from "@/server/db/client";
 import { router, orgProcedure, requirePermission } from "../trpc";
 import { audit } from "@/server/lib/audit";
 import { validateForPublish, blocking, PORTAL_REQUIREMENTS } from "@/server/lib/feeds/validate";
@@ -7,6 +8,30 @@ import { buyersFor, pitch } from "@/server/lib/matching/buyers";
 import { can } from "@/server/auth/rbac";
 import { aedToFils } from "@/lib/money";
 
+
+/**
+ * A person or an owner named on a listing must belong to this brokerage.
+ *
+ * Checked here because the database cannot: a foreign key is validated
+ * without row-level security, so `vendorId` or `agentId` taken from
+ * the request could point a listing at another brokerage's owner or at
+ * somebody who is not on the team. Reading through `ctx.db` is scoped,
+ * so "not found" here means "not ours".
+ */
+async function assertOurs(
+  db: ReturnType<typeof forOrg>,
+  orgId: string,
+  ids: { vendorId?: string | null; agentId?: string | null },
+) {
+  if (ids.vendorId) {
+    const v = await db.vendor.findFirst({ where: { id: ids.vendorId }, select: { id: true } });
+    if (!v) throw new TRPCError({ code: "BAD_REQUEST", message: "That owner isn't one of yours." });
+  }
+  if (ids.agentId) {
+    const m = await db.membership.findFirst({ where: { orgId, userId: ids.agentId }, select: { id: true } });
+    if (!m) throw new TRPCError({ code: "BAD_REQUEST", message: "That person isn't on your team." });
+  }
+}
 
 export const listingsRouter = router({
   list: orgProcedure
@@ -40,6 +65,7 @@ export const listingsRouter = router({
           // nobody to sign it — and the screen could not tell you which
           // listings were in that state.
           vendor: { select: { id: true, name: true } },
+          agent: { select: { id: true, name: true, email: true } },
         },
       });
 
@@ -128,10 +154,15 @@ export const listingsRouter = router({
         });
       }
 
+      await assertOurs(ctx.db, ctx.orgId, { vendorId: (rest as { vendorId?: string | null }).vendorId });
       const listing = await ctx.db.listing.create({
         data: {
           ...rest,
           orgId: ctx.orgId,
+          // Whoever adds it looks after it until somebody says otherwise.
+          // Without a default every listing starts with nobody, and the
+          // owner's report goes back to guessing.
+          agentId: ctx.userId,
           ...(priceAed !== undefined ? { priceFils: aedToFils(priceAed) } : {}),
           ...(permitExpiresAt ? { permitExpiresAt: new Date(permitExpiresAt) } : {}),
         },
@@ -174,9 +205,12 @@ export const listingsRouter = router({
       permitExpiresAt: z.string().datetime().nullish(),
       reraBrokerCard: z.string().trim().max(60).nullish(),
       vendorId: z.string().nullish(),
+      /** Who looks after it. Must be on the team. */
+      agentId: z.string().nullish(),
     }))
     .mutation(async ({ ctx, input }) => {
       const { id, priceAed, permitExpiresAt, ...rest } = input;
+      await assertOurs(ctx.db, ctx.orgId, { vendorId: input.vendorId, agentId: input.agentId });
 
       const before = await ctx.db.listing.findFirst({
         where: { id, deletedAt: null },

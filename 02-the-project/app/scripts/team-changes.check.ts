@@ -53,6 +53,7 @@ async function cleanup() {
     await root.recommendation.deleteMany({ where });
     await root.leadOwnership.deleteMany({ where });
     await root.viewing.deleteMany({ where });
+    await root.listing.deleteMany({ where });
     await root.lead.deleteMany({ where });
     await root.seatEvent.deleteMany({ where });
     await root.subscription.deleteMany({ where });
@@ -201,6 +202,9 @@ async function main() {
     data: { orgId: org.id, leadId: l2.id, agentId: leaver.id, status: "COMPLETED",
             scheduledAt: new Date(Date.now() - 5 * 86_400_000), durationMins: 30 },
   });
+  const held = await root.listing.create({
+    data: { orgId: org.id, reference: `TC-${RUN}`, title: "2-bed, Marina", purpose: "SALE", status: "AVAILABLE", agentId: leaver.id },
+  });
   const fu = await root.followUp.create({
     data: { orgId: org.id, agentId: leaver.id, leadId: l1.id, title: "Call Priya back", dueAt: new Date() },
   });
@@ -212,7 +216,7 @@ async function main() {
   {
     const preview = await as(owner.id, EMAIL("owner")).removalPreview({ userId: leaver.id });
     ok("the screen is told what they hold before anything happens",
-       preview.leads === 2 && preview.viewings === 1 && preview.followUps === 1, JSON.stringify(preview));
+       preview.leads === 2 && preview.viewings === 1 && preview.followUps === 1 && preview.listings === 1, JSON.stringify(preview));
 
     // A successor who is not on the team: the whole removal must refuse,
     // and refuse before anything is half-done.
@@ -242,6 +246,8 @@ async function main() {
        (await root.viewing.findUniqueOrThrow({ where: { id: soon.id } })).agentId === heir.id);
     ok("the one already shown keeps who showed it",
        (await root.viewing.findUniqueOrThrow({ where: { id: past.id } })).agentId === leaver.id);
+    ok("the listings they looked after go to the successor",
+       (await root.listing.findUniqueOrThrow({ where: { id: held.id } })).agentId === heir.id);
     ok("their follow-up moves too",
        (await root.followUp.findUniqueOrThrow({ where: { id: fu.id } })).agentId === heir.id);
     ok("their recommendations are retired for the sweep to redraw",
@@ -256,7 +262,12 @@ async function main() {
     const fu2 = await root.followUp.create({
       data: { orgId: org.id, agentId: quiet.id, leadId: l3.id, title: "Send Aisha the brochure", dueAt: new Date() },
     });
+    const quietListing = await root.listing.create({
+      data: { orgId: org.id, reference: `TCQ-${RUN}`, title: "Studio, JLT", purpose: "RENT", status: "AVAILABLE", agentId: quiet.id },
+    });
     await as(owner.id, EMAIL("owner")).removeMember({ userId: quiet.id, handTo: null });
+    ok("with nobody named, their listings are nobody's — not still theirs",
+       (await root.listing.findUniqueOrThrow({ where: { id: quietListing.id } })).agentId === null);
     const back = await root.lead.findUniqueOrThrow({ where: { id: l3.id } });
     ok("with nobody named, their leads go back to the pool", back.assignedToId === null && back.assignedAt === null);
     ok("and their follow-ups are closed, not orphaned",

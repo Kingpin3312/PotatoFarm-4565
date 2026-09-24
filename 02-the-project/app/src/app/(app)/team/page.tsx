@@ -26,6 +26,7 @@ export default function Team() {
         r.leads && `${r.leads} lead${r.leads === 1 ? "" : "s"}`,
         r.viewings && `${r.viewings} upcoming viewing${r.viewings === 1 ? "" : "s"}`,
         r.followUps && `${r.followUps} follow-up${r.followUps === 1 ? "" : "s"}`,
+        r.listings && `${r.listings} listing${r.listings === 1 ? "" : "s"}`,
       ].filter((x): x is string => !!x);
       const what = and(parts);
       const who = gone?.user.name ?? gone?.user.email ?? "They";
@@ -209,6 +210,7 @@ function RemovePanel({
         data.leads && `${data.leads} lead${data.leads === 1 ? "" : "s"}`,
         data.viewings && `${data.viewings} upcoming viewing${data.viewings === 1 ? "" : "s"}`,
         data.followUps && `${data.followUps} open follow-up${data.followUps === 1 ? "" : "s"}`,
+        data.listings && `${data.listings} listing${data.listings === 1 ? "" : "s"}`,
       ].filter((x): x is string => !!x)
     : [];
 
@@ -217,7 +219,7 @@ function RemovePanel({
       <p className="text-ui text-ink">
         {!data ? `Checking what ${name} is holding…`
           : holds.length ? `${name} holds ${and(holds)}.`
-          : `${name} holds no leads, viewings or follow-ups.`}
+          : `${name} holds no leads, viewings, follow-ups or listings.`}
       </p>
       {holds.length > 0 && (
         <label className="block mt-3">

@@ -210,7 +210,7 @@ function Listings() {
 
             {ownerFor === l.id && (
               <div className="col-span-full">
-                <AttachOwner listingId={l.id} current={l.vendor} />
+                <AttachOwner listingId={l.id} current={l.vendor} agent={l.agent} />
               </div>
             )}
           </div>

@@ -342,6 +342,19 @@ async function main() {
     const muted = await vendor("Reports Off Owner", { reportsOff: true });
     const notToday = await vendor("Not Today Owner", { reportDay: other });
     const shown = await property("VR-1", due.id);
+    // Looked after by the colleague, shown by the agent: the listing
+    // agent wins, and the guess is not used.
+    const heldOwner = await vendor("Karim Nasser", { prefers: "EMAIL" });
+    const held = await property("VR-3", heldOwner.id);
+    const colleague = await root.user.upsert({
+      where: { email: EMAIL("colleague") }, create: { email: EMAIL("colleague"), name: "Tom Reilly" }, update: {},
+    });
+    await root.membership.create({ data: { orgId: org.id, userId: colleague.id, role: "AGENT" } });
+    await root.listing.update({ where: { id: held.id }, data: { agentId: colleague.id } });
+    await root.viewing.create({
+      data: { orgId: org.id, leadId: (await lead("Viewer Of Held")).id, listingId: held.id, agentId: agent.id,
+              scheduledAt: new Date(Date.now() - 86_400_000), durationMins: 30, status: "COMPLETED" },
+    });
     await property("VR-2", caller.id);
     for (const v of [offersOnly, muted, notToday]) await property(`VR-${v.id.slice(-4)}`, v.id);
     await root.viewing.create({
@@ -356,9 +369,15 @@ async function main() {
     const t1 = await taskFor("Hana Suleiman");
     ok("the owner due today gets a report, on WhatsApp as they asked",
        t1?.title === "Send Hana Suleiman this week's update on WhatsApp", t1?.title ?? "no task");
-    ok("to the agent who showed their property, and it says why",
-       t1?.agentId === agent.id && !!t1?.body?.includes("you showed one of their properties"));
-    const row = await root.vendorReport.findFirst({ where: { listingId: shown.id } });
+    ok("with nobody given the property, to the agent who showed it — and it says so",
+       t1?.agentId === agent.id && !!t1?.body?.includes("nobody has been given their property, and you showed it"));
+    // The agent showed it more recently than anybody, and it still goes
+    // to the colleague who looks after it.
+    const t3 = await taskFor("Karim Nasser");
+    ok("a property somebody looks after sends its report to them, and says why",
+       t3?.agentId === colleague.id && !!t3?.body?.includes("you look after their property"),
+       `${t3?.title ?? "no task"} → ${t3?.agentId === colleague.id ? "the listing agent" : t3?.agentId}`);
+        const row = await root.vendorReport.findFirst({ where: { listingId: shown.id } });
     ok("the report is kept, and not recorded as sent", !!row && row.sentAt === null);
 
     // No viewings at all is still a report: an owner who hears nothing
@@ -380,7 +399,7 @@ async function main() {
     // is how a leaked job lock hid a missing once-a-week guard here.
     ok("run again the same week, nobody gets it twice",
        !("skipped" in again) &&
-       (await root.followUp.count({ where: { orgId: org.id, title: { contains: "this week's update" } } })) === 2,
+       (await root.followUp.count({ where: { orgId: org.id, title: { contains: "this week's update" } } })) === 3,
        JSON.stringify(again));
 
     const crons = JSON.parse(fs.readFileSync("vercel.json", "utf8")).crons as { path: string; schedule: string }[];
