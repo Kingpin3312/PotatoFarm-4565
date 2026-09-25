@@ -249,7 +249,7 @@ function Row({ k, sub, v, quiet }: { k: string; sub?: string; v: string; quiet?:
         {sub && <span className="block text-note text-ink-3">{sub}</span>}
       </div>
       <span className={cn("ms-auto text-ui tabular",
-        quiet ? "text-ink-3" : "text-ink font-semibold")}>{v}</span>
+        quiet ? "text-ink-3" : "text-ink font-medium")}>{v}</span>
     </div>
   );
 }

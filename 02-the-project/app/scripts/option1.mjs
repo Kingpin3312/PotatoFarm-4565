@@ -391,5 +391,5 @@ console.log("\n=== nothing is left on the old palette ===");
 
 await b.close();
 console.log(bad ? "\n" + bad + " FAILED:\n  - " + failures.join("\n  - ") + "\n"
-                : "\nwhite, charcoal, and a controlled orange — on every width.\n");
+                : "\nneon pink on grey, one accent — on every width.\n");
 process.exit(bad ? 1 : 0);
