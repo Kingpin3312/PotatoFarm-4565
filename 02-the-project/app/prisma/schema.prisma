@@ -1370,7 +1370,10 @@ model Invoice {
   attempts  Int           @default(0)
   lastError String?
 
-  subscription Subscription @relation(fields: [subId], references: [id], onDelete: Cascade)
+  /// Restrict, not Cascade: a tax invoice is kept for five years, and a
+  /// deleted one is a hole in the supplier's series. Removing a
+  /// subscription that has invoices is refused by the database.
+  subscription Subscription @relation(fields: [subId], references: [id], onDelete: Restrict)
 
   @@index([orgId, issuedAt])
 }

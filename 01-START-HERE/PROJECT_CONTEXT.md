@@ -155,7 +155,7 @@ chart; spoken requests ("Ask").
   security note in section 13. It costs little here: every page is
   behind sign-in and fetches through tRPC on the client, so what used to
   be prerendered was an empty shell.
-- All 25 migrations apply cleanly to an empty database — last checked
+- All 26 migrations apply cleanly to an empty database — last checked
   by creating one and running `migrate deploy` against it, not by
   trusting the development database, which only ever sees the newest.
 - **Row-level security was tested with two brokerages in one database.**
@@ -797,7 +797,7 @@ Full spec: `03-brand/logo/SPEC.md`.
 ## 10. Database, API, auth, integrations
 
 **Database:** PostgreSQL via Prisma. `app/prisma/schema.prisma`, 77
-models. 25 migrations in `app/prisma/migrations/`. **`rls.sql` is
+models. 26 migrations in `app/prisma/migrations/`. **`rls.sql` is
 appended to the init migration** — it is not a file somebody has to
 remember to run, because the tenant boundary is not something to leave to
 memory.

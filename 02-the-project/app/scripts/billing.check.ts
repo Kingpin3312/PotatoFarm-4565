@@ -233,6 +233,12 @@ async function main() {
       process.env.SUPPLIER_TRN = held;
       ok("no VAT invoice is issued without PotatoFarm's VAT registration",
          refused && (await root.invoice.count()) === before.count && (await seq()) === before.next);
+
+      // Five years' retention, and a gap in the series: removing a
+      // subscription used to take its invoices with it.
+      const kept = await root.subscription.delete({ where: { id: sub.id } }).then(() => false, () => true);
+      ok("a subscription with invoices cannot be deleted out from under them",
+         kept && (await root.invoice.count({ where: { subId: sub.id } })) > 0);
     } else {
       ok("a second brokerage to invoice alongside the first", false, second.ok ? "no subscription" : second.reason);
     }

@@ -158,10 +158,9 @@ you, and it is the same number that has to go on the pricing page.
   Article 59 requires alongside the TRNs recorded here. A brokerage
   cannot reclaim input VAT without one. It needs the company's registered
   details, which cannot come from inside this repository.
-- **Keeping invoices.** UAE VAT law requires tax records to be kept for
-  five years, and a deleted invoice is also a hole in the supplier's
-  series. Nothing in the application deletes one, but `Invoice` cascades
-  from `Subscription`, so removing a subscription row by hand would take
-  its invoices with it. A database-level guard (as `AuditLog` has) was
-  left out because the check suites clean up their own brokerages; the
-  cascade should become `Restrict` before real invoices exist.
+- ~~**Keeping invoices.**~~ **Done.** `Invoice` cascaded from
+  `Subscription`, so removing a subscription row took its invoices with
+  it — five years' tax records and a hole in the supplier's series, in
+  one statement. The foreign key is `RESTRICT` now
+  (`20260930090000_invoice_restrict`) and `check:billing` asserts the
+  database refuses.
