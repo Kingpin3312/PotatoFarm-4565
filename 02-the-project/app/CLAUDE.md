@@ -102,7 +102,7 @@ What is verified today, measured rather than assumed:
   `/api/health` returns `200 {"ok":true}` against a real Postgres.
 - The boot log names every unconfigured service with its consequence —
   six of them in a bare development environment.
-- 328 assertions in 19 files, 48 check suites, 23 audits, all green.
+- 334 assertions in 20 files, 48 check suites, 23 audits, all green.
 
 Type errors on a fresh checkout are no longer expected. If you get one,
 it is new.
@@ -783,7 +783,7 @@ send path read it.
 
 ## Run the tests
 
-    npm test          # 328 assertions, pure functions, no database
+    npm test          # 334 assertions, pure functions, no database
     npm run verify    # tsc, the tests, 48 check suites, 23 audits
 
 **The gate is now green end to end, including the two things that used
@@ -834,7 +834,7 @@ skip as a pass, and for a long time it reported two:
   leaving you to guess.
 
 `npm test` was declared from day one with no test files behind it, so it
-exited 1 and said "No test files found". There are 19 test files now, and
+exited 1 and said "No test files found". There are 20 test files now, and
 they cover the pure logic where being wrong is silent: the fils unit, the
 24-hour window on both sides of the boundary, Dubai sending hours, the
 search parser's plural intents and budget bands, lead scoring, deal
@@ -1150,8 +1150,12 @@ with an empirical floor under it.
   sweep, because the reply that paused it was still "after it started"
   (`PlanSubscription.resumedAt`), and a removed person's plan stayed
   due and was re-read every run for ever. `check:nurture-plans`.
-  Still not built: putting somebody on a plan automatically when they
-  say "in six months", and which step loses people.
+  Somebody who says "in about six months" is now **suggested** for a
+  plan on Today (`START_PLAN`), never put on one: the agent chooses the
+  plan, and doing so closes the suggestion. `plans/timeframe.ts` reads
+  the phrase conservatively — "within six months" is somebody buying
+  now and reads as zero, and anything it cannot read suggests nothing.
+  Still not built: which step loses people.
 - **The assistant replying by itself.** `respond()` works end to end
   against stand-ins and nothing calls it — see item 21 above. Wiring it
   is one call after the ingest stores a buyer's message; it waits on a

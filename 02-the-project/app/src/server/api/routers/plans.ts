@@ -235,6 +235,12 @@ export const plansRouter = router({
           create: { orgId: ctx.orgId, leadId: lead.id, planId: plan.id, ...fresh },
           update: fresh,
         });
+        // The suggestion that asked for this is done. Left open, it would
+        // sit on Today saying "put them on a plan" about somebody on one.
+        await tx.recommendation.updateMany({
+          where: { leadId: lead.id, action: "START_PLAN", state: "OPEN" },
+          data: { state: "ACTED", resolvedAt: now, resolvedById: ctx.userId },
+        });
         await audit(tx, ctx.orgId, {
           actorId: ctx.userId, action: "plan.subscribe", entity: "Lead", entityId: lead.id,
           after: { plan: plan.name },

@@ -77,7 +77,10 @@ about the sequence, not just about the lead.
   page. A resume records `resumedAt`, so the reply that paused a plan
   does not pause it again — rule one says restarting is the agent's
   decision, and without it the decision did nothing.
-- Auto-subscription. Nothing yet puts a lead on a plan when the assistant
-  extracts a long timeframe, which is the obvious trigger.
+- ~~Auto-subscription.~~ Suggested rather than automatic: the nightly
+  sweep raises `START_PLAN` for somebody whose timeframe reads as three
+  months or more (`timeframe.ts`), who is not on a plan, has not opted
+  out, and whose brokerage has a plan in use. The agent picks the plan
+  from the person's page; subscribing closes the suggestion.
 - Per-step reporting — which step loses people. That is the number that
   makes a sequence better over time.

@@ -3229,6 +3229,9 @@ enum NextAction {
   /// Chase an outcome that was never recorded. Unglamorous and the most
   /// frequently correct answer in a real brokerage.
   RECORD_OUTCOME
+  /// Somebody who said "later". Suggested, never done: accepting it opens
+  /// their page, where the agent chooses a plan and presses the button.
+  START_PLAN
 }
 
 enum RecommendationState {

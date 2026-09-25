@@ -155,7 +155,7 @@ chart; spoken requests ("Ask").
   security note in section 13. It costs little here: every page is
   behind sign-in and fetches through tRPC on the client, so what used to
   be prerendered was an empty shell.
-- All 26 migrations apply cleanly to an empty database — last checked
+- All 27 migrations apply cleanly to an empty database — last checked
   by creating one and running `migrate deploy` against it, not by
   trusting the development database, which only ever sees the newest.
 - **Row-level security was tested with two brokerages in one database.**
@@ -253,7 +253,7 @@ thing it checks and confirming it fails.
 ### The unit tests
 
 ```bash
-npm test                    # 328 assertions, no database, ~3 seconds
+npm test                    # 334 assertions, no database, ~3 seconds
 ```
 
 `package.json` declared `"test": "vitest run"` from the beginning with no
@@ -261,7 +261,7 @@ test files and no config behind it, so the command exited 1 and said "No
 test files found" — a command claiming to run tests that could not, which
 is the same shape as a button that does not do what it says.
 
-19 test files, and the selection is not "whatever was easy to test". Every
+20 test files, and the selection is not "whatever was easy to test". Every
 case is a bug that actually happened here or a rule whose failure would
 be silent:
 
@@ -285,6 +285,7 @@ be silent:
 | `lib/sentence.test.ts` | Enums as sentences, not title case |
 | `server/lib/plans/run.test.ts` | Every nurture step ends with a person doing something, each waits its own delay, a resume is not undone by the reply that paused it, and a step that would do nothing is refused |
 | `lib/log.test.ts` | Nothing personal reaches a log — in the message and context as well as the extras |
+| `server/lib/plans/timeframe.test.ts` | "In six months" is later; "within six months" is now; anything unreadable suggests nothing |
 | `server/lib/billing/number.test.ts` | One invoice series for the supplier, in issue order, and no VAT invoice without PotatoFarm's fifteen-digit TRN |
 
 **They were checked against deliberate breakage, not just run.** Setting
@@ -422,7 +423,7 @@ Ask — an agent can see what they asked for earlier and what came back.
 - **Voice recipes** `BOOK_VIEWING` and `COMPARABLES` return a follow-up
   question rather than completing in one step. Deliberate, but the second
   step is not wired to the booking screen.
-**Unit tests cover the pure logic, not the codebase.** 328 assertions in 19 files,
+**Unit tests cover the pure logic, not the codebase.** 334 assertions in 20 files,
   across money, the 24-hour window, Dubai sending hours, the search
   parser, lead scoring, deal risk, the assistant's guardrails and the
   interface's Arabic — the
@@ -797,7 +798,7 @@ Full spec: `03-brand/logo/SPEC.md`.
 ## 10. Database, API, auth, integrations
 
 **Database:** PostgreSQL via Prisma. `app/prisma/schema.prisma`, 77
-models. 26 migrations in `app/prisma/migrations/`. **`rls.sql` is
+models. 27 migrations in `app/prisma/migrations/`. **`rls.sql` is
 appended to the init migration** — it is not a file somebody has to
 remember to run, because the tenant boundary is not something to leave to
 memory.

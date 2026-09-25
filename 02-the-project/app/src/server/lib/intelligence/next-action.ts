@@ -1,5 +1,6 @@
 import type { NextAction } from "@prisma/client";
 import type { Score } from "./score";
+import { monthsAway, LONG_HORIZON_MONTHS } from "@/server/lib/plans/timeframe";
 
 /**
  * One thing to do, and why.
@@ -48,6 +49,14 @@ export type Subject = {
   optedOut: boolean;
   /** Hours left in the WhatsApp window, or null if it has closed. */
   windowHoursLeft: number | null;
+  /** What they said about when, as heard or typed. */
+  timeframe: string | null;
+  /** Already on a nurture plan, running or paused. */
+  onPlan: boolean;
+  /** The brokerage has a plan in use to put them on. */
+  planAvailable: boolean;
+  /** For reading `timeframe` against; the sweep's clock. */
+  now?: Date;
 };
 
 export type Suggestion = {
@@ -178,6 +187,26 @@ export function nextAction(s: Subject): Suggestion | null {
       reason: "Engaged, but nothing recorded about what they want — so nothing can be matched to them.",
       priority: priority(0.6, s),
       valueFils: null,
+    };
+  }
+
+  /* ---- They said "later" ------------------------------------------ */
+  //
+  // The buyer the plans README opens with: "we're looking in about six
+  // months" was a note in a field, and the agency still in touch at
+  // month five wins them. Only when they said so in words this can read
+  // — "within six months" is somebody buying now, and reads as zero —
+  // and only when there is a plan to put them on and they are not on one.
+  // Before "stalled", because a long-horizon buyer is exactly who stalls,
+  // and a plan is the better answer than a nudge.
+  const away = monthsAway(s.timeframe, s.now);
+  if (outboundAllowed && s.planAvailable && !s.onPlan && away !== null && away >= LONG_HORIZON_MONTHS) {
+    return {
+      action: "START_PLAN",
+      headline: `Put ${who(s)} on a nurture plan`,
+      reason: `They said "${s.timeframe}". A plan brings them back to your list at the right moments instead of letting them go cold.`,
+      priority: priority(0.45, s),
+      valueFils: s.budgetMaxFils,
     };
   }
 

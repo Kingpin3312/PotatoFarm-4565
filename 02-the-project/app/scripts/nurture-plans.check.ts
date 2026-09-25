@@ -2,6 +2,7 @@ import { crossTenant } from "../src/server/db/client";
 import { JOBS } from "../src/server/jobs";
 import { plansRouter } from "../src/server/api/routers/plans";
 import { LONG_HORIZON_BUYER } from "../src/server/lib/plans/run";
+import { sweepIntelligence } from "../src/server/lib/intelligence/sweep";
 import { fatal } from "./fatal";
 
 /**
@@ -39,6 +40,8 @@ async function cleanup() {
   if (ids.length) {
     const where = { orgId: { in: ids } };
     await root.followUp.deleteMany({ where });
+    await root.recommendation.deleteMany({ where });
+    await root.leadScoreEvent.deleteMany({ where });
     await root.planSubscription.deleteMany({ where });
     await root.planStep.deleteMany({ where });
     await root.taskPlan.deleteMany({ where });
@@ -82,6 +85,14 @@ async function main() {
   const fromExample = LONG_HORIZON_BUYER.map((s) => ({
     action: s.action, afterDays: s.afterDays, template: s.template ?? undefined, taskTitle: s.taskTitle ?? undefined,
   }));
+
+  {
+    // Before the brokerage has any plan: nothing to suggest one from.
+    const early = await lead("Early Later", { timeframe: "in about six months" });
+    await sweepIntelligence();
+    ok("with no plan in use, nobody is told to put anybody on one",
+       !(await root.recommendation.findFirst({ where: { leadId: early.id, action: "START_PLAN" } })));
+  }
 
   console.log("=== writing a plan ===");
   const forbidden = await refused(() => A.create({ name: "Agent's own", audience: "BUYER", steps: fromExample }));
@@ -198,6 +209,22 @@ async function main() {
        gs.state === "STOPPED" && gs.endedReason === "removed from the book", `${gs.state}`);
   }
 
+  console.log("\n=== somebody who said \"later\" is suggested for one ===");
+  {
+    const later = await lead("Later Buyer", { timeframe: "in about six months" });
+    const soon = await lead("Soon Buyer", { timeframe: "within 3 months" });
+    await sweepIntelligence();
+    const rec = (leadId: string) => root.recommendation.findFirst({ where: { leadId, action: "START_PLAN" } });
+    const r1 = await rec(later.id);
+    ok("the nightly sweep suggests a plan for somebody who said \"in about six months\"",
+       r1?.state === "OPEN" && r1.agentId === agent.id, r1 ? `${r1.state}: ${r1.headline}` : "no suggestion");
+    ok("and not for somebody buying \"within 3 months\"", !(await rec(soon.id)));
+    await A.subscribe({ leadId: later.id, planId: longId });
+    ok("putting them on a plan closes the suggestion", (await rec(later.id))?.state === "ACTED");
+    await sweepIntelligence();
+    ok("and the next sweep does not raise it again", (await rec(later.id))?.state !== "OPEN");
+  }
+
   console.log("\n=== retiring a plan ===");
   {
     const newcomer = await lead("New Buyer");
@@ -209,7 +236,7 @@ async function main() {
     const e2 = await refused(() => A.setActive({ planId: callId, active: false }));
     ok("an agent cannot retire one", e2?.code === "FORBIDDEN", e2?.code ?? "allowed");
     ok("every change is in the audit log",
-       (await root.auditLog.count({ where: { orgId: org.id, action: { in: ["plan.create", "plan.subscribe", "plan.resume", "plan.stop", "plan.retire"] } } })) === 9);
+       (await root.auditLog.count({ where: { orgId: org.id, action: { in: ["plan.create", "plan.subscribe", "plan.resume", "plan.stop", "plan.retire"] } } })) === 10);
   }
 
   await cleanup();

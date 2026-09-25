@@ -63,6 +63,7 @@ function subject(over: Partial<Subject> = {}): Subject {
     openOffers: 0, offerExpiringInDays: null,
     budgetMaxFils: 3_000_000n * 100n, matchesWaiting: 0,
     optedOut: false, windowHoursLeft: 20,
+    timeframe: null, onPlan: false, planAvailable: false,
     ...over,
   };
 }
@@ -186,6 +187,24 @@ async function main() {
   }));
   ok("a lead who messaged today with a viewing booked produces silence",
      settled === null, settled?.headline ?? "null");
+
+  console.log("\nSomebody who said \"later\" is offered a plan — and only them:");
+  {
+    const later = { timeframe: "in about six months", planAvailable: true, now: new Date("2026-09-25T08:00:00Z") };
+    const yes = nextAction(subject(later));
+    ok("\"in about six months\" suggests a nurture plan, quoting them", yes?.action === "START_PLAN" && (yes?.reason ?? "").includes("in about six months"), yes?.headline ?? "nothing");
+    const cases: [string, Partial<Subject>][] = [
+      ["\"within six months\" is buying now, not later", { timeframe: "within six months" }],
+      ["somebody already on a plan", { onPlan: true }],
+      ["a brokerage with no plan to offer", { planAvailable: false }],
+      ["somebody who asked not to be messaged", { optedOut: true }],
+      ["a phrase it cannot read", { timeframe: "when the right one comes up" }],
+    ];
+    for (const [why, over] of cases) {
+      const r = nextAction(subject({ ...later, ...over }));
+      ok(`not for ${why}`, r?.action !== "START_PLAN", r?.action ?? "nothing");
+    }
+  }
 
   console.log("\nThe reason is always there:");
   const sample = [hot, expiring, subject({ viewingsAwaitingOutcome: 1 }),

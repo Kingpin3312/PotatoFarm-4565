@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import type { NextAction } from "@prisma/client";
 
 import Link from "next/link";
 import { api } from "@/lib/trpc";
@@ -322,7 +323,9 @@ function Book({
  * rendered `call`, and a lookup table is a quieter place for that fault
  * to hide than a `.toLowerCase()` call.
  */
-const LABEL: Record<string, string> = {
+// Every action, checked by the compiler, so a new one gets its short
+// word rather than falling back to its enum name read as a sentence.
+const LABEL: Record<NextAction, string> = {
   CALL: "Call",
   SEND_PROPERTY: "Send",
   FOLLOW_UP: "Follow up",
@@ -334,6 +337,7 @@ const LABEL: Record<string, string> = {
   INTRODUCE_FINANCE: "Finance",
   NEGOTIATE: "Negotiate",
   RECORD_OUTCOME: "Log outcome",
+  START_PLAN: "Plan",
 };
 
 function Actions({
@@ -413,7 +417,7 @@ function Actions({
                   </p>
                   <div className="flex shrink-0 items-baseline gap-x-3">
                     <span className="t-label text-ink-3">
-                      {LABEL[a.action] ?? label(a.action)}
+                      {LABEL[a.action as NextAction] ?? label(a.action)}
                     </span>
                     {a.valueFils !== null && a.valueFils > 0n && (
                       <span className="t-label tabular text-ink-3">

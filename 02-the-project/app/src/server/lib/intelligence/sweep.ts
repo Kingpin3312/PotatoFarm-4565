@@ -180,6 +180,13 @@ export async function sweepIntelligence() {
       take: 5_000,
     });
 
+    // Who is on a plan already, and whether there is one to offer — once
+    // per brokerage, not per lead.
+    const onPlan = new Set((await db.planSubscription.findMany({
+      where: { orgId: org.id, state: { in: ["RUNNING", "PAUSED"] } }, select: { leadId: true },
+    })).map((p) => p.leadId));
+    const planAvailable = (await db.taskPlan.count({ where: { orgId: org.id, active: true, steps: { some: {} } } })) > 0;
+
     for (const lead of leads) {
       const conv = lead.conversation;
 
@@ -336,6 +343,10 @@ export async function sweepIntelligence() {
         matchesWaiting,
         optedOut: lead.optedOutOfOutreach,
         windowHoursLeft: win.open ? win.hoursLeft : null,
+        timeframe: lead.timeframe,
+        onPlan: onPlan.has(lead.id),
+        planAvailable,
+        now,
       };
 
       const suggestion = nextAction(subject);
