@@ -7,7 +7,24 @@ import { signup, trialHealth, MIN_SEATS, TRIAL_DAYS } from "@/server/lib/billing
 import { beginCardSetup, cardSummary } from "@/server/lib/billing/card";
 import { seatDays } from "@/server/lib/billing/seats";
 import { explain } from "@/server/lib/billing/invoice";
+import { supplierTrn, vatRateBp } from "@/server/lib/billing/number";
 import { aed, usd, priced } from "@/lib/money";
+
+/**
+ * The VAT the next invoice will carry, as the screen should say it —
+ * "5%", or null while PotatoFarm is not registered. It said "5%" as a
+ * constant, so every brokerage was quoted a tax that may not be charged.
+ * A malformed TRN reads as null here; the boot log and the invoice job
+ * both refuse it loudly, and a pricing screen is not the place to fail.
+ */
+function vatShown(): string | null {
+  try {
+    const rate = vatRateBp(supplierTrn());
+    return rate ? `${rate / 100}%` : null;
+  } catch {
+    return null;
+  }
+}
 
 export const billingRouter = router({
   /**
@@ -69,7 +86,7 @@ export const billingRouter = router({
     exampleMonthly: process.env.SEAT_PRICE_FILS
       ? priced(BigInt(process.env.SEAT_PRICE_FILS) * BigInt(MIN_SEATS))
       : null,
-    vatRate: "5%",
+    vatRate: vatShown(),
     cardRequiredUpFront: false,
   })),
 
@@ -99,8 +116,9 @@ export const billingRouter = router({
       // agents on the 3rd should see the bill move that day, not be
       // surprised on the 1st.
       // The running bill in both. Charged in AED — that is what the
-      // invoice will say and what the VAT is computed on.
+      // invoice will say, and what any VAT would be computed on.
       runningTotal: priced(seatFils + u.overageFils),
+      vatRate: vatShown(),
 
       /**
        * The bill, itemised.

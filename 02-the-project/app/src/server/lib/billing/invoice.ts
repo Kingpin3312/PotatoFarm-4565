@@ -2,25 +2,29 @@ import { usage } from "./conversations";
 import { aed } from "@/lib/money";
 import { crossTenant } from "@/server/db/client";
 import { seatDays } from "./seats";
-import { supplierTrn, invoiceNumber } from "./number";
+import { supplierTrn, invoiceNumber, vatRateBp } from "./number";
 
 /**
  * Invoicing.
  *
  * Two things that are specific to selling here and easy to get wrong:
  *
- * 1. **UAE VAT is 5%**, and a tax invoice needs both parties' TRN to be
- *    valid. A brokerage that cannot reclaim the VAT because the invoice
- *    was malformed will ask for it to be reissued, every month, forever.
+ * 1. **VAT follows the registration, not the other way round.**
+ *    PotatoFarm is not VAT-registered, so it charges none — only a
+ *    registered business may, and collecting it unregistered is an
+ *    offence. The day `SUPPLIER_TRN` is set, invoices carry 5% and the
+ *    TRN; a tax invoice needs both parties' TRN to be one a brokerage
+ *    can reclaim against. `vat-threshold.ts` watches for the day
+ *    registration stops being optional.
  * 2. **Everything is in fils**, never floating point. Money in a double
  *    is how a customer ends up with a bill for 0.30000000000000004.
  */
 
-const VAT_BP = 500; // 5.00%
-
 export async function generateInvoice(subId: string, from: Date, to: Date) {
-  // First, before any arithmetic: nothing is issued without it.
+  // First, before any arithmetic: a malformed TRN stops everything,
+  // and the registration — or its absence — sets the rate.
   const trn = supplierTrn();
+  const rateBp = vatRateBp(trn);
 
   const sub = await crossTenant("sweep").subscription.findUniqueOrThrow({
     where: { id: subId },
@@ -67,10 +71,11 @@ export async function generateInvoice(subId: string, from: Date, to: Date) {
   const subtotal = seatFils + u.overageFils;
 
   /**
-   * VAT on the whole supply. Computing it on seats alone — which is
-   * what happened while the overage was missing — under-remits.
+   * VAT on the whole supply, when there is a registration to charge it
+   * under. Computing it on seats alone — which is what happened while
+   * the overage was missing — under-remits.
    */
-  const vat = (subtotal * BigInt(VAT_BP)) / 10_000n;
+  const vat = (subtotal * BigInt(rateBp)) / 10_000n;
 
   /**
    * The parts must be the whole. Asserted rather than assumed, because
@@ -115,7 +120,7 @@ export async function generateInvoice(subId: string, from: Date, to: Date) {
         conversationsIncluded: u.included,
         overageFils: u.overageFils,
         subtotalFils: subtotal,
-        vatRateBp: VAT_BP,
+        vatRateBp: rateBp,
         vatFils: vat,
         totalFils: subtotal + vat,
         status: "OPEN",
@@ -145,7 +150,11 @@ export function explain(inv: {
       : `${inv.conversationsAnswered.toLocaleString()} conversations answered, within the ` +
         `${inv.conversationsIncluded.toLocaleString()} included`,
     `Subtotal ${aed(inv.subtotalFils)}`,
-    `VAT at ${(inv.vatRateBp / 100).toFixed(2)}% — ${aed(inv.vatFils)}`,
+    // Said rather than left out. A brokerage's accountant looking for
+    // the VAT line should find the reason there is none, not a gap.
+    inv.vatRateBp > 0
+      ? `VAT at ${(inv.vatRateBp / 100).toFixed(2)}% — ${aed(inv.vatFils)}`
+      : "No VAT charged — PotatoFarm is not VAT-registered",
     `Total ${aed(inv.totalFils)}`,
   ];
 }

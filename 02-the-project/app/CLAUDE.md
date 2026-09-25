@@ -102,7 +102,7 @@ What is verified today, measured rather than assumed:
   `/api/health` returns `200 {"ok":true}` against a real Postgres.
 - The boot log names every unconfigured service with its consequence —
   six of them in a bare development environment.
-- 334 assertions in 20 files, 49 check suites, 23 audits, all green.
+- 348 assertions in 21 files, 50 check suites, 23 audits, all green.
 
 Type errors on a fresh checkout are no longer expected. If you get one,
 it is new.
@@ -299,9 +299,16 @@ issuer — one company, one TRN — and a gap in it reads as a supply left
 off the return. They were per brokerage, on the reasoning that each
 customer's run should be unbroken, which is the wrong party. The series
 is a counter row bumped inside the invoice's own transaction; a Postgres
-`SEQUENCE` would look tidier and leaves a hole on every rollback. And no
-invoice is issued without `SUPPLIER_TRN` — VAT may only be charged under
-a registration. `billing/README.md` has both.
+`SEQUENCE` would look tidier and leaves a hole on every rollback.
+
+**No `SUPPLIER_TRN` means no VAT, not no invoice.** PotatoFarm is not
+VAT-registered, and charging VAT unregistered is an offence, so an
+unset TRN is the correct production state and invoices go out at 0%,
+saying why. It used to refuse every invoice instead, which with no
+registration meant nobody could be billed. Do not put a placeholder TRN
+in any environment that issues real invoices: it switches 5% on.
+`billing.vat-threshold` emails when turnover nears the AED 375,000 line
+where registering becomes compulsory. `billing/README.md` has all three.
 
 **Card ordering is a Postgres NUMERIC, not a string key.** The clever
 base-62 version was written first, tested, and was wrong.
@@ -786,8 +793,8 @@ send path read it.
 
 ## Run the tests
 
-    npm test          # 334 assertions, pure functions, no database
-    npm run verify    # tsc, the tests, 49 check suites, 23 audits
+    npm test          # 348 assertions, pure functions, no database
+    npm run verify    # tsc, the tests, 50 check suites, 23 audits
 
 **The gate is now green end to end, including the two things that used
 to skip.** `verify` reports what it did not run rather than counting a
@@ -837,7 +844,7 @@ skip as a pass, and for a long time it reported two:
   leaving you to guess.
 
 `npm test` was declared from day one with no test files behind it, so it
-exited 1 and said "No test files found". There are 20 test files now, and
+exited 1 and said "No test files found". There are 21 test files now, and
 they cover the pure logic where being wrong is silent: the fils unit, the
 24-hour window on both sides of the boundary, Dubai sending hours, the
 search parser's plural intents and budget bands, lead scoring, deal

@@ -1,8 +1,10 @@
 import { createHmac } from "node:crypto";
 import { crossTenant } from "../src/server/db/client";
 import { signup } from "../src/server/lib/billing/signup";
-import { generateInvoice } from "../src/server/lib/billing/invoice";
+import { generateInvoice, explain } from "../src/server/lib/billing/invoice";
+import { billingRouter } from "../src/server/api/routers/billing";
 import { invoiceNumber } from "../src/server/lib/billing/number";
+import { aed } from "../src/lib/money";
 import { recordAnswered } from "../src/server/lib/billing/conversations";
 import { fatal } from "./fatal";
 
@@ -20,7 +22,8 @@ import { fatal } from "./fatal";
  * Everything except Stripe's own API:
  *
  *   - a brokerage can be created, with a subscription and seats
- *   - the invoice arithmetic is right, in fils, including VAT
+ *   - the invoice arithmetic is right, in fils: no VAT while PotatoFarm
+ *     is unregistered, and 5% the day a TRN is set
  *   - the webhook endpoint **verifies signatures** against the raw body
  *   - a forged signature is refused
  *   - a replayed webhook is refused on age
@@ -137,27 +140,60 @@ async function main() {
   if (org && sub) {
     const to = new Date();
     const from = new Date(to.getTime() - 30 * 86_400_000);
-    const draft = await generateInvoice(sub.id, from, to);
+    // Whatever the environment says, each case below sets it itself.
+    const heldTrn = process.env.SUPPLIER_TRN;
+    const FICTIONAL_TRN = "100000000000003";
 
+    /**
+     * Not registered — PotatoFarm's real position. Only a registered
+     * business may charge VAT, so the invoice carries none, no TRN, and
+     * says why rather than leaving a gap where the VAT line was. This
+     * path used to refuse every invoice, which with no registration
+     * meant nobody was ever billed.
+     */
+    delete process.env.SUPPLIER_TRN;
+    const draft = await generateInvoice(sub.id, from, to);
     ok("an invoice can be produced", Boolean(draft), draft ? "" : "buildInvoice returned nothing");
 
-    if (draft) {
-      const d = draft as unknown as {
-        subtotalFils: bigint; vatFils: bigint; totalFils: bigint; seatFils: bigint;
-      };
+    ok("unregistered, it charges no VAT",
+       draft.vatFils === 0n && draft.vatRateBp === 0,
+       `${draft.vatFils} fils at ${draft.vatRateBp}bp`);
+    ok("so the total is the subtotal",
+       draft.totalFils === draft.subtotalFils, `${draft.subtotalFils} → ${draft.totalFils}`);
+    ok("and it carries no supplier TRN, because there is none",
+       draft.supplierTrn === null, String(draft.supplierTrn));
+    const lines = explain(draft);
+    ok("the bill says no VAT is charged, and why",
+       lines.includes("No VAT charged — PotatoFarm is not VAT-registered") && !lines.some((l) => /^VAT at/.test(l)),
+       lines.join(" | "));
+
+    /**
+     * Registered — the day the FTA certificate arrives and the TRN is
+     * set. Nothing else changes: 5%, on the whole supply, with both
+     * parties' TRNs recorded as they were on the day.
+     */
+    process.env.SUPPLIER_TRN = FICTIONAL_TRN;
+    const taxed = await generateInvoice(sub.id, from, to);
+    if (heldTrn === undefined) delete process.env.SUPPLIER_TRN; else process.env.SUPPLIER_TRN = heldTrn;
+
+    {
+      const d = taxed;
       ok("every amount is an integer number of fils",
          [d.subtotalFils, d.vatFils, d.totalFils].every((v) => typeof v === "bigint"),
          "a float here is how a customer is billed 0.1 + 0.2");
 
-      ok("the total is subtotal plus VAT",
-         d.totalFils === d.subtotalFils + d.vatFils,
-         `${d.subtotalFils} + ${d.vatFils} = ${d.totalFils}`);
+      ok("registered, the total is subtotal plus VAT",
+         d.totalFils === d.subtotalFils + d.vatFils && d.vatRateBp === 500,
+         `${d.subtotalFils} + ${d.vatFils} = ${d.totalFils} at ${d.vatRateBp}bp`);
 
       // UAE VAT is 5%. Rounding is allowed to differ by a fil.
       const expectedVat = (d.subtotalFils * 5n) / 100n;
       const drift = d.vatFils > expectedVat ? d.vatFils - expectedVat : expectedVat - d.vatFils;
-      ok("VAT is 5% of the subtotal", drift <= 1n,
+      ok("VAT is 5% of the subtotal", drift <= 1n && d.vatFils > 0n,
          `${d.vatFils} vs ${expectedVat} expected`);
+      ok("and the bill shows the VAT line",
+         explain(d).includes(`VAT at 5.00% — ${aed(d.vatFils)}`),
+         explain(d).join(" | "));
 
       ok("the invoice is not free", d.totalFils > 0n, `${d.totalFils} fils`);
 
@@ -179,6 +215,33 @@ async function main() {
          `${d.subtotalFils} fils billed against ${monthly} for a full month — seat-days, not a flat charge`);
     }
 
+    /**
+     * What the screens are told. The public terms said "5%" as a
+     * constant, and the billing page promised "plus 5% VAT" under the
+     * running total — a tax the invoice will not charge.
+     */
+    console.log("\nWhat the screens say:");
+    const owner = await root.membership.findFirstOrThrow({ where: { orgId: org.id, role: "OWNER" } });
+    const B = billingRouter.createCaller({
+      session: { user: { id: owner.userId } },
+      membership: { orgId: org.id, orgName: org.name, role: "OWNER" },
+      ip: "127.0.0.1", userAgent: "billing-check",
+    } as never);
+    delete process.env.SUPPLIER_TRN;
+    const unregTerms = await B.terms();
+    const unregStatus = await B.status();
+    const listed = (await B.invoices()).find((i) => i.number === draft.number);
+    process.env.SUPPLIER_TRN = FICTIONAL_TRN;
+    const regTerms = await B.terms();
+    if (heldTrn === undefined) delete process.env.SUPPLIER_TRN; else process.env.SUPPLIER_TRN = heldTrn;
+    ok("unregistered, sign-up and the billing page quote no VAT",
+       unregTerms.vatRate === null && unregStatus.subscribed && unregStatus.vatRate === null,
+       `terms ${unregTerms.vatRate}, status ${unregStatus.subscribed ? unregStatus.vatRate : "no subscription"}`);
+    ok("registered, they quote 5%", regTerms.vatRate === "5%", String(regTerms.vatRate));
+    ok("the invoice list explains the missing VAT line",
+       Boolean(listed?.lines.includes("No VAT charged — PotatoFarm is not VAT-registered")),
+       listed ? listed.lines.join(" | ") : "invoice not listed");
+
     /* ---------------- the number on it ---------------------------- */
     /**
      * One series for the supplier. Numbers were per brokerage, prefixed
@@ -192,9 +255,10 @@ async function main() {
     const n = (num: string) => Number(num.replace(/^PF-/, ""));
 
     ok("it comes from the supplier's one series", /^PF-\d{6}$/.test(draft.number), draft.number);
-    ok("and carries PotatoFarm's VAT registration and the brokerage's",
-       draft.supplierTrn === process.env.SUPPLIER_TRN?.replace(/\s/g, "") && draft.customerTrn === "100000000000011",
-       `${draft.supplierTrn} / ${draft.customerTrn}`);
+    ok("registered, it carries PotatoFarm's VAT registration and the brokerage's",
+       taxed.supplierTrn === FICTIONAL_TRN && taxed.customerTrn === "100000000000011",
+       `${taxed.supplierTrn} / ${taxed.customerTrn}`);
+    ok("both kinds share the one series", n(taxed.number) === n(draft.number) + 1, `${draft.number}, ${taxed.number}`);
 
     const second = await signup({
       brokerageName: "Billing Check Second", ownerEmail: "billing-check-second@example.com",
@@ -223,15 +287,15 @@ async function main() {
       const c = await generateInvoice(sub.id, at(30), at(60));
       ok("so the next one takes it and the series has no hole", c.number === invoiceNumber(next), c.number);
 
-      // Without PotatoFarm's registration, nothing is issued and no
-      // number is used up.
+      // A TRN that is set but wrong would be printed on every invoice:
+      // nothing is issued and no number is used up.
       const held = process.env.SUPPLIER_TRN;
       const before = { count: await root.invoice.count(), next: await seq() };
-      delete process.env.SUPPLIER_TRN;
+      process.env.SUPPLIER_TRN = "10000000000000";   // fourteen digits
       let refused = false;
       try { await generateInvoice(sub.id, at(60), at(90)); } catch { refused = true; }
-      process.env.SUPPLIER_TRN = held;
-      ok("no VAT invoice is issued without PotatoFarm's VAT registration",
+      if (held === undefined) delete process.env.SUPPLIER_TRN; else process.env.SUPPLIER_TRN = held;
+      ok("a malformed TRN issues nothing and uses up no number",
          refused && (await root.invoice.count()) === before.count && (await seq()) === before.next);
 
       // Five years' retention, and a gap in the series: removing a

@@ -81,7 +81,8 @@ Sign-up is closed until you set it. That is deliberate.
 ## Now complete
 
 1. **The price.** $70 per agent per month, invoiced in dirhams at
-   AED 257.08 plus 5% VAT. `SEAT_PRICE_FILS=25708`.
+   AED 257.08, with no VAT while PotatoFarm is not VAT-registered.
+   `SEAT_PRICE_FILS=25708`.
 2. **Rate limiting on `signup`.** Database-backed, not in-memory —
    in-memory means "per serverless instance", which on this platform
    means no limit at all. Two windows: a short one stops a burst, a long

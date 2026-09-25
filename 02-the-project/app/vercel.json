@@ -77,6 +77,10 @@
       "schedule": "0 3 * * *"
     },
     {
+      "path": "/api/cron/billing.vat-threshold",
+      "schedule": "15 3 * * *"
+    },
+    {
       "path": "/api/cron/ratelimit.sweep",
       "schedule": "20 3 * * *"
     },

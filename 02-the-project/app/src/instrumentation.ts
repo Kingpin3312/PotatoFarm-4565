@@ -45,7 +45,16 @@ export async function register() {
   check("STRIPE_SECRET_KEY", "no card can be taken and no invoice settled");
   check("CRON_SECRET", "every scheduled job refuses to run");
   check("SEAT_PRICE_FILS", "sign-up refuses to create a subscription");
-  check("SUPPLIER_TRN", "no invoice is issued — VAT may only be charged under PotatoFarm's own registration, and a tax invoice must carry it");
+  /**
+   * Not in the missing list: unset is the honest state of a business
+   * that is not VAT-registered, and invoices go out without VAT. Set
+   * but malformed is a fault — every invoice is refused until it is
+   * fixed, because a typo would be printed on each one.
+   */
+  const trn = process.env.SUPPLIER_TRN?.replace(/\s/g, "");
+  if (trn && !/^\d{15}$/.test(trn)) {
+    missing.push("SUPPLIER_TRN — set, but not a fifteen-digit TRN; no invoice is issued until it is corrected or removed");
+  }
   check("S3_BUCKET", "no file can be uploaded — no brochure, no floor plan, no KYC document");
   check("SECRETS_KEY", "no WhatsApp number or Facebook Page can be connected — there is nowhere safe to keep its token");
   /**

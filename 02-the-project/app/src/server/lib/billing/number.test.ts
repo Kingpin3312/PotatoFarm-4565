@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { invoiceNumber, supplierTrn } from "./number";
+import { invoiceNumber, supplierTrn, vatRateBp } from "./number";
 
 describe("invoiceNumber — one series for the supplier", () => {
   it("is the supplier's prefix and a zero-padded count", () => {
@@ -19,9 +19,11 @@ describe("supplierTrn — no VAT without a registration", () => {
   const was = process.env.SUPPLIER_TRN;
   afterEach(() => { process.env.SUPPLIER_TRN = was; });
 
-  it("refuses when it is not set", () => {
+  it("is null when PotatoFarm is not registered, so invoices are still issued", () => {
     delete process.env.SUPPLIER_TRN;
-    expect(() => supplierTrn()).toThrow(/SUPPLIER_TRN is not set/);
+    expect(supplierTrn()).toBeNull();
+    process.env.SUPPLIER_TRN = "  ";
+    expect(supplierTrn()).toBeNull();
   });
   it("refuses a number that is not fifteen digits, since it is printed on every invoice", () => {
     process.env.SUPPLIER_TRN = "10000000000000";
@@ -30,5 +32,14 @@ describe("supplierTrn — no VAT without a registration", () => {
   it("accepts one written with spaces, as it is on the certificate", () => {
     process.env.SUPPLIER_TRN = "100 0000 0000 0003";
     expect(supplierTrn()).toBe("100000000000003");
+  });
+});
+
+describe("vatRateBp — the registration decides the rate", () => {
+  it("charges nothing without a registration: collecting VAT unregistered is an offence", () => {
+    expect(vatRateBp(null)).toBe(0);
+  });
+  it("charges the UAE standard 5% with one", () => {
+    expect(vatRateBp("100000000000003")).toBe(500);
   });
 });

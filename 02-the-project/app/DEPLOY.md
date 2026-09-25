@@ -89,7 +89,7 @@ production, which is why the check exists.
 
 ## 3. The plan is not optional
 
-**27 cron jobs and `maxDuration = 300`.** Vercel Hobby allows
+**28 cron jobs and `maxDuration = 300`.** Vercel Hobby allows
 two crons at daily granularity and caps a function at sixty seconds.
 
 Deploying to Hobby **does not fail**. The crons simply never run — and

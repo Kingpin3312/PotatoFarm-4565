@@ -48,7 +48,8 @@ export default function Billing() {
           {data.runningTotal.usd}
         </h1>
         <p className="text-sm text-ink-2 mt-2 tabular">
-          {data.runningTotal.aed} — what the invoice will say, plus 5% VAT
+          {data.runningTotal.aed} — what the invoice will say
+          {data.vatRate ? `, plus ${data.vatRate} VAT` : ". No VAT is charged."}
         </p>
       </header>
 

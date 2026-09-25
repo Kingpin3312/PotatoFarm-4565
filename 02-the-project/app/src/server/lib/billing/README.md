@@ -26,25 +26,47 @@ more expensive per day than March, and somebody eventually notices.
 
 ## Two things specific to selling here
 
-**UAE VAT is 5%, and a valid tax invoice needs both parties' TRN.** A
-brokerage that cannot reclaim the VAT because the invoice was malformed
-will ask for it to be reissued, every month, forever.
+**PotatoFarm is not VAT-registered, so it charges no VAT.** Only a
+registered business may charge it — collecting VAT without a
+registration is an offence, not a rounding question. So the registration
+decides the rate: with no `SUPPLIER_TRN`, every invoice carries 0%, no
+supplier TRN, and a line saying "No VAT charged — PotatoFarm is not
+VAT-registered", so a brokerage's accountant finds a reason rather than
+a gap. On the day the FTA certificate arrives, set `SUPPLIER_TRN` and
+every invoice from then on carries 5% on the whole supply, with both
+parties' TRNs as they stood on the day. A value that is set but not
+fifteen digits refuses every invoice: a typo would be printed on each
+one, and reading it as "not registered" would stop charging VAT the
+business owes.
+
+This used to refuse every invoice until a TRN was set, on the
+assumption that the company was registered and the number merely
+unconfigured. Unregistered, that meant nobody could be billed at all.
+
+**Registration stops being optional at AED 375,000.** Once taxable
+supplies over the previous twelve months exceed it — or are expected to
+in the next thirty days alone — the application is due within thirty
+days, and VAT not charged after that date is PotatoFarm's to pay. Nobody
+adds that up by hand, so `billing.vat-threshold` does, daily
+(`vat-threshold.ts`): turnover is the subtotal of every issued invoice
+from the last 365 days, and the thirty-day figure is the paying
+brokerages' seats at their price plus last month's overage. It emails
+`SALES_INBOX` once at each step up — AED 187,500 (voluntary
+registration is possible, and costs VAT-registered customers nothing),
+AED 300,000 (start the application), and past AED 375,000 (compulsory,
+repeated weekly until the TRN is set). An email the mailer could not
+send is not remembered as sent. `check:vat-threshold` runs the real job
+against a stand-in mailer.
 
 **Invoice numbers are one gapless series for the supplier** —
 `PF-000001`, `PF-000002`, never reset. This used to say the opposite,
 and was wrong: the sequence Article 59 of the VAT Executive Regulation
-asks for belongs to whoever issues the invoice, which is PotatoFarm with
-one TRN, and a gap in *that* series is what an auditor reads as a supply
+asks for belongs to whoever issues the invoice, which is PotatoFarm —
+one company, and one TRN once registered — and a gap in *that* series is what an auditor reads as a supply
 left off the return. A customer does not need unbroken numbers; the
 supplier does. The series is a counter row incremented inside the
 invoice's own transaction (`InvoiceSequence`), so a failed invoice gives
 its number back — a Postgres sequence would not.
-
-**No VAT without a registration.** Only a registered business may charge
-VAT, so an invoice is refused until `SUPPLIER_TRN` is set, and each one
-records both parties' TRNs as they stood on the day. What is still
-needed for a document a brokerage can reclaim against — the words "Tax
-Invoice", both parties' names and addresses — is in "Not built" below.
 
 Everything is in fils. Money in a floating point number is how a customer
 ends up with a bill for 0.30000000000000004.
@@ -151,13 +173,13 @@ you, and it is the same number that has to go on the pricing page.
 
 ## Not built
 
-- **The tax invoice itself, as a document.** The billing screen lists
+- **The invoice itself, as a document.** The billing screen lists
   each invoice's arithmetic, and the charge carries its number — but
-  nothing renders a document with the words "Tax Invoice", PotatoFarm's
-  legal name and address, and the brokerage's name and address, which
-  Article 59 requires alongside the TRNs recorded here. A brokerage
-  cannot reclaim input VAT without one. It needs the company's registered
-  details, which cannot come from inside this repository.
+  nothing renders a document with PotatoFarm's legal name and address
+  and the brokerage's. It needs the company's registered details, which
+  cannot come from inside this repository. Once PotatoFarm is
+  VAT-registered, that document must also say "Tax Invoice" and carry
+  both TRNs (Article 59), or a brokerage cannot reclaim the VAT on it.
 - ~~**Keeping invoices.**~~ **Done.** `Invoice` cascaded from
   `Subscription`, so removing a subscription row took its invoices with
   it — five years' tax records and a hole in the supplier's series, in

@@ -9,6 +9,7 @@ import { sweepOverdue } from "@/server/lib/billing/dunning";
 import { generateInvoice } from "@/server/lib/billing/invoice";
 import { reconcile } from "@/server/lib/billing/reconcile";
 import { sweepTrials } from "@/server/lib/billing/signup";
+import { watchVatThreshold, type AlertState } from "@/server/lib/billing/vat-threshold";
 import { sweepRateLimits } from "@/server/lib/ratelimit";
 import { sweepMailboxes } from "@/server/lib/email/sync";
 import { sendDueFollowUps } from "@/server/lib/reminders";
@@ -897,6 +898,25 @@ export const JOBS = {
    * ACTIVE; no card stops the assistant and keeps every lead.
    */
   "billing.trials": () => run("billing.trials", async () => sweepTrials()),
+
+  /**
+   * Turnover against the VAT registration line. Daily.
+   *
+   * PotatoFarm charges no VAT because it is not registered, which is
+   * lawful only while turnover stays under AED 375,000 a year. Nobody
+   * adds that up by hand, and finding out late means paying the VAT that
+   * was never charged. Emails SALES_INBOX once per step up, and weekly
+   * once registering is compulsory.
+   */
+  "billing.vat-threshold": () => run("billing.vat-threshold", async () => {
+    const last = await crossTenant("sweep").jobRun.findFirst({
+      where: { job: "billing.vat-threshold", state: "SUCCEEDED" },
+      orderBy: { startedAt: "desc" },
+      select: { result: true },
+    });
+    const prev = last?.result as Partial<AlertState> | null;
+    return watchVatThreshold(prev?.alerted ? { alerted: prev.alerted, alertedAt: prev.alertedAt ?? null } : null);
+  }),
 
   /**
    * Offers past their expiry. Hourly.

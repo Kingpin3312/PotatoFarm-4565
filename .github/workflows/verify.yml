@@ -86,9 +86,9 @@ jobs:
       WHATSAPP_APP_SECRET: ci-only-webhook-signing-secret
       NEXT_PUBLIC_APP_URL: http://localhost:3000
       SEAT_PRICE_FILS: "9900"
-      # Fifteen digits and fictional. Invoices are refused without it,
-      # because VAT may only be charged under a real registration.
-      SUPPLIER_TRN: "100000000000003"
+      # No SUPPLIER_TRN, as in production: PotatoFarm is not
+      # VAT-registered. `check:billing` sets a fictional one itself to
+      # prove the registered path too.
       # Any value works, like WHATSAPP_APP_SECRET above: `check:billing`
       # signs its own fake delivery with it, so both ends agree. Unset
       # is what the first run to reach this gate hit — and unset used to
@@ -267,9 +267,9 @@ jobs:
       TRANSCRIBE_BASE_URL: http://127.0.0.1:4321
       NEXT_PUBLIC_APP_URL: http://localhost:3000
       SEAT_PRICE_FILS: "9900"
-      # Fifteen digits and fictional. Invoices are refused without it,
-      # because VAT may only be charged under a real registration.
-      SUPPLIER_TRN: "100000000000003"
+      # No SUPPLIER_TRN, as in production: PotatoFarm is not
+      # VAT-registered. `check:billing` sets a fictional one itself to
+      # prove the registered path too.
       # This job is the one that runs `check:billing`, because that suite
       # posts a signed payment webhook at the real route and so needs the
       # application up. Same throwaway value as the verify job's.

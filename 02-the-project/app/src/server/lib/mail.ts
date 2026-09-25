@@ -1,4 +1,5 @@
 import { log } from "@/lib/log";
+import { endpoint } from "@/server/lib/loopback";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL!;
 
 /**
@@ -43,7 +44,7 @@ export async function sendMail(msg: {
     return false;
   }
 
-  const res = await fetch("https://api.resend.com/emails", {
+  const res = await fetch(`${endpoint("RESEND_API_BASE", "https://api.resend.com")}/emails`, {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
     body: JSON.stringify({

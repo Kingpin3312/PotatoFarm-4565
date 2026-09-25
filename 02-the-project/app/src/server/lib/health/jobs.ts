@@ -39,6 +39,9 @@ const EXPECTED_EVERY_MINUTES: Record<string, number> = {
   "billing.invoices": 24 * 60,
   "billing.reconcile": 24 * 60,
   "billing.trials": 24 * 60,
+  // If this stops, nobody is told when VAT registration becomes
+  // compulsory — and the VAT not charged after that is PotatoFarm's bill.
+  "billing.vat-threshold": 24 * 60,
   "ratelimit.sweep": 24 * 60,
   "offers.expire": 60,
   "email.sync": 30,
