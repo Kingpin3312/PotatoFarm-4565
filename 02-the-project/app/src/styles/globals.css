@@ -390,3 +390,11 @@ strong, b { font-weight: var(--w-medium); }
      letters that should be joined. */
   --track-label:   0;
 }
+
+/* An invoice printed from a dark screen must still be black on white:
+   browsers drop backgrounds when printing, so the dark theme's light
+   text would print light on white paper. */
+@media print {
+  body { background: #fff !important; }
+  .print-ink, .print-ink * { color: #000 !important; border-color: #888 !important; background: transparent !important; }
+}

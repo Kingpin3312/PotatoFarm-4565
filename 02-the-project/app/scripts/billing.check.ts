@@ -142,6 +142,9 @@ async function main() {
     const from = new Date(to.getTime() - 30 * 86_400_000);
     // Whatever the environment says, each case below sets it itself.
     const heldTrn = process.env.SUPPLIER_TRN;
+    const heldSupplier = { name: process.env.SUPPLIER_NAME, address: process.env.SUPPLIER_ADDRESS };
+    process.env.SUPPLIER_NAME = "PotatoFarm Check FZ-LLC";
+    process.env.SUPPLIER_ADDRESS = "Office 1, Check Tower\nDubai";
     const FICTIONAL_TRN = "100000000000003";
 
     /**
@@ -242,6 +245,60 @@ async function main() {
        Boolean(listed?.lines.includes("No VAT charged — PotatoFarm is not VAT-registered")),
        listed ? listed.lines.join(" | ") : "invoice not listed");
 
+    /* ---------------- the document -------------------------------- */
+    /**
+     * The invoice a brokerage keeps. Both parties are written onto the
+     * invoice when it is issued, so renaming the brokerage or moving
+     * office afterwards changes the next invoice and never an old one.
+     */
+    console.log("\nThe invoice as a document:");
+    ok("it records who it was from and to, on the day",
+       draft.supplierName === "PotatoFarm Check FZ-LLC" && draft.supplierAddress === "Office 1, Check Tower\nDubai"
+         && draft.customerName === org.name,
+       `${draft.supplierName} → ${draft.customerName}`);
+
+    const bad = await B.setDetails({ billingAddress: "x", trn: "12345" }).then(() => null, (e: { code?: string }) => e);
+    ok("a TRN that is not fifteen digits is refused", bad?.code === "BAD_REQUEST", String(bad?.code));
+    await B.setDetails({ billingAddress: "  Unit 4, Marina Plaza\nDubai  ", trn: "100 0000 0000 0029" });
+    const saved = await B.details();
+    ok("billing details save, the TRN as its fifteen digits",
+       saved.billingAddress === "Unit 4, Marina Plaza\nDubai" && saved.trn === "100000000000029",
+       JSON.stringify(saved));
+    ok("and the change is in the audit log, without the values",
+       (await root.auditLog.count({ where: { orgId: org.id, action: "billing.details" } })) === 1);
+
+    delete process.env.SUPPLIER_TRN;
+    const addressed = await generateInvoice(sub.id, from, to);
+    if (heldTrn === undefined) delete process.env.SUPPLIER_TRN; else process.env.SUPPLIER_TRN = heldTrn;
+    await root.organisation.update({ where: { id: org.id }, data: { name: "Billing Check Renamed" } });
+    await B.setDetails({ billingAddress: "Somewhere else entirely", trn: "" });
+
+    const doc = await B.invoice({ number: addressed.number });
+    ok("the next invoice is addressed to what was saved",
+       doc.customer.address === "Unit 4, Marina Plaza\nDubai" && doc.customer.trn === "100000000000029",
+       `${doc.customer.address?.replace("\n", ", ")} / ${doc.customer.trn}`);
+    ok("and a later rename or move does not rewrite it",
+       doc.customer.name === org.name && doc.customer.name !== "Billing Check Renamed",
+       doc.customer.name);
+    ok("unregistered, it is an invoice, not a tax invoice, with no VAT line",
+       doc.title === "Invoice" && doc.vat === null && doc.supplier.trn === null && doc.total === aed(addressed.totalFils),
+       `${doc.title}, total ${doc.total}`);
+    const taxDoc = await B.invoice({ number: taxed.number });
+    ok("registered, it is a tax invoice showing the VAT in dirhams and both TRNs",
+       taxDoc.title === "Tax invoice" && taxDoc.vat?.rate === "5.00%" && taxDoc.vat.amount === aed(taxed.vatFils)
+         && taxDoc.supplier.trn === FICTIONAL_TRN && taxDoc.customer.trn === "100000000000011",
+       `${taxDoc.title}, VAT ${taxDoc.vat?.amount}`);
+    ok("its lines add up to its subtotal",
+       doc.lines.length === 2 && doc.subtotal === aed(addressed.subtotalFils)
+         && doc.lines[0]!.amount === aed(addressed.seatFils),
+       doc.lines.map((l) => `${l.description} ${l.amount}`).join(", "));
+    const missing = await B.invoice({ number: "PF-999999" }).then(() => null, (e: { code?: string }) => e);
+    ok("a number that is not this brokerage's finds nothing", missing?.code === "NOT_FOUND", String(missing?.code));
+
+    for (const [k, v] of [["SUPPLIER_NAME", heldSupplier.name], ["SUPPLIER_ADDRESS", heldSupplier.address]] as const) {
+      if (v === undefined) delete process.env[k]; else process.env[k] = v;
+    }
+
     /* ---------------- the number on it ---------------------------- */
     /**
      * One series for the supplier. Numbers were per brokerage, prefixed
@@ -266,6 +323,17 @@ async function main() {
     });
     const otherSub = second.ok ? await root.subscription.findFirst({ where: { orgId: second.orgId } }) : null;
     if (otherSub) {
+      // Another brokerage's owner, asking for this brokerage's invoice by
+      // its number — which is printed on the invoice, so not a secret.
+      const otherOwner = await root.membership.findFirstOrThrow({ where: { orgId: otherSub.orgId, role: "OWNER" } });
+      const B2 = billingRouter.createCaller({
+        session: { user: { id: otherOwner.userId } },
+        membership: { orgId: otherSub.orgId, orgName: "Billing Check Second", role: "OWNER" },
+        ip: "127.0.0.1", userAgent: "billing-check",
+      } as never);
+      const peek = await B2.invoice({ number: draft.number }).then(() => null, (e: { code?: string }) => e);
+      ok("another brokerage cannot open this one's invoice", peek?.code === "NOT_FOUND", String(peek?.code));
+
       // Two brokerages, invoiced at the same moment.
       const [a, b] = await Promise.all([
         generateInvoice(sub.id, at(0), at(30)),

@@ -6,6 +6,7 @@ import { seedRoutingRule } from "../src/server/lib/routing/apply";
 import { openKycFile } from "../src/server/lib/aml/open";
 import { accept } from "../src/server/lib/offers/negotiate";
 import { sweepIntelligence } from "../src/server/lib/intelligence/sweep";
+import { generateInvoice } from "../src/server/lib/billing/invoice";
 
 /**
  * A development brokerage, from nothing — or the one already there.
@@ -264,6 +265,7 @@ async function main() {
     await seedRoutingRule(tx, org.id);
     await seedQualification(tx, org.id);
   });
+  await seedBilling(org.id);
 
   const rows = await db.pipelineStage.findMany({
     where: { orgId: org.id }, select: { id: true, name: true },
@@ -946,6 +948,46 @@ async function main() {
   await sweepIntelligence();
 
   await report(org.id, org.name, existing === 0);
+}
+
+/**
+ * The subscription every signed-up brokerage has — and this one did not.
+ *
+ * Signup writes a `Subscription` and the first seat in the same
+ * transaction as the organisation, so a brokerage without one is a
+ * brokerage no signup could produce: its billing screen said "No
+ * subscription on this brokerage" in every demo, and the invoice page
+ * could never be opened by anything, including the screen sweep.
+ *
+ * One paid month behind it, invoiced by `generateInvoice` itself rather
+ * than by writing an `Invoice` row — the same discipline as `accept()`
+ * above — so the number comes from the real series and the arithmetic
+ * from the real seat ledger: one seat per member, from fifty days ago.
+ * Idempotent: an existing subscription is left exactly as it is.
+ */
+async function seedBilling(orgId: string) {
+  if (await db.subscription.findUnique({ where: { orgId }, select: { id: true } })) return;
+  const members = await db.membership.findMany({ where: { orgId }, select: { userId: true } });
+  // Twenty days into the current month, so the billing screen shows a
+  // month in progress rather than one ending as the demo starts.
+  const start = daysAgo(50);
+  const paidTo = daysAgo(20);
+  const sub = await db.subscription.create({
+    data: {
+      orgId, plan: "standard", status: "ACTIVE",
+      seatPriceFils: BigInt(process.env.SEAT_PRICE_FILS ?? "25708"),
+      currentFrom: start, currentTo: paidTo,
+      billingAddress: "Office 1204, Marina Plaza\nDubai Marina, Dubai",
+    },
+  });
+  await db.seatEvent.createMany({
+    data: members.map((m) => ({ orgId, subId: sub.id, userId: m.userId, change: 1, at: start, reason: "signup" })),
+  });
+  await generateInvoice(sub.id, start, paidTo);
+  // Rolled on, as `billing.invoices` does once an invoice exists.
+  await db.subscription.update({
+    where: { id: sub.id }, data: { currentFrom: paidTo, currentTo: new Date(paidTo.getTime() + 30 * 86_400_000) },
+  });
 }
 
 /**

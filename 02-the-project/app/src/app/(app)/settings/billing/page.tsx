@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { api } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { QueryError } from "@/components/ui/query-state";
@@ -134,6 +135,8 @@ export default function Billing() {
         </div>
       )}
 
+      <BillingDetails />
+
       <h2 className="font-sans font-semibold text-body-lg text-ink mt-12 mb-3">
         Invoices
       </h2>
@@ -156,16 +159,85 @@ export default function Billing() {
               </summary>
               {/* The arithmetic, not just the total. A bill you cannot
                   check is a bill you argue about. */}
-              <ol className="pb-4 space-y-1">
+              <ol className="pb-3 space-y-1">
                 {i.lines.map((l, n) => (
                   <li key={n} className="text-sm text-ink-2 ps-4">{l}</li>
                 ))}
               </ol>
+              <Link
+                href={`/settings/billing/invoices/${encodeURIComponent(i.number)}`}
+                className="inline-flex min-h-11 items-center ps-4 pb-2 text-sm text-accent-deep"
+              >
+                Open the invoice to print or save
+              </Link>
             </details>
           ))}
         </div>
       )}
     </div>
+  );
+}
+
+const input = "w-full min-h-11 px-3 text-control text-ink bg-sunk border border-rule rounded-lg focus-visible:outline-none focus-visible:shadow-[var(--ring)]";
+
+/**
+ * Who the invoice is addressed to. Owners and admins only — the query
+ * refuses anybody else, and then this renders nothing.
+ */
+function BillingDetails() {
+  const utils = api.useUtils();
+  const { data } = api.billing.details.useQuery(undefined, { retry: false });
+  const save = api.billing.setDetails.useMutation({
+    onSuccess: () => void utils.billing.details.invalidate(),
+  });
+  const [draft, setDraft] = useState<{ billingAddress: string; trn: string } | null>(null);
+  if (!data) return null;
+  const f = draft ?? { billingAddress: data.billingAddress, trn: data.trn };
+  const changed = f.billingAddress !== data.billingAddress || f.trn !== data.trn;
+
+  return (
+    <section aria-labelledby="billing-details">
+      <h2 id="billing-details" className="font-sans font-semibold text-body-lg text-ink mt-12 mb-1">
+        On your invoices
+      </h2>
+      <p className="text-sm text-ink-2 mb-4">
+        Each invoice keeps these as they were on the day it was issued, so a change applies from the next one.
+      </p>
+      <div className="border-t border-rule pt-4 space-y-4">
+        <p className="text-ui text-ink">{data.name}</p>
+        <label className="block">
+          <span className="t-label text-ink-3 block mb-1.5">Billing address</span>
+          <textarea
+            className={`${input} py-2`} rows={3} maxLength={400} value={f.billingAddress}
+            onChange={(e) => setDraft({ ...f, billingAddress: e.target.value })}
+          />
+        </label>
+        <label className="block">
+          <span className="t-label text-ink-3 block mb-1.5">Tax registration number (TRN)</span>
+          <input
+            className={input} inputMode="numeric" value={f.trn}
+            onChange={(e) => setDraft({ ...f, trn: e.target.value })}
+          />
+          <span className="block text-note text-ink-3 mt-1">
+            Fifteen digits, from your FTA certificate. Leave empty if the brokerage is not VAT-registered.
+          </span>
+        </label>
+        <div className="flex items-center gap-3">
+          <Button
+            variant="primary" disabled={!changed} loading={save.isPending}
+            onClick={() => save.mutate(f, { onSuccess: () => setDraft(null) })}
+          >
+            Save
+          </Button>
+          {save.isSuccess && !changed && <span role="status" className="text-sm text-success">Saved</span>}
+        </div>
+        {save.error && (
+          <p role="alert" className="text-sm text-danger-deep">
+            {save.error.data?.zod ? "A UAE TRN is fifteen digits." : save.error.message}
+          </p>
+        )}
+      </div>
+    </section>
   );
 }
 

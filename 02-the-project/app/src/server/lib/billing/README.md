@@ -171,15 +171,30 @@ looked up from a price list, so a future price change never silently
 reprices an existing customer — but the first number has to come from
 you, and it is the same number that has to go on the pricing page.
 
+## Decided: charged per person on the team, with no minimum
+
+Sign-up refuses fewer than eight agents, and billing charges only for the
+people actually on the team. That is deliberate. The website promises
+"pro rata for the days they use" and "no minimum term"; charging for eight
+seats a brokerage has not filled would break the first and quietly
+become the second. The eight is advice about who the product suits, not
+a floor on the bill.
+
 ## Not built
 
-- **The invoice itself, as a document.** The billing screen lists
-  each invoice's arithmetic, and the charge carries its number — but
-  nothing renders a document with PotatoFarm's legal name and address
-  and the brokerage's. It needs the company's registered details, which
-  cannot come from inside this repository. Once PotatoFarm is
-  VAT-registered, that document must also say "Tax Invoice" and carry
-  both TRNs (Article 59), or a brokerage cannot reclaim the VAT on it.
+- ~~**The invoice itself, as a document.**~~ **Built.** Settings →
+  Billing → an invoice → "Open the invoice to print or save" is the
+  document a brokerage files, printed or saved as a PDF from the browser
+  rather than by a PDF library whose copy could disagree with the screen.
+  Both parties' names and addresses are written onto the invoice the day
+  it is issued (`supplierName`, `customerAddress`…), like the TRNs, so a
+  rename or an office move changes the next invoice and never an old one.
+  It reads "Tax invoice" only when it carries PotatoFarm's TRN. An owner
+  sets the billing address and TRN on the billing page — the TRN could
+  only be given at sign-up before, where it is optional. PotatoFarm's side
+  comes from `SUPPLIER_NAME` and `SUPPLIER_ADDRESS`; once registered, the
+  boot log names a missing address, which a tax invoice requires.
+  `check:billing`.
 - ~~**Keeping invoices.**~~ **Done.** `Invoice` cascaded from
   `Subscription`, so removing a subscription row took its invoices with
   it — five years' tax records and a hole in the supplier's series, in

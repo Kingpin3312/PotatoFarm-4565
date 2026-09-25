@@ -161,7 +161,14 @@ function body(p: Awaited<ReturnType<typeof vatPosition>>): string {
       "over twelve months, or are expected to in the next thirty days. The application to " +
       "the Federal Tax Authority is due within thirty days. Speak to your accountant today.</p>",
   };
-  return what[p.band] + figures +
+  // The published terms promise customers thirty days' notice before an
+  // invoice carries VAT, so the warning that registration is coming is
+  // also the reminder to give it.
+  const notice = p.band === "APPROACHING" || p.band === "MUST_REGISTER"
+    ? "<p>The terms on the website promise every brokerage at least thirty days' notice before " +
+      "an invoice carries VAT. Send that notice as soon as the registration date is known.</p>"
+    : "";
+  return what[p.band] + figures + notice +
     "<p>When the TRN arrives, set <code>SUPPLIER_TRN</code> to it and every invoice from then on " +
     "carries 5% VAT. This email repeats weekly while registration is overdue.</p>";
 }

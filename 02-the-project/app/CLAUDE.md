@@ -94,7 +94,7 @@ What is verified today, measured rather than assumed:
 
 - `npm run build` exits 0 with no warnings — the production build, not a
   dev server.
-- 61 routes, **every one of them `ƒ` (dynamic) and none prerendered**,
+- 62 routes, **every one of them `ƒ` (dynamic) and none prerendered**,
   which is the `force-dynamic`/CSP-nonce invariant below holding rather
   than having quietly drifted. A static route in that list is the tell
   that somebody removed the line.
@@ -308,7 +308,10 @@ saying why. It used to refuse every invoice instead, which with no
 registration meant nobody could be billed. Do not put a placeholder TRN
 in any environment that issues real invoices: it switches 5% on.
 `billing.vat-threshold` emails when turnover nears the AED 375,000 line
-where registering becomes compulsory. `billing/README.md` has all three.
+where registering becomes compulsory. Each invoice also keeps both
+parties' names and addresses as they were when issued, and the printable
+document reads "Tax invoice" only when it carries a TRN.
+`billing/README.md` has all of it.
 
 **Card ordering is a Postgres NUMERIC, not a string key.** The clever
 base-62 version was written first, tested, and was wrong.
@@ -1065,7 +1068,7 @@ with an empirical floor under it.
 ## What is not built
 
 - ~~Most React screens.~~ **Out of date and left here as a warning.**
-  There are 45, every one of them opens in a browser, and
+  There are 46, every one of them opens in a browser, and
   `browser:screens` fails the build if one stops rendering or starts a
   refetch loop. This line survived the screens being built, which is the
   same drift the audit scripts exist to catch — in the file that warns

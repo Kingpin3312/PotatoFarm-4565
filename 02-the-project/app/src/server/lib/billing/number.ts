@@ -42,3 +42,19 @@ export function invoiceNumber(n: number): string {
   if (!Number.isInteger(n) || n < 1) throw new Error(`Not an invoice sequence number: ${n}`);
   return `PF-${String(n).padStart(6, "0")}`;
 }
+
+/**
+ * Who the invoice is from: the legal name on the trade licence and the
+ * registered address. Environment, like the TRN, because they belong to
+ * the company running this deployment rather than to any brokerage.
+ *
+ * The name falls back to the brand, which is what a customer recognises;
+ * the address falls back to nothing, never to a guess. Once registered
+ * for VAT, both are required on a tax invoice, and the boot log says so.
+ */
+export function supplierDetails(): { name: string; address: string | null } {
+  return {
+    name: process.env.SUPPLIER_NAME?.trim() || "PotatoFarm.io",
+    address: process.env.SUPPLIER_ADDRESS?.trim() || null,
+  };
+}

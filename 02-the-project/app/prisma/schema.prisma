@@ -1293,6 +1293,9 @@ model Subscription {
 
   /// The customer's tax registration number, for a valid UAE tax invoice.
   trn String?
+  /// Where the invoice is addressed. A tax invoice must carry the
+  /// recipient's address; set by an owner on the billing page.
+  billingAddress String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1362,6 +1365,14 @@ model Invoice {
   /// invoice may not change afterwards, and either registration can.
   supplierTrn String?
   customerTrn String?
+  /// Both parties' names and addresses, as they were on the day it was
+  /// issued — for the same reason as the TRNs. A brokerage that renames
+  /// itself or moves office must not change an invoice already sent.
+  /// Null on invoices issued before these were kept.
+  supplierName    String?
+  supplierAddress String?
+  customerName    String?
+  customerAddress String?
 
   /// The provider's own id for the charge. Unique, so a webhook that
   /// arrives twice cannot settle the same invoice twice.

@@ -174,7 +174,8 @@ async function main() {
      `${mail.length} emails${first ? ` to ${first.to}` : ""}`);
   ok("saying where turnover stands and what to do",
      Boolean(first && /nearing the compulsory VAT registration threshold/.test(first.subject)
-       && first.html.includes("AED 310,000.00") && first.html.includes("SUPPLIER_TRN")),
+       && first.html.includes("AED 310,000.00") && first.html.includes("SUPPLIER_TRN")
+       && first.html.includes("thirty days' notice")),
      first?.subject ?? "");
   ok("the job's memory is JSON it can read back tomorrow",
      typeof warned.result.trailingAed === "number" && warned.result.alerted === "APPROACHING",

@@ -31,7 +31,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-dvh flex flex-col">
-      <header className="sticky top-0 z-50 bg-ground border-b border-ink">
+      <header className="sticky top-0 z-50 bg-ground border-b border-ink print:hidden">
         <div className="flex items-center gap-5 px-5 h-14">
           <Link href="/today" className="flex min-h-11 items-center no-underline">
             {/* One lockup, in `components/brand/logo.tsx`. The mark used to
@@ -220,7 +220,7 @@ function MobileTabs({ pathname }: { pathname: string }) {
 
       <nav
         aria-label={t("shell.mainNav")}
-        className="lg:hidden fixed bottom-0 inset-x-0 z-50 grid grid-cols-5 border-t border-rule bg-ground pb-[env(safe-area-inset-bottom)]"
+        className="lg:hidden fixed bottom-0 inset-x-0 z-50 grid grid-cols-5 border-t border-rule bg-ground pb-[env(safe-area-inset-bottom)] print:hidden"
       >
         {/* `tab`, not `t` — `t` is the translator in this scope now, and
             a map parameter that shadows it reads as working code right

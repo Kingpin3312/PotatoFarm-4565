@@ -2,7 +2,7 @@ import { usage } from "./conversations";
 import { aed } from "@/lib/money";
 import { crossTenant } from "@/server/db/client";
 import { seatDays } from "./seats";
-import { supplierTrn, invoiceNumber, vatRateBp } from "./number";
+import { supplierTrn, invoiceNumber, vatRateBp, supplierDetails } from "./number";
 
 /**
  * Invoicing.
@@ -28,8 +28,14 @@ export async function generateInvoice(subId: string, from: Date, to: Date) {
 
   const sub = await crossTenant("sweep").subscription.findUniqueOrThrow({
     where: { id: subId },
-    select: { id: true, orgId: true, seatPriceFils: true, currency: true, trn: true },
+    select: {
+      id: true, orgId: true, seatPriceFils: true, currency: true, trn: true, billingAddress: true,
+    },
   });
+  const org = await crossTenant("sweep").organisation.findUniqueOrThrow({
+    where: { id: sub.orgId }, select: { name: true },
+  });
+  const supplier = supplierDetails();
 
   const { seatDays: used, fullPeriodDays } = await seatDays(subId, from, to);
 
@@ -111,6 +117,12 @@ export async function generateInvoice(subId: string, from: Date, to: Date) {
         number: invoiceNumber(Number(row.n)),
         supplierTrn: trn,
         customerTrn: sub.trn?.trim() || null,
+        // Both parties as they are today, kept with the invoice: a later
+        // rename or move must not rewrite a bill already sent.
+        supplierName: supplier.name,
+        supplierAddress: supplier.address,
+        customerName: org.name,
+        customerAddress: sub.billingAddress?.trim() || null,
         periodFrom: from,
         periodTo: to,
         seatDays: used,

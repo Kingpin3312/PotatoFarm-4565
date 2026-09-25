@@ -106,8 +106,8 @@ token, which the web app cannot do. Treat it as a design sketch.
 
 ## 4. What is built
 
-**78 database models · 63 enums · 28 API routers · 177 procedures ·
-45 screens · 28 scheduled jobs · 23 audit scripts · 50 check suites.**
+**78 database models · 63 enums · 28 API routers · 180 procedures ·
+46 screens · 28 scheduled jobs · 23 audit scripts · 50 check suites.**
 
 **Five procedures have no screen, and every one of them deliberately:**
 `aml.checkRear`, `aml.visibilityPolicy`, `onboarding.previewImport`,
@@ -156,7 +156,7 @@ chart; spoken requests ("Ask").
   security note in section 13. It costs little here: every page is
   behind sign-in and fetches through tRPC on the client, so what used to
   be prerendered was an empty shell.
-- All 29 migrations apply cleanly to an empty database — last checked
+- All 30 migrations apply cleanly to an empty database — last checked
   by creating one and running `migrate deploy` against it, not by
   trusting the development database, which only ever sees the newest.
 - **Row-level security was tested with two brokerages in one database.**
@@ -800,7 +800,7 @@ Full spec: `03-brand/logo/SPEC.md`.
 ## 10. Database, API, auth, integrations
 
 **Database:** PostgreSQL via Prisma. `app/prisma/schema.prisma`, 78
-models. 29 migrations in `app/prisma/migrations/`. **`rls.sql` is
+models. 30 migrations in `app/prisma/migrations/`. **`rls.sql` is
 appended to the init migration** — it is not a file somebody has to
 remember to run, because the tenant boundary is not something to leave to
 memory.

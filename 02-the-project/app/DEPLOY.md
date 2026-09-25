@@ -151,6 +151,25 @@ A backup nobody has restored is a hypothesis. The drill asserts that
 every row and drop the policies, which looks like a perfect recovery and
 is a cross-tenant breach on the first sign-in.
 
+## 8. Before the first invoice
+
+Every invoice keeps who it was from on the day it was issued, and an
+invoice cannot be changed afterwards — so set these before the first
+brokerage's trial ends, not after:
+
+| Setting | What goes in it |
+|---|---|
+| `SUPPLIER_NAME` | The legal name on PotatoFarm's trade licence. Falls back to "PotatoFarm.io". |
+| `SUPPLIER_ADDRESS` | The registered address on the same licence. |
+| `SUPPLIER_TRN` | **Leave empty** while PotatoFarm is not VAT-registered — invoices then carry no VAT, as the law requires. |
+| `SALES_INBOX` | Where the VAT threshold warning is sent. Falls back to hello@potatofarm.io. |
+
+`billing.vat-threshold` emails `SALES_INBOX` when turnover nears the AED
+375,000 a year at which registering becomes compulsory. On the day the
+registration certificate arrives, set `SUPPLIER_TRN` and every invoice
+from then on carries 5% VAT; the terms promise brokerages thirty days'
+notice before that happens.
+
 ---
 
 ## Testing without Meta

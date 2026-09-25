@@ -55,6 +55,11 @@ export async function register() {
   if (trn && !/^\d{15}$/.test(trn)) {
     missing.push("SUPPLIER_TRN — set, but not a fifteen-digit TRN; no invoice is issued until it is corrected or removed");
   }
+  // Registered, a tax invoice must carry the supplier's address too
+  // (Article 59). Unregistered, an invoice without one is still lawful.
+  if (trn && !process.env.SUPPLIER_ADDRESS?.trim()) {
+    missing.push("SUPPLIER_ADDRESS — registered for VAT but no address; tax invoices go out without the registered address the FTA requires");
+  }
   check("S3_BUCKET", "no file can be uploaded — no brochure, no floor plan, no KYC document");
   check("SECRETS_KEY", "no WhatsApp number or Facebook Page can be connected — there is nowhere safe to keep its token");
   /**

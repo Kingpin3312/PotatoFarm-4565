@@ -7,7 +7,8 @@ import { signup, trialHealth, MIN_SEATS, TRIAL_DAYS } from "@/server/lib/billing
 import { beginCardSetup, cardSummary } from "@/server/lib/billing/card";
 import { seatDays } from "@/server/lib/billing/seats";
 import { explain } from "@/server/lib/billing/invoice";
-import { supplierTrn, vatRateBp } from "@/server/lib/billing/number";
+import { supplierTrn, vatRateBp, supplierDetails } from "@/server/lib/billing/number";
+import { audit } from "@/server/lib/audit";
 import { aed, usd, priced } from "@/lib/money";
 
 /**
@@ -102,7 +103,10 @@ export const billingRouter = router({
     const card = await cardSummary(ctx.orgId);
     const u = await usage(sub.id, sub.currentFrom, new Date());
 
-    const seatFils = BigInt(Math.round((Number(sub.seatPriceFils) / fullPeriodDays) * used));
+    // In fils throughout, as the invoice is. This went through a double
+    // (`Number(price) / days * used`), the one money sum left in the
+    // billing path that did after the invoice itself was fixed.
+    const seatFils = (sub.seatPriceFils * BigInt(used)) / BigInt(fullPeriodDays);
 
     return {
       subscribed: true as const,
@@ -176,6 +180,103 @@ export const billingRouter = router({
       lines: explain(i),
     }));
   }),
+
+  /**
+   * Who the invoice is addressed to. The TRN was taken at sign-up, where
+   * it is optional, and nothing could set it afterwards — so a brokerage
+   * that skipped it could never get an invoice carrying it.
+   */
+  details: requirePermission("org:update").query(async ({ ctx }) => {
+    const [org, sub] = await Promise.all([
+      ctx.db.organisation.findUniqueOrThrow({ where: { id: ctx.orgId }, select: { name: true } }),
+      ctx.db.subscription.findUnique({ where: { orgId: ctx.orgId }, select: { trn: true, billingAddress: true } }),
+    ]);
+    return { name: org.name, trn: sub?.trn ?? "", billingAddress: sub?.billingAddress ?? "" };
+  }),
+
+  setDetails: requirePermission("org:update")
+    .input(z.object({
+      billingAddress: z.string().trim().max(400),
+      // Fifteen digits, as on the FTA certificate, or nothing. Spaces are
+      // how people copy it off the certificate.
+      trn: z.string().transform((t) => t.replace(/\s/g, ""))
+        .refine((t) => t === "" || /^\d{15}$/.test(t), "A UAE TRN is fifteen digits."),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      return ctx.db.$transaction(async (tx) => {
+        const sub = await tx.subscription.findUnique({ where: { orgId: ctx.orgId }, select: { id: true } });
+        if (!sub) throw new TRPCError({ code: "NOT_FOUND", message: "No subscription on this brokerage." });
+        await tx.subscription.update({
+          where: { id: sub.id },
+          data: { billingAddress: input.billingAddress || null, trn: input.trn || null },
+        });
+        // Which fields, not their values — the same rule as lead edits.
+        await audit(tx, ctx.orgId, {
+          actorId: ctx.userId, action: "billing.details", entity: "Subscription", entityId: sub.id,
+          after: { fields: ["billingAddress", "trn"] },
+        });
+        return { ok: true as const };
+      });
+    }),
+
+  /**
+   * One invoice, as the document a brokerage keeps.
+   *
+   * Read through the brokerage's own scope, so another firm's number
+   * finds nothing. Everything on it comes from the invoice row, which
+   * was fixed on the day it was issued; only invoices from before the
+   * parties were kept fall back to today's names.
+   *
+   * "Tax invoice" only when it carries PotatoFarm's TRN. Calling a
+   * document a tax invoice without a registration behind it is the one
+   * thing worse than leaving VAT off.
+   */
+  invoice: requirePermission("org:update")
+    .input(z.object({ number: z.string().trim().min(1).max(40) }))
+    .query(async ({ ctx, input }) => {
+      const i = await ctx.db.invoice.findFirst({ where: { number: input.number } });
+      if (!i) throw new TRPCError({ code: "NOT_FOUND", message: "No invoice with that number." });
+      const now = supplierDetails();
+      const org = i.customerName ? null : await ctx.db.organisation.findUnique({
+        where: { id: ctx.orgId }, select: { name: true },
+      });
+      const extra = i.conversationsAnswered - i.conversationsIncluded;
+      const day = (d: Date) => d.toISOString().slice(0, 10);
+      return {
+        title: i.supplierTrn ? "Tax invoice" : "Invoice",
+        number: i.number,
+        issuedAt: day(i.issuedAt),
+        dueAt: day(i.dueAt),
+        periodFrom: day(i.periodFrom),
+        periodTo: day(i.periodTo),
+        status: i.status,
+        supplier: { name: i.supplierName ?? now.name, address: i.supplierAddress, trn: i.supplierTrn },
+        customer: { name: i.customerName ?? org?.name ?? "", address: i.customerAddress, trn: i.customerTrn },
+        lines: [
+          {
+            description: "Agent seats",
+            detail: `${i.seatDays} seat-days over a ${i.seatDaysFull}-day period`,
+            amount: aed(i.seatFils),
+          },
+          i.overageFils > 0n
+            ? {
+                description: "Conversations beyond the allowance",
+                detail: `${extra.toLocaleString("en-GB")} of ${i.conversationsAnswered.toLocaleString("en-GB")} answered, ` +
+                  `${i.conversationsIncluded.toLocaleString("en-GB")} included`,
+                amount: aed(i.overageFils),
+              }
+            : {
+                description: "Conversations",
+                detail: `${i.conversationsAnswered.toLocaleString("en-GB")} answered, within the ` +
+                  `${i.conversationsIncluded.toLocaleString("en-GB")} included`,
+                amount: aed(0n),
+              },
+        ],
+        subtotal: aed(i.subtotalFils),
+        vat: i.vatRateBp > 0 ? { rate: `${(i.vatRateBp / 100).toFixed(2)}%`, amount: aed(i.vatFils) } : null,
+        total: aed(i.totalFils),
+      };
+    }),
 
   /** Ours, not theirs. Which trials are going nowhere, worst first. */
   trials: requirePermission("audit:read").query(() => trialHealth()),
