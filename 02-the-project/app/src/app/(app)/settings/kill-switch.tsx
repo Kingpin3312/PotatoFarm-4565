@@ -131,7 +131,7 @@ export function KillSwitch() {
         ref={dialog}
         aria-labelledby="kill-title"
         tabIndex={-1}
-        className="border border-ink rounded-[3px] p-0 max-w-[460px] w-[calc(100%-40px)] bg-raised text-ink-2 backdrop:bg-ink/50"
+        className="border border-ink rounded-[3px] p-0 max-w-[460px] w-[calc(100%-40px)] bg-raised text-ink-2 backdrop:bg-scrim/50"
       >
         <div className="p-6">
           <h2 className="font-sans font-semibold text-h3 text-ink mb-2.5">Stop the assistant?</h2>

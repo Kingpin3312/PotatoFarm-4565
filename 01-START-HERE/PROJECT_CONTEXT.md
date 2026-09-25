@@ -611,51 +611,37 @@ vendor to send to. **Ask of anything new: what writes the first row?**
 
 ## 8. Design — colours
 
-Ground `#F4F3F0`. Panel `#EBEAE6`.
+**Neon pink `#FF1493` on grey `#292C32`.** Every other shade is derived
+from the grey; there is no second accent anywhere.
 
 **`app/src/styles/tokens.css` is the only source of truth**, imported by
 `globals.css`. The palette is declared in four places — that file, the
 website's `assets/site.css`, and inline in each of the two reference
-pages in `03-brand/design-system/` — and **`consistency.py` now compares
-all four hex by hex** and fails on any drift. That check did not exist
-until a fourth, stale copy turned up in `03-brand/design-system/` with a
-visibly different orange (`#FF6E00`) in the folder a designer opens
-first. Nothing imported it, so nothing caught it. It is deleted.
+pages in `03-brand/design-system/` — and **`consistency.py` compares all
+four hex by hex** and fails on any drift. `03-brand/repalette.py` moves
+all of them at once, token by token, along with the native theme, the
+manifests, the email button and the logo lockups' `.io`.
+`03-brand/logo/PALETTE.md` carries the reasoning.
 
-`PALETTE-V4.md` carries the *reasoning* — why the ground is warm, why
-there are two oranges — and its hexes are historical. It says so at the
-top.
-
-| Use | Hex | Contrast on ground |
+| Use | Hex | Contrast on the grey |
 |---|---|---|
-| **Headings, tabs, links, accents, `.io`** | `#FF6B35` | 2.56:1 — see below |
-| **Button fills** | `#FF6B35` | label stays ink at 6.14:1 |
-| Body | `#4A4A4A` | 8.34:1 |
-| Captions, small orange type | `#A84015` | 5.55:1 |
-| Muted | `#6B6B6B` | 5.86:1 |
-| Ink — button labels, figures, tables | `#1A1A1A` | 16.94:1 |
-| **Wordmark — "PotatoFarm", and nothing else** | `#12202E` | 14.88:1 |
-| Rim / border on every orange fill | `#CC4E1D` | 3.73:1 on panel |
-| Logo eyes | `#3B2416` | — |
+| **Ground** — the dominant surface | `#292C32` | — |
+| Panels and inputs / cards and modals | `#2F3238` / `#33373E` | — |
+| Navigation band (darker) | `#25282D` / `#1F2126` | — |
+| **Accent** — buttons, active nav, selected, links, focus, `.io` | `#FF1493` | 3.85:1 |
+| Label on a pink fill | `#FFFFFF` | 3.64:1 on the pink |
+| Ink — headings, body, figures, the wordmark | `#F3F4F6` | 12.72:1 |
+| Secondary body | `#C9CCD2` | 8.70:1 |
+| Muted | `#A0A5AE` | 5.66:1 |
+| Rule / control boundary | `#3D4148` / `#7D828C` | 1.36:1 / 3.63:1 |
+| Soft pink — selected rows, machine-written text | `#472940` | ink on it 11.50:1 |
 
-### Two colours in the interface, three in the brand
-
-**The product is `#FF6B35` and black.** Every heading, every tab, every
-link, every accent and the `.io` take the orange; everything else is
-ink. There is no third hue in the interface — the green and the red are
-gone.
-
-**The brand has one more, and it is confined to the logo.** The supplied
-artwork sets "PotatoFarm" in a deep navy rather than the neutral ink
-beside it — sampled at `#0E1822` off the flat interior of the thick
-strokes, with blue leading red by eleven points, which is a decision and
-not compression noise. It ships as `--brand-navy: #12202E`.
-
-It dresses the wordmark and nothing else. Repainting `--ink` navy would
-have recoloured every heading, table and caption in the product because
-a logo arrived, and moved thirty measured contrast ratios at once. On
-the dark band it remaps to the light type exactly as `--ink` does, since
-navy on charcoal is 1.3:1.
+The trade, stated once: the pink clears the 3:1 a fill, border, icon or
+focus ring needs and is under the 4.5:1 small text needs, so pink links
+keep their underline, and white button labels are semibold. The potato
+logo keeps its own lit orange artwork — a recolour of the interface is
+not a redesign of the logo — and `palette.py` allows that orange only
+in the mark.
 
 ### Rebuilding the brand
 
@@ -670,39 +656,6 @@ the app header and the website nav stayed on neutral ink. `build.mjs`
 shells out to it, so the bitmaps always draw what the markup has just
 been given. `03-brand/logo/README.md` says which file is for what, and
 why eighteen of them are referenced by no code and should stay.
-
-Two things this document used to say are now false, and are corrected
-rather than left to send somebody looking for a bug: headings are not
-`#1A1A1A`, and colour does not carry state.
-
-The honest accounting, because it is a real trade and not a free one:
-
-```
-#FF6B35 on the ground   2.56:1   fails AA for text (needs 4.5)
-#FF6B35 on the panel    2.36:1   fails
-#FF6B35 on charcoal     5.18:1   passes comfortably
-#1A1A1A on #FF6B35      6.14:1   passes — why buttons keep ink labels
-#FFFFFF on #FF6B35      2.84:1   fails — never put white on it
-```
-
-Three mitigations, all in place and all checked:
-
-1. **A label on an orange fill stays ink** (`--on-accent`), never white.
-2. **Every orange fill carries `--accent-edge`**, so the shape is defined
-   by its border on either surface rather than by the colour.
-3. **Small orange type is `--accent-deep` `#A84015` at 5.55:1.** Captions
-   and inline links do not take the brand orange. A 40px heading nobody
-   reads word by word is a different thing from a caption.
-
-`contrast.py` handles the headings with an allow-list that **pins the
-measured value**: headings, `.brand .tld` and `.display` are permitted at
-2.56:1 and **fail if the ratio drops below it**. It is an exception for a
-known figure, not a switch that turns the check off — proved by setting
-the orange to `#FF9977` and watching all three fail at 1.88:1.
-
-Never merge `--accent` and `--accent-deep`. They are the same instruction
-applied honestly: what was asked for is orange, and what was not asked
-for stays readable.
 
 ### Removing the state colours was the risky half
 

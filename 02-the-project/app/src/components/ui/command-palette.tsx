@@ -274,7 +274,7 @@ export function CommandPalette() {
       aria-label={t("palette.open")}
       onClick={(e) => { if (e.target === dialog.current) close(); }}
       className={cn(
-        "backdrop:bg-ink/25 bg-transparent p-0 m-0 max-w-none max-h-none w-full h-full",
+        "backdrop:bg-scrim/25 bg-transparent p-0 m-0 max-w-none max-h-none w-full h-full",
       )}
     >
       {/* Placed high rather than centred: the list grows downwards and a

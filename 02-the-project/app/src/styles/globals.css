@@ -16,6 +16,8 @@
      generated nothing — the same silent failure as accent-type and
      accent-edge, which were used 42 times before anybody noticed. */
   --color-rule-strong: var(--rule-strong);
+  /* Behind a dialog. See `--scrim` in tokens.css. */
+  --color-scrim: var(--scrim);
 
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);

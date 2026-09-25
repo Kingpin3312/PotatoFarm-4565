@@ -11,9 +11,8 @@ import { cn } from "@/lib/cn";
  * per instance. An agent using this in a car with one thumb is the
  * primary case, not an accessibility afterthought.
  *
- * **The label on the orange fill is white, never ink** — a brand
- * decision, taken with the measurement known: white is 3.13:1 on
- * `#FF5A00` and ink would be 5.73:1.
+ * **The label on the pink fill is white** — a brand decision, taken
+ * with the measurement known: white is 3.64:1 on `#FF1493`.
  *
  * The point that survives four accents and several reversals: it is
  * `--on-accent`, never a colour hardcoded here. That is what makes each
@@ -53,14 +52,14 @@ const button = cva(
   {
     variants: {
       variant: {
-        // The everyday action, and the only filled orange on a screen.
+        // The everyday action, and the only filled pink on a screen.
         primary: "bg-accent border-accent text-on-accent hover:not-disabled:bg-accent-hover",
         secondary: "bg-transparent border-rule text-ink hover:not-disabled:border-ink-2",
         quiet: "bg-transparent border-transparent text-ink-2 hover:not-disabled:text-ink",
         /**
          * Destructive, and it is told apart by *shape*, not by hue.
          *
-         * There is one orange now, so "the red one" is not available:
+         * There is one accent colour, so "the red one" is not available:
          * this is outlined where `primary` is filled, and the label says
          * the word. That is the same reasoning the state tokens in
          * `tokens.css` were built on — colour reinforces, words carry.

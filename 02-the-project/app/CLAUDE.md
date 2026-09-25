@@ -313,6 +313,17 @@ parties' names and addresses as they were when issued, and the printable
 document reads "Tax invoice" only when it carries a TRN.
 `billing/README.md` has all of it.
 
+**The palette is neon pink `#FF1493` on grey `#292C32`, set by the
+owner, and it is a recolour rather than a redesign.** Every token kept
+its name and job; the values changed in `tokens.css` and its three
+mirrors, which `03-brand/repalette.py` sets by token name (a hex map
+cannot tell the ground's white from a button label's white). Every
+other shade is derived from the grey, there is no second accent, and
+`palette.py` fails on any saturated colour that is not the pink, the
+logo's own artwork or a named exception. The potato keeps its orange —
+a logo is not a colour scheme. Dialogs dim with `--scrim`, never with
+`ink`, because ink is near-white now and would lighten the page.
+
 **Card ordering is a Postgres NUMERIC, not a string key.** The clever
 base-62 version was written first, tested, and was wrong.
 `lib/ordering.md` has the account.

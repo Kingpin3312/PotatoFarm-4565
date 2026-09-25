@@ -115,7 +115,7 @@ export function ConnectChannel() {
         ref={dialog}
         aria-labelledby="connect-title"
         tabIndex={-1}
-        className="border border-ink rounded-[3px] p-0 max-w-[560px] w-[calc(100%-40px)] bg-raised text-ink-2 backdrop:bg-ink/50"
+        className="border border-ink rounded-[3px] p-0 max-w-[560px] w-[calc(100%-40px)] bg-raised text-ink-2 backdrop:bg-scrim/50"
       >
         {done ? (
           <div className="p-6">

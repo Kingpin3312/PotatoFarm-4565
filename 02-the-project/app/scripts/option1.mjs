@@ -108,25 +108,25 @@ console.log("\n=== the tokens resolve, and to the approved values ===");
     };
   });
   const same = (got, name) => hex6(got) === token(name);
-  ok("--ground is white", same(t.ground, "--ground"), t.ground);
-  ok("--panel is the warm grey", same(t.panel, "--panel"), t.panel);
-  ok("--ink is deep charcoal", same(t.ink, "--ink"), t.ink);
-  ok("--accent is the brand orange", same(t.accent, "--accent"), t.accent);
-  ok("--accent-soft is the soft orange", same(t.soft, "--accent-soft"), t.soft);
-  ok("--accent-deep carries readable orange type", same(t.deep, "--accent-deep"), t.deep);
+  ok("--ground is the grey", same(t.ground, "--ground"), t.ground);
+  ok("--panel is the lighter grey", same(t.panel, "--panel"), t.panel);
+  ok("--ink is near-white", same(t.ink, "--ink"), t.ink);
+  ok("--accent is the brand pink", same(t.accent, "--accent"), t.accent);
+  ok("--accent-soft is the soft pink", same(t.soft, "--accent-soft"), t.soft);
+  ok("--accent-deep is pink type", same(t.deep, "--accent-deep"), t.deep);
   ok("--rule-strong clears 3:1 for a control", same(t.ruleStrong, "--rule-strong"), t.ruleStrong);
   ok("the direction's own token name resolves",
      t.alias ? same(t.alias, "--accent") : false,
      t.alias || "empty — the alias generated nothing");
 }
 
-console.log("\n=== the page is painted white, not cream ===");
+console.log("\n=== the page is painted the grey ===");
 {
   const paint = await p.evaluate(() => ({
     body: getComputedStyle(document.body).backgroundColor,
     heading: getComputedStyle(document.querySelector("h1")).color,
   }));
-  ok("the body ground is white", paint.body === WHITE || paint.body === "rgba(0, 0, 0, 0)",
+  ok("the body ground is the grey", paint.body === WHITE || paint.body === "rgba(0, 0, 0, 0)",
      paint.body);
   /**
    * Charcoal, not orange, and this assertion is the reverse of what it
@@ -138,10 +138,10 @@ console.log("\n=== the page is painted white, not cream ===");
    * page. On a phone the marketing hero was majority orange and the
    * "Book a call" button competed with the sentence above it.
    */
-  ok("the page heading is charcoal", paint.heading === INK, paint.heading);
+  ok("the page heading is ink", paint.heading === INK, paint.heading);
 }
 
-console.log("\n=== orange is an accent, not the interface ===");
+console.log("\n=== the pink is an accent, not the interface ===");
 {
   // The direction asks for roughly 2%. Measured as the share of visible
   // element area whose background is the accent — a crude proxy, and
@@ -158,7 +158,7 @@ console.log("\n=== orange is an accent, not the interface ===");
     }
     return all ? acc / all : 0;
   }, ORANGE);
-  ok("orange fills under a tenth of the page", share < 0.10,
+  ok("pink fills under a tenth of the page", share < 0.10,
      `${(share * 100).toFixed(1)}% of element area`);
 }
 
@@ -201,7 +201,7 @@ console.log("\n=== a primary button's label is readable on it ===");
      wrong.map((b) => `${b.url} "${b.label}" ${b.fg}`).join(" | ") || "all correct");
 }
 
-console.log("\n=== the soft orange reaches a screen ===");
+console.log("\n=== the soft pink reaches a screen ===");
 {
   /**
    * `--accent-soft` was declared in `tokens.css` and read by nothing.
@@ -236,7 +236,7 @@ console.log("\n=== the soft orange reaches a screen ===");
   ok("the label on it is readable", r.fg === rgbOf("--ink-3"), r.fg);
 }
 
-console.log("\n=== orange type is only ever large enough for it ===");
+console.log("\n=== pink type is the one pink, and readable where it sits ===");
 {
   /**
    * The rule the palette turns on, checked rather than trusted.
@@ -278,6 +278,29 @@ console.log("\n=== orange type is only ever large enough for it ===");
         const bold = parseInt(s.fontWeight, 10) >= 700;
         if (px >= 24 || (px >= 18.66 && bold)) continue;
         /**
+         * Small pink type is the owner's direction — links, key figures,
+         * status words — taken with the number known: #FF1493 is 3.85:1
+         * on the grey, under the 4.5:1 AA asks of small text. What this
+         * holds it to is the recorded floor instead: at least 3:1 against
+         * whatever it actually sits on, found by walking up to the first
+         * painted ancestor. Pink words on a lighter card or a tint that
+         * takes it under 3:1 still fail.
+         */
+        const lum = (c) => {
+          const [r, g, b] = c.match(/\d+/g).slice(0, 3).map((v) => {
+            v = +v / 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+          });
+          return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        };
+        let bg = null;
+        for (let a = el; a && !bg; a = a.parentElement) {
+          const c = getComputedStyle(a).backgroundColor;
+          if (c && !/rgba\(\d+, \d+, \d+, 0\)/.test(c) && c !== "transparent") bg = c;
+        }
+        bg ??= getComputedStyle(document.body).backgroundColor;
+        const [hi, lo] = [lum(s.color), lum(bg)].sort((x, y) => y - x);
+        if ((hi + 0.05) / (lo + 0.05) >= 3) continue;
+        /**
          * The `.io` is the one documented exception, and it is excused
          * here on exactly the grounds `contrast.py` excuses it: a brand
          * mark is exempt from contrast rules, and this is the half of
@@ -296,7 +319,7 @@ console.log("\n=== orange type is only ever large enough for it ===");
   }
   // Counted, not written down. The previous version said "checked 10
   // screens" as a literal and three more were added above it.
-  ok("no orange text below AA Large anywhere", offenders.length === 0,
+  ok("no small pink text under 3:1 against what is behind it", offenders.length === 0,
      offenders.slice(0, 4).join(" | ") || `checked ${swept} screens`);
 }
 

@@ -61,7 +61,7 @@ export function WhoWantsIt({ listingId, reference }: { listingId: string; refere
            own content — the list below the fold and the Close button
            were both unreachable. A brokerage with a real book will have
            twenty-five. */
-        className="border border-ink rounded-[3px] p-0 max-w-[560px] w-[calc(100%-40px)] max-h-[85dvh] overflow-y-auto overscroll-contain bg-raised text-ink-2 backdrop:bg-ink/50"
+        className="border border-ink rounded-[3px] p-0 max-w-[560px] w-[calc(100%-40px)] max-h-[85dvh] overflow-y-auto overscroll-contain bg-raised text-ink-2 backdrop:bg-scrim/50"
       >
         <div className="p-6">
           <span className="t-label text-ink-3">

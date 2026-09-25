@@ -83,8 +83,15 @@ export async function sendMail(msg: {
  * stylesheet, no custom properties and, in Outlook's case, no flexbox,
  * so the tokens are resolved here rather than referenced.
  */
+/**
+ * The accent is the product's pink. The ground stays white on purpose:
+ * mail clients repaint dark backgrounds in their own dark modes, often
+ * badly, and a white message is the one that reads the same in every
+ * inbox — so the email carries the brand in its pink button and `.io`,
+ * and the navy wordmark the logo uses on white.
+ */
 const NAVY = "#12202E";
-const ORANGE = "#FF5A00";
+const ACCENT = "#FF1493";
 const GROUND = "#FFFFFF";
 
 export function wrap(body: string, opts: { preheader?: string } = {}) {
@@ -114,7 +121,7 @@ export function wrap(body: string, opts: { preheader?: string } = {}) {
     `<img src="${APP_URL}/icon-192.png" width="34" height="34" alt="" border="0" ` +
     `style="display:block;border:0" /></td>` +
     `<td style="font-size:19px;font-weight:600;letter-spacing:-.02em;color:${NAVY};` +
-    `white-space:nowrap">PotatoFarm<span style="color:${ORANGE};font-weight:500">.io</span></td>` +
+    `white-space:nowrap">PotatoFarm<span style="color:${ACCENT};font-weight:500">.io</span></td>` +
     `</tr></table></td></tr>` +
     `<tr><td style="font-size:16px;line-height:1.55;color:#171717">${body}</td></tr>` +
     `<tr><td style="padding-top:28px;border-top:1px solid #E7E5E2;font-size:13px;color:#6B6B6B">` +
@@ -146,7 +153,7 @@ export async function sendInvite({
     html: wrap(
       `<p style="margin:0 0 16px">You've been added to <strong>${escapeHtml(orgName)}</strong> on PotatoFarm.io.</p>` +
         `<p style="margin:0 0 20px"><a href="${link}" style="display:inline-block;` +
-        `background:${ORANGE};border:1px solid #FF5A00;color:#FFFFFF;text-decoration:none;` +
+        `background:${ACCENT};border:1px solid ${ACCENT};color:#FFFFFF;text-decoration:none;` +
         `font-weight:600;padding:12px 20px;border-radius:8px">Open PotatoFarm.io</a></p>` +
         `<p style="margin:0;color:#4A4A4A">The link works for seven days. If you weren't ` +
         `expecting this, ignore it — nothing happens until you open it.</p>`,

@@ -1,5 +1,10 @@
 # Option 1 — what was implemented, and what was not
 
+> **Superseded.** The palette is now neon pink `#FF1493` on grey
+> `#292C32` — see `03-brand/logo/PALETTE.md` and `tokens.css`. This file
+> is kept as the record of the previous direction; its figures were
+> measured against the white ground that palette used.
+
 White, deep charcoal, and a controlled orange, across the application,
 the marketing website and the brand assets.
 
@@ -35,7 +40,7 @@ with itself. Either name works.
 
 Three steps were once added that the direction does not name, all
 derived from its own two oranges, and all for one reason: **the accent
-is 3.13:1 on white** (`#FF5A00`; the four accents this project has had
+was recorded at 3.13:1 on white** (`#FF5A00`; the four accents this project has had
 measured 3.22, 1.97, 4.30 and 3.13). That clears the 3:1 a border, icon
 or focus ring needs and falls short of the 4.5:1 text needs. So the
 orange is a surface colour, and orange type used to step down the same

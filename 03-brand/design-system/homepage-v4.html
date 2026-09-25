@@ -5,7 +5,7 @@
 <title>PotatoFarm.io — the real estate CRM that grows your farm</title>
 <meta name="description" content="A WhatsApp-first CRM for UAE brokerages. Answers every enquiry in seconds, sorts your leads hot to cold, and knows what a Dubai deal actually involves.">
 <link rel="canonical" href="https://potatofarm.io/">
-<meta name="theme-color" content="#FFFFFF">
+<meta name="theme-color" content="#292C32">
 <link rel="preconnect" href="https://rsms.me">
 <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
 <style>
@@ -23,18 +23,18 @@
      Pure white plus orange reads as a budget airline. Cream plus orange
      plus brown reads as the reference. The difference is about 2%
      warmth, and it is the difference. */
-  --ground: #FFFFFF;
-  --panel:  #F5F3F0;
-  --raised: #FFFFFF;   /* cards lift by being *whiter* than the ground */
+  --ground: #292C32;
+  --panel:  #2F3238;
+  --raised: #33373E;   /* cards lift by being *whiter* than the ground */
 
   /* ---- Ink, with brown in it --------------------------------------
      A neutral grey against orange looks like a spreadsheet. Warming the
      near-black by a few points is what makes the orange belong. */
-  --ink:   #171717;   /* 16.94:1 */
-  --ink-2: #4A4A4A;   /*  8.34:1 */
-  --ink-3: #6B6B6B;   /*  5.86:1 on ground, 5.43:1 on panel */
-  --rule:  #E7E5E2;
-  --rule-strong: #918A82;
+  --ink:   #F3F4F6;
+  --ink-2: #C9CCD2;
+  --ink-3: #A0A5AE;
+  --rule:  #3D4148;
+  --rule-strong: #7D828C;
 
   /* ---- Orange ------------------------------------------------------
      Two, and they are not interchangeable.
@@ -48,9 +48,9 @@
      it described #E86A2C on a cream ground, two palettes back, and
      said white "is never used" of the value that is now the only
      label colour in the product. */
-  --accent:      #FF5A00;   /* the brand orange. 2.65:1 on ground */
-  --accent-type: #FF5A00;   /* headings, buttons and .io */
-  --accent-hover:#FF5A00;
+  --accent:      #FF1493;
+  --accent-type: #FF1493;   /* headings, buttons and .io */
+  --accent-hover:#FF1493;
 
   /**
    * The border on every orange fill, and it is not decoration.
@@ -63,7 +63,7 @@
    *
    * Same fix as the saffron button two palettes ago, same reason.
    */
-  --accent-edge: #FF5A00;   /* 3.65:1 on panel — defines the boundary */
+  --accent-edge: #FF1493;
 
   /* **Labels on the orange fill are white, never ink**, on
      instruction. On #C65A1E white is 4.30:1 and ink 4.17:1 — both
@@ -74,19 +74,19 @@
   /* ---- Leather -----------------------------------------------------
      The anchor. Orange without a dark warm neutral beneath it floats;
      this is the belt and the box. */
-  --leather:      #34322F;   /* raised inside the dark band */
-  --leather-deep: #2A2825;   /* charcoal, not black — see charcoal.py */
+  --leather:      #25282D;   /* raised inside the dark band */
+  --leather-deep: #1F2126;   /* charcoal, not black — see charcoal.py */
   /* The type that sits on leather, named at the root rather than only
      inside `.on-leather`. The footer is on leather and outside that
      class, so without these it gets literals — which is exactly what
      happened, three times. */
-  --leather-ink:   #F5F3F0;   /* 14.49:1 on leather-deep */
-  --leather-ink-2: #B5B5B5;   /*  8.02:1 */
-  --leather-ink-3: #9A9A96;   /*  5.21:1 on charcoal — #8A8A8A fell to 4.03 */
+  --leather-ink:   #F3F4F6;
+  --leather-ink-2: #C9CCD2;
+  --leather-ink-3: #A0A5AE;
 
-  --success:      #171717;
-  --danger:       #FF5A00;
-  --warning:      #FF5A00;   /* the accent type step, deliberately */
+  --success:      #F3F4F6;
+  --danger:       #FF1493;
+  --warning:      #FF1493;   /* the accent type step, deliberately */
 
   /* ---- Type --------------------------------------------------------
      Same stack. Warm palettes tempt people toward a serif and it is
@@ -124,7 +124,7 @@
 
   /* Warmer and shallower than a neutral shadow. A grey shadow on a
      cream ground looks like dirt. */
-  --lift: 0 1px 2px rgb(43 30 23 / .05), 0 6px 20px rgb(43 30 23 / .06);
+  --lift: 0 1px 2px rgb(0 0 0 / .20), 0 6px 20px rgb(0 0 0 / .26);
   /* The focus ring, and why it is written out in numbers.
      It was `rgb(232 106 44 / .40)` in the CRM and `rgb(217 119 87 / .40)`
      on the website, the mobile preview and both design-system pages —
@@ -138,7 +138,7 @@
      accessibility check printing the focus shadow verbatim to find it.
      `palette.py` now reads rgb() notation as well, which is what makes
      this the last time. */
-  --ring: 0 0 0 3px rgb(255 90 0 / .40);
+  --ring: 0 0 0 3px rgb(255 20 147 / .45);
 }
 
 /* The inverted section. Leather, not black — a pure black band under a
@@ -146,10 +146,10 @@
 .on-leather{
   --ground: var(--leather-deep); --panel: var(--leather); --raised: var(--leather);
   --ink: var(--leather-ink); --ink-2: var(--leather-ink-2); --ink-3: var(--leather-ink-3);
-  --rule: #42403D;
+  --rule: #373A41;
   /* On leather the bright orange finally works as type — 6.4:1 — so the
      accent and the accent-type collapse into one here. */
-  --accent-type: #FF5A00;   /* 7.1:1 on leather */
+  --accent-type: #FF1493;   /* 7.1:1 on leather */
   --on-accent: #FFFFFF;
 }
 

@@ -60,7 +60,7 @@ export function CheckCopy({ listingId }: { listingId: string }) {
         ref={dialog}
         aria-labelledby="check-copy-title"
         tabIndex={-1}
-        className="border border-ink rounded-[3px] p-0 max-w-[560px] w-[calc(100%-40px)] bg-raised text-ink-2 backdrop:bg-ink/50"
+        className="border border-ink rounded-[3px] p-0 max-w-[560px] w-[calc(100%-40px)] bg-raised text-ink-2 backdrop:bg-scrim/50"
       >
         <div className="p-6">
           <h2 id="check-copy-title" className="font-sans font-semibold text-h3 text-ink mb-1.5">

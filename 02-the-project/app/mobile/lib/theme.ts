@@ -6,50 +6,42 @@
  * `_check.py` compares the two, and it is what caught this file still
  * being entirely on the previous navy palette after the web had moved.
  *
- * The app is cream by default. So is the website now — a palette ago
- * the site was dark-first and the app light-first, and keeping two
- * opposite polarities inside one product was a seam nobody wanted.
+ * Neon pink on grey, like the web app and the website: `light` is the
+ * default grey theme (the name is kept because screens import it) and
+ * `dark` is the darker band of the same grey.
  */
 export const light = {
-  ground: "#FFFFFF",   // warm white, not pure — the whole effect
-  sunk:   "#F5F3F0",
-  raised: "#FFFFFF",   // cards lift by being whiter than the ground
+  ground: "#292C32",   // the brief's grey — the dominant surface
+  sunk:   "#2F3238",
+  raised: "#33373E",   // cards lift by being a lighter grey
 
-  ink:  "#171717",     // 17.93:1 — near-black with brown in it
-  ink2: "#4A4A4A",     //  8.86:1
-  ink3: "#6B6B6B",     //  5.33:1 on ground, 4.81:1 on panel
-  rule: "#E7E5E2",
+  ink:  "#F3F4F6",     // 12.72:1 — near-white, not pure white
+  ink2: "#C9CCD2",     //  8.70:1
+  ink3: "#A0A5AE",     //  5.66:1 on ground, 5.19:1 on panel
+  rule: "#3D4148",
 
   /**
-   * One orange, and every name below is the same value.
+   * One pink, and every name below is the same value: fills, the
+   * pressed state, the hairline and pink type. A state is carried by
+   * opacity or by fill-versus-outline, never by a second shade.
    *
-   * `accentHover` and `accentEdge` were #CF5A22 — a darker step for a
-   * pressed state and for the hairline that defined an orange fill
-   * against the panel. Both were real, and both are gone: the direction
-   * is one orange rather than a family of them, so a state is carried
-   * by opacity or by fill-versus-outline, never by a second orange.
-   *
-   * 3.22:1 on the ground and 2.90:1 on the panel — a non-text component
-   * on both, and orange type is a brand decision taken with the number
-   * known rather than a passing measurement.
+   * 3.85:1 on the ground — enough for a non-text component; pink words
+   * are a direction taken with the number known.
    */
-  accent:      "#FF5A00",
-  accentHover: "#FF5A00",
-  accentEdge:  "#FF5A00",
-  accentType:  "#FF5A00",
-  /** Labels on orange are white — 3.13:1, against 5.73:1 for ink.
-   *  Below AA and chosen knowingly by the brand owner. It matters most
-   *  on this platform: a phone held up outside a building in Dubai is
-   *  the hardest case for a 3.13:1 label. See `tokens.css`. */
+  accent:      "#FF1493",
+  accentHover: "#FF1493",
+  accentEdge:  "#FF1493",
+  accentType:  "#FF1493",
+  /** Labels on pink are white — 3.64:1. Below AA for small text and
+   *  chosen knowingly; labels are semibold. See `tokens.css`. */
   onAccent:    "#FFFFFF",
 
-  /** The word "PotatoFarm" itself. The supplied logo sets it in a deep
-   *  navy rather than the neutral ink beside it — 16.51:1 on the ground,
-   *  and it dresses the wordmark and nothing else. Mirrors
-   *  --brand-navy in tokens.css. */
-  brandNavy: "#12202E",
-  /** The wordmark extension. Type, so it takes the deeper orange. */
-  tld: "#FF5A00",
+  /** The word "PotatoFarm" itself. The logo's navy disappears on the
+   *  grey, so the word reverses out to ink. Mirrors --brand-navy in
+   *  tokens.css. */
+  brandNavy: "#F3F4F6",
+  /** The wordmark extension: the pink. */
+  tld: "#FF1493",
   /** The mark's own brown — the eyes, and only the eyes now that the
    *  creases are orange. Deliberately *not* the accent: a face needs
    *  something dark in it. Mirrors EYE in `03-brand/logo/mark.py`. */
@@ -79,55 +71,45 @@ export const light = {
   /** The soft lobe over the lower right. Mirrors SHADE. */
   markShade:   "#B23600",
 
-  /* The inverted band inside the light theme. Charcoal, matching
+  /* The darker band: a darker step of the same grey, matching
      --leather / --leather-deep in tokens.css. */
-  leather:     "#34322F",
-  leatherDeep: "#2A2825",
+  leather:     "#25282D",
+  leatherDeep: "#1F2126",
 
-  /* `danger` was #A0431B so an error did not look like a link. One
-     orange means an error is told apart by its words and by shape —
+  /* One pink means an error is told apart by its words and by shape —
      outlined where an everyday action is filled. Same argument as
      tokens.css. */
-  danger:  "#FF5A00",
-  success: "#171717",
-  warning: "#FF5A00",
+  danger:  "#FF1493",
+  success: "#F3F4F6",
+  warning: "#FF1493",
 } as const;
 
 export const dark = {
-  /* Charcoal, not black — the same surfaces as the web app's dark band,
-     and the same reason: a pure black ground under a warm palette reads
-     as a hole rather than a material. Kept in step with
-     --leather-deep / --leather in tokens.css; 03-brand/charcoal.py has
-     the measurements and the ceiling that sets them. */
-  ground: "#2A2825",
-  sunk:   "#34322F",
-  raised: "#34322F",
+  /* The darker grey, not black — the same surfaces as the web app's
+     dark band, and the same reason: a black ground reads as a hole
+     rather than a material. Kept in step with --leather-deep /
+     --leather in tokens.css. */
+  ground: "#1F2126",
+  sunk:   "#25282D",
+  raised: "#25282D",
 
-  ink:  "#F5F3F0",   // 13.27:1
-  ink2: "#B5B5B5",   //  7.17:1
-  ink3: "#9A9A96",   //  5.21:1 — #8A8A8A fell to 4.03 on charcoal
-  rule: "#42403D",
+  ink:  "#F3F4F6",   // 14.64:1
+  ink2: "#C9CCD2",   // 10.01:1
+  ink3: "#A0A5AE",   //  6.51:1
+  rule: "#373A41",
 
-  accent:      "#FF5A00",   // 4.57:1 on this ground — works as type here
-  accentHover: "#FF5A00",
-  accentEdge:  "#FF5A00",
-  accentType:  "#FF5A00",   // 4.57:1
-  /* The label on an orange button. It is the ground colour, so it moved
-     with it — and 4.57:1 against the orange is why the ground cannot go
-     any lighter at all.
-
-     This said 5.18:1 in both places until it was measured. The
-     conclusion was right and the margin was not: 0.07 above the 4.5:1
-     floor, not 0.68. A number nobody rechecks is how a palette drifts
-     one step past a threshold and still reads as comfortable. */
+  accent:      "#FF1493",   // 4.43:1 on this ground
+  accentHover: "#FF1493",
+  accentEdge:  "#FF1493",
+  accentType:  "#FF1493",   // 4.43:1
+  /* The label on a pink button: white, 3.64:1, as in the light theme. */
   onAccent:    "#FFFFFF",
 
-  /** Navy on charcoal is 1.3:1, so the wordmark reverses out here for
-   *  the same reason `ink` does. */
-  brandNavy: "#F5F3F0",
-  tld: "#FF5A00",
+  /** The wordmark reverses out to ink here, as it does on the grey. */
+  brandNavy: "#F3F4F6",
+  tld: "#FF1493",
   /** The mark itself does not reverse. A logo is reproduced as a unit,
-   *  so only the wordmark above takes a light fill on charcoal; every
+   *  so only the wordmark above takes a light fill on the dark grey; every
    *  value below is the same one the light theme uses and mirrors
    *  `03-brand/logo/mark.py`.
    *
@@ -145,17 +127,16 @@ export const dark = {
   markCrease:   "#D2530C",
   markShade:    "#B23600",
 
-  leather:     "#34322F",
-  leatherDeep: "#2A2825",
+  leather:     "#25282D",
+  leatherDeep: "#1F2126",
 
-  /* On this ground the brand orange measures 4.57:1, so danger needed
-     no darker step here even before the ramp was collapsed. Success is
-     ink, as it is in the light theme: the word carries it. */
-  danger:  "#FF5A00",
-  success: "#F5F3F0",
-  warning: "#FF5A00",
+  /* Danger is the pink, 4.43:1 on this ground. Success is ink, as it
+     is in the grey theme: the word carries it. */
+  danger:  "#FF1493",
+  success: "#F3F4F6",
+  warning: "#FF1493",
 } as const;
 
-/** Default is light. Dark is opt-in, not system-following — an agent
- *  who chose light does not want it flipping at sunset. */
+/** Default is the grey theme. The darker one is opt-in, not
+ *  system-following — an agent's choice should not flip at sunset. */
 export const t = light;
