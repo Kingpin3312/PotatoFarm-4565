@@ -114,7 +114,7 @@ export default function Team() {
         )}
       </div>
 
-      <div className="border-t border-ink mt-10">
+      <div className="border-t border-rule-strong mt-10">
         {isLoading
           ? [...Array(3)].map((_, i) => <div key={i} className="h-14 bg-sunk" aria-busy />)
           : members.map((m) => (

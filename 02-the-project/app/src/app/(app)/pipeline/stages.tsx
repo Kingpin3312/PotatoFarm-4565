@@ -42,7 +42,7 @@ export function Stages() {
         who left.
       </p>
 
-      <div className="border-t border-ink">
+      <div className="border-t border-rule-strong">
         {data.stages.map((s) => {
           const heavy = s.count > 120;
           return (

@@ -86,7 +86,7 @@ export default function AssistantScript() {
         </p>
       ) : (
         <form
-          className="border-t border-ink pt-6 flex flex-col gap-6"
+          className="border-t border-rule-strong pt-6 flex flex-col gap-6"
           onSubmit={(e) => {
             e.preventDefault();
             setSaved(false);

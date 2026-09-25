@@ -79,7 +79,7 @@ export function KillSwitch() {
       <div
         className={cn(
           "rounded-[3px] overflow-hidden",
-          running ? "border border-ink" : "border-2 border-accent"
+          running ? "border border-rule-strong" : "border-2 border-accent"
         )}
       >
         <div className={cn("p-6 flex gap-5 items-center flex-wrap", !running && "bg-accent/5")}>
@@ -131,7 +131,7 @@ export function KillSwitch() {
         ref={dialog}
         aria-labelledby="kill-title"
         tabIndex={-1}
-        className="border border-ink rounded-[3px] p-0 max-w-[460px] w-[calc(100%-40px)] bg-raised text-ink-2 backdrop:bg-scrim/50"
+        className="border border-rule-strong rounded-[3px] p-0 max-w-[460px] w-[calc(100%-40px)] bg-raised text-ink-2 backdrop:bg-scrim/50"
       >
         <div className="p-6">
           <h2 className="font-sans font-semibold text-h3 text-ink mb-2.5">Stop the assistant?</h2>

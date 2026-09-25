@@ -56,7 +56,7 @@ export default function Billing() {
 
       {/* The split. A single number is right and unexplained; two lines
           answer "why has it gone up" before anybody rings to ask. */}
-      <div className="border-t border-ink">
+      <div className="border-t border-rule-strong">
         <Row k={`${data.seats} agents`} v={b.seats.usd} />
         <Row
           k={`${b.answered.toLocaleString()} conversations answered`}
@@ -145,7 +145,7 @@ export default function Billing() {
           Nothing yet. Your first invoice arrives at the end of the first paid month.
         </p>
       ) : (
-        <div className="border-t border-ink">
+        <div className="border-t border-rule-strong">
           {invoices.map((i) => (
             <details key={i.number} className="border-b border-rule">
               <summary className="flex items-baseline gap-3 py-3.5 cursor-pointer min-h-11">

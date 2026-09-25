@@ -80,7 +80,7 @@ export function AddLead() {
         ref={dialog}
         aria-labelledby="add-lead-title"
         tabIndex={-1}
-        className="border border-ink rounded-[3px] p-0 max-w-[520px] w-[calc(100%-40px)] bg-raised text-ink-2 backdrop:bg-scrim/50"
+        className="border border-rule-strong rounded-[3px] p-0 max-w-[520px] w-[calc(100%-40px)] bg-raised text-ink-2 backdrop:bg-scrim/50"
       >
         <form onSubmit={submit} className="p-6">
           <h2 id="add-lead-title" className="font-sans font-semibold text-h3 text-ink mb-1.5">

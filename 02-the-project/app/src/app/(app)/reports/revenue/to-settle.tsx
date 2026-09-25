@@ -51,7 +51,7 @@ export function ToSettle() {
       </p>
       {error && <p role="alert" className="mt-3 text-sm text-danger">{error}</p>}
 
-      <ul className="border-t border-ink mt-5">
+      <ul className="border-t border-rule-strong mt-5">
         {rows.map((c) => (
           <li key={c.id} className="border-b border-rule py-4">
             <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">

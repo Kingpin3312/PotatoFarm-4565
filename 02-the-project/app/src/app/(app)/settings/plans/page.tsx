@@ -67,7 +67,7 @@ export default function Plans() {
 
       {setActive.error && <p role="alert" className="text-sm text-danger mt-4">{setActive.error.message}</p>}
 
-      <div className="mt-8 border-t border-ink">
+      <div className="mt-8 border-t border-rule-strong">
         {inUse.map((p) => (
           <PlanRow key={p.id} plan={p} action={data.canManage ? (
             <button type="button" className="btn-inline min-h-11" onClick={() => setActive.mutate({ planId: p.id, active: false })}>
@@ -83,7 +83,7 @@ export default function Plans() {
           <p className="text-sm text-ink-2 mb-3 max-w-[52ch]">
             Nobody new goes on these. Anyone already on one carries on until their agent stops it.
           </p>
-          <div className="border-t border-ink">
+          <div className="border-t border-rule-strong">
             {retired.map((p) => (
               <PlanRow key={p.id} plan={p} action={data.canManage ? (
                 <button type="button" className="btn-inline min-h-11" onClick={() => setActive.mutate({ planId: p.id, active: true })}>

@@ -90,7 +90,7 @@ export default function Blackbook() {
           never be a lead.
         </p>
       ) : (
-        <div className="border-t border-ink">
+        <div className="border-t border-rule-strong">
           {rows.map((r) => {
             /**
              * Only a lead has a page to open.

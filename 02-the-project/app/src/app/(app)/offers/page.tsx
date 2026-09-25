@@ -18,6 +18,14 @@ export default function Offers() {
   if (isLoading) return <div className="max-w-[980px] mx-auto px-6 pt-10"><div className="h-40 bg-sunk rounded-sm" aria-busy /></div>;
 
   const rows = data ?? [];
+  /**
+   * Past its expiry but not yet swept. `offers.expire` moves these on
+   * hourly, so for up to an hour the list shows one marked "expired" —
+   * and the headline counted it as on the table. The row stays (it is
+   * the one to chase); the count says what it is.
+   */
+  const lapsed = rows.filter((r) => r.hoursLeft != null && r.hoursLeft <= 0).length;
+  const onTable = rows.length - lapsed;
 
   return (
     /**
@@ -35,8 +43,13 @@ export default function Offers() {
           Live
         </span>
         <h1 className="font-sans font-semibold text-page text-ink">
-          {rows.length === 0 ? "No live offers." : `${rows.length} on the table.`}
+          {onTable === 0 ? "No live offers." : `${onTable} on the table.`}
         </h1>
+        {lapsed > 0 && (
+          <p className="text-sub text-ink-3 mt-2">
+            {lapsed === 1 ? "1 has just expired." : `${lapsed} have just expired.`}
+          </p>
+        )}
         {rows.length > 0 && (
           <p className="text-sm text-ink-2 mt-3 max-w-[46ch]">
             Soonest to expire first. An offer that lapses while you were looking at a bigger
@@ -51,7 +64,7 @@ export default function Offers() {
           has been on the table, and so will a manager in six months.
         </p>
       ) : (
-        <div className="border-t border-ink">
+        <div className="border-t border-rule-strong">
           {/* `/offers/<listingId>`, not `/listings/<id>`.
 
               Every row here linked at a route that does not exist and

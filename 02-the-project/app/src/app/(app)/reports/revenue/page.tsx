@@ -83,7 +83,7 @@ export default function Revenue() {
 
       {/* Money in, over the window. One figure and not a row of three,
           because it is the answer and the rest is context. */}
-      <div className="border-t border-ink mt-8 pt-6">
+      <div className="border-t border-rule-strong mt-8 pt-6">
         <div className="font-sans font-semibold text-stat leading-none text-ink tabular">
           {data.received}
         </div>
@@ -112,7 +112,7 @@ export default function Revenue() {
         Not restricted to the window above &mdash; what you are owed is a question about now,
         whatever year the invoice was raised in.
       </p>
-      <div className="grid grid-cols-3 max-[640px]:grid-cols-1 border-t border-ink mt-5">
+      <div className="grid grid-cols-3 max-[640px]:grid-cols-1 border-t border-rule-strong mt-5">
         <Figure label="Invoiced, not yet paid" value={data.invoiced}
                 note={countNote(data.invoicedCount)} highlight />
         <Figure label="Forecast" value={data.forecast}
@@ -164,7 +164,7 @@ export default function Revenue() {
         these add up to the commission, they do not add to it. Only fees the brokerage has actually been
         paid for are attributed to anybody.
       </p>
-      <div className="border-t border-ink mt-5">
+      <div className="border-t border-rule-strong mt-5">
         {data.byAgent.length === 0 ? (
           <p className="py-6 text-sm text-ink-3 max-w-[52ch]">
             Nobody has been credited yet. A person appears here once a commission they have a

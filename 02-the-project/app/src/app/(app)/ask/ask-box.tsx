@@ -320,7 +320,7 @@ function Report({ r }: { r: NonNullable<ReturnType<typeof api.requests.comparabl
         </div>
       )}
 
-      <div className="mt-6 border-t border-ink">
+      <div className="mt-6 border-t border-rule-strong">
         {r.comparables.map((c, i) => (
           <div key={i} className="flex items-baseline gap-3 border-b border-rule py-3">
             <span className={cn("w-16 shrink-0 t-label",

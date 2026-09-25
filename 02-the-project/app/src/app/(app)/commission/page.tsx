@@ -33,7 +33,7 @@ export default function CommissionPage() {
       {/* Two by two. Four across an 860px column put every amount over
           two lines — "AED" above "84,000.00" — which is the one thing
           on this screen that has to read at a glance. */}
-      <div className="grid grid-cols-2 max-[480px]:grid-cols-1 border-t border-ink mt-8">
+      <div className="grid grid-cols-2 max-[480px]:grid-cols-1 border-t border-rule-strong mt-8">
         <Figure label="Paid" value={data.paid} />
         {/* The one that matters. Earned, confirmed received by the
             brokerage, and not yet in their account. */}
@@ -51,7 +51,7 @@ export default function CommissionPage() {
       )}
 
       <h2 className="font-sans font-semibold text-section text-ink mt-12 mb-1">Every deal</h2>
-      <div className="border-t border-ink mt-4">
+      <div className="border-t border-rule-strong mt-4">
         {data.rows.length === 0 && (
           <p className="py-6 text-sm text-ink-3">
             Nothing yet. Deals appear here the moment a commission is recorded against them.

@@ -43,7 +43,7 @@ export default function SettingsPage() {
             that only reflects the successes under-reports exactly when something is
             going wrong.
           </p>
-          <div className="grid grid-cols-4 max-[640px]:grid-cols-2 border-t border-ink mt-5">
+          <div className="grid grid-cols-4 max-[640px]:grid-cols-2 border-t border-rule-strong mt-5">
             {/* Drafted, in draft mode: "sent" by the assistant stays at
                 zero, because a person sends every reply. */}
             <Fig n={String((data.usage.byOutcome.drafted ?? 0) + (data.usage.byOutcome.sent ?? 0))} l="Replies written" />
@@ -63,7 +63,7 @@ export default function SettingsPage() {
             them go out as written, that is the evidence for letting it reply by itself — outside
             working hours first.
           </p>
-          <div className="grid grid-cols-4 max-[640px]:grid-cols-2 border-t border-ink mt-5">
+          <div className="grid grid-cols-4 max-[640px]:grid-cols-2 border-t border-rule-strong mt-5">
             <Fig n={drafts.sentAsWrittenPct === null ? "—" : `${drafts.sentAsWrittenPct}%`} l="Sent as written" />
             <Fig n={String(drafts.edited)} l="Changed first" />
             <Fig n={String(drafts.discarded)} l="Thrown away" highlight />
@@ -88,7 +88,7 @@ export default function SettingsPage() {
             Last seven days, grouped. The useful question is what keeps happening, not
             what happened at 14:32.
           </p>
-          <div className="border-t border-ink mt-5">
+          <div className="border-t border-rule-strong mt-5">
             {handovers.byReason.map((r) => (
               <div key={r.reason} className="flex items-center gap-3.5 py-3 border-b border-rule">
                 <span className="text-sm text-ink min-w-[180px]">

@@ -136,7 +136,7 @@ export default function Screening({ params }: { params: Promise<{ kycId: string 
       )}
 
       <h2 className="font-sans font-medium text-sub text-ink mb-3">Screening history</h2>
-      <div className="border-t border-ink mb-10">
+      <div className="border-t border-rule-strong mb-10">
         {(data?.screenings ?? []).map((s) => (
           <div key={s.id} className="flex items-baseline gap-3 py-3 border-b border-rule">
             <span className="font-mono text-label text-ink-3">

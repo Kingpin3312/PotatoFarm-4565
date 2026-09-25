@@ -180,7 +180,7 @@ export function Bars({ bars, empty, format, axisEvery = 6, height = 150 }: {
 
   return (
     <div>
-      <div className="flex items-end gap-[3px] border-b border-ink" style={{ height }}
+      <div className="flex items-end gap-[3px] border-b border-rule-strong" style={{ height }}
            role="img"
            aria-label={`${bars.length} points. Highest ${format(top)} at ${peak?.label ?? ""}.`}>
         {bars.map((b) => (

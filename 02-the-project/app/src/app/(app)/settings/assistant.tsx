@@ -63,7 +63,7 @@ export function AssistantSettings() {
         than dropping them — nobody is left unanswered because of a budget.
       </p>
 
-      <div className="border-t border-ink mt-5 pt-5">
+      <div className="border-t border-rule-strong mt-5 pt-5">
         <label htmlFor="budget" className="block t-label text-ink-3 mb-2">
           Monthly ceiling, in dirhams
         </label>

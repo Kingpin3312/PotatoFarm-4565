@@ -41,7 +41,7 @@ export default function InvoiceDocument({ params }: { params: Promise<{ number: 
       </div>
 
       <article className="print-ink pt-8 print:pt-0">
-        <header className="flex items-baseline gap-4 pb-6 border-b border-ink">
+        <header className="flex items-baseline gap-4 pb-6 border-b border-rule-strong">
           <h1 className="font-sans font-semibold text-page text-ink">{data.title}</h1>
           <span className="ms-auto font-mono text-ui text-ink">{data.number}</span>
         </header>

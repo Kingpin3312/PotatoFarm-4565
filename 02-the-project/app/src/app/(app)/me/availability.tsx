@@ -73,7 +73,7 @@ export function MyAvailability() {
       )}
 
       <form
-        className="border-t border-ink mt-5 pt-5 flex flex-col gap-5"
+        className="border-t border-rule-strong mt-5 pt-5 flex flex-col gap-5"
         onSubmit={(e) => {
           e.preventDefault();
           setSaved(false);

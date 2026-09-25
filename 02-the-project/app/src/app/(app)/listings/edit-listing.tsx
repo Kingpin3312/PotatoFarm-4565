@@ -142,7 +142,7 @@ export function EditListing({ listing }: { listing: Listing }) {
         ref={dialog}
         aria-labelledby={`edit-listing-title-${listing.id}`}
         tabIndex={-1}
-        className="border border-ink rounded-[3px] p-0 max-w-[560px] w-[calc(100%-40px)] bg-raised text-ink-2 backdrop:bg-scrim/50"
+        className="border border-rule-strong rounded-[3px] p-0 max-w-[560px] w-[calc(100%-40px)] bg-raised text-ink-2 backdrop:bg-scrim/50"
       >
         <form onSubmit={submit} className="p-6">
           <h2

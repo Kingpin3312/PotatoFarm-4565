@@ -85,7 +85,7 @@ export default function Person({ params }: { params: Promise<{ leadId: string }>
       )}
 
       <h2 className="font-sans font-medium text-sub text-ink mt-10 mb-3">Everything</h2>
-      <div className="border-t border-ink">
+      <div className="border-t border-rule-strong">
         {(data?.entries ?? []).map((e, i) => (
           <div key={i} className="flex items-baseline gap-3 py-3 border-b border-rule">
             <span className={cn("t-label w-16 shrink-0",

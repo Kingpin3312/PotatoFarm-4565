@@ -91,7 +91,7 @@ function Listings() {
 
       {/* The two failures that are otherwise invisible. Shown before the
           list, because a permit nobody sees becomes a permit that lapses. */}
-      <div className="grid grid-cols-2 max-[720px]:grid-cols-1 border-t border-ink mt-6">
+      <div className="grid grid-cols-2 max-[720px]:grid-cols-1 border-t border-rule-strong mt-6">
         <Alert
           count={expiring?.length ?? 0}
           title="Permits expiring inside 14 days"
@@ -105,8 +105,12 @@ function Listings() {
         />
       </div>
 
-      <div className="border-t border-ink mt-9">
-        <div className="grid grid-cols-[1.6fr_140px_1fr_120px_auto] gap-4 py-3.5 px-1 border-b border-ink t-label text-ink-3 max-[820px]:hidden">
+      <div className="border-t border-rule-strong mt-9">
+        {/* The last column is a width, not `auto`, and in both grids. Each
+            row is its own grid, so `auto` sized it to that row's five
+            buttons while the header's empty cell sized it to nothing —
+            every heading sat a column to the right of what it named. */}
+        <div className="grid grid-cols-[1.6fr_140px_1fr_120px_470px] gap-4 py-3.5 px-1 border-b border-rule-strong t-label text-ink-3 max-[820px]:hidden">
           <span>Property</span><span>Price</span><span>Portals</span><span>Permit</span><span />
         </div>
 
@@ -121,7 +125,7 @@ function Listings() {
             // with the price parsing deliberately broken, because it was
             // reading a matching number off a different listing.
             data-listing={l.reference}
-            className="grid grid-cols-[1.6fr_140px_1fr_120px_auto] gap-4 items-center py-3.5 px-1 border-b border-rule hover:bg-raised max-[820px]:grid-cols-1 max-[820px]:gap-2"
+            className="grid grid-cols-[1.6fr_140px_1fr_120px_470px] gap-4 items-center py-3.5 px-1 border-b border-rule hover:bg-raised max-[820px]:grid-cols-1 max-[820px]:gap-2"
           >
             <div>
               <div className="font-mono text-label text-ink-3">{l.reference}</div>

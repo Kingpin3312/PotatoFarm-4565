@@ -117,7 +117,7 @@ export default function Import() {
 
               {/* The real value: grouped issues with examples, so the
                   brokerage can go and look at the actual rows. */}
-              <div className="border-t border-ink">
+              <div className="border-t border-rule-strong">
                 {inspect.data.groups.map((g) => (
                   <div key={g.kind}
                        className={cn("py-4 border-b border-rule",
@@ -294,7 +294,7 @@ function Underway({ status }: { status: NonNullable<RouterOutputs["migration"]["
               ? `${blockers.length} of these stop the next stage until somebody decides.`
               : "None of these are blocking. They are recorded so nothing is silently fixed."}
           </p>
-          <div className="border-t border-ink">
+          <div className="border-t border-rule-strong">
             {undecided.map((i) => (
               <div key={i.id} data-issue={i.id} className="py-4 border-b border-rule">
                 <div className="flex items-baseline gap-3">

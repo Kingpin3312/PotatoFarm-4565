@@ -79,7 +79,7 @@ export default function Viewings({ searchParams }: {
           a route, so you can leave without opening anything else.
         </p>
       ) : (
-        <div className="border-t border-ink">
+        <div className="border-t border-rule-strong">
           {list.map((v, i) => (
             <ViewingCard
               key={v.id}

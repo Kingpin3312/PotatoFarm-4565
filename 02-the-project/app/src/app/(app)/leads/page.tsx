@@ -196,7 +196,7 @@ export default function Leads() {
           Nothing here. {filter === "unassigned" ? "Every lead has somebody on it." : ""}
         </p>
       ) : (
-        <div className="border-t border-ink">
+        <div className="border-t border-rule-strong">
           {rows.map((l) => (
             /**
              * A grid, and a row that lights up under the pointer.

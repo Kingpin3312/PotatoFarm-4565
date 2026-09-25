@@ -31,7 +31,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-dvh flex flex-col">
-      <header className="sticky top-0 z-50 bg-ground border-b border-ink print:hidden">
+      <header className="sticky top-0 z-50 bg-ground border-b border-rule-strong print:hidden">
         <div className="flex items-center gap-5 px-5 h-14">
           <Link href="/today" className="flex min-h-11 items-center no-underline">
             {/* One lockup, in `components/brand/logo.tsx`. The mark used to

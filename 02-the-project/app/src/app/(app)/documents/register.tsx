@@ -94,7 +94,7 @@ export function Register({ filter }: { filter: "all" | "expiring" }) {
       )}
 
       {rows.length > 0 && (
-        <div className="border-t border-ink">
+        <div className="border-t border-rule-strong">
           {rows.map((d) => (
             <article key={d.id} data-document={d.id} className="py-4 border-b border-rule">
               <div className="flex items-baseline gap-3 flex-wrap">

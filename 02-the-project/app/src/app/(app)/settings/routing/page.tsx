@@ -82,7 +82,7 @@ export default function Routing() {
             Every agent and their current state. An agent who asks why a lead went elsewhere
             can be shown this.
           </p>
-          <div className="border-t border-ink">
+          <div className="border-t border-rule-strong">
             {preview.data.pool.map((a) => (
               <div key={a.name}
                    className={cn("py-3 border-b border-rule",

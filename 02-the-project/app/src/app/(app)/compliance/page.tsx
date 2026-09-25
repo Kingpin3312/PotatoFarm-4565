@@ -75,7 +75,7 @@ export default function Compliance() {
         Reportable transactions
       </h2>
       {rear.length > 0 ? (
-        <div className="border-t border-ink mb-8">
+        <div className="border-t border-rule-strong mb-8">
           {rear.map((r) => (
             <a key={r.dealId} href="/deals"
                className="block border-b border-rule py-3 no-underline">
@@ -106,7 +106,7 @@ export default function Compliance() {
           Nothing held. Screenings that clear automatically never reach this list.
         </p>
       ) : (
-        <div className="border-t border-ink">
+        <div className="border-t border-rule-strong">
           {pending.map((p) => (
             <a key={p.id} href={`/compliance/${p.id}`}
                className="block py-4 border-b border-rule no-underline">
@@ -148,7 +148,7 @@ export default function Compliance() {
       {due.length === 0 ? (
         <p className="text-sm text-ink-2 border-t border-rule pt-4">None this month.</p>
       ) : (
-        <div className="border-t border-ink">
+        <div className="border-t border-rule-strong">
           {due.map((d) => (
             <div key={d.id} className="flex items-baseline gap-3 py-3.5 border-b border-rule">
               <span className="text-ui text-ink">{d.name}</span>

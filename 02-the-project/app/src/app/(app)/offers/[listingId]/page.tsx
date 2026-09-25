@@ -117,7 +117,7 @@ export default function OfferThread({ params }: { params: Promise<{ listingId: s
           owns it, and how many bids are in. */}
       <div className="grid gap-x-12 gap-y-8 min-[1100px]:grid-cols-[minmax(0,1fr)_300px] items-start">
       <div className="min-w-0">
-      <div className="border-t border-ink">
+      <div className="border-t border-rule-strong">
         {offers.map((o, i) => (
           <article key={o.id} className="py-5 border-b border-rule">
             <div className="flex items-baseline gap-3 flex-wrap">

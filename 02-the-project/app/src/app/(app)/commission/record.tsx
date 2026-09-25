@@ -73,7 +73,7 @@ export function RecordCommission({ dealId, valueFils }: {
       )}
 
       {preview.data?.ok && (
-        <div className="mt-5 border-t border-ink">
+        <div className="mt-5 border-t border-rule-strong">
           {preview.data.splits.map((s, i) => (
             <div key={i} className="flex items-baseline gap-3 py-3 border-b border-rule">
               {/* There is no `label` on a split. Who it is, is the named

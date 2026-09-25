@@ -332,7 +332,7 @@ export function Board() {
               setDragging(null);
             }}
           >
-            <div className="px-4 pt-3.5 pb-3 border-b border-ink sticky top-0 bg-ground z-10">
+            <div className="px-4 pt-3.5 pb-3 border-b border-rule-strong sticky top-0 bg-ground z-10">
               <div className="flex items-baseline gap-2">
                 <span className="t-label text-ink">
                   {col.stage.name}

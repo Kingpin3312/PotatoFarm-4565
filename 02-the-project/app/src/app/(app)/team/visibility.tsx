@@ -125,7 +125,7 @@ export function TeamVisibility() {
       )}
 
       <form
-        className="border-t border-ink mt-5 pt-5 flex flex-col gap-6"
+        className="border-t border-rule-strong mt-5 pt-5 flex flex-col gap-6"
         onSubmit={(e) => {
           e.preventDefault();
           setSaved(false);

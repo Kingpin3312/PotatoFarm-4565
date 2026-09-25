@@ -93,7 +93,7 @@ export function Thread({ conversationId }: { conversationId: string }) {
 
   return (
     <div className="flex flex-col min-h-0 h-full">
-      <header className="px-6 py-3.5 border-b border-ink flex items-center gap-3.5 flex-wrap">
+      <header className="px-6 py-3.5 border-b border-rule-strong flex items-center gap-3.5 flex-wrap">
         <div>
           <div className="font-sans font-semibold text-section text-ink">
             {party.name ?? party.phone}
@@ -156,7 +156,7 @@ export function Thread({ conversationId }: { conversationId: string }) {
         <div ref={endRef} />
       </div>
 
-      <div className="border-t border-ink p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+      <div className="border-t border-rule-strong p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         {w.open ? (
           <>
             <WindowState open hoursLeft={w.hoursLeft} />
