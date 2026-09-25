@@ -201,6 +201,10 @@ async function main() {
     const row = await root.viewingFeedback.findUniqueOrThrow({ where: { viewingId: v1.id } });
     ok("erasure removes their words", row.comment === null);
     ok("and keeps the tick the owner's report already counted", row.verdict === "NOT_FOR_ME");
+    // The job's own task named her: "Ask Priya what they thought of …".
+    const named = await root.followUp.findMany({ where: { leadId: priya.id } });
+    ok("and the task that asked her, which named her", named.length > 0 && named.every((f) => !f.title.includes("Priya")),
+       named.map((f) => f.title).join(" | "));
   }
 
   await cleanup();

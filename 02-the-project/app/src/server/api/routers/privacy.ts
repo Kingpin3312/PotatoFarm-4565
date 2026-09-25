@@ -58,11 +58,26 @@ export const privacyRouter = router({
         return { ...result, message: "Nothing was held for that number." };
       }
 
+      const asOwner = result.ownersErased
+        ? ` Their details as a property owner${result.ownersErased > 1 ? ` (${result.ownersErased} records)` : ""} were erased.`
+        : "";
+      /**
+       * Said as what happened. A deferred request came back with
+       * "Erased. 0 messages were scrubbed" — the officer told the one
+       * thing that had not happened, about the one request the law made
+       * them hold.
+       */
+      if (result.deferredUntil) {
+        return {
+          ...result,
+          message: `Not erased as a buyer: held until ${result.deferredUntil.slice(0, 10)}. ${result.deferredReason ?? ""}${asOwner}`,
+        };
+      }
       return {
         ...result,
         message:
           `Erased. ${result.messagesScrubbed} messages and ${result.auditRowsScrubbed} audit ` +
-          `entries were scrubbed. The record of what happened remains; nothing identifying them does.`,
+          `entries were scrubbed. The record of what happened remains; nothing identifying them does.${asOwner}`,
       };
     }),
 

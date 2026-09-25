@@ -1,4 +1,5 @@
 import { forOrg } from "@/server/db/client";
+import { normalisePhone } from "@/server/lib/portals/normalise";
 
 /**
  * Data export.
@@ -125,7 +126,25 @@ export async function exportSubject(orgId: string, phone: string) {
     },
   });
 
-  if (!lead) return null;
+  const owners = await ownersFor(db, phone);
+  if (!lead && !owners.length) return null;
+  if (!lead) {
+    // One shape either way, so whoever reads the file — or a check —
+    // finds each section in the same place, empty where it does not apply.
+    return {
+      generatedAt: new Date().toISOString(),
+      aboutYou: {
+        name: owners[0]!.name as string | null, phone, email: owners[0]!.email,
+        language: null as string | null, firstContact: owners[0]!.createdAt, source: null as string | null,
+      },
+      whatYouToldUs: [] as { question: string; answer: string; recorded: Date }[],
+      propertiesYouAskedAbout: [] as { property: string; reference: string | undefined; when: Date }[],
+      viewings: [] as { property: string | undefined; when: Date; outcome: string }[],
+      messages: [] as { from: string; text: string; when: Date }[],
+      handledBy: null as string | null,
+      asPropertyOwner: owners.map(asOwner),
+    };
+  }
 
   // What they told us about each viewing. Not a relation on `Lead`, so
   // read separately — and easy to leave out of a subject access request
@@ -165,5 +184,44 @@ export async function exportSubject(orgId: string, phone: string) {
       text: m.body, when: m.sentAt,
     })) ?? [],
     handledBy: lead.assignedTo?.name ?? null,
+    // Somebody buying one flat can be selling another.
+    asPropertyOwner: owners.map(asOwner),
+  };
+}
+
+/**
+ * The same number as a property owner.
+ *
+ * Owners have had a thread with the brokerage since
+ * `20260929090000_owner_conversations`, and this file was built from a
+ * buyer's record alone, so an owner asking what we hold was told
+ * "nothing" while their messages sat in the inbox. Matched by normalised
+ * number, because an owner's is typed by an agent.
+ *
+ * Their properties by reference and title, and their own thread. Not the
+ * offers on those properties: those are other people's data.
+ */
+async function ownersFor(db: ReturnType<typeof forOrg>, phone: string) {
+  const want = normalisePhone(phone) ?? phone;
+  const rows = await db.vendor.findMany({
+    where: { phone: { not: null } },
+    select: {
+      id: true, name: true, email: true, phone: true, prefers: true, reportDay: true, reportsOff: true, createdAt: true,
+      listings: { select: { reference: true, title: true, status: true } },
+      conversation: { select: { messages: { orderBy: { sentAt: "asc" }, select: { author: true, body: true, sentAt: true } } } },
+    },
+  });
+  return rows.filter((v) => normalisePhone(v.phone ?? undefined) === want);
+}
+
+function asOwner(o: Awaited<ReturnType<typeof ownersFor>>[number]) {
+  return {
+    name: o.name, email: o.email, since: o.createdAt,
+    howYouAskedToHearFromUs: o.prefers,
+    weeklyReport: o.reportsOff ? "off" : o.reportDay ? `day ${o.reportDay} of the week` : "none",
+    propertiesYouAskedUsToHandle: o.listings.map((l) => ({ reference: l.reference, property: l.title, status: l.status })),
+    messages: o.conversation?.messages.map((m) => ({
+      from: m.author === "LEAD" ? "you" : "our team", text: m.body, when: m.sentAt,
+    })) ?? [],
   };
 }

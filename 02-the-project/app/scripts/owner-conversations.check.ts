@@ -6,6 +6,8 @@ import { respond } from "../src/server/assistant/run";
 import { sweep as notifySweep } from "../src/server/lib/notify/sweep";
 import { conversationsRouter } from "../src/server/api/routers/conversations";
 import { vendorsRouter } from "../src/server/api/routers/vendors";
+import { privacyRouter } from "../src/server/api/routers/privacy";
+import { exportSubject } from "../src/server/lib/privacy/export";
 import { fatal } from "./fatal";
 
 /**
@@ -86,6 +88,8 @@ async function cleanup() {
   if (ids.length) {
     const where = { orgId: { in: ids } };
     await root.notification.deleteMany({ where });
+    await root.followUp.deleteMany({ where });
+    await root.kycRecord.deleteMany({ where });
     await root.conversationCharge.deleteMany({ where });
     await root.aiAction.deleteMany({ where }).catch(() => {});
     await root.message.deleteMany({ where });
@@ -269,6 +273,55 @@ async function main() {
     await ingest(payload(hanaWa, "STOP", new Date()));
     ok("\"stop\" from an owner turns their scheduled report off",
        (await root.vendor.findUniqueOrThrow({ where: { id: hana.id } })).reportsOff === true);
+  }
+
+  console.log("\n=== an owner asks what we hold, then to be forgotten ===");
+  {
+    const P = privacyRouter.createCaller({
+      session: { user: { id: manager.id } }, membership: { orgId: org.id, orgName: org.name, role: "ADMIN" },
+      ip: "127.0.0.1", userAgent: "owner-conversations-check",
+    } as never);
+    // Caught: the failure this guards is the API answering "nothing
+    // held", which it did for every owner.
+    const file = await P.subjectAccess({ phone: hanaWa }).catch(() => null);
+    const theirs = file?.asPropertyOwner[0];
+    ok("the file an owner is sent holds their own thread and properties",
+       !!theirs && theirs.messages.some((m) => m.text.startsWith("Any news on the flat")) &&
+       theirs.propertiesYouAskedUsToHandle.some((p) => p.reference === `OC-${RUN}`),
+       theirs ? `${theirs.messages.length} messages` : "no owner section — they were told nothing is held");
+
+    // What later work writes about somebody: a task naming them.
+    await root.followUp.create({
+      data: { orgId: org.id, agentId: agent.id, vendorId: hana.id, title: "Send Hana Suleiman this week's update", dueAt: new Date() },
+    });
+    const done = await P.erase({ phone: hanaWa, confirmPhone: hanaWa, reason: "asked in writing" });
+    const v = await root.vendor.findUniqueOrThrow({ where: { id: hana.id } });
+    ok("an owner can be erased — keyed on a buyer's number, it found nobody", done.ownersErased === 1 && /property owner/.test(done.message), done.message);
+    ok("their name and number go; the record their listings point at stays", v.name === "Erased owner" && v.phone === null);
+    const words = await root.message.findMany({ where: { conversationId: conv.id } });
+    ok("so do their messages, both ways", words.length > 0 && words.every((m) => m.body === "[erased at the person's request]"));
+    ok("and the tasks and alerts that named them",
+       !(await root.followUp.findFirst({ where: { vendorId: hana.id, title: { contains: "Hana" } } })) &&
+       !(await root.notification.findFirst({ where: { orgId: org.id, kind: "OWNER_WAITING" } })));
+    ok("afterwards, nothing is held for that number", (await exportSubject(org.id, hanaWa)) === null);
+  }
+  {
+    // Buying with a due diligence file, and selling too. The law holds
+    // the first; nothing holds the second.
+    const both = `+97158${digits}`;
+    const buyer = await root.lead.create({ data: { orgId: org.id, phone: both, name: "Rania Haddad", assignedToId: agent.id } });
+    await root.kycRecord.create({ data: { orgId: org.id, leadId: buyer.id, legalName: "Rania Haddad", status: "COLLECTING" } });
+    const seller = await root.vendor.create({ data: { orgId: org.id, name: "Rania Haddad", phone: both } });
+    const P = privacyRouter.createCaller({
+      session: { user: { id: manager.id } }, membership: { orgId: org.id, orgName: org.name, role: "ADMIN" },
+      ip: "127.0.0.1", userAgent: "owner-conversations-check",
+    } as never);
+    const r = await P.erase({ phone: both, confirmPhone: both, reason: "asked in writing" });
+    ok("a buyer held by a due diligence file is told so, not told they were erased",
+       r.message.startsWith("Not erased as a buyer") && !r.message.startsWith("Erased"), r.message.slice(0, 70));
+    ok("and is kept", (await root.lead.findUniqueOrThrow({ where: { id: buyer.id } })).name === "Rania Haddad");
+    ok("while what we held about them as an owner goes",
+       (await root.vendor.findUniqueOrThrow({ where: { id: seller.id } })).name === "Erased owner" && /property owner/.test(r.message));
   }
 
   // The assistant's extraction runs after its reply, unawaited.

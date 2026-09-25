@@ -1156,10 +1156,14 @@ with an empirical floor under it.
   against stand-ins and nothing calls it — see item 21 above. Wiring it
   is one call after the ingest stores a buyer's message; it waits on a
   decision, not on code.
-- **Erasure and data export for owners.** Both are keyed on a buyer's
-  phone number (`privacy/erase.ts`, `privacy/export.ts`). An owner's
-  WhatsApp thread is personal data too, and a request from one is
-  currently answered by hand.
+- ~~**Erasure and data export for owners.**~~ **Built**, with two faults
+  found on the way that were not about owners at all. Erasure left every
+  name that later work had written — follow-up titles, alerts, private
+  notes, client facts, voice transcripts, email subjects — and now clears
+  them (`scrubParty`). And the privacy screen's "Build the file" built
+  the file and handed it to nobody: no download, and "nothing held" was
+  never shown. A deferred erasure also came back worded "Erased. 0
+  messages…". `privacy/README.md`; `check:owner-conversations`.
 - **Sending proactive messages without a person.** Deliberately. Every
   job that decides somebody is worth contacting hands a draft to their
   agent. If a brokerage ever wants automatic sending, it is a change to

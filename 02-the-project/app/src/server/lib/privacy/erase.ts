@@ -2,6 +2,7 @@ import { log } from "@/lib/log";
 import { crossTenant, forOrg } from "@/server/db/client";
 import { createHash } from "node:crypto";
 import { AML_RETENTION_YEARS } from "@/server/lib/aml/rules";
+import { normalisePhone } from "@/server/lib/portals/normalise";
 
 /**
  * Erasure.
@@ -60,6 +61,8 @@ const fingerprint = (phone: string) =>
 export type ErasureResult = {
   found: boolean;
   leadId?: string;
+  /** Property owners with this number, erased alongside — see `eraseOwner`. */
+  ownersErased?: number;
   messagesScrubbed: number;
   auditRowsScrubbed: number;
   completedAt: string;
@@ -105,11 +108,15 @@ export async function eraseSubject(args: {
           },
         });
 
+        // The due diligence file is about them as a buyer. Anything held
+        // about them as an owner is not covered by it, and goes.
+        const owners = await eraseOwners(args);
         return {
           found: true,
           leadId: lead.id,
-          messagesScrubbed: 0,
-          auditRowsScrubbed: 0,
+          ownersErased: owners.count,
+          messagesScrubbed: owners.messages,
+          auditRowsScrubbed: owners.auditRows,
           completedAt: new Date().toISOString(),
           deferredUntil: releaseAt.toISOString(),
           deferredReason:
@@ -122,7 +129,15 @@ export async function eraseSubject(args: {
   }
 
   if (!lead) {
-    return { found: false, messagesScrubbed: 0, auditRowsScrubbed: 0, completedAt: new Date().toISOString() };
+    // Perhaps an owner, and only an owner.
+    const owners = await eraseOwners(args);
+    if (!owners.count) {
+      return { found: false, messagesScrubbed: 0, auditRowsScrubbed: 0, completedAt: new Date().toISOString() };
+    }
+    return {
+      found: true, ownersErased: owners.count, messagesScrubbed: owners.messages,
+      auditRowsScrubbed: owners.auditRows, completedAt: new Date().toISOString(),
+    };
   }
 
   const result = await db.$transaction(async (tx) => {
@@ -146,6 +161,10 @@ export async function eraseSubject(args: {
     // and the reasons stay: they are ticks from a short list, counted in
     // an owner's report, and say nothing about who ticked them.
     await tx.viewingFeedback.updateMany({ where: { leadId: lead.id }, data: { comment: null } });
+
+    const viewings = await tx.viewing.findMany({ where: { leadId: lead.id }, select: { id: true } });
+    const convo = await tx.conversation.findUnique({ where: { leadId: lead.id }, select: { id: true } });
+    await scrubParty(tx, { leadId: lead.id }, [lead.id, ...(convo ? [convo.id] : []), ...viewings.map((v) => v.id)]);
 
     /**
      * The lead itself. Tombstoned rather than deleted, so viewing and
@@ -199,13 +218,111 @@ export async function eraseSubject(args: {
     },
   });
 
+  // The same number may also be an owner — somebody selling one flat
+  // and buying another. Their seller side goes too.
+  const owners = await eraseOwners(args);
+
   return {
     found: true,
     leadId: lead.id,
-    messagesScrubbed: result.messages,
-    auditRowsScrubbed: audit,
+    ownersErased: owners.count,
+    messagesScrubbed: result.messages + owners.messages,
+    auditRowsScrubbed: audit + owners.auditRows,
     completedAt: new Date().toISOString(),
   };
+}
+
+type Scrubber = Parameters<Parameters<ReturnType<typeof forOrg>["$transaction"]>[0]>[0];
+
+/**
+ * Everything else written about a person, wherever it was written.
+ *
+ * Erasure covered the thread, the answers and the lead record, and
+ * nothing that later work wrote about somebody: a follow-up titled
+ * "Ask Priya what they thought of…", a notification reading "Hana
+ * Suleiman (owner) is waiting", an agent's private note and nickname,
+ * the facts recorded about a client, a voice note's transcript, an
+ * email's subject line. Each is a name or a sentence about them, and
+ * each survived a request to be forgotten.
+ *
+ * Rows are kept where something counts them — a completed follow-up, a
+ * recommendation acted on — and their words removed. Facts about a
+ * client exist only to describe them, so they go, as answers do.
+ *
+ * Offers are not touched: their terms are the negotiation record both
+ * sides argue about later, not a description of the person.
+ */
+async function scrubParty(tx: Scrubber, party: { leadId: string } | { vendorId: string }, subjects: string[]) {
+  const where = party;
+  await tx.followUp.updateMany({ where, data: { title: "Follow-up about a person who asked to be forgotten", body: null } });
+  await tx.recommendation.updateMany({ where, data: { headline: "Erased at the person's request", reason: "", dismissReason: null } });
+  await tx.blackbookEntry.updateMany({
+    where, data: { nickname: null, privateNote: null, standaloneName: null, standalonePhone: null, standaloneEmail: null },
+  });
+  await tx.clientFact.deleteMany({ where });
+  await tx.agentRequest.updateMany({ where, data: { transcript: "[erased at the person's request]", escalationReason: null } });
+  await tx.emailMessage.updateMany({ where, data: { fromAddress: "erased", subject: null, snippet: null, webLink: null } });
+  // Notifications name the person in their title and body. They are a
+  // prompt, not a record, so the ones about this person go.
+  if (subjects.length) {
+    await tx.notification.deleteMany({
+      where: { OR: [{ subjectId: { in: subjects } }, ...subjects.map((id) => ({ deeplink: { contains: id } }))] },
+    });
+  }
+}
+
+/**
+ * A property owner with this number.
+ *
+ * Owners have had a WhatsApp thread with the brokerage since
+ * `20260929090000_owner_conversations`, and erasure was keyed on a
+ * buyer's phone alone — so an owner's request to be forgotten could not
+ * be honoured at all. Matched by normalised number, because an owner's
+ * is typed by an agent.
+ *
+ * The owner's row stays as a nameless placeholder, as a buyer's does:
+ * their listings, offers and weekly-report history count it. Their
+ * reports stop, since there is nobody left to send one to.
+ *
+ * No statutory hold applies here: due diligence in this product is kept
+ * on the buyer's side (`KycRecord.leadId`). If seller due diligence is
+ * ever recorded, it needs the same deferral as `eraseSubject` applies.
+ */
+async function eraseOwners(args: { orgId: string; phone: string; requestedBy: string; reason: string }) {
+  const db = forOrg(args.orgId);
+  const want = normalisePhone(args.phone) ?? args.phone;
+  const candidates = await db.vendor.findMany({ where: { phone: { not: null } }, select: { id: true, phone: true } });
+  const owners = candidates.filter((v) => normalisePhone(v.phone ?? undefined) === want);
+
+  let messages = 0, auditRows = 0;
+  for (const owner of owners) {
+    messages += await db.$transaction(async (tx) => {
+      const convo = await tx.conversation.findUnique({ where: { vendorId: owner.id }, select: { id: true } });
+      const m = convo
+        ? await tx.message.updateMany({ where: { conversationId: convo.id }, data: { body: "[erased at the person's request]", mediaUrl: null } })
+        : { count: 0 };
+      await tx.vendor.update({
+        where: { id: owner.id },
+        data: { name: "Erased owner", phone: null, email: null, actingFor: null, reportsOff: true },
+      });
+      await scrubParty(tx, { vendorId: owner.id }, [owner.id, ...(convo ? [convo.id] : [])]);
+      return m.count;
+    });
+
+    auditRows += await crossTenant("sweep").$executeRaw`
+      UPDATE "AuditLog"
+         SET before = NULL, after = jsonb_build_object('erased', true), ip = NULL, "userAgent" = NULL
+       WHERE "orgId" = ${args.orgId} AND "entityId" = ${owner.id}
+    `;
+    await crossTenant("sweep").auditLog.create({
+      data: {
+        orgId: args.orgId, actorId: args.requestedBy, action: "privacy.erasure",
+        entity: "Vendor", entityId: owner.id,
+        after: { subject: fingerprint(args.phone), reason: args.reason },
+      },
+    });
+  }
+  return { count: owners.length, messages, auditRows };
 }
 
 /**
