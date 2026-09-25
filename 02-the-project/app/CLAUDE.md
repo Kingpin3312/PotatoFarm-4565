@@ -102,7 +102,7 @@ What is verified today, measured rather than assumed:
   `/api/health` returns `200 {"ok":true}` against a real Postgres.
 - The boot log names every unconfigured service with its consequence —
   six of them in a bare development environment.
-- 334 assertions in 20 files, 48 check suites, 23 audits, all green.
+- 334 assertions in 20 files, 49 check suites, 23 audits, all green.
 
 Type errors on a fresh checkout are no longer expected. If you get one,
 it is new.
@@ -693,11 +693,14 @@ nothing that starts it — and the sixth is the product itself:
    `check:owner-conversations`, against loopback stand-ins
    (`lib/loopback.ts`).
 
-   **It is still not wired, on purpose.** Calling it from the ingest
-   sends messages to buyers with no person pressing send, which is the
-   line this product has drawn for proactive messages. Whether a reply
-   to somebody who wrote first is on the same side of that line is the
-   owner's decision, and it has been put to them.
+   **Wired as drafts, by the owner's decision.** Every new buyer message
+   gets a reply written in seconds (`draftReply`) and a person sends it
+   — as written, edited, or not at all — from a panel in the thread. The
+   state each draft ends in is the evidence for ever letting it send
+   alone; `respond()` still has no caller, on purpose. Building it found
+   the per-conversation mute had never been read: `isMuted` was imported
+   into the assistant and not called, so "I've got this" silenced
+   nothing. `check:reply-drafts`, and `assistant/README.md`.
 
 **The same shape, one layer up: fifteen finished components no screen
 imported.** `architecture.py` grew a `KNOWN_UNMOUNTED` ratchet and it
@@ -784,7 +787,7 @@ send path read it.
 ## Run the tests
 
     npm test          # 334 assertions, pure functions, no database
-    npm run verify    # tsc, the tests, 48 check suites, 23 audits
+    npm run verify    # tsc, the tests, 49 check suites, 23 audits
 
 **The gate is now green end to end, including the two things that used
 to skip.** `verify` reports what it did not run rather than counting a
@@ -1156,10 +1159,10 @@ with an empirical floor under it.
   the phrase conservatively — "within six months" is somebody buying
   now and reads as zero, and anything it cannot read suggests nothing.
   Still not built: which step loses people.
-- **The assistant replying by itself.** `respond()` works end to end
-  against stand-ins and nothing calls it — see item 21 above. Wiring it
-  is one call after the ingest stores a buyer's message; it waits on a
-  decision, not on code.
+- **The assistant replying by itself.** It drafts every reply and a
+  person sends it (item 21). The per-brokerage switch to automatic
+  replies is not built: the owner chose drafts first, and the Settings
+  page's "Sent as written" figure is what that decision will be made on.
 - ~~**Erasure and data export for owners.**~~ **Built**, with two faults
   found on the way that were not about owners at all. Erasure left every
   name that later work had written — follow-up titles, alerts, private

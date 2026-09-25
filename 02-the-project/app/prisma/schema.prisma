@@ -460,6 +460,7 @@ model Conversation {
   updatedAt   DateTime @updatedAt
 
   org      Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  drafts   ReplyDraft[]
   lead     Lead?        @relation(fields: [leadId], references: [id], onDelete: Cascade)
   vendor   Vendor?      @relation(fields: [vendorId], references: [id], onDelete: Cascade)
   channel  Channel      @relation(fields: [channelId], references: [id])
@@ -1096,7 +1097,7 @@ model AssistantUsage {
   /// later, because pricing changes and a historical bill must not.
   costFils       BigInt
   latencyMs      Int
-  outcome        String // "sent" | "handover" | "blocked" | "error"
+  outcome        String // "sent" | "drafted" | "handover" | "blocked" | "error"
   createdAt      DateTime @default(now())
 
   org Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
@@ -1184,6 +1185,9 @@ enum NotificationKind {
   /// A personal follow-up the agent set themselves, usually from a
   /// voice note. Theirs, so it goes to them and nobody else.
   FOLLOW_UP_DUE
+  /// A buyer wrote and the assistant has a reply ready for a person to
+  /// send. Urgent: the whole point of a draft is a reply in seconds.
+  REPLY_READY
   /// A property owner wrote and nobody has answered. Nothing else
   /// announces it: the assistant never replies to an owner, so no
   /// handover is ever raised on their thread.
@@ -3384,4 +3388,45 @@ enum AiActionOutcome {
   /// The guardrails stopped it. Distinct from FAILED because it is the
   /// system working, not breaking.
   REFUSED
+}
+
+/// A reply the assistant wrote and a person has not yet sent.
+///
+/// The assistant drafts; an agent reads, edits if they like, and presses
+/// send — nothing reaches a buyer without that. What happens to each
+/// draft is the evidence for ever letting it send by itself: a brokerage
+/// whose agents send nine in ten as written is one where the drafts have
+/// earned it, and `assistant.draftStats` shows the owner that number.
+model ReplyDraft {
+  id             String     @id @default(cuid())
+  orgId          String
+  conversationId String
+  /// The buyer's message it answers.
+  inboundMessageId String?
+  body           String
+  state          DraftState @default(OPEN)
+  model          String
+  promptVersion  String
+  createdAt      DateTime   @default(now())
+  resolvedAt     DateTime?
+  resolvedById   String?
+  /// The message that went out, when one did.
+  messageId      String?
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, state, createdAt])
+  @@index([conversationId, state])
+}
+
+enum DraftState {
+  OPEN
+  /// Sent exactly as the assistant wrote it.
+  SENT
+  /// Sent after the agent changed it.
+  EDITED
+  /// The agent threw it away.
+  DISCARDED
+  /// Overtaken — the buyer wrote again, or the agent replied in their own words.
+  STALE
 }

@@ -9,6 +9,7 @@ import {
   messagingWindow, sendText, sendTemplate, WindowClosedError, WhatsAppError,
 } from "@/server/lib/whatsapp";
 import { getChannelCredentials } from "@/server/lib/secrets";
+import { recordAnswered } from "@/server/lib/billing/conversations";
 
 /**
  * The conversation, if the caller may act on it.
@@ -27,6 +28,39 @@ async function theirs(
     where: { id, ...conversationScope(ctx.role, ctx.userId) }, select: { id: true },
   });
   if (!c) throw new TRPCError({ code: "NOT_FOUND" });
+}
+
+/**
+ * What became of the open draft once a message has gone.
+ *
+ * Sent from the draft unchanged: SENT, and the conversation is billed as
+ * answered by the assistant — it did the work, a person approved it.
+ * Sent after changes: EDITED, and billed the same. The agent wrote their
+ * own instead: STALE. These three and DISCARDED are the numbers a
+ * brokerage's owner reads before ever letting the assistant send alone.
+ */
+async function settleDrafts(
+  ctx: { db: { replyDraft: { findFirst(a: object): PromiseLike<unknown>; updateMany(a: object): PromiseLike<unknown> } }; orgId: string; userId: string },
+  conversationId: string, draftId: string | undefined, body: string, messageId: string | null,
+) {
+  const now = new Date();
+  if (draftId) {
+    const d = (await ctx.db.replyDraft.findFirst({
+      where: { id: draftId, conversationId, state: "OPEN" }, select: { id: true, body: true },
+    })) as { id: string; body: string } | null;
+    if (d) {
+      const asWritten = d.body.trim() === body.trim();
+      await ctx.db.replyDraft.updateMany({
+        where: { id: d.id, state: "OPEN" },
+        data: { state: asWritten ? "SENT" : "EDITED", resolvedAt: now, resolvedById: ctx.userId, messageId },
+      });
+      await recordAnswered({ orgId: ctx.orgId, conversationId });
+    }
+  }
+  await ctx.db.replyDraft.updateMany({
+    where: { conversationId, state: "OPEN" },
+    data: { state: "STALE", resolvedAt: now, resolvedById: ctx.userId },
+  });
 }
 
 /** The number to send to, or a refusal that says what to fix. */
@@ -226,6 +260,9 @@ export const conversationsRouter = router({
             },
           },
           vendor: { select: { id: true, name: true, phone: true } },
+          // A reply is written and waiting: the one thing on this row an
+          // agent can finish in a tap.
+          drafts: { where: { state: "OPEN" }, take: 1, select: { id: true } },
           messages: {
             take: 1,
             orderBy: { sentAt: "desc" },
@@ -241,6 +278,7 @@ export const conversationsRouter = router({
         rows: rows.map((c) => ({
           ...c,
           party: partyOf(c),
+          replyReady: c.drafts.length > 0,
           // The window state travels with the row so the list can show a
           // closed conversation without a second round trip per item.
           window: messagingWindow(c.lastInboundAt),
@@ -261,6 +299,10 @@ export const conversationsRouter = router({
           assistantMuted: true,
           lead: { select: { id: true, name: true, phone: true, language: true, status: true } },
           vendor: partySelect.vendor,
+          drafts: {
+            where: { state: "OPEN" }, orderBy: { createdAt: "desc" }, take: 1,
+            select: { id: true, body: true, createdAt: true },
+          },
           messages: {
             take: input.limit,
             orderBy: { sentAt: "desc" },
@@ -280,13 +322,18 @@ export const conversationsRouter = router({
         data: { unreadCount: 0 },
       });
 
-      return { ...c, party: partyOf(c), messages: c.messages.reverse(), window: messagingWindow(c.lastInboundAt) };
+      return {
+        ...c, party: partyOf(c), draft: c.drafts[0] ?? null,
+        messages: c.messages.reverse(), window: messagingWindow(c.lastInboundAt),
+      };
     }),
 
   send: requirePermission("conversation:send")
     .input(z.object({
       conversationId: z.string(),
       body: z.string().trim().min(1).max(4096),
+      /** The assistant's draft this began as, if it did. */
+      draftId: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       const c = await ctx.db.conversation.findFirst({
@@ -330,6 +377,7 @@ export const conversationsRouter = router({
         // nothing until now, so "days since we were last in touch" was
         // blank for every lead.
         await ctx.db.conversation.update({ where: { id: c.id }, data: { lastOutboundAt: new Date() } });
+        await settleDrafts(ctx, c.id, input.draftId, input.body, pending.id);
         return ctx.db.message.update({
           where: { id: pending.id },
           data: { externalId, status: "SENT" },
@@ -376,6 +424,7 @@ export const conversationsRouter = router({
       });
 
       await ctx.db.conversation.update({ where: { id: c.id }, data: { lastOutboundAt: new Date() } });
+      await settleDrafts(ctx, c.id, undefined, "", null);
       return ctx.db.message.create({
         data: {
           orgId: ctx.orgId,
@@ -389,6 +438,22 @@ export const conversationsRouter = router({
           status: "SENT",
         },
       });
+    }),
+
+  /** Not this reply. Kept, as DISCARDED, because it is the evidence. */
+  discardDraft: requirePermission("conversation:send")
+    .input(z.object({ draftId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const d = await ctx.db.replyDraft.findFirst({
+        where: { id: input.draftId, state: "OPEN", conversation: conversationScope(ctx.role, ctx.userId) },
+        select: { id: true },
+      });
+      if (!d) throw new TRPCError({ code: "NOT_FOUND" });
+      await ctx.db.replyDraft.update({
+        where: { id: d.id },
+        data: { state: "DISCARDED", resolvedAt: new Date(), resolvedById: ctx.userId },
+      });
+      return { discarded: true };
     }),
 
   /**

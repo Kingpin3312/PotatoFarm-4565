@@ -233,6 +233,35 @@ export const assistantRouter = router({
     }),
 
   /** Recent handovers, so a brokerage can see why it is stepping in. */
+  /**
+   * What agents did with the assistant's drafts — the evidence for ever
+   * letting it send by itself.
+   *
+   * The brokerage's owner chose drafts over automatic replies until the
+   * drafts have earned it. This is how they will know: of the replies
+   * the assistant wrote in the last thirty days, how many went out as
+   * written, how many were changed first, how many were thrown away, and
+   * how many were overtaken — the buyer wrote again, or the agent replied
+   * in their own words. A brokerage sending nine in ten as written is one
+   * whose drafts are ready; one editing half of them is not.
+   */
+  draftStats: orgProcedure.query(async ({ ctx }) => {
+    const since = new Date(Date.now() - 30 * 86_400_000);
+    const rows = await ctx.db.replyDraft.groupBy({
+      by: ["state"], where: { createdAt: { gte: since } }, _count: { _all: true },
+    });
+    const n = (state: string) => rows.find((r) => r.state === state)?._count._all ?? 0;
+    const asWritten = n("SENT"), edited = n("EDITED"), discarded = n("DISCARDED"), overtaken = n("STALE"), waiting = n("OPEN");
+    // Of the drafts a person decided about. Waiting and overtaken ones
+    // say nothing about whether the draft was good.
+    const decided = asWritten + edited + discarded;
+    return {
+      asWritten, edited, discarded, overtaken, waiting,
+      sentAsWrittenPct: decided ? Math.round((asWritten / decided) * 100) : null,
+      decided,
+    };
+  }),
+
   handovers: orgProcedure
     .input(z.object({ days: z.number().min(1).max(90).default(7) }))
     .query(async ({ ctx, input }) => {

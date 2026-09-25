@@ -21,11 +21,12 @@ export async function sweep() {
     viewingsSoon(),
     outcomesMissing(),
     ownersWaiting(),
+    repliesReady(),
   ]);
 
   results.forEach((r, i) => {
     if (r.status === "rejected") {
-      log.error(`[notify] sweep ${["handovers", "unclaimed", "viewings", "outcomes", "owners"][i]} failed`, r.reason);
+      log.error(`[notify] sweep ${["handovers", "unclaimed", "viewings", "outcomes", "owners", "drafts"][i]} failed`, r.reason);
     }
   });
 }
@@ -116,6 +117,37 @@ async function ownersWaiting() {
       deeplink: `/inbox/${c.id}`,
       assignedToId: c.vendor.listings[0]?.agentId ?? null,
       since: last.sentAt,
+    });
+  }
+}
+
+/**
+ * A reply written and not sent.
+ *
+ * `draftReply` tells the agent the moment the draft exists; this is the
+ * ladder after it. Same subject as that first notification — the draft —
+ * so the agent is not told twice, and a manager hears at fifteen minutes
+ * if nobody has sent or discarded it.
+ */
+async function repliesReady() {
+  const rows = await crossTenant("sweep").replyDraft.findMany({
+    where: { state: "OPEN", createdAt: { gte: new Date(Date.now() - 86_400_000) } },
+    take: 200,
+    select: {
+      id: true, orgId: true, createdAt: true,
+      conversation: { select: { id: true, lead: { select: { name: true, phone: true, assignedToId: true } } } },
+    },
+  });
+  for (const d of rows) {
+    const lead = d.conversation.lead;
+    if (!lead) continue;
+    await dispatch({
+      orgId: d.orgId, kind: "REPLY_READY", subjectId: d.id,
+      title: `${lead.name ?? lead.phone} — a reply is ready to send`,
+      body: "Read it, change it if you like, and send.",
+      deeplink: `/inbox/${d.conversation.id}`,
+      assignedToId: lead.assignedToId,
+      since: d.createdAt,
     });
   }
 }

@@ -64,13 +64,34 @@ Three layers, and the first is the one that matters:
 Cheap and certain before expensive and uncertain. Most handovers never
 reach the model at all:
 
+    a newer message arrived?      -> the waiting draft is retired first
+    owner's thread?               -> silent
     handover already active?      -> silent
+    "I've got this" on the thread -> silent (the mute; it was never read before)
     outside the 24-hour window?   -> stop (a send here is accepted and never delivered)
+    "stop", or a closed file?     -> silent
     inbound screening             -> handover, no model call
     generate                      -> 8s timeout, model failure is a handover
     outbound screening            -> handover on any failure, never a silent retry
-    send, then record
-    extract separately            -> never blocks the reply
+    leave the draft, tell the agent  (a person reads, edits and sends)
+    extract separately            -> never blocks anything
+
+## Drafts, not sends
+
+The brokerage's owner chose this. Every new message from a buyer is
+answered with a **draft** the moment it arrives (`draftReply`, called by
+the WhatsApp ingest), the agent who has the buyer is notified at once, and
+the reply goes only when a person presses send — as written, after
+editing, or not at all. A manager hears if a draft sits for fifteen
+minutes. A new message from the buyer retires the waiting draft, so a
+reply written before "STOP" can never be one tap from going out.
+
+What becomes of each draft — sent as written, edited, discarded,
+overtaken — is kept (`ReplyDraft.state`) and shown to the owner on the
+Settings page as "Sent as written". That number is the evidence for the
+next step: letting the assistant reply by itself, outside working hours
+first, once nearly every draft goes out unchanged. `respond()` is that
+step, and nothing calls it until an owner chooses it.
 
 A failed outbound check is always a handover, never a retry. An assistant
 that quietly rewrites its own hallucinations is harder to trust than one
@@ -198,5 +219,8 @@ if the lead cannot do Saturday morning the conversation stalls.
   nothing yet checks that it did.
 - **A pause reason shown in the inbox.** Right now an agent sees the
   assistant has stopped but not why.
-- **Per-conversation opt-out**, for the lead who says "stop messaging me".
-  Currently only handover, which is not the same thing.
+- ~~**Per-conversation opt-out**~~ — "stop" is recorded by the ingest
+  and the assistant writes nothing in reply to it.
+- **The switch to automatic replies.** The evidence is measured; the
+  per-brokerage setting that would let `respond()` send (outside working
+  hours first) is not built, because nobody has chosen it yet.

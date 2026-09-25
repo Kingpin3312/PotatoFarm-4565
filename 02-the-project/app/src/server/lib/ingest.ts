@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client";
 import { entryStageId } from "@/server/lib/pipeline/defaults";
 import { assignmentFor } from "@/server/lib/routing/apply";
 import { normalisePhone } from "@/server/lib/portals/normalise";
+import { draftReply } from "@/server/assistant/run";
 
 /**
  * Inbound WhatsApp.
@@ -39,13 +40,31 @@ export async function ingest(payload: any) {
 
       const db = forOrg(channel.orgId);
 
-      for (const msg of value.messages ?? []) await inbound(db, channel, msg, value);
+      for (const msg of value.messages ?? []) {
+        const fresh = await inbound(db, channel, msg, value);
+        /**
+         * A reply, drafted for a person to send.
+         *
+         * After the message is stored and committed, never inside that
+         * transaction: the model takes seconds, and a failure here must
+         * not lose the buyer's message. Only for a buyer's new message —
+         * not a redelivery, not an owner. The assistant itself decides the
+         * rest (kill switch, handover, mute, the window) in `prepare`.
+         */
+        if (fresh) {
+          await draftReply(channel.orgId, fresh.conversationId, fresh.messageId).catch((err) =>
+            log.error("[whatsapp] could not draft a reply", { orgId: channel.orgId }, { reason: String(err).slice(0, 200) }));
+        }
+      }
       for (const st of value.statuses ?? []) await status(db, st);
     }
   }
 }
 
-async function inbound(db: any, channel: { id: string; orgId: string }, msg: any, value: any) {
+/** The buyer's conversation and the message, when this was a new message from a buyer. */
+async function inbound(
+  db: any, channel: { id: string; orgId: string }, msg: any, value: any,
+): Promise<{ conversationId: string; messageId: string } | null> {
   const from = `+${msg.from}`;
   const profileName = value.contacts?.[0]?.profile?.name as string | undefined;
   const sentAt = new Date(Number(msg.timestamp) * 1000);
@@ -72,7 +91,7 @@ async function inbound(db: any, channel: { id: string; orgId: string }, msg: any
     }
   }
 
-  await db.$transaction(async (tx: Prisma.TransactionClient) => {
+  return db.$transaction(async (tx: Prisma.TransactionClient) => {
     /**
      * A redelivery changes nothing.
      *
@@ -82,7 +101,7 @@ async function inbound(db: any, channel: { id: string; orgId: string }, msg: any
      * and the reply clock moved to whatever the old message said.
      */
     const seen = await tx.message.findUnique({ where: { externalId: msg.id }, select: { id: true } });
-    if (seen) return;
+    if (seen) return null;
 
     // The lead is identified by phone. Upsert rather than create, because
     // a returning enquirer is the same person, not a new one.
@@ -125,7 +144,7 @@ async function inbound(db: any, channel: { id: string; orgId: string }, msg: any
       if (owner) {
         const conversation = await arrived(tx, { vendorId: owner.id }, channel, sentAt);
         await store(tx, channel.orgId, conversation.id, msg.id, body, sentAt);
-        return;
+        return null;
       }
     }
 
@@ -196,7 +215,8 @@ async function inbound(db: any, channel: { id: string; orgId: string }, msg: any
     }
 
     const conversation = await arrived(tx, { leadId: lead.id }, channel, sentAt);
-    await store(tx, channel.orgId, conversation.id, msg.id, body, sentAt);
+    const message = await store(tx, channel.orgId, conversation.id, msg.id, body, sentAt);
+    return { conversationId: conversation.id, messageId: message.id };
   });
 }
 
@@ -248,8 +268,8 @@ async function arrived(
   });
 }
 
-async function store(tx: any, orgId: string, conversationId: string, externalId: string, body: string, sentAt: Date) {
-  await tx.message.upsert({
+async function store(tx: any, orgId: string, conversationId: string, externalId: string, body: string, sentAt: Date): Promise<{ id: string }> {
+  return tx.message.upsert({
     // The provider id is unique, so a redelivery racing this one updates nothing.
     where: { externalId },
     create: {
@@ -261,6 +281,7 @@ async function store(tx: any, orgId: string, conversationId: string, externalId:
       body, status: "DELIVERED", sentAt,
     },
     update: {},
+    select: { id: true },
   });
 }
 

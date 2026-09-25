@@ -115,6 +115,7 @@ export function InboxList({
               {/* Said in words: an owner writing about their own flat
                   and a buyer asking about it read the same in a list. */}
               {c.party.kind === "OWNER" && <Tag>Owner</Tag>}
+              {c.replyReady && <Tag highlight>Reply ready</Tag>}
               {c.humanHandover && <Tag highlight>Handover</Tag>}
               {c.lead?.budgetMaxFils && <Tag>{aedShort(c.lead.budgetMaxFils)}</Tag>}
               <Tag dashed={!c.window.open}>

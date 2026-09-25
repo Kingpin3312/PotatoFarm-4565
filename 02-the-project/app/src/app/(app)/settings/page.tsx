@@ -11,6 +11,7 @@ import { QueryError } from "@/components/ui/query-state";
 export default function SettingsPage() {
   const { data , isError, refetch , isLoading } = api.assistant.status.useQuery();
   const { data: handovers } = api.assistant.handovers.useQuery({ days: 7 });
+  const { data: drafts } = api.assistant.draftStats.useQuery();
 
   return (
     <div className="max-w-[860px] mx-auto px-6 pb-24">
@@ -43,10 +44,30 @@ export default function SettingsPage() {
             going wrong.
           </p>
           <div className="grid grid-cols-4 max-[640px]:grid-cols-2 border-t border-ink mt-5">
-            <Fig n={String(data.usage.byOutcome.sent ?? 0)} l="Replies sent" />
+            {/* Drafted, in draft mode: "sent" by the assistant stays at
+                zero, because a person sends every reply. */}
+            <Fig n={String((data.usage.byOutcome.drafted ?? 0) + (data.usage.byOutcome.sent ?? 0))} l="Replies written" />
             <Fig n={`${(data.usage.avgLatencyMs / 1000).toFixed(1)}s`} l="Average reply" />
             <Fig n={String(handovers?.total ?? 0)} l="Handed to a person" highlight />
             <Fig n={String(data.usage.byOutcome.blocked ?? 0)} l="Drafts blocked" highlight />
+          </div>
+        </>
+      )}
+
+      {/* The number behind any decision to let the assistant send alone. */}
+      {drafts && drafts.decided + drafts.overtaken + drafts.waiting > 0 && (
+        <>
+          <h2 className="font-sans font-semibold text-section text-ink mt-12 mb-1">Its drafts, last 30 days</h2>
+          <p className="text-sm text-ink-3 max-w-[60ch]">
+            Every reply the assistant writes waits for a person to send it. When nearly all of
+            them go out as written, that is the evidence for letting it reply by itself — outside
+            working hours first.
+          </p>
+          <div className="grid grid-cols-4 max-[640px]:grid-cols-2 border-t border-ink mt-5">
+            <Fig n={drafts.sentAsWrittenPct === null ? "—" : `${drafts.sentAsWrittenPct}%`} l="Sent as written" />
+            <Fig n={String(drafts.edited)} l="Changed first" />
+            <Fig n={String(drafts.discarded)} l="Thrown away" highlight />
+            <Fig n={String(drafts.overtaken)} l="Overtaken" />
           </div>
         </>
       )}

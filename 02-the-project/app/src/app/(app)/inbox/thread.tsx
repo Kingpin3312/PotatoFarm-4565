@@ -20,6 +20,12 @@ export function Thread({ conversationId }: { conversationId: string }) {
   const utils = api.useUtils();
   const { data, isLoading , isError, refetch, error } = api.conversations.thread.useQuery({ conversationId });
   const [draft, setDraft] = useState("");
+  // The assistant's draft this message began as, once "Edit" moves it
+  // into the box — so sending it still counts as that draft, edited.
+  const [fromDraft, setFromDraft] = useState<string | null>(null);
+  const discard = api.conversations.discardDraft.useMutation({
+    onSettled: () => void utils.conversations.thread.invalidate({ conversationId }),
+  });
   const [attaching, setAttaching] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
@@ -56,6 +62,7 @@ export function Thread({ conversationId }: { conversationId: string }) {
           : old
       );
       setDraft("");
+      setFromDraft(null);
       return { previous };
     },
 
@@ -158,6 +165,34 @@ export function Thread({ conversationId }: { conversationId: string }) {
                 {failed}
               </p>
             )}
+            {/* The assistant's reply, for a person to send.
+                
+                Nothing it writes reaches a buyer from here without a tap:
+                the brokerage's owner chose drafts over automatic replies
+                until the drafts have earned it. Said in the panel, so an
+                agent never wonders whether it has already gone. */}
+            {data.draft && fromDraft !== data.draft.id && (
+              <section aria-labelledby="draft-heading" className="mt-3 rounded-xl border border-rule bg-sunk p-4">
+                <h3 id="draft-heading" className="t-label text-ink-3">
+                  Suggested reply — written by the assistant, sent only when you press Send
+                </h3>
+                <p className="mt-2 text-ui text-ink whitespace-pre-line max-w-[62ch]">{data.draft.body}</p>
+                <div className="mt-3 flex flex-wrap gap-2 items-center">
+                  <Button variant="primary" loading={send.isPending}
+                    onClick={() => send.mutate({ conversationId, body: data.draft!.body, draftId: data.draft!.id })}>
+                    Send as written
+                  </Button>
+                  <Button variant="secondary"
+                    onClick={() => { setDraft(data.draft!.body); setFromDraft(data.draft!.id); }}>
+                    Edit
+                  </Button>
+                  <button type="button" className="btn-inline min-h-11" disabled={discard.isPending}
+                    onClick={() => discard.mutate({ draftId: data.draft!.id })}>
+                    Discard
+                  </button>
+                </div>
+              </section>
+            )}
             <div className="flex gap-3 items-end mt-3">
               <label htmlFor="reply" className="sr-only">Message</label>
               <textarea
@@ -170,7 +205,7 @@ export function Thread({ conversationId }: { conversationId: string }) {
                   // round costs a message every time somebody is quick.
                   if (e.key === "Enter" && !e.shiftKey && draft.trim()) {
                     e.preventDefault();
-                    send.mutate({ conversationId, body: draft.trim() });
+                    send.mutate({ conversationId, body: draft.trim(), draftId: fromDraft ?? undefined });
                   }
                 }}
                 placeholder="Write a reply…"
@@ -180,7 +215,7 @@ export function Thread({ conversationId }: { conversationId: string }) {
                 variant="primary"
                 loading={send.isPending}
                 disabled={!draft.trim()}
-                onClick={() => send.mutate({ conversationId, body: draft.trim() })}
+                onClick={() => send.mutate({ conversationId, body: draft.trim(), draftId: fromDraft ?? undefined })}
               >
                 Send
               </Button>

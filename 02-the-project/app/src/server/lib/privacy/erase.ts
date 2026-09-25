@@ -164,6 +164,11 @@ export async function eraseSubject(args: {
 
     const viewings = await tx.viewing.findMany({ where: { leadId: lead.id }, select: { id: true } });
     const convo = await tx.conversation.findUnique({ where: { leadId: lead.id }, select: { id: true } });
+    // Replies drafted to them, sent or not: written to a named person
+    // about what they asked.
+    if (convo) {
+      await tx.replyDraft.updateMany({ where: { conversationId: convo.id }, data: { body: "[erased at the person's request]" } });
+    }
     await scrubParty(tx, { leadId: lead.id }, [lead.id, ...(convo ? [convo.id] : []), ...viewings.map((v) => v.id)]);
 
     /**
