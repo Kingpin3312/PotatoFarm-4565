@@ -93,7 +93,7 @@ def enclosing(src, pos):
         m.end()
         for m in re.finditer(
             r"\.(?:query|mutation)\(|^export (?:async )?function \w+"
-            r"|^\s{2}\w+:\s*(?:requirePermission|orgProcedure|publicProcedure)",
+            r"|^\s{2}\w+:\s*(?:requirePermission|requireAnyPermission|orgProcedure|publicProcedure|signedInProcedure)",
             src[:pos],
             re.M,
         )

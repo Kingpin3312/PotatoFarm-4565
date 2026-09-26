@@ -2,7 +2,7 @@ import { z } from "zod";
 import { normalisePhone, looksLikePhone, phoneSearchKey } from "@/lib/phone";
 import { TRPCError } from "@trpc/server";
 import { router, orgProcedure, requirePermission, requireAnyPermission } from "../trpc";
-import { can, leadScope } from "@/server/auth/rbac";
+import { can, leadScope, personScope } from "@/server/auth/rbac";
 import { assignLeads } from "@/server/lib/leads/assign";
 import { toCsv } from "@/lib/csv";
 import { audit } from "@/server/lib/audit";
@@ -540,13 +540,14 @@ export const leadsRouter = router({
     .input(z.object({ leadId: z.string() }))
     .query(async ({ ctx, input }) => {
       const l = await ctx.db.lead.findFirst({
-        where: { id: input.leadId, deletedAt: null, ...leadScope(ctx.role, ctx.userId) },
+        where: { id: input.leadId, deletedAt: null, ...personScope(ctx.role, ctx.userId) },
         select: {
           id: true, name: true, phone: true, email: true, language: true, status: true,
           budgetMinFils: true, budgetMaxFils: true, intent: true, timeframe: true,
           financing: true, notes: true, visaExpiresAt: true,
           optedOutOfOutreach: true, optedOutAt: true,
           assignedTo: { select: { name: true, email: true } },
+          assignedToId: true,
           conversation: { select: { id: true } },
         },
       });
@@ -561,7 +562,10 @@ export const leadsRouter = router({
         // A viewer or compliance officer reads this page; the screen
         // hides what they cannot change rather than offering buttons
         // that refuse.
-        canEdit: can(ctx.role, "lead:update"),
+        // …and an agent reading somebody else's person because they work
+        // one of that person's other deals reads it; the lead stays its
+        // own agent's to change.
+        canEdit: can(ctx.role, "lead:update") && (can(ctx.role, "lead:read:all") || l.assignedToId === ctx.userId),
       };
     }),
 

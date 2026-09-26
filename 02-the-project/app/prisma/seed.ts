@@ -1,5 +1,5 @@
 import { PrismaClient, type LeadSource, type LeadStatus, type Role } from "@prisma/client";
-import { seedStages, DEFAULT_STAGES } from "../src/server/lib/pipeline/defaults";
+import { entryStageId, seedStages, DEFAULT_STAGES } from "../src/server/lib/pipeline/defaults";
 import { seedHours } from "../src/server/lib/hours/defaults";
 import { seedQualification } from "../src/server/lib/assistant/qualification";
 import { seedRoutingRule } from "../src/server/lib/routing/apply";
@@ -940,6 +940,7 @@ async function main() {
   await blackbook(org.id, owner, agent);
   await register(org.id, owner, agent);
   await tidyCheckDebris(org.id);
+  await seedOpportunities(org.id, agent);
 
   /**
    * The nightly intelligence sweep, run once so the front door has
@@ -1709,6 +1710,31 @@ async function blackbook(orgId: string, owner: string, agent: string) {
  * after itself and before itself; this catches whatever a crash still
  * leaves, so "reseed before a demo" always gives a clean demo.
  */
+/**
+ * One buyer with a second piece of business, so the demo shows a person
+ * in two columns: David Chen is buying, and letting his villa through the
+ * lettings side (the audit's B5).
+ */
+async function seedOpportunities(orgId: string, lettingsAgent: string) {
+  const david = await db.lead.findFirst({ where: { orgId, name: "David Chen", deletedAt: null }, select: { id: true } });
+  if (!david) return;
+  const title = "Their villa in Arabian Ranches";
+  // The same lookup the router uses, so it lands on a column this
+  // brokerage actually has (it has no "Qualified" one).
+  const stageId = await entryStageId(db as never, orgId, "QUALIFYING");
+  const existing = await db.opportunity.findFirst({ where: { orgId, leadId: david.id, kind: "LET" }, select: { id: true } });
+  if (existing) {
+    await db.opportunity.update({ where: { id: existing.id }, data: { title, status: "QUALIFYING", stageId } });
+    return;
+  }
+  await db.opportunity.create({
+    data: {
+      orgId, leadId: david.id, kind: "LET", title, status: "QUALIFYING", stageId,
+      agentId: lettingsAgent, valueFils: 18_000_000n, stageEnteredAt: daysAgo(2),
+    },
+  });
+}
+
 async function tidyCheckDebris(orgId: string) {
   const stray = await db.membership.findMany({
     where: { orgId, user: { email: { endsWith: "@example.invalid" } } },

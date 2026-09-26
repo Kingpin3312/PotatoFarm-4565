@@ -123,6 +123,7 @@ export async function exportSubject(orgId: string, phone: string) {
       viewings: { include: { listing: { select: { reference: true, title: true } } } },
       conversation: { include: { messages: { orderBy: [{ sentAt: "asc" }, { id: "asc" }] } } },
       assignedTo: { select: { name: true } },
+      opportunities: { select: { kind: true, title: true, status: true, createdAt: true, closedAt: true } },
     },
   });
 
@@ -142,6 +143,7 @@ export async function exportSubject(orgId: string, phone: string) {
       viewings: [] as { property: string | undefined; when: Date; outcome: string }[],
       messages: [] as { from: string; text: string; when: Date }[],
       handledBy: null as string | null,
+      otherBusiness: [] as { what: string; kind: string; status: string; opened: Date; closed: Date | null }[],
       asPropertyOwner: owners.map(asOwner),
     };
   }
@@ -184,6 +186,10 @@ export async function exportSubject(orgId: string, phone: string) {
       text: m.body, when: m.sentAt,
     })) ?? [],
     handledBy: lead.assignedTo?.name ?? null,
+    // What else they are doing with us: selling, letting, renting.
+    otherBusiness: lead.opportunities.map((o) => ({
+      what: o.title, kind: o.kind, status: o.status, opened: o.createdAt, closed: o.closedAt,
+    })),
     // Somebody buying one flat can be selling another.
     asPropertyOwner: owners.map(asOwner),
   };

@@ -2,7 +2,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { Prisma, PlanAction, PlanAudience } from "@prisma/client";
 import { router, requirePermission, requireAnyPermission } from "../trpc";
-import { can, leadScope } from "@/server/auth/rbac";
+import { can, leadScope, personScope } from "@/server/auth/rbac";
 import { audit } from "@/server/lib/audit";
 import { describeStep, planProblems, PLAN_LIMITS } from "@/server/lib/plans/run";
 
@@ -157,7 +157,7 @@ export const plansRouter = router({
     .input(z.object({ leadId: z.string() }))
     .query(async ({ ctx, input }) => {
       const lead = await ctx.db.lead.findFirst({
-        where: { id: input.leadId, deletedAt: null, ...leadScope(ctx.role, ctx.userId) },
+        where: { id: input.leadId, deletedAt: null, ...personScope(ctx.role, ctx.userId) },
         select: { id: true },
       });
       if (!lead) throw new TRPCError({ code: "NOT_FOUND" });

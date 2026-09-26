@@ -97,7 +97,7 @@ for f in router_files:
     # one of the three builders. Nested `.input(...)` and helpers sit
     # deeper, and imports sit at column zero.
     procedures += len(re.findall(
-        r"^ {2}[A-Za-z][A-Za-z0-9]*:\s*(?:orgProcedure|publicProcedure|requirePermission\()",
+        r"^ {2}[A-Za-z][A-Za-z0-9]*:\s*(?:orgProcedure|publicProcedure|signedInProcedure|requirePermission\(|requireAnyPermission\()",
         body, re.M))
 
 try:

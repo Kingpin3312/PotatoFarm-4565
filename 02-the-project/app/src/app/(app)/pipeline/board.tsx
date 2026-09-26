@@ -396,9 +396,33 @@ export function Board() {
                 </button>
               ))}
 
-              {col.leads.length < col.total && (
+              {/* A person's further business (the audit's B5): the same
+                  person can sit in two columns, once as a buyer and once
+                  letting their villa. Moved from their page, where the
+                  choice of column sits beside what it is. */}
+              {(col.opportunities ?? []).map((o) => (
+                <a
+                  key={o.id}
+                  href={`/blackbook/${o.leadId}#opportunities`}
+                  data-opportunity={o.id}
+                  className="block w-full text-start px-4 py-3.5 border-b border-rule hover:bg-raised no-underline"
+                >
+                  <span className="text-ui font-medium text-ink">{o.lead?.name ?? o.lead?.phone}</span>
+                  <span className="block text-note text-ink-2 mt-1">{OPP_KIND[o.kind]} · {o.title}</span>
+                  <span className="block font-mono text-note text-ink mt-1.5">
+                    {o.valueFils ? aedShort(o.valueFils) : "—"}
+                  </span>
+                  {o.stale && (
+                    <span className="flex items-center gap-1.5 mt-2 ps-2 border-s-2 border-accent t-label text-accent-deep">
+                      Untouched {days(o.stageEnteredAt)} days
+                    </span>
+                  )}
+                </a>
+              ))}
+
+              {col.leads.length + (col.opportunities?.length ?? 0) < col.total && (
                 <p className="px-4 py-4 t-label text-ink-3">
-                  {col.total - col.leads.length} more
+                  {col.total - col.leads.length - (col.opportunities?.length ?? 0)} more
                 </p>
               )}
             </div>
@@ -442,6 +466,8 @@ const days = (d: Date) => Math.floor((Date.now() - new Date(d).getTime()) / 86_4
  * column of unpriced leads still reads "—" instead of "AED 0" — which an
  * owner would read as a pipeline worth nothing.
  */
+const OPP_KIND: Record<string, string> = { BUY: "Buying", SELL: "Selling", RENT: "Renting", LET: "Letting" };
+
 function sum(total: bigint | null, delta: bigint | null, sign: 1 | -1 = 1): bigint | null {
   if (delta === null) return total;
   const next = (total ?? 0n) + (sign === 1 ? delta : -delta);

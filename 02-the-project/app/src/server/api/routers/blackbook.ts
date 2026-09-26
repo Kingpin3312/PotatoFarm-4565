@@ -4,7 +4,7 @@ import { router, requirePermission, requireAnyPermission } from "../trpc";
 import { timeline } from "@/server/lib/blackbook/timeline";
 import { audit } from "@/server/lib/audit";
 import { TRPCError } from "@trpc/server";
-import { leadScope } from "@/server/auth/rbac";
+import { leadScope, personScope } from "@/server/auth/rbac";
 
 /**
  * The blackbook.
@@ -142,7 +142,7 @@ export const blackbookRouter = router({
             where: {
               id: input.leadId,
               deletedAt: null,
-              ...leadScope(ctx.role, ctx.userId),
+              ...personScope(ctx.role, ctx.userId),
             },
             select: { id: true } })
         : await ctx.db.vendor.findFirst({

@@ -45,6 +45,9 @@ defined = set(re.findall(r'"([a-z]+:[a-z:]+)"', rbac.split("export type Permissi
 # use — and a warning that is wrong seven times is one nobody reads the
 # eighth time.
 used = set(re.findall(r'requirePermission\("([^"]+)"\)', allsrc))
+# `requireAnyPermission("a", "b")` gates on any one of several.
+for args in re.findall(r'requireAnyPermission\(([^)]*)\)', allsrc):
+    used |= set(re.findall(r'"([a-z]+:[a-z:]+)"', args))
 used |= set(re.findall(r'can\(\s*[\w.]+\s*,\s*"([^"]+)"', allsrc))
 # `leadScope()` is the read:own / read:all split expressed as a Prisma
 # filter rather than a gate.

@@ -50,8 +50,10 @@ try {
   const first = p.locator("[data-lead] a").first();
   const name = (await first.textContent())?.trim();
   await first.tap();
+  // Wait for the address to change, not a fixed interval: the row opens
+  // the thread, a page the dev server compiles on its first visit.
+  await p.waitForURL((u) => !u.pathname.endsWith("/leads"), { timeout: 30000 }).catch(() => {});
   await p.waitForLoadState("domcontentloaded");
-  await p.waitForTimeout(1500);
   ok("tapping a lead opens them", !p.url().endsWith("/leads"), `${name} → ${p.url().replace(BASE, "")}`);
   await noSideways("the lead");
   // B8: ringing or writing to them is one tap, without scrolling.

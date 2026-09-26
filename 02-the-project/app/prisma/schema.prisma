@@ -83,6 +83,7 @@ model Organisation {
   aiActions       AiAction[]
   leads           Lead[]
   tenancies       Tenancy[]
+  opportunities   Opportunity[]
   listings        Listing[]
   conversations   Conversation[]
   viewings        Viewing[]
@@ -362,6 +363,7 @@ model Lead {
   /// so `include: { lead: … }` in the matching job typed `r.lead` as
   /// `never` and every field read off it was an error.
   requirements Requirement[]
+  opportunities Opportunity[]
 
   /// One lead per phone number per brokerage. The same person enquiring
   /// with two agencies is two leads; enquiring twice with one is one.
@@ -391,8 +393,9 @@ model PipelineStage {
   isLost         Boolean    @default(false)
   archived       Boolean    @default(false)
 
-  org   Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  leads Lead[]
+  org           Organisation  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  leads         Lead[]
+  opportunities Opportunity[]
 
   @@unique([orgId, name])
   @@index([orgId, position])
@@ -727,6 +730,7 @@ model Listing {
   agent     User?        @relation("ListingAgent", fields: [agentId], references: [id], onDelete: SetNull)
   tenancies Tenancy[]
   deals     Deal[]
+  opportunities Opportunity[]
 
   @@unique([orgId, reference])
   @@index([orgId, status])
@@ -3569,4 +3573,47 @@ model Tenancy {
 
   @@index([orgId, endsAt])
   @@index([orgId, listingId])
+}
+
+enum OpportunityKind {
+  BUY
+  SELL
+  RENT
+  LET
+}
+
+/// A further piece of business with somebody already on the book.
+///
+/// The lead's own status and stage stay the person's main business, so
+/// every screen, report and job that reads `Lead.status` reads what it
+/// always did. This is each other one: the buyer who is also letting
+/// their villa, the tenant who wants to buy. Its own stage (a column on
+/// the same board), its own agent, its own value — and it closes on its
+/// own (the audit's B5).
+model Opportunity {
+  id             String          @id @default(cuid())
+  orgId          String
+  leadId         String
+  kind           OpportunityKind
+  /// "Letting their villa in Arabian Ranches" — what the agent calls it.
+  title          String
+  status         LeadStatus      @default(NEW)
+  stageId        String?
+  stageEnteredAt DateTime        @default(now())
+  agentId        String?
+  listingId      String?
+  valueFils      BigInt?
+  closedAt       DateTime?
+  createdById    String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  org     Organisation   @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  lead    Lead           @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  stage   PipelineStage? @relation(fields: [stageId], references: [id], onDelete: SetNull)
+  listing Listing?       @relation(fields: [listingId], references: [id], onDelete: SetNull)
+
+  @@index([orgId, leadId])
+  @@index([orgId, stageId])
+  @@index([orgId, agentId])
 }

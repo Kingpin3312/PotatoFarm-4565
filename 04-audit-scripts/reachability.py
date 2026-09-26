@@ -401,7 +401,7 @@ KNOWN_UNCALLED = {
 for rf in routers:
     router = os.path.basename(rf)[:-3]
     body = open(rf).read()
-    procs = re.findall(r'^\s{2}(\w+):\s*(?:requirePermission|orgProcedure|publicProcedure)',
+    procs = re.findall(r'^\s{2}(\w+):\s*(?:requirePermission|requireAnyPermission|orgProcedure|publicProcedure|signedInProcedure)',
                        body, re.M)
     # A procedure gated on `audit:read` is ours, not the customer's —
     # billing.trials is our view of which trials are dying, and it

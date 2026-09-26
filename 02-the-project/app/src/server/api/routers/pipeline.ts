@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { opportunityScope } from "./opportunities";
 import { Prisma } from "@prisma/client";
 import { TRPCError } from "@trpc/server";
 import { router, orgProcedure, requirePermission } from "../trpc";
@@ -72,11 +73,23 @@ export const pipelineRouter = router({
         orderBy: { position: "asc" },
       });
 
-      const [counts, values] = await Promise.all([
+      /**
+       * A person's further pieces of business ride on the same board,
+       * each in its own column (the audit's B5). Counted and valued with
+       * the leads, so a column's total is the business in it, not the
+       * people.
+       */
+      const oppScope: Prisma.OpportunityWhereInput = {
+        lead: { deletedAt: null },
+        ...opportunityScope(ctx.role, ctx.userId),
+        ...(input.assignedTo && { agentId: input.assignedTo }),
+      };
+      const [counts, values, oppCounts] = await Promise.all([
         ctx.db.lead.groupBy({ by: ["stageId"], where: scope, _count: { _all: true } }),
         // Weighted pipeline value per column. The number an owner actually
         // opens the board to see.
         ctx.db.lead.groupBy({ by: ["stageId"], where: scope, _sum: { budgetMaxFils: true } }),
+        ctx.db.opportunity.groupBy({ by: ["stageId"], where: oppScope, _count: { _all: true }, _sum: { valueFils: true } }),
       ]);
 
       const columns = await Promise.all(
@@ -97,15 +110,32 @@ export const pipelineRouter = router({
             ? new Date(Date.now() - stage.staleAfterDays * 86_400_000)
             : null;
 
+          const opportunities = await ctx.db.opportunity.findMany({
+            where: { ...oppScope, stageId: stage.id },
+            take: input.perColumn,
+            orderBy: [{ stageEnteredAt: "desc" }, { id: "desc" }],
+            select: {
+              id: true, kind: true, title: true, valueFils: true, stageEnteredAt: true, leadId: true,
+              lead: { select: { name: true, phone: true } },
+            },
+          });
+          const opp = oppCounts.find((c) => c.stageId === stage.id);
+          const leadValue = values.find((v) => v.stageId === stage.id)?._sum.budgetMaxFils ?? null;
+          const oppValue = opp?._sum.valueFils ?? null;
+
           return {
             stage,
-            total: counts.find((c) => c.stageId === stage.id)?._count._all ?? 0,
-            value: values.find((v) => v.stageId === stage.id)?._sum.budgetMaxFils ?? null,
+            total: (counts.find((c) => c.stageId === stage.id)?._count._all ?? 0) + (opp?._count._all ?? 0),
+            value: leadValue === null && oppValue === null ? null : (leadValue ?? 0n) + (oppValue ?? 0n),
             leads: leads.map((l) => ({
               ...l,
               // Computed here so every client agrees on what "going cold"
               // means, rather than each one inventing its own threshold.
               stale: staleBefore ? l.stageEnteredAt < staleBefore : false,
+            })),
+            opportunities: opportunities.map((o) => ({
+              ...o,
+              stale: staleBefore ? o.stageEnteredAt < staleBefore : false,
             })),
           };
         })

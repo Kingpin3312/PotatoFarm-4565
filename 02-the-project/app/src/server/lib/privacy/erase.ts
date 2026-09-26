@@ -265,6 +265,11 @@ async function scrubParty(tx: Scrubber, party: { leadId: string } | { vendorId: 
     where, data: { nickname: null, privateNote: null, standaloneName: null, standalonePhone: null, standaloneEmail: null },
   });
   await tx.clientFact.deleteMany({ where });
+  // A further piece of business is counted on the board and in the
+  // figures, so the row stays; what it says about them goes.
+  if ("leadId" in party) {
+    await tx.opportunity.updateMany({ where: { leadId: party.leadId }, data: { title: "Erased at the person's request" } });
+  }
   await tx.agentRequest.updateMany({ where, data: { transcript: "[erased at the person's request]", escalationReason: null } });
   await tx.emailMessage.updateMany({ where, data: { fromAddress: "erased", subject: null, snippet: null, webLink: null } });
   // Notifications name the person in their title and body. They are a

@@ -102,7 +102,7 @@ What is verified today, measured rather than assumed:
   `/api/health` returns `200 {"ok":true}` against a real Postgres.
 - The boot log names every unconfigured service with its consequence —
   six of them in a bare development environment.
-- 410 assertions in 27 files, 56 check suites, 23 audits, all green.
+- 410 assertions in 27 files, 57 check suites, 23 audits, all green.
 
 Type errors on a fresh checkout are no longer expected. If you get one,
 it is new.
@@ -851,7 +851,7 @@ send path read it.
 ## Run the tests
 
     npm test          # 410 assertions, pure functions, no database
-    npm run verify    # tsc, the tests, 56 check suites, 23 audits
+    npm run verify    # tsc, the tests, 57 check suites, 23 audits
 
 **The gate is now green end to end, including the two things that used
 to skip.** `verify` reports what it did not run rather than counting a
@@ -1249,11 +1249,21 @@ with an empirical floor under it.
   agent. If a brokerage ever wants automatic sending, it is a change to
   the floor in `autonomy.ts` and the promise on the settings screen,
   made on purpose — not a sender added to a job.
-- **One person, several opportunities.** A lead is still one record
-  with one stage, so somebody buying an apartment and letting a villa
-  is one pipeline position (the audit's B5; the listing and tenancy half
-  is built). The split — Contact and Opportunity — is designed in the
-  audit, not built: it touches every screen that reads `Lead.status`.
+- ~~**One person, several opportunities.**~~ **Built, additively.** The
+  lead stays the person's main business — every screen, report and job
+  that reads `Lead.status` is unchanged — and each further piece (the
+  buyer also letting their villa) is an `Opportunity`: its own column on
+  the same board, agent, value and close, managed from the person's page.
+  `personScope` lets the agent working one *read* the person; changing
+  the lead stays with `leadScope`. Not done: opportunities are not in
+  search, Today or the KPIs yet. `check:opportunities`.
+
+  Building it found the audits blind to new procedure builders:
+  `counts.py`, `reachability.py` and `erasure.py` matched
+  `requirePermission|orgProcedure|publicProcedure` only, so everything on
+  `requireAnyPermission` or `signedInProcedure` was invisible to them —
+  the count went *down* when four procedures were added. A new builder
+  goes in those patterns in the same commit.
 - **Two-step sign-in is optional.** Owners and admins are asked on
   Settings → Security; nothing makes it compulsory for a brokerage,
   because the day a phone is lost that locks somebody out, and it is the

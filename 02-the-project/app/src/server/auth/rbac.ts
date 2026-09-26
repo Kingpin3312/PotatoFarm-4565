@@ -184,3 +184,15 @@ export function can(role: Role, permission: Permission) {
 export function leadScope(role: Role, userId: string) {
   return can(role, "lead:read:all") ? {} : { assignedToId: userId };
 }
+
+/**
+ * Who may *read* a person: whoever may read the lead, and the agent
+ * working one of their other pieces of business — the lettings agent on
+ * the villa of somebody sales is helping to buy. Changing the lead itself
+ * stays with `leadScope`.
+ */
+export function personScope(role: Role, userId: string) {
+  return can(role, "lead:read:all")
+    ? {}
+    : { OR: [{ assignedToId: userId }, { opportunities: { some: { agentId: userId } } }] };
+}

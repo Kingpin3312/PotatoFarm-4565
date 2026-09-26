@@ -9,6 +9,7 @@ import { Details } from "./details";
 import { Plan } from "./plan";
 import { Requirements } from "./requirements";
 import { PersonTask } from "./task";
+import { Opportunities } from "./opportunities";
 
 /**
  * One person, everything said to them.
@@ -50,6 +51,7 @@ export default function Person({ params }: { params: Promise<{ leadId: string }>
           never said whose they were. */}
       <Details leadId={leadId} />
       <Requirements leadId={leadId} readOnly={readOnly} />
+      <Opportunities leadId={leadId} />
       {!readOnly && <PersonTask leadId={leadId} name={null} />}
       {!readOnly && <Plan leadId={leadId} />}
 
