@@ -54,6 +54,9 @@ if (!org) { console.error("no organisation to test against"); process.exit(1); }
 
 // A clean slate for this org, so a re-run does not assert against rows
 // the previous run left behind.
+// The brokerage's own documents are put back at the end: this check
+// starts from none, and it used to leave the demo with none (N12).
+const savedDocuments = await db.document.findMany({ where: { orgId: org.id } });
 await db.document.deleteMany({ where: { orgId: org.id } });
 await db.notification.deleteMany({ where: { orgId: org.id, kind: "PERMIT_EXPIRING" } });
 
@@ -210,6 +213,8 @@ console.log("\n=== a renewal supersedes rather than accumulates ===");
 }
 
 await b.close();
+await db.document.deleteMany({ where: { orgId: org.id } });
+if (savedDocuments.length) await db.document.createMany({ data: savedDocuments });
 await db.$disconnect();
 console.log(bad ? "\n" + bad + " FAILED:\n  - " + failures.join("\n  - ") + "\n" : "\nthe register writes, the job reads, the renewal closes the old one.\n");
 process.exit(bad ? 1 : 0);

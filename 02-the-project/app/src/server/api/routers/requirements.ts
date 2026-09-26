@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { router, requirePermission } from "../trpc";
+import { router, requirePermission, requireAnyPermission } from "../trpc";
 import { leadScope } from "@/server/auth/rbac";
 import { audit } from "@/server/lib/audit";
 import { aedToFils } from "@/lib/money";
@@ -46,7 +46,7 @@ async function ownLead(ctx: { db: any; role: any; userId: string }, leadId: stri
 }
 
 export const requirementsRouter = router({
-  forLead: requirePermission("lead:read:own")
+  forLead: requireAnyPermission("lead:read:own", "lead:read:all")
     .input(z.object({ leadId: z.string() }))
     .query(async ({ ctx, input }) => {
       await ownLead(ctx, input.leadId);

@@ -132,6 +132,19 @@ export default function Today() {
       {isError && (
         <div className="mt-10">
           <QueryError retry={() => void refetch()} what="today" error={error} />
+          {/* Today is a worker's list. A viewer or compliance officer has
+              none, and "/" lands here — so the refusal says where their
+              work is instead of being the end of the road (the second
+              audit's N10). */}
+          {error?.data?.code === "FORBIDDEN" && (
+            <nav aria-label="Where to go instead" className="mt-5 flex flex-wrap gap-x-6 gap-y-1" data-read-only-links>
+              <span className="text-sm text-ink-2 w-full">Your role reads the book rather than working it:</span>
+              <a href="/leads" className="btn-inline min-h-11 inline-flex items-center">Leads</a>
+              <a href="/listings" className="btn-inline min-h-11 inline-flex items-center">Listings</a>
+              <a href="/pipeline" className="btn-inline min-h-11 inline-flex items-center">Pipeline</a>
+              <a href="/search" className="btn-inline min-h-11 inline-flex items-center">Find anyone</a>
+            </nav>
+          )}
         </div>
       )}
 

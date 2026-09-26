@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { Prisma, PlanAction, PlanAudience } from "@prisma/client";
-import { router, requirePermission } from "../trpc";
+import { router, requirePermission, requireAnyPermission } from "../trpc";
 import { can, leadScope } from "@/server/auth/rbac";
 import { audit } from "@/server/lib/audit";
 import { describeStep, planProblems, PLAN_LIMITS } from "@/server/lib/plans/run";
@@ -153,7 +153,7 @@ export const plansRouter = router({
     ),
 
   /** One person's plans, and the ones they could be put on. */
-  forLead: requirePermission("lead:read:own")
+  forLead: requireAnyPermission("lead:read:own", "lead:read:all")
     .input(z.object({ leadId: z.string() }))
     .query(async ({ ctx, input }) => {
       const lead = await ctx.db.lead.findFirst({

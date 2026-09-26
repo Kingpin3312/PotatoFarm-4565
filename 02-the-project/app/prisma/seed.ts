@@ -939,6 +939,7 @@ async function main() {
   await commissions(org.id);
   await blackbook(org.id, owner, agent);
   await register(org.id, owner, agent);
+  await tidyCheckDebris(org.id);
 
   /**
    * The nightly intelligence sweep, run once so the front door has
@@ -1698,6 +1699,33 @@ async function blackbook(orgId: string, owner: string, agent: string) {
  * requiring a scan to record an expiry is how the alarm stays silent
  * until somebody finds a photocopier.
  */
+/**
+ * What the browser checks left behind, removed on every seed.
+ *
+ * The browser checks have to act in this brokerage — they sign in as its
+ * people — and a run that crashed before its own clean-up left a
+ * throwaway agent here receiving real round-robin leads, or a "Test
+ * 2-bed" in the stock (the second audit's N12). Each check now clears up
+ * after itself and before itself; this catches whatever a crash still
+ * leaves, so "reseed before a demo" always gives a clean demo.
+ */
+async function tidyCheckDebris(orgId: string) {
+  const stray = await db.membership.findMany({
+    where: { orgId, user: { email: { endsWith: "@example.invalid" } } },
+    select: { userId: true },
+  });
+  const ids = stray.map((m) => m.userId);
+  if (ids.length) {
+    await db.lead.updateMany({ where: { orgId, assignedToId: { in: ids } }, data: { assignedToId: null, assignedAt: null } });
+    await db.leadOwnership.deleteMany({ where: { orgId, userId: { in: ids } } });
+    await db.membership.deleteMany({ where: { orgId, userId: { in: ids } } });
+  }
+  await db.listing.updateMany({
+    where: { orgId, reference: { startsWith: "TEST-" }, deletedAt: null },
+    data: { deletedAt: new Date() },
+  });
+}
+
 async function register(orgId: string, owner: string, agent: string) {
 
   const inDays = (n: number) => new Date(Date.now() + n * 86_400_000);

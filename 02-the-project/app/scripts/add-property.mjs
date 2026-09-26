@@ -16,6 +16,7 @@ import { sessionCookies } from "./lib/session-cookie.mjs";
  *     npm run browser:add-property
  */
 import { chromePath as cp } from "./_browser.mjs";
+import { PrismaClient } from "@prisma/client";
 let bad=0;
 const ok=(l,p,d="")=>{console.log(`  ${p?"✓":"✗"} ${l}${d?"  — "+d:""}`);if(!p)bad++;};
 
@@ -92,5 +93,12 @@ ok("and the dialog stays open so the work is not lost",
    await p.evaluate(()=>!!document.querySelector("dialog[open]")));
 
 await b.close();
+// Its test listing goes, as does any a crashed run left (N12): the demo
+// brokerage's stock was collecting "Test 2-bed, Marina Gate" rows.
+{
+  const db = new PrismaClient({ datasources: { db: { url: process.env.DATABASE_URL_UNSCOPED } } });
+  await db.listing.updateMany({ where: { reference: { startsWith: "TEST-" }, title: "Test 2-bed, Marina Gate", deletedAt: null }, data: { deletedAt: new Date() } });
+  await db.$disconnect();
+}
 console.log(bad?`\n${bad} PROBLEM(S)`:"\nPASS");
 process.exitCode=bad?1:0;

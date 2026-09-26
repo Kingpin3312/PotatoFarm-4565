@@ -27,6 +27,9 @@ export default function Person({ params }: { params: Promise<{ leadId: string }>
   const { data, isLoading, isError, refetch, error } =
     api.blackbook.person.useQuery({ leadId: leadId });
   const note = api.blackbook.note.useMutation();
+  // Read-only roles (viewer, compliance officer) open the page to read it.
+  const { data: who } = api.leads.detail.useQuery({ leadId });
+  const readOnly = who ? !who.canEdit : false;
   const [draft, setDraft] = useState("");
   const [editing, setEditing] = useState(false);
 
@@ -46,9 +49,9 @@ export default function Person({ params }: { params: Promise<{ leadId: string }>
       {/* Who they are, first. The page showed a history and a note and
           never said whose they were. */}
       <Details leadId={leadId} />
-      <Requirements leadId={leadId} />
-      <PersonTask leadId={leadId} name={null} />
-      <Plan leadId={leadId} />
+      <Requirements leadId={leadId} readOnly={readOnly} />
+      {!readOnly && <PersonTask leadId={leadId} name={null} />}
+      {!readOnly && <Plan leadId={leadId} />}
 
       {/* The reply window, on the person rather than the thread. This is
           the moment it matters — an agent looking at somebody's history
@@ -71,6 +74,7 @@ export default function Person({ params }: { params: Promise<{ leadId: string }>
         </div>
       )}
 
+      {!readOnly && <>
       <h2 className="font-sans font-medium text-sub text-ink mb-1">Your note</h2>
       <p className="text-sm text-ink-3 mb-3">Yours alone. No manager sees this.</p>
       {editing ? (
@@ -87,6 +91,7 @@ export default function Person({ params }: { params: Promise<{ leadId: string }>
       ) : (
         <button className="btn-inline" onClick={() => setEditing(true)}>Write a note</button>
       )}
+      </>}
 
       <h2 className="font-sans font-medium text-sub text-ink mt-10 mb-3">Everything</h2>
       <div className="border-t border-rule-strong">

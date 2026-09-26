@@ -70,7 +70,7 @@ export function readAed(text: string): number | null | "bad" {
 const list = (s: string) => s.split(",").map((x) => x.trim()).filter(Boolean);
 const plain = (fils: bigint | null) => (fils === null ? "" : filsToAed(fils).toLocaleString("en-GB"));
 
-export function Requirements({ leadId }: { leadId: string }) {
+export function Requirements({ leadId, readOnly = false }: { leadId: string; readOnly?: boolean }) {
   const utils = api.useUtils();
   const { data } = api.requirements.forLead.useQuery({ leadId });
   const [editing, setEditing] = useState<Row | "new" | null>(null);
@@ -157,7 +157,7 @@ export function Requirements({ leadId }: { leadId: string }) {
 
       {live.length === 0 && editing === null && (
         <p className="text-sm text-ink-3 mt-1 max-w-[52ch]">
-          Nothing recorded yet, so they won&rsquo;t be matched to any property. Add what they told you.
+          Nothing recorded yet, so they won&rsquo;t be matched to any property.{readOnly ? "" : " Add what they told you."}
         </p>
       )}
 
@@ -176,19 +176,19 @@ export function Requirements({ leadId }: { leadId: string }) {
                   {r.unsure ? "From the chat, and the assistant wasn’t sure — check it with them." : "From the chat. Saving it makes it yours."}
                 </p>
               )}
-              <div className="flex gap-x-6 mt-1">
+              {!readOnly && <div className="flex gap-x-6 mt-1">
                 <button type="button" className="btn-inline min-h-11" onClick={() => setEditing(r)}>Change</button>
                 <button type="button" className="btn-inline min-h-11" disabled={close.isPending}
                   onClick={() => close.mutate({ id: r.id })}>
                   No longer looking for this
                 </button>
-              </div>
+              </div>}
             </li>
           ),
         )}
       </ul>
 
-      {editing === "new" ? form(null) : editing === null && (
+      {editing === "new" ? form(null) : editing === null && !readOnly && (
         <button type="button" className="btn-inline min-h-11 mt-1" onClick={() => setEditing("new")}>
           {live.length ? "Add another search" : "Add what they’re looking for"}
         </button>

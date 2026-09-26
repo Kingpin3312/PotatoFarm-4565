@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { normalisePhone, looksLikePhone, phoneSearchKey } from "@/lib/phone";
 import { TRPCError } from "@trpc/server";
-import { router, orgProcedure, requirePermission } from "../trpc";
+import { router, orgProcedure, requirePermission, requireAnyPermission } from "../trpc";
 import { can, leadScope } from "@/server/auth/rbac";
 import { assignLeads } from "@/server/lib/leads/assign";
 import { toCsv } from "@/lib/csv";
@@ -536,7 +536,7 @@ export const leadsRouter = router({
    * phone, the visa date the visa-renewal prompt depends on — all fixed
    * for ever at whatever was first written.
    */
-  detail: requirePermission("lead:read:own")
+  detail: requireAnyPermission("lead:read:own", "lead:read:all")
     .input(z.object({ leadId: z.string() }))
     .query(async ({ ctx, input }) => {
       const l = await ctx.db.lead.findFirst({
@@ -558,6 +558,10 @@ export const leadsRouter = router({
         budgetMaxAed: l.budgetMaxFils === null ? null : filsToAed(l.budgetMaxFils),
         agent: l.assignedTo?.name ?? l.assignedTo?.email ?? null,
         conversationId: l.conversation?.id ?? null,
+        // A viewer or compliance officer reads this page; the screen
+        // hides what they cannot change rather than offering buttons
+        // that refuse.
+        canEdit: can(ctx.role, "lead:update"),
       };
     }),
 

@@ -89,6 +89,21 @@ export const signedInProcedure = t.procedure.use(({ ctx, next }) => {
   return next({ ctx: { ...ctx, userId: ctx.session.user.id, sid: ctx.session.sid } });
 });
 
+/**
+ * Any one of several permissions. For reads a role may hold either way —
+ * a person's page is open to an agent for their own people
+ * (`lead:read:own`) and to a viewer or compliance officer for everyone
+ * (`lead:read:all`). The row scope inside the procedure still decides
+ * *which* people; this only decides whether the door exists.
+ */
+export const requireAnyPermission = (...permissions: Permission[]) =>
+  orgProcedure.use(({ ctx, next }) => {
+    if (!permissions.some((p) => can(ctx.role, p))) {
+      throw new TRPCError({ code: "FORBIDDEN", message: `Your role does not allow ${permissions.join(" or ")}.` });
+    }
+    return next({ ctx });
+  });
+
 /** Declarative permission gate. `.use(require("lead:assign"))` */
 export const requirePermission = (permission: Permission) =>
   orgProcedure.use(({ ctx, next }) => {

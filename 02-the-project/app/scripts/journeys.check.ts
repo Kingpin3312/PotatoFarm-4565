@@ -30,6 +30,7 @@ import { offersRouter } from "../src/server/api/routers/offers";
 import { dealsRouter } from "../src/server/api/routers/deals";
 import { reportsRouter } from "../src/server/api/routers/reports";
 import { searchRouter } from "../src/server/api/routers/search";
+import { blackbookRouter } from "../src/server/api/routers/blackbook";
 import { seedStages } from "../src/server/lib/pipeline/defaults";
 import { STEP_STAGES } from "../src/server/lib/deals/risk";
 import { fatal } from "./fatal";
@@ -190,6 +191,12 @@ async function main() {
   ok("and an agent is not shown the floor's figures", agentKpis?.code === "FORBIDDEN", agentKpis?.code ?? "allowed");
   const viewerKpis = await as(reportsRouter, manager.id, "VIEWER").kpis({ from: new Date(), to: new Date() }).then(() => null, (e: { code?: string }) => e);
   ok("nor a read-only viewer, who sees no commission anywhere else", viewerKpis?.code === "FORBIDDEN", viewerKpis?.code ?? "allowed");
+  // The second audit's N10: a viewer could list people and open none of them.
+  const vDetail = await as(leadsRouter, manager.id, "VIEWER").detail({ leadId: lead.id }).then((d) => d, () => null);
+  const vPerson = await as(blackbookRouter, manager.id, "VIEWER").person({ leadId: lead.id }).then(() => "read", (e: { code?: string }) => e.code ?? "error");
+  const vEdit = await as(leadsRouter, manager.id, "VIEWER").update({ leadId: lead.id, name: "Changed" } as never).then(() => "allowed", (e: { code?: string }) => e.code ?? "error");
+  ok("a viewer opens a person, read-only", !!vDetail && vDetail.canEdit === false && vPerson === "read" && vEdit === "FORBIDDEN",
+     `${vDetail ? `detail, canEdit ${vDetail.canEdit}` : "no detail"} · person ${vPerson} · edit ${vEdit}`);
 
   await cleanup();
   console.log(bad ? `\n${bad} FAILURE(S)\n` : "\nAll checks passed.\n");

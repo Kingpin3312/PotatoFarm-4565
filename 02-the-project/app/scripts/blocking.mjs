@@ -71,6 +71,9 @@ const lead = await db.lead.findFirst({ where:{id:deal.leadId}, select:{assignedT
 const me = await db.user.findFirst({ where:{email:"omar@marinabay.ae"}, select:{id:true,name:true} })
   ?? await db.user.findFirst({ select:{id:true,name:true} });
 
+// The brokerage's own documents are put back at the end: this check
+// starts from none, and it used to leave the demo with none (N12).
+const savedDocuments = await db.document.findMany({ where: { orgId: org.id } });
 await db.document.deleteMany({ where: { orgId: org.id } });
 
 import { chromePath as cp } from "./_browser.mjs";
@@ -86,6 +89,9 @@ async function openDeal() {
   // By id, not by label: the row shows the counterparty's name when
   // there is one, so the reference is not always on screen.
   const row = p.locator(`[data-deal="${deal.id}"]`);
+  // Wait for the list, not for network-idle: on a freshly started dev
+  // server the rows render after the network goes quiet.
+  await row.waitFor({ timeout: 20000 }).catch(() => {});
   if (await row.count() === 0) {
     console.error(`deal ${deal.reference} is not on the board — it may be filtered out`);
     process.exit(1);
@@ -202,6 +208,8 @@ console.log("\n=== recording the renewal clears it ===");
 
 await db.document.deleteMany({ where: { orgId: org.id } });
 await b.close();
+await db.document.deleteMany({ where: { orgId: org.id } });
+if (savedDocuments.length) await db.document.createMany({ data: savedDocuments });
 await db.$disconnect();
 console.log(bad ? "\n" + bad + " FAILED:\n  - " + failures.join("\n  - ") + "\n" : "\nnothing blocks on silence; a lapsed card blocks until it is renewed.\n");
 process.exit(bad ? 1 : 0);

@@ -68,9 +68,11 @@ export function Details({ leadId }: { leadId: string }) {
             {data.name ?? data.phone}
           </h1>
           <span className="t-label text-ink-3">{sentence(data.status)}</span>
-          <button type="button" className="ms-auto btn-inline" onClick={() => { save.reset(); setEditing(true); }}>
-            Edit
-          </button>
+          {data.canEdit && (
+            <button type="button" className="ms-auto btn-inline" onClick={() => { save.reset(); setEditing(true); }}>
+              Edit
+            </button>
+          )}
         </div>
         {/* One tap from the person to talking to them (the audit's B8).
             On a phone this is the first thing under the name: an agent

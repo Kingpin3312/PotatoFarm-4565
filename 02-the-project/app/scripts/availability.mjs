@@ -61,6 +61,20 @@ async function arrive(text) {
 }
 
 // Two agents, so "somewhere else" is a place that exists.
+// A run that crashed before its clean-up left its agent in the demo
+// brokerage, receiving real round-robin leads (the second audit's N12).
+// Clear any before adding this run's.
+{
+  const stale = await db.user.findMany({ where: { email: { startsWith: "avail-check-", endsWith: "@example.invalid" } }, select: { id: true } });
+  const ids = stale.map((u) => u.id);
+  if (ids.length) {
+    await db.lead.updateMany({ where: { assignedToId: { in: ids } }, data: { assignedToId: null, assignedAt: null } });
+    await db.leadOwnership.deleteMany({ where: { userId: { in: ids } } });
+    await db.agentAvailability.deleteMany({ where: { userId: { in: ids } } }).catch(() => {});
+    await db.membership.deleteMany({ where: { userId: { in: ids } } });
+    await db.user.deleteMany({ where: { id: { in: ids } } }).catch(() => {});
+  }
+}
 const extra = await db.user.create({
   data: { email: `avail-check-${Date.now()}@example.invalid`, name: "Cover Agent" },
   select: { id: true },

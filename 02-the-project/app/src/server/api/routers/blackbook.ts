@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { looksLikePhone, phoneSearchKey } from "@/lib/phone";
-import { router, requirePermission } from "../trpc";
+import { router, requirePermission, requireAnyPermission } from "../trpc";
 import { timeline } from "@/server/lib/blackbook/timeline";
 import { audit } from "@/server/lib/audit";
 import { TRPCError } from "@trpc/server";
@@ -107,7 +107,7 @@ export const blackbookRouter = router({
    * Also enforces that exactly one of the two is given. Neither would
    * have thrown inside `timeline()` on `vendorId!`.
    */
-  person: requirePermission("lead:read:own")
+  person: requireAnyPermission("lead:read:own", "lead:read:all")
     .input(z.object({ leadId: z.string().optional(), vendorId: z.string().optional() }))
     .query(async ({ ctx, input }) => {
       if (!input.leadId === !input.vendorId) {

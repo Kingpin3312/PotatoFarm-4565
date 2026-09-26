@@ -81,6 +81,20 @@ await db.channel.create({
  * whatever the data allows is a check that stops testing the thing —
  * so it builds the condition instead, and removes it afterwards.
  */
+// A run that crashed before its clean-up left its agent in the demo
+// brokerage, receiving real round-robin leads (the second audit's N12).
+// Clear any before adding this run's.
+{
+  const stale = await db.user.findMany({ where: { email: { startsWith: "routing-check-", endsWith: "@example.invalid" } }, select: { id: true } });
+  const ids = stale.map((u) => u.id);
+  if (ids.length) {
+    await db.lead.updateMany({ where: { assignedToId: { in: ids } }, data: { assignedToId: null, assignedAt: null } });
+    await db.leadOwnership.deleteMany({ where: { userId: { in: ids } } });
+    await db.agentAvailability.deleteMany({ where: { userId: { in: ids } } }).catch(() => {});
+    await db.membership.deleteMany({ where: { userId: { in: ids } } });
+    await db.user.deleteMany({ where: { id: { in: ids } } }).catch(() => {});
+  }
+}
 const extra = await db.user.create({
   data: { email: `routing-check-${Date.now()}@example.invalid`, name: "Rotation Check" },
   select: { id: true },
