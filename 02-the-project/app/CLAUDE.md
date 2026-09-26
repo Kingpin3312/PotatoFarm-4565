@@ -102,7 +102,7 @@ What is verified today, measured rather than assumed:
   `/api/health` returns `200 {"ok":true}` against a real Postgres.
 - The boot log names every unconfigured service with its consequence —
   six of them in a bare development environment.
-- 381 assertions in 23 files, 50 check suites, 23 audits, all green.
+- 381 assertions in 23 files, 51 check suites, 23 audits, all green.
 
 Type errors on a fresh checkout are no longer expected. If you get one,
 it is new.
@@ -383,7 +383,7 @@ not want.
 
 ## The shape that keeps recurring
 
-Twenty-one times a complete, tested, documented module has turned out to have
+Twenty-two times a complete, tested, documented module has turned out to have
 nothing that starts it — and the sixth is the product itself:
 
 1. **Billing** could invoice a customer no code path could create.
@@ -723,6 +723,19 @@ nothing that starts it — and the sixth is the product itself:
    into the assistant and not called, so "I've got this" silenced
    nothing. `check:reply-drafts`, and `assistant/README.md`.
 
+22. **Buyer requirements.** Matching, "who wants this property" and
+   search all read `Requirement`, and only voice intake ever wrote one —
+   a brokerage whose buyers arrived by WhatsApp, a portal or the door had
+   none, so every one of those features answered "nobody", which reads as
+   a quiet market. Found by the audit typing "buyers in dubai marina".
+   Two faults behind it: the assistant's extractor prompt **named none of
+   the fields `extraction` parses**, so the keys were whatever the model
+   guessed; and the matcher compared areas by exact text, so "Dubai
+   Hills" never met a listing filed under "Dubai Hills Estate". Agents
+   now record them on the person page, the assistant keeps its own one
+   current until an agent saves theirs (**the agent's word wins**), and
+   areas are compared as places (`samePlace`). `check:requirements`.
+
 **The same shape, one layer up: fifteen finished components no screen
 imported.** `architecture.py` grew a `KNOWN_UNMOUNTED` ratchet and it
 started at nine, went to fifteen when the resolver was fixed, and is
@@ -808,7 +821,7 @@ send path read it.
 ## Run the tests
 
     npm test          # 381 assertions, pure functions, no database
-    npm run verify    # tsc, the tests, 50 check suites, 23 audits
+    npm run verify    # tsc, the tests, 51 check suites, 23 audits
 
 **The gate is now green end to end, including the two things that used
 to skip.** `verify` reports what it did not run rather than counting a

@@ -1,3 +1,5 @@
+import { samePlace } from "@/server/lib/places";
+
 /**
  * Matching a buyer's stated requirements against inventory.
  *
@@ -88,7 +90,7 @@ export function score(r: Requirement, c: Candidate): Match | null {
 
   possible += 2;
   if (r.communities.length && c.community) {
-    if (r.communities.some((x) => x.toLowerCase() === c.community!.toLowerCase())) {
+    if (r.communities.some((x) => samePlace(x, c.community!))) {
       points += 2;
       reasons.push(c.community);
     }

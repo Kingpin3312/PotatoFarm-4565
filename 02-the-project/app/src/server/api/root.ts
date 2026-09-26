@@ -27,6 +27,7 @@ import { activityRouter } from "./routers/activity";
 import { searchRouter } from "./routers/search";
 import { documentsRouter } from "./routers/documents";
 import { plansRouter } from "./routers/plans";
+import { requirementsRouter } from "./routers/requirements";
 
 /**
  * The API surface.
@@ -79,6 +80,9 @@ export const appRouter = router({
   // Nurture plans. The nightly job that works them had been running
   // over a table nothing could write.
   plans: plansRouter,
+  // What a buyer is looking for. Matching and search read it; only voice
+  // intake had ever written one.
+  requirements: requirementsRouter,
 
   privacy: privacyRouter,
   support: supportRouter,

@@ -151,3 +151,20 @@ export const VOCABULARY_TERMS = [
   ...PLACES.slice(0, HINT_PLACES).map((p) => p.canonical),
   ...TRADE_WORDS,
 ];
+
+/**
+ * Are these two the same place?
+ *
+ * Matching compared a requirement's area with a listing's by exact text,
+ * so a buyer wanting "Dubai Hills" was never offered a listing filed
+ * under "Dubai Hills Estate", nor "Marina" one in "Dubai Marina" — every
+ * alias this file knows, ignored by the one comparison that decides who
+ * hears about a property. Same text, or the same canonical place.
+ */
+export function samePlace(a: string, b: string): boolean {
+  const x = a.trim().toLowerCase();
+  const y = b.trim().toLowerCase();
+  if (x === y) return true;
+  const pa = placesIn(x).places[0];
+  return !!pa && pa === placesIn(y).places[0];
+}

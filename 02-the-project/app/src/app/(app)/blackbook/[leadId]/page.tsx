@@ -7,6 +7,7 @@ import { QueryError } from "@/components/ui/query-state";
 import { cn } from "@/lib/cn";
 import { Details } from "./details";
 import { Plan } from "./plan";
+import { Requirements } from "./requirements";
 
 /**
  * One person, everything said to them.
@@ -44,6 +45,7 @@ export default function Person({ params }: { params: Promise<{ leadId: string }>
       {/* Who they are, first. The page showed a history and a note and
           never said whose they were. */}
       <Details leadId={leadId} />
+      <Requirements leadId={leadId} />
       <Plan leadId={leadId} />
 
       {/* The reply window, on the person rather than the thread. This is

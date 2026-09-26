@@ -35,6 +35,7 @@
     "check:nurture-plans": "esbuild scripts/nurture-plans.check.ts --bundle --platform=node --format=cjs --outfile=.tmp/nurture-plans.cjs --external:@prisma/client --log-level=warning && node --env-file-if-exists=.env .tmp/nurture-plans.cjs",
     "check:viewing-feedback": "esbuild scripts/viewing-feedback.check.ts --bundle --platform=node --format=cjs --outfile=.tmp/viewing-feedback.cjs --external:@prisma/client --log-level=warning && node --env-file-if-exists=.env .tmp/viewing-feedback.cjs",
     "check:qualification": "esbuild scripts/qualification.check.ts --bundle --platform=node --format=esm --outfile=.tmp/qual.mjs --external:@prisma/client --log-level=warning && node --env-file-if-exists=.env .tmp/qual.mjs",
+    "check:requirements": "esbuild scripts/requirements.check.ts --bundle --platform=node --format=esm --outfile=.tmp/requirements.mjs --external:@prisma/client --log-level=warning && node --env-file-if-exists=.env .tmp/requirements.mjs",
     "check:search": "esbuild scripts/search.check.ts --bundle --platform=node --format=esm --outfile=.tmp/search.mjs --external:@prisma/client --log-level=warning && node --env-file-if-exists=.env .tmp/search.mjs",
     "check:buyers": "esbuild scripts/buyers.check.ts --bundle --platform=node --format=esm --outfile=.tmp/buyers.mjs --external:@prisma/client --log-level=warning && node --env-file-if-exists=.env .tmp/buyers.mjs",
     "check:deals": "esbuild scripts/deals.check.ts --bundle --platform=node --format=esm --outfile=.tmp/deals.mjs --external:@prisma/client --log-level=warning && node .tmp/deals.mjs",
@@ -127,3 +128,4 @@
     "node": ">=20"
   }
 }
+

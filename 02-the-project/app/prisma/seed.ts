@@ -443,6 +443,8 @@ async function main() {
     });
   }
 
+  await seedRequirements(org.id);
+
   const spread = await db.lead.findMany({
     where: { orgId: org.id, deletedAt: null },
     orderBy: { createdAt: "asc" },
@@ -965,6 +967,53 @@ async function main() {
  * from the real seat ledger: one seat per member, from fifty days ago.
  * Idempotent: an existing subscription is left exactly as it is.
  */
+/**
+ * What each demo buyer is looking for.
+ *
+ * The demo brokerage had forty-two buyers and **no requirements at all**,
+ * because nothing but voice intake ever wrote one — so matching offered
+ * nobody anything and "buyers in Dubai Marina" found no one, which in a
+ * demo reads as a product that does not work. Derived from each buyer's
+ * budget so the areas and sizes are ones those budgets actually buy, and
+ * drawn from the communities the seeded listings are in, so matches
+ * exist to be found.
+ *
+ * Only for fixture buyers with a budget and no requirement yet: a
+ * requirement somebody entered by hand is never touched.
+ */
+async function seedRequirements(orgId: string) {
+  const areas = (aed: number, i: number): string[] =>
+    aed >= 10_000_000 ? [["Palm Jumeirah"], ["Emirates Hills"], ["Palm Jumeirah", "Dubai Hills"]][i % 3]!
+    : aed >= 4_000_000 ? [["Dubai Hills"], ["Dubai Marina"], ["Arabian Ranches"]][i % 3]!
+    : aed >= 2_000_000 ? [["Dubai Marina", "JBR"], ["Business Bay"], ["Dubai Marina"]][i % 3]!
+    : [["JVC"], ["Town Square"], ["JVC", "Dubai South"]][i % 3]!;
+  const beds = (aed: number) => (aed < 1_500_000 ? 1 : aed < 3_000_000 ? 2 : aed < 6_000_000 ? 3 : 4);
+  const people = await db.lead.findMany({
+    where: { orgId, deletedAt: null, name: { in: LEADS.map((l) => l.name) }, requirements: { none: {} } },
+    select: { id: true, name: true },
+  });
+  let made = 0;
+  for (const p of people) {
+    const i = LEADS.findIndex((l) => l.name === p.name);
+    const l = LEADS[i];
+    if (!l?.budgetMax) continue;
+    const intent = i % 3 === 1 ? "BUY_TO_INVEST" : "BUY_TO_LIVE";
+    await db.requirement.create({
+      data: {
+        orgId, leadId: p.id, purpose: "SALE", intent,
+        budgetMinFils: BigInt(Math.round(l.budgetMax * 0.8)) * 100n,
+        budgetMaxFils: BigInt(l.budgetMax) * 100n,
+        bedroomsMin: beds(l.budgetMax),
+        communities: areas(l.budgetMax, i),
+        source: "AGENT", confirmedAt: daysAgo(3),
+        expiresAt: new Date(Date.now() + 120 * 86_400_000),
+      },
+    });
+    made++;
+  }
+  if (made) console.log(`  requirements: ${made} buyers now say what they are looking for`);
+}
+
 async function seedBilling(orgId: string) {
   if (await db.subscription.findUnique({ where: { orgId }, select: { id: true } })) return;
   const members = await db.membership.findMany({ where: { orgId }, select: { userId: true } });

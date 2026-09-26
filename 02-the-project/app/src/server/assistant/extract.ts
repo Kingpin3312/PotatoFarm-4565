@@ -14,6 +14,15 @@ export const extraction = z.object({
   timeframe: z.string().max(60).nullable(),
   financing: z.enum(["CASH", "MORTGAGE", "UNKNOWN"]).nullable(),
   /**
+   * Where and how big. Added because nothing else captured them: the
+   * lead's own columns hold budget and intent, and "a 3-bed in the Marina"
+   * had nowhere to go, so matching and "buyers in Dubai Marina" found
+   * nobody who had not come in through voice intake. Defaulted so an
+   * answer without them still parses.
+   */
+  communities: z.array(z.string().max(60)).max(6).default([]),
+  bedrooms: z.number().int().min(0).max(12).nullable().default(null),
+  /**
    * The model's own confidence, per field. Anything under the threshold is
    * stored but flagged rather than shown as fact — an assistant that
    * confidently records a budget it guessed is worse than one that
@@ -22,7 +31,29 @@ export const extraction = z.object({
   confidence: z.record(z.string(), z.number().min(0).max(1)),
 });
 
-export type Extraction = z.infer<typeof extraction>;
+// The input type, so a caller built before areas and bedrooms were added
+// still type-checks: both are optional going in and defaulted by the parse.
+export type Extraction = z.input<typeof extraction>;
+
+/**
+ * The shape asked for, in the prompt.
+ *
+ * The prompt used to say "extract what the lead has said about their
+ * requirements… return JSON" and name no fields, so the keys `extraction`
+ * parses were whatever the model guessed — and a guess of `budget_max`
+ * fails the parse, which is caught and reported as a degraded lead, which
+ * nobody reads. Naming the keys is the difference between a feature and
+ * a coin toss.
+ */
+export const EXTRACTION_SHAPE =
+  `{"budgetMin": number|null, "budgetMax": number|null, ` +
+  `"intent": "BUY_TO_LIVE"|"BUY_TO_INVEST"|"RENT"|"SELL"|"LIST"|null, ` +
+  `"timeframe": string|null, "financing": "CASH"|"MORTGAGE"|"UNKNOWN"|null, ` +
+  `"communities": string[], "bedrooms": number|null, ` +
+  `"confidence": {"<field>": number}}. ` +
+  `Budgets are in UAE dirhams as whole numbers (2.5 million is 2500000). ` +
+  `Communities are the areas they named, as they named them. ` +
+  `Bedrooms is the smallest number they said they need (a studio is 0).`;
 
 export const CONFIDENCE_FLOOR = 0.7;
 

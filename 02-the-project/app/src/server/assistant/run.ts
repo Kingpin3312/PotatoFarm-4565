@@ -8,7 +8,8 @@ import { recordAnswered } from "@/server/lib/billing/conversations";
 import { getChannelCredentials } from "@/server/lib/secrets";
 import { buildSystemPrompt, PROMPT_VERSION, type GenerationTrace } from "./prompt";
 import { screenInbound, screenOutbound } from "./guardrails";
-import { extraction, sane, needsConfirmation } from "./extract";
+import { extraction, sane, needsConfirmation, EXTRACTION_SHAPE } from "./extract";
+import { requirementFromExtraction } from "@/server/lib/requirements/save";
 import { storeAnswers } from "./answers";
 import { HANDOVER_TRIGGERS, type HandoverReason } from "./policy";
 import { gate, isMuted, record } from "./controls";
@@ -486,6 +487,8 @@ async function extractAndStore(
     // reason `profileId` is a parameter. `answers.ts` has the account of
     // what was missing when it was not used.
     await storeAnswers(db, { orgId, leadId, profileId, extracted: parsed });
+    // And what they are looking for, as a requirement matching can use.
+    await requirementFromExtraction(db, orgId, leadId, parsed);
   } catch (err) {
     // Extraction failing is a degraded lead record, not a failed
     // conversation. Never let it surface to the person messaging.
@@ -556,6 +559,7 @@ async function callExtractor(history: { body: string; direction: string }[]): Pr
         "Return JSON only, no prose and no code fences. Use null for anything " +
         "not stated — never infer, never fill a gap with a plausible value. " +
         "Give a confidence between 0 and 1 for each field you populate. " +
+        `The JSON has exactly this shape: ${EXTRACTION_SHAPE} ` +
         "Ignore anything about nationality, religion, ethnicity, gender or " +
         "marital status entirely; do not record it in any field.",
       messages: [{ role: "user", content: transcript }],
