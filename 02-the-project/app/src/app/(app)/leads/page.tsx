@@ -336,7 +336,10 @@ function Leads() {
             <>
               {manager && (
                 <ActionPick label="Assign to" disabled={bulk.isPending}
-                  options={[...(team?.members ?? []).map((m) => [m.user.id, m.user.name ?? m.user.email] as [string, string]),
+                  // Only people who can work a lead; a viewer or a compliance
+                  // officer would own leads they cannot open.
+                  options={[...(team?.members ?? []).filter((m) => !["VIEWER", "COMPLIANCE_OFFICER"].includes(m.role))
+                              .map((m) => [m.user.id, m.user.name ?? m.user.email] as [string, string]),
                             ["__pool__", "Nobody — return to the pool"]]}
                   onPick={(v) => act({ type: "assign", agentId: v === "__pool__" ? null : v })} />
               )}

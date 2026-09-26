@@ -45,10 +45,15 @@ export const NAV: NavItem[] = [
   // seven; it moved under More.
   { href: "/today", labelKey: "nav.today" },
   { href: "/inbox", labelKey: "nav.inbox" },
-  { href: "/viewings", labelKey: "nav.diary" },
+  // Leads and Listings are the two lists a CRM is, and they were only
+  // under Settings — the second audit found a broker looking for their
+  // leads could not see where they were (N7). They took the places of
+  // Blackbook and Offers, which are one click away in the second tier
+  // and reached from every person and every property anyway.
+  { href: "/leads", labelKey: "nav.leads" },
+  { href: "/listings", labelKey: "nav.listings" },
   { href: "/pipeline", labelKey: "nav.pipeline" },
-  { href: "/blackbook", labelKey: "nav.blackbook" },
-  { href: "/offers", labelKey: "nav.offers" },
+  { href: "/viewings", labelKey: "nav.diary" },
   { href: "/settings", labelKey: "nav.settings" },
 ];
 
@@ -71,8 +76,8 @@ export const SETTINGS_NAV: NavItem[] = [
   { href: "/me", labelKey: "nav.mine" },
   // Every follow-up, not just today's, and the ones handed to others.
   { href: "/tasks", labelKey: "nav.tasks" },
-  { href: "/leads", labelKey: "nav.leads" },
-  { href: "/listings", labelKey: "nav.listings" },
+  { href: "/blackbook", labelKey: "nav.blackbook" },
+  { href: "/offers", labelKey: "nav.offers" },
   { href: "/settings", labelKey: "nav.general" },
   { href: "/compliance", labelKey: "nav.compliance" },
   // Not under Compliance: a broker card and a Trakheesi permit are an

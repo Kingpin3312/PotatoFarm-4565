@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { assertCanActOnOffer, assertCanNameBuyer } from "@/server/lib/deals/scope";
 import { TRPCError } from "@trpc/server";
 import { moveLeadTo } from "@/server/lib/pipeline/advance";
 import type { Prisma } from "@prisma/client";
@@ -43,6 +44,7 @@ export const offersRouter = router({
         select: { id: true, vendorId: true, status: true, reference: true },
       });
       if (!listing) throw new TRPCError({ code: "NOT_FOUND", message: "That listing is no longer here." });
+      if (input.leadId) await assertCanNameBuyer(ctx, input.leadId);
 
       const offer = await ctx.db.offer.create({
         data: {
@@ -89,6 +91,7 @@ export const offersRouter = router({
   presented: requirePermission("lead:update")
     .input(z.object({ offerId: z.string(), note: z.string().trim().max(400).optional() }))
     .mutation(async ({ ctx, input }) => {
+      await assertCanActOnOffer(ctx, input.offerId);
       await ctx.db.offerResponse.create({
         data: {
           orgId: ctx.orgId, offerId: input.offerId, by: "AGENT",
@@ -110,6 +113,7 @@ export const offersRouter = router({
       note: z.string().trim().max(600).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
+      await assertCanActOnOffer(ctx, input.offerId);
       const res = await counter({
         orgId: ctx.orgId, offerId: input.offerId, by: input.by,
         amountFils: BigInt(Math.round(input.amountAed * 100)),
@@ -128,6 +132,7 @@ export const offersRouter = router({
   accept: requirePermission("lead:update")
     .input(z.object({ offerId: z.string(), note: z.string().trim().max(600).optional() }))
     .mutation(async ({ ctx, input }) => {
+      await assertCanActOnOffer(ctx, input.offerId);
       const res = await accept({ orgId: ctx.orgId, ...input, actorId: ctx.userId });
       if (!res.ok) throw new TRPCError({ code: "BAD_REQUEST", message: res.reason });
       return res;

@@ -207,6 +207,12 @@ async function main() {
     ok("or reassign", asg?.code === "FORBIDDEN", asg?.code ?? "allowed");
     const drawer = await refused(() => A.list({ view: "deleted" } as never));
     ok("or open the deleted drawer", drawer?.code === "FORBIDDEN", drawer?.code ?? "allowed");
+    // The second audit's N1: "Nobody's" overwrote the agent's own scope.
+    const pool = await all(A, { filter: "unassigned" });
+    ok("an agent's 'Nobody's' tab is empty — the pool is not their book", pool.length === 0, `${pool.length} listed`);
+    const poolBulk = await A.bulk({ target: { matching: { filter: "unassigned", view: "active" } }, action: { type: "archive" } });
+    const stillLive = await root.lead.count({ where: { orgId: org.id, assignedToId: null, archivedAt: null, deletedAt: null } });
+    ok("and bulk on it archives nothing", poolBulk.count === 0 && stillLive >= 1, `${poolBulk.count} archived`);
   }
 
   console.log("\n=== delete, and restore ===");
@@ -226,6 +232,11 @@ async function main() {
     const r = await M.bulk({ target: { matching: { filter: "unassigned", view: "active" } }, action: { type: "assign", agentId: other.id } });
     const own = await root.leadOwnership.count({ where: { orgId: org.id, userId: other.id, endedAt: null } });
     ok("assigning records ownership, as the board does", r.count === 1 && own >= 1, `${r.count}, ${own}`);
+    // The second audit's N8: leads given to somebody who cannot open them.
+    const watcher = await root.user.create({ data: { email: EMAIL("viewer"), name: "Read Only" } });
+    await root.membership.create({ data: { orgId: org.id, userId: watcher.id, role: "VIEWER" } });
+    const toViewer = await refused(() => M.bulk({ target: { matching: { filter: "all", view: "active" } }, action: { type: "assign", agentId: watcher.id } }));
+    ok("a lead cannot be given to a read-only viewer", toViewer?.code === "BAD_REQUEST", toViewer?.code ?? "assigned");
   }
 
   console.log("\n=== saved views ===");
@@ -235,6 +246,11 @@ async function main() {
     await V(owner.id, "OWNER").save({ screen: "leads", name: "Team hot", filters: { band: "HOT" }, shared: true });
     const share = await refused(() => V(agent.id, "AGENT").save({ screen: "leads", name: "x", filters: {}, shared: true }));
     ok("an agent cannot share a view", share?.code === "FORBIDDEN", share?.code ?? "allowed");
+    // The second audit's N6.
+    const vShare = await refused(() => V(owner.id, "VIEWER").save({ screen: "leads", name: "x", filters: {}, shared: true }));
+    ok("nor a read-only viewer", vShare?.code === "FORBIDDEN", vShare?.code ?? "allowed");
+    const huge = await refused(() => V(agent.id, "AGENT").save({ screen: "leads", name: "big", filters: { search: "x".repeat(200_000) } as never, shared: false }));
+    ok("a 'view' the size of a document is refused", huge?.code === "BAD_REQUEST", huge?.code ?? "saved");
     const seen = (await V(other.id, "AGENT").list({ screen: "leads" })).map((v) => v.name);
     ok("a colleague sees the team's view and not the private one", seen.includes("Team hot") && !seen.includes("My Bayut"), seen.join(", "));
     const mine = await V(agent.id, "AGENT").list({ screen: "leads" });
@@ -269,6 +285,10 @@ async function main() {
     ok("and the count says 320", total === 320, String(total));
     const found = await B.mine({ q: "conveyancer" });
     ok("search finds the one you mean", found.rows.length === 1 && found.rows[0]!.standaloneName === "Farah the conveyancer", String(found.rows.length));
+    // The second audit's N9: by the number as it sits in the agent's phone.
+    await root.blackbookEntry.create({ data: { orgId: org.id, agentId: agent.id, standaloneName: "Karim the mortgage broker", standalonePhone: "+971502223302" } });
+    const byPhone = await B.mine({ q: "050 222 3302" });
+    ok("and by a local-format number", byPhone.rows.some((r) => r.standaloneName === "Karim the mortgage broker"), String(byPhone.rows.length));
     const theirs = await blackbookRouter.createCaller(ctxFor(org.id, other.id, "AGENT")).mine({});
     ok("a colleague's blackbook is empty of yours", theirs.total === 0, String(theirs.total));
   }

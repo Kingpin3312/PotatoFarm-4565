@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { assertCanActOnDeal } from "@/server/lib/deals/scope";
 import { TRPCError } from "@trpc/server";
 import { router, requirePermission } from "../trpc";
 import { audit } from "@/server/lib/audit";
@@ -304,6 +305,7 @@ export const dealsRouter = router({
       note: z.string().trim().max(500).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
+      await assertCanActOnDeal(ctx, input.dealId);
       const deal = await ctx.db.deal.findFirst({
         where: { id: input.dealId },
         select: { id: true, reference: true },
@@ -365,9 +367,10 @@ export const dealsRouter = router({
       blockedReason: z.string().trim().max(200).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
+      await assertCanActOnDeal(ctx, input.dealId);
       const deal = await ctx.db.deal.findFirst({
         where: { id: input.dealId },
-        select: { id: true, reference: true, stage: true, leadId: true },
+        select: { id: true, reference: true, stage: true, leadId: true, listingId: true },
       });
       if (!deal) throw new TRPCError({ code: "NOT_FOUND", message: "No such deal." });
 
@@ -477,6 +480,24 @@ export const dealsRouter = router({
               where: { id: deal.leadId },
               data: { status: "WON", stageEnteredAt: new Date(), ...(won ? { stageId: won.id } : {}) },
             });
+          }
+          /**
+           * And a completed transfer is a property that has gone.
+           *
+           * It stayed UNDER_OFFER for ever — on the listings screen, in
+           * the feed, and open to new offers on a flat that had changed
+           * hands (the second audit's N4). Sold for a sale, let for a
+           * rental; only from the two live states, so a listing somebody
+           * has since withdrawn is left as they set it.
+           */
+          if (next === "COMPLETED" && deal.listingId) {
+            const l = await ctx.db.listing.findFirst({ where: { id: deal.listingId }, select: { purpose: true } });
+            if (l) {
+              await ctx.db.listing.updateMany({
+                where: { id: deal.listingId, status: { in: ["AVAILABLE", "UNDER_OFFER"] } },
+                data: { status: l.purpose === "RENT" ? "LET" : "SOLD" },
+              });
+            }
           }
         }
       }

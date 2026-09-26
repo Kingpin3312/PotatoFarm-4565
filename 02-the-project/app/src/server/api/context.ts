@@ -29,7 +29,15 @@ export async function createContext({ req }: { req: NextRequest }) {
     void crossTenant("pre-tenant").session.updateMany({
       where: { id: session.sid, lastActiveAt: { lt: new Date(Date.now() - 5 * 60_000) } },
       data: { lastActiveAt: new Date(), ip: ip === "unknown" ? null : ip, userAgent: userAgent.slice(0, 300) },
-    }).catch(() => undefined);
+    })
+      // And the person's "last seen", which the team page reads. It was
+      // written only by the sign-in event, so with 30-day sessions every
+      // member read "not signed in yet", the owner included (the second
+      // audit's N11). Same five-minute throttle, riding on the one above.
+      .then((r) => r.count
+        ? crossTenant("pre-tenant").user.update({ where: { id: session.user.id }, data: { lastSeenAt: new Date() } })
+        : null)
+      .catch(() => undefined);
   }
 
   return { session, membership, ip, userAgent };

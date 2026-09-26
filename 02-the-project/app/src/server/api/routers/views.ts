@@ -30,11 +30,21 @@ export const viewsRouter = router({
     .input(z.object({
       screen,
       name: z.string().trim().min(1).max(60),
-      filters: z.record(z.string(), z.unknown()),
+      /**
+       * A filter, not a document. It was `record(unknown)`, so an 8 MB
+       * object saved as a "view" came back to the screen on every list
+       * (the second audit's N6). A screen's filter is a handful of short
+       * plain values.
+       */
+      filters: z.record(z.string().max(40), z.union([z.string().max(200), z.number(), z.boolean(), z.null()]))
+        .refine((f) => Object.keys(f).length <= 20, "A view keeps at most 20 filters.")
+        .refine((f) => JSON.stringify(f).length <= 4_000, "That view is too large to save."),
       shared: z.boolean().default(false),
     }))
     .mutation(async ({ ctx, input }) => {
-      if (input.shared && !can(ctx.role, "lead:read:all")) {
+      // `lead:assign` — what a manager holds and a read-only viewer does
+      // not. `lead:read:all` let a viewer set the whole floor's views.
+      if (input.shared && !can(ctx.role, "lead:assign")) {
         throw new TRPCError({ code: "FORBIDDEN", message: "Only a manager can share a view with the team." });
       }
       return ctx.db.savedView.create({
@@ -49,7 +59,7 @@ export const viewsRouter = router({
   remove: orgProcedure.input(z.object({ id: z.string() })).mutation(async ({ ctx, input }) => {
     const v = await ctx.db.savedView.findFirst({ where: { id: input.id }, select: { userId: true } });
     // Yours, or a manager tidying the team's shared ones.
-    if (!v || (v.userId !== ctx.userId && !can(ctx.role, "lead:read:all"))) {
+    if (!v || (v.userId !== ctx.userId && !can(ctx.role, "lead:assign"))) {
       throw new TRPCError({ code: "NOT_FOUND" });
     }
     await ctx.db.savedView.delete({ where: { id: input.id } });

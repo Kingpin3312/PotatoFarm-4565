@@ -312,7 +312,10 @@ export async function buyersFor(args: {
       score: m.score,
       reasons: m.reasons,
       caveats: m.caveats,
-      budgetMaxFils: lead.budgetMaxFils,
+      // The requirement that matched says what they will spend; the lead's
+      // own field is only a fallback. Most buyers now have their budget on
+      // the requirement, and the row showed none (the second audit's N13).
+      budgetMaxFils: req.budgetMaxFils ?? lead.budgetMaxFils,
       leadScore: lead.score,
       contactable,
     });

@@ -66,9 +66,11 @@ async function main() {
   const mk = (k: string, name: string) => root.user.create({ data: { email: `journeys-check-${k}-${RUN}@example.com`, name } });
   const manager = await mk("m", "Maya Chen");
   const agent = await mk("a", "Tom Reilly");
+  const colleague = await mk("x", "Nadia Aziz");
   await root.membership.createMany({ data: [
     { orgId: org.id, userId: manager.id, role: "MANAGER" },
     { orgId: org.id, userId: agent.id, role: "AGENT" },
+    { orgId: org.id, userId: colleague.id, role: "AGENT" },
   ] });
   const ctx = (userId: string, role: string) => ({
     session: { user: { id: userId } }, membership: { orgId: org.id, orgName: "Journeys", role }, ip: "127.0.0.1", userAgent: "journeys",
@@ -119,20 +121,37 @@ async function main() {
   const offer = await O.create({ listingId: flat.id, leadId: lead.id, amountAed: 2_750_000, financing: "MORTGAGE", preApproved: true, expiresInDays: 7 });
   const negotiating = await root.lead.findUnique({ where: { id: lead.id }, include: { stageRef: true } });
   ok("an offer moves her to 'Negotiating'", negotiating?.status === "NEGOTIATING" && negotiating.stageRef?.maps === "NEGOTIATING", negotiating?.status);
+  // The second audit's N2: a colleague could act on somebody else's offer.
+  const X = as(offersRouter, colleague.id, "AGENT");
+  const code = (p: Promise<unknown>) => p.then(() => "allowed", (e: { code?: string }) => e.code ?? "error");
+  const xs = [
+    await code(X.create({ listingId: flat.id, leadId: lead.id, amountAed: 2_000_000 })),
+    await code(X.counter({ offerId: offer.id, by: "BUYER", amountAed: 2_000_000 })),
+    await code(X.accept({ offerId: offer.id })),
+    await code(X.presented({ offerId: offer.id })),
+  ];
+  ok("a colleague cannot name her, counter, accept or present Tom's offer", xs.every((c) => c === "NOT_FOUND"), xs.join(","));
   await O.counter({ offerId: offer.id, by: "VENDOR", amountAed: 2_850_000, note: "Owner wants closer to asking." });
   const accepted = await O.accept({ offerId: offer.id, note: "Agreed at 2.85" }) as { ok: boolean };
   const deal = await root.deal.findFirst({ where: { orgId: org.id, leadId: lead.id } });
   ok("offer, counter, accepted: a deal at the countered price", accepted.ok && deal?.valueFils === 285_000_000n, String(deal?.valueFils));
   ok("the property is under offer", (await root.listing.findUnique({ where: { id: flat.id } }))?.status === "UNDER_OFFER");
   ok("and a due-diligence file was opened for the buyer", (await root.kycRecord.count({ where: { orgId: org.id, leadId: lead.id } })) === 1);
+  const xStep = await code(as(dealsRouter, colleague.id, "AGENT").step({ dealId: deal!.id, stage: STEP_STAGES[0], done: true }));
+  ok("nor tick his deal along", xStep === "NOT_FOUND", xStep);
   const D = as(dealsRouter, manager.id, "MANAGER");
   for (const st of STEP_STAGES) await D.step({ dealId: deal!.id, stage: st, done: true });
   const closed = await root.deal.findUnique({ where: { id: deal!.id } });
   ok("every step ticked: the deal is completed", closed?.stage === "COMPLETED" && !!closed.completedAt, closed?.stage);
   const won = await root.lead.findUnique({ where: { id: lead.id }, include: { stageRef: true } });
   ok("and the buyer is won, on the board's Won column", won?.status === "WON" && won.stageRef?.maps === "WON", `${won?.status} / ${won?.stageRef?.name}`);
+  const sold = await root.listing.findUnique({ where: { id: flat.id } });
+  ok("and the property is sold, not still under offer", sold?.status === "SOLD", sold?.status);
 
   console.log("\n=== 3. An agent's day ===");
+  // The second audit's N5: an agent's own walk-in went to the rotation.
+  const walkIn = await as(leadsRouter, agent.id, "AGENT").create({ phone: `+97156${n7}`, name: "Walk-in Visitor", source: "WALK_IN" });
+  ok("a walk-in the agent enters is theirs, not the rotation's", walkIn.assignedTo === agent.id, String(walkIn.assignedTo));
   const brief = await as(todayRouter, agent.id, "AGENT").brief();
   ok("Today opens, with the day's counts", typeof brief.counts === "object" && Array.isArray(brief.actions));
   const mine = await T.list({ view: "mine", state: "open" });
@@ -158,7 +177,7 @@ async function main() {
   const agentDelegate = await T.create({ title: "Ring the landlord", dueAt: due, agentId: manager.id }).then(() => null, (e: { code?: string }) => e);
   ok("an agent cannot hand work to their manager", agentDelegate?.code === "FORBIDDEN", agentDelegate?.code ?? "allowed");
   const csv = await M.exportCsv({ filter: "all", view: "active", sort: "newest" });
-  ok("exports the book", csv.count === 2 && csv.csv.includes("Omar Haddad"), String(csv.count));
+  ok("exports the book", csv.count === 3 && csv.csv.includes("Omar Haddad"), String(csv.count));
   const funnel = await as(reportsRouter, manager.id, "MANAGER").funnel({ from: new Date(Date.now() - 86_400_000), to: new Date(Date.now() + 60_000) });
   ok("and the funnel report answers", typeof funnel === "object" && funnel !== null);
   const kpis = await as(reportsRouter, manager.id, "MANAGER").kpis({ from: new Date(Date.now() - 86_400_000), to: new Date(Date.now() + 60_000) });
@@ -167,6 +186,8 @@ async function main() {
      JSON.stringify({ deals: kpis.timeToClose.deals, bySource: kpis.bySource }));
   const agentKpis = await as(reportsRouter, agent.id, "AGENT").kpis({ from: new Date(), to: new Date() }).then(() => null, (e: { code?: string }) => e);
   ok("and an agent is not shown the floor's figures", agentKpis?.code === "FORBIDDEN", agentKpis?.code ?? "allowed");
+  const viewerKpis = await as(reportsRouter, manager.id, "VIEWER").kpis({ from: new Date(), to: new Date() }).then(() => null, (e: { code?: string }) => e);
+  ok("nor a read-only viewer, who sees no commission anywhere else", viewerKpis?.code === "FORBIDDEN", viewerKpis?.code ?? "allowed");
 
   await cleanup();
   console.log(bad ? `\n${bad} FAILURE(S)\n` : "\nAll checks passed.\n");

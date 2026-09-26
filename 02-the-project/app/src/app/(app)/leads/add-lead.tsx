@@ -28,9 +28,13 @@ export function AddLead() {
   const dialog = useRef<HTMLDialogElement>(null);
   const utils = api.useUtils();
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const create = api.leads.create.useMutation({
-    onSuccess: () => {
+    onSuccess: (r) => {
+      // Where it went, when that is not "to you".
+      setNotice(r.givenTo === "nobody yet" ? "Added. Nobody has it yet — it is in the pool."
+        : r.givenTo ? `Added, and given to ${r.givenTo} by your routing rules.` : null);
       void utils.leads.list.invalidate();
       void utils.leads.distribution.invalidate();
       dialog.current?.close();
@@ -42,6 +46,7 @@ export function AddLead() {
 
   const open = () => {
     setError(null);
+    setNotice(null);
     create.reset();
     dialog.current?.showModal();
     dialog.current?.focus();
@@ -74,6 +79,7 @@ export function AddLead() {
   return (
     <>
       <Button size="sm" variant="primary" onClick={open}>Add a lead</Button>
+      {notice && <p role="status" className="text-sm text-ink-2 mt-2">{notice}</p>}
 
       <dialog
         ref={dialog}

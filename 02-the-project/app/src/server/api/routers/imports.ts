@@ -29,7 +29,8 @@ import { FIELDS, planImport, tally, type Verdict } from "@/server/lib/import/pla
  * Matching an existing lead is by normalised phone, then email — so
  * "050 100 0041" in the file and "+971501000041" on file are one person.
  */
-const rows = z.array(z.record(z.string(), z.string().nullable())).max(20_000);
+const rows = z.array(z.record(z.string(), z.string().nullable()))
+  .max(20_000, "That file has more than 20,000 rows. Split it and import each part.");
 const mapping = z.object(Object.fromEntries(FIELDS.map((f) => [f, z.string().optional()])) as Record<(typeof FIELDS)[number], z.ZodOptional<z.ZodString>>)
   .refine((m) => !!m.phone, { message: "Choose the column that holds the phone number." });
 

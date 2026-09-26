@@ -1,6 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import type { Prisma } from "@prisma/client";
 import { audit } from "@/server/lib/audit";
+import { can } from "@/server/auth/rbac";
 
 /**
  * Give leads to an agent, or back to the pool.
@@ -21,6 +22,12 @@ export async function assignLeads(
       where: { orgId_userId: { orgId: ctx.orgId, userId: input.agentId } },
     });
     if (!member) throw new TRPCError({ code: "BAD_REQUEST", message: "That agent isn't in your team." });
+    // Somebody who cannot work a lead cannot be given one: a viewer or
+    // a compliance officer would own leads they cannot open (the second
+    // audit's N8), and the buyer would wait on nobody.
+    if (!can(member.role, "lead:update")) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "Leads go to somebody who can work them — that role can't." });
+    }
   }
 
   /**

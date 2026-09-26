@@ -66,7 +66,10 @@ export const reportsRouter = router({
    * leads gone quiet. The last three are "now"; the first two are over
    * the range.
    */
-  kpis: requirePermission("lead:read:all")
+  // `revenue:read`, not `lead:read:all`: these figures are commission
+  // forecast and pipeline value, which a viewer or a compliance officer
+  // is not shown anywhere else (the second audit's N3).
+  kpis: requirePermission("revenue:read")
     .input(z.object({ from: z.date(), to: z.date() }))
     .query(async ({ ctx, input }) => {
       const live = { deletedAt: null, archivedAt: null, status: { notIn: ["WON", "LOST"] as ("WON" | "LOST")[] } };

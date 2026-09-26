@@ -68,7 +68,7 @@ async function main() {
   const expires = new Date(Date.now() + 86_400_000);
   const tokA = `two-step-a-${randomBytes(8).toString("hex")}`;
   const tokB = `two-step-b-${randomBytes(8).toString("hex")}`;
-  const A = await people.session.create({ data: { sessionToken: tokA, userId: me.id, expires, activeOrgId: org.id } });
+  const A = await people.session.create({ data: { sessionToken: tokA, userId: me.id, expires, activeOrgId: org.id, lastActiveAt: new Date(Date.now() - 3_600_000) } });
   const B = await people.session.create({ data: { sessionToken: tokB, userId: me.id, expires, activeOrgId: org.id } });
   const theirs = await people.session.create({ data: { sessionToken: `two-step-c-${randomBytes(8).toString("hex")}`, userId: stranger.id, expires } });
 
@@ -109,6 +109,11 @@ async function main() {
     const api = await fetch(`${BASE}/api/trpc/org.mine`, { headers: cookie(tokB) });
     const apiA = await fetch(`${BASE}/api/trpc/org.mine`, { headers: cookie(tokA) });
     ok("reaches no API", api.status === 401 && apiA.status === 200, `${api.status} (and ${apiA.status} with the code)`);
+    await new Promise((r) => setTimeout(r, 500));
+    const seen = await people.user.findUniqueOrThrow({ where: { id: me.id }, select: { lastSeenAt: true } });
+    const aRow = await people.session.findUniqueOrThrow({ where: { id: A.id }, select: { lastActiveAt: true, userAgent: true } });
+    ok("using the app records when and from what — the team page's 'last seen' too",
+       !!seen.lastSeenAt && Date.now() - aRow.lastActiveAt.getTime() < 60_000 && !!aRow.userAgent, `${seen.lastSeenAt?.toISOString()} · ${aRow.userAgent}`);
     const page = await fetch(`${BASE}/today`, { headers: cookie(tokB), redirect: "manual" });
     const loc = page.headers.get("location") ?? "";
     const html = page.status === 200 ? await page.text() : "";

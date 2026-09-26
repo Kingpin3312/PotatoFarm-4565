@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { looksLikePhone, phoneSearchKey } from "@/lib/phone";
 import { router, requirePermission } from "../trpc";
 import { timeline } from "@/server/lib/blackbook/timeline";
 import { audit } from "@/server/lib/audit";
@@ -31,6 +32,25 @@ export const blackbookRouter = router({
        * `q` it accepted was never read.
        */
       const q = input?.q;
+      /**
+       * By the number as it is on the agent's phone, and by the person
+       * behind a linked entry. "050 222 3302" found nothing because the
+       * stored number is +971…, and an entry that points at a lead has no
+       * name of its own to match (the second audit's N9).
+       */
+      const phoneKey = q && looksLikePhone(q) ? phoneSearchKey(q) : null;
+      const linked = q
+        ? (await ctx.db.lead.findMany({
+            where: {
+              deletedAt: null,
+              OR: [
+                { name: { contains: q, mode: "insensitive" as const } },
+                ...(phoneKey ? [{ phone: { contains: phoneKey } }] : []),
+              ],
+            },
+            select: { id: true }, take: 500,
+          })).map((l) => l.id)
+        : [];
       const where = {
         // Scoped to the caller, always. Not a filter a future edit can
         // drop — see the audit invariant.
@@ -40,7 +60,8 @@ export const blackbookRouter = router({
           { nickname: { contains: q, mode: "insensitive" as const } },
           { standaloneName: { contains: q, mode: "insensitive" as const } },
           { standaloneEmail: { contains: q, mode: "insensitive" as const } },
-          { standalonePhone: { contains: q.replace(/[^\d+]/g, "") || q } },
+          { standalonePhone: { contains: phoneKey ?? (q.replace(/[^\d+]/g, "") || q) } },
+          ...(linked.length ? [{ leadId: { in: linked } }] : []),
           { privateNote: { contains: q, mode: "insensitive" as const } },
         ] } : {}),
       };

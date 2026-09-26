@@ -110,6 +110,9 @@ async function main() {
     const m = await buyersFor({ orgId: org.id, listingId: marina.id, scope: { canSeeAll: true, viewerId: agent.id } });
     ok("matching: they are a buyer for the Marina flat", !!m?.matches.some((x) => x.name === "Priya Nayr"),
        (m?.matches ?? []).map((x) => x.name).join(" | ") || "nobody");
+    // The second audit's N13: the row read the budget off the lead.
+    const row = m?.matches.find((x) => x.name === "Priya Nayr");
+    ok("and the row shows the budget they gave", row?.budgetMaxFils === 3_000_000_00n, String(row?.budgetMaxFils));
   }
 
   console.log("\n=== an alias meets the listing's own spelling ===");

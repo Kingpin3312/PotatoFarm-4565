@@ -109,12 +109,11 @@ function leadWhere(
     AND.push(input.band === "UNSCORED" ? { score: null }
       : { score: { gte: BANDS[i]!.from, ...(i > 0 ? { lt: BANDS[i - 1]!.from } : {}) } });
   }
-  return {
+  const filtered: Prisma.LeadWhereInput = {
     deletedAt: input.view === "deleted" ? { not: null } : null,
     ...(input.view === "archived" ? { archivedAt: { not: null } }
       : input.view === "active" ? { archivedAt: null } : {}),
     ...(AND.length ? { AND } : {}),
-    ...scope,
     ...(input.search && {
       OR: [
         { name: { contains: input.search, mode: "insensitive" as const } },
@@ -160,6 +159,16 @@ function leadWhere(
         }
       : {}),
   };
+  /**
+   * The caller's scope is its own condition, never a key in the object
+   * above. It was spread in beside the filters, and "Nobody's" then set
+   * `assignedToId: null` over the agent's `assignedToId: <me>` — so an
+   * agent choosing that tab saw every unassigned lead in the brokerage,
+   * and `leads.bulk`, which takes the same filter, could archive, tag or
+   * move all of them (found by the second audit). Nothing a filter
+   * writes can reach inside an `AND`.
+   */
+  return Object.keys(scope).length ? { AND: [filtered, scope] } : filtered;
 }
 
 function orderFor(sort: (typeof SORTS)[number]): Prisma.LeadOrderByWithRelationInput[] {
@@ -413,6 +422,9 @@ export const leadsRouter = router({
             where: { orgId_userId: { orgId: ctx.orgId, userId: input.agentId } },
           });
           if (!member) throw new TRPCError({ code: "BAD_REQUEST", message: "That agent isn't in your team." });
+          if (!can(member.role, "lead:update")) {
+            throw new TRPCError({ code: "BAD_REQUEST", message: "Leads go to somebody who can work them — that role can't." });
+          }
         }
 
         const after = await tx.lead.update({
@@ -671,10 +683,18 @@ export const leadsRouter = router({
 
       return ctx.db.$transaction(async (tx) => {
         const stageId = await entryStageId(tx, ctx.orgId, "NEW");
-        const assignment = await assignmentFor(tx, {
-          orgId: ctx.orgId,
-          source: input.source,
-        });
+        /**
+         * An agent's own walk-in is theirs.
+         *
+         * The routing rotation is for enquiries nobody has met. An agent
+         * typing in the person standing in front of them had the lead
+         * handed to whoever was next in the rotation, the dialog closed
+         * saying nothing, and opening it gave them "not found" (the second
+         * audit's N5). A manager entering leads still routes them.
+         */
+        const assignment = can(ctx.role, "lead:read:all")
+          ? await assignmentFor(tx, { orgId: ctx.orgId, source: input.source })
+          : { userId: ctx.userId };
 
         const lead = await tx.lead.create({
           data: {
@@ -701,7 +721,15 @@ export const leadsRouter = router({
           after: { source: input.source, entered: "manual" },
         });
 
-        return { id: lead.id, onBoard: stageId !== null, assignedTo: assignment?.userId ?? null };
+        const given = assignment?.userId && assignment.userId !== ctx.userId
+          ? await tx.user.findUnique({ where: { id: assignment.userId }, select: { name: true, email: true } })
+          : null;
+        return {
+          id: lead.id, onBoard: stageId !== null, assignedTo: assignment?.userId ?? null,
+          // Said on screen, so a lead routed to somebody else is not a
+          // lead that vanished.
+          givenTo: given ? (given.name ?? given.email) : assignment?.userId ? null : "nobody yet",
+        };
       });
     }),
 
