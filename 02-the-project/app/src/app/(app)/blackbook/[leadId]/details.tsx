@@ -4,7 +4,7 @@ import { useState } from "react";
 import type { inferRouterInputs, inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
 import { api } from "@/lib/trpc";
-import { Button } from "@/components/ui/button";
+import { Button, buttonStyles } from "@/components/ui/button";
 import { aedWhole } from "@/lib/money";
 import { sentence } from "@/lib/sentence";
 
@@ -72,6 +72,24 @@ export function Details({ leadId }: { leadId: string }) {
             Edit
           </button>
         </div>
+        {/* One tap from the person to talking to them (the audit's B8).
+            On a phone this is the first thing under the name: an agent
+            opening somebody in a car park wants to ring or write, not to
+            scroll past their budget to find the number. The thread is
+            the brokerage's WhatsApp, not the agent's own, so it stays on
+            the record. */}
+        <nav aria-label="Get in touch" data-quick-actions
+          className="mt-4 grid grid-cols-3 gap-2 min-[640px]:flex min-[640px]:gap-3">
+          <a href={`tel:${data.phone}`} className={buttonStyles({ size: "sm" })}>Call</a>
+          {data.conversationId ? (
+            <a href={`/inbox/${data.conversationId}`} className={buttonStyles({ size: "sm" })}>Message</a>
+          ) : (
+            <span className={buttonStyles({ size: "sm", variant: "quiet" })} title="They have not written to the brokerage's number yet">
+              No thread yet
+            </span>
+          )}
+          <a href="#task-heading" className={buttonStyles({ size: "sm" })}>Next step</a>
+        </nav>
         {data.optedOutOfOutreach && (
           // Said at the top, in words: this is an instruction from the
           // person, and the next thing an agent does here is often message them.

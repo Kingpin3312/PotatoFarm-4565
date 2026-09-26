@@ -102,7 +102,7 @@ What is verified today, measured rather than assumed:
   `/api/health` returns `200 {"ok":true}` against a real Postgres.
 - The boot log names every unconfigured service with its consequence —
   six of them in a bare development environment.
-- 403 assertions in 26 files, 55 check suites, 23 audits, all green.
+- 410 assertions in 27 files, 56 check suites, 23 audits, all green.
 
 Type errors on a fresh checkout are no longer expected. If you get one,
 it is new.
@@ -272,6 +272,22 @@ having nowhere to put a token at all — which meant connecting a
 brokerage's WhatsApp number required setting an environment variable and
 redeploying, per brokerage, per channel. `readSecret` is still the only
 reader, and swapping in Vault or Secrets Manager touches that one file.
+
+**The session callback returns a named shape, never the row.** Auth.js
+hands `callbacks.session` the whole `Session` row spread into `session`,
+and returning it as it came put the **session token** — the value the
+cookie is `httpOnly` to keep from scripts — in `/api/auth/session` for
+any script on the page, beside the user's row (which now includes the
+sealed two-step key). `auth/config.ts` lists what leaves; add a field
+there on purpose or not at all. `check:two-step` fails if the token or
+the row comes back.
+
+**Two-step sign-in is enforced in two places, and both are needed.**
+`orgProcedure` refuses a session whose `twoStep` is `"needed"` (the
+data), and `(app)/layout.tsx` redirects it to `/sign-in/two-step` (so
+the person is told why). `security.verify` is on `signedInProcedure`,
+the one door open before the code. A new procedure put on
+`signedInProcedure` is reachable with the email link alone — don't.
 
 **Never use `rootDb` directly. Use `crossTenant(reason)`.** `rootDb`
 bypasses row-level security. A review found 131 unscoped uses and every
@@ -834,8 +850,8 @@ send path read it.
 
 ## Run the tests
 
-    npm test          # 403 assertions, pure functions, no database
-    npm run verify    # tsc, the tests, 55 check suites, 23 audits
+    npm test          # 410 assertions, pure functions, no database
+    npm run verify    # tsc, the tests, 56 check suites, 23 audits
 
 **The gate is now green end to end, including the two things that used
 to skip.** `verify` reports what it did not run rather than counting a
@@ -849,6 +865,15 @@ skip as a pass, and for a long time it reported two:
   process, so that is connection setup rather than the query, which is
   the measurement behind "a pooler in front of Postgres is not
   optional". Run it with `npm run verify --load`; it takes minutes.
+
+  **At 25,000 leads (`SCALE=5`)** every screen is still inside budget —
+  lists, filters, deep cursors, counts and the manager KPIs all under
+  25ms warm, search at 110–150ms — and it found the one thing that was
+  not: **the nightly sweep never finished.** It compares every live
+  requirement with every listing, and `samePlace` rebuilt and re-sorted
+  the whole alias table on each of those 150 million calls. Built once
+  and remembered per text now; the sweep takes 55s for the database.
+  A job nobody waits for is still a job that has to end before morning.
 - **`check:whatsapp-inbound` needs `WHATSAPP_APP_SECRET`.** Any value
   works locally — it is the HMAC key the check signs its own fake
   webhook with. Without it the one end-to-end proof that an inbound
@@ -885,7 +910,7 @@ skip as a pass, and for a long time it reported two:
   leaving you to guess.
 
 `npm test` was declared from day one with no test files behind it, so it
-exited 1 and said "No test files found". There are 26 test files now, and
+exited 1 and said "No test files found". There are 27 test files now, and
 they cover the pure logic where being wrong is silent: the fils unit, the
 24-hour window on both sides of the boundary, Dubai sending hours, the
 search parser's plural intents and budget bands, lead scoring, deal

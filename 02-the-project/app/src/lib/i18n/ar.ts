@@ -57,6 +57,7 @@ export const ar: Messages = {
   "nav.documents": "المستندات",
   "nav.privacy": "الخصوصية",
   "nav.access": "الصلاحيات",
+  "nav.security": "الأمان",
   "nav.assistantQuestions": "ما يسأل عنه",
   "nav.hours": "ساعات العمل",
   "nav.routing": "توزيع العملاء",

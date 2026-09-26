@@ -81,6 +81,7 @@ export const SETTINGS_NAV: NavItem[] = [
   { href: "/documents", labelKey: "nav.documents" },
   { href: "/settings/privacy", labelKey: "nav.privacy" },
   { href: "/settings/access", labelKey: "nav.access" },
+  { href: "/settings/security", labelKey: "nav.security" },
   { href: "/settings/assistant", labelKey: "nav.assistantQuestions" },
   { href: "/settings/hours", labelKey: "nav.hours" },
   { href: "/settings/routing", labelKey: "nav.routing" },

@@ -57,6 +57,13 @@ const RULES: Record<string, { short: [number, number]; long: [number, number] }>
   "auth.magicLinkIp": { short: [30, 900], long: [200, 86_400] },
 
   /**
+   * Codes for two-step sign-in, keyed on the person. Six digits is a
+   * million guesses; five in fifteen minutes makes that centuries, and a
+   * person fumbling their phone still gets a fair number of tries.
+   */
+  "auth.twoStep":     { short: [5, 900],  long: [30, 86_400] },
+
+  /**
    * The two public marketing forms. Looser than the rest, because the
    * cost of a false positive here is a brokerage owner who wanted a call
    * and was told to come back later.

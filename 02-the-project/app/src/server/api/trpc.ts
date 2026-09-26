@@ -57,6 +57,12 @@ export const publicProcedure = t.procedure;
  */
 export const orgProcedure = t.procedure.use(({ ctx, next }) => {
   if (!ctx.session?.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+  // Somebody with two-step sign-in on, whose link has signed this device
+  // in but who has not typed a code yet, reaches nothing. The one thing
+  // they can call is `security.verify`, on `signedInProcedure` below.
+  if (ctx.session.twoStep === "needed") {
+    throw new TRPCError({ code: "UNAUTHORIZED", message: "Enter the code from your authenticator app to finish signing in." });
+  }
   if (!ctx.membership) throw new TRPCError({ code: "FORBIDDEN", message: "No access to this brokerage." });
 
   return next({
@@ -69,6 +75,18 @@ export const orgProcedure = t.procedure.use(({ ctx, next }) => {
       role: ctx.membership.role,
     },
   });
+});
+
+/**
+ * Signed in, before the second step and before any brokerage.
+ *
+ * For finishing sign-in and nothing else: no database handle is given,
+ * so a procedure here can only reach what it opens itself, as
+ * `crossTenant("pre-tenant")`, about the caller.
+ */
+export const signedInProcedure = t.procedure.use(({ ctx, next }) => {
+  if (!ctx.session?.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+  return next({ ctx: { ...ctx, userId: ctx.session.user.id, sid: ctx.session.sid } });
 });
 
 /** Declarative permission gate. `.use(require("lead:assign"))` */

@@ -131,10 +131,14 @@ export function score(r: Requirement, c: Candidate): Match | null {
 export const SEND_THRESHOLD = 0.75;
 
 export function best(r: Requirement, candidates: Candidate[]): Match | null {
-  const scored = candidates
-    .map((c) => score(r, c))
-    .filter((m): m is Match => m !== null && m.score >= SEND_THRESHOLD)
-    .sort((a, b) => b.score - a.score);
-
-  return scored[0] ?? null;
+  // One pass, keeping the first of the highest — what a stable sort
+  // descending then `[0]` returned, without building and sorting an
+  // array per requirement. The nightly sweep calls this for every live
+  // requirement against the whole book.
+  let top: Match | null = null;
+  for (const c of candidates) {
+    const m = score(r, c);
+    if (m && m.score >= SEND_THRESHOLD && (!top || m.score > top.score)) top = m;
+  }
+  return top;
 }

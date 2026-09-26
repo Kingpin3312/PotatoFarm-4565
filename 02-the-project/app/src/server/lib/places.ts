@@ -83,19 +83,28 @@ export function variantsOf(p: Place): string[] {
     .sort((a, b) => b.length - a.length);
 }
 
+/**
+ * Every spelling of every place, longest first, so "Dubai Hills" is not
+ * beaten to it by "Hills" from another entry.
+ *
+ * Built once. It was rebuilt and re-sorted on every call, which nobody
+ * noticed at five thousand leads and which, through `samePlace`, was
+ * most of a 25,000-lead sweep's time (the audit's C10).
+ */
+let ALL: { v: string; canonical: string }[] | null = null;
+function allVariants() {
+  return (ALL ??= PLACES.flatMap((p) => variantsOf(p).map((v) => ({ v, canonical: p.canonical })))
+    .sort((a, b) => b.v.length - a.v.length));
+}
+
 /** Canonical names mentioned anywhere in a piece of text. */
 export function placesIn(text: string): { places: string[]; matched: string[] } {
   const hay = ` ${text.toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ")} `;
   const places: string[] = [];
   const matched: string[] = [];
 
-  // Longest phrase first across the whole list, so "Dubai Hills" is not
-  // beaten to it by "Hills" from another entry.
-  const all = PLACES.flatMap((p) => variantsOf(p).map((v) => ({ v, canonical: p.canonical })))
-    .sort((a, b) => b.v.length - a.v.length);
-
   let remaining = hay;
-  for (const { v, canonical } of all) {
+  for (const { v, canonical } of allVariants()) {
     if (places.includes(canonical)) continue;
     if (remaining.includes(` ${v} `)) {
       places.push(canonical);
@@ -165,6 +174,25 @@ export function samePlace(a: string, b: string): boolean {
   const x = a.trim().toLowerCase();
   const y = b.trim().toLowerCase();
   if (x === y) return true;
-  const pa = placesIn(x).places[0];
-  return !!pa && pa === placesIn(y).places[0];
+  const pa = placeOf(x);
+  return !!pa && pa === placeOf(y);
+}
+
+/**
+ * The canonical place a piece of text names, remembered.
+ *
+ * The matcher asks `samePlace` for every requirement against every
+ * listing — 150 million pairs at 25,000 buyers and 6,000 listings — and
+ * a brokerage has a few dozen distinct spellings of its areas. Bounded,
+ * because free text can reach here too.
+ */
+const PLACE_OF = new Map<string, string | null>();
+function placeOf(text: string): string | null {
+  let v = PLACE_OF.get(text);
+  if (v === undefined) {
+    v = placesIn(text).places[0] ?? null;
+    if (PLACE_OF.size >= 5_000) PLACE_OF.clear();
+    PLACE_OF.set(text, v);
+  }
+  return v;
 }

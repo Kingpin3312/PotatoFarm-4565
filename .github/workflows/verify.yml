@@ -398,6 +398,11 @@ jobs:
       - name: Whether the company can take money
         run: npm run check:billing
 
+      # Two-step sign-in, over HTTP for the same reason: the gate that
+      # matters is the one a real cookie meets.
+      - name: Two-step sign-in holds
+        run: npm run check:two-step
+
       # The inbound path for the lead source the brokerage pays for by
       # the click, and the one whose failure cannot be replayed: Meta
       # sends an id, the answers are fetched back with the Page token

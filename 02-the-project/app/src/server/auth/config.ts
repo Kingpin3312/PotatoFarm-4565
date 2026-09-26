@@ -98,9 +98,31 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
 
   callbacks: {
+    /**
+     * A named shape, never the row.
+     *
+     * Auth.js hands this callback the whole `Session` row spread into
+     * `session`, and it returned that object as it came — so
+     * `/api/auth/session` answered any script on the page with the
+     * **session token itself**, the value the cookie is `httpOnly` to
+     * keep away from scripts, plus the user's row. Measured. With
+     * two-step sign-in the row would also carry the sealed authenticator
+     * key and the recovery hashes. Only these fields leave.
+     *
+     * `twoStep` is the second factor for *this* sign-in: "off" when the
+     * person has not turned it on, "needed" until this session has had a
+     * code, "done" after. `sid` is the row's id, not its token — it names
+     * the current device on the sessions list.
+     */
     async session({ session, user }) {
-      session.user.id = user.id;
-      return session;
+      const row = session as unknown as { id?: string; secondFactorAt?: Date | null; expires: Date | string };
+      const u = user as typeof user & { totpEnabledAt?: Date | null };
+      return {
+        user: { id: user.id, name: user.name ?? null, email: user.email, image: user.image ?? null },
+        expires: row.expires instanceof Date ? row.expires.toISOString() : row.expires,
+        sid: row.id ?? null,
+        twoStep: !u.totpEnabledAt ? "off" : row.secondFactorAt ? "done" : "needed",
+      } as unknown as typeof session;
     },
   },
 

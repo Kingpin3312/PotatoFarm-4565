@@ -20,6 +20,11 @@ import { parse } from "../src/server/lib/search/parse";
 import { search } from "../src/server/lib/search/run";
 import { buyersFor } from "../src/server/lib/matching/buyers";
 import { dayWindow } from "../src/server/api/routers/today";
+import { leadsRouter } from "../src/server/api/routers/leads";
+import { listingsRouter } from "../src/server/api/routers/listings";
+import { reportsRouter } from "../src/server/api/routers/reports";
+import { todayRouter } from "../src/server/api/routers/today";
+import { sweepIntelligence } from "../src/server/lib/intelligence/sweep";
 import { fatal } from "./fatal";
 
 const root = crossTenant("sweep");
@@ -287,6 +292,49 @@ async function main() {
 
   await timed("count the book (a dashboard number)", BUDGET.quick, () =>
     db.lead.count({ where: { deletedAt: null } }));
+
+  /**
+   * The screens as the product serves them, through their procedures.
+   *
+   * Everything above is a query; these are what the lists, filters and
+   * dashboards added by the audit remediation actually run — the filter
+   * builder, the sort with its tiebreak, the counts and the KPIs — at
+   * whatever size this run was asked for (`SCALE=5` is 25,000 leads).
+   */
+  console.log("\nThe screens, through their procedures:");
+  const ctx = { session: { user: { id: user.id } }, membership: { orgId: org.id, orgName: "Load Check", role: "OWNER" }, ip: "127.0.0.1", userAgent: "load" } as never;
+  const L = leadsRouter.createCaller(ctx);
+  const LS = listingsRouter.createCaller(ctx);
+  await timed("leads list, first 50", BUDGET.quick, () => L.list({ limit: 50 } as never));
+  await timed("leads list, searched, banded, by score", BUDGET.quick, () =>
+    L.list({ limit: 50, search: "Aisha", band: "HOT", sort: "score" } as never));
+  await timed("leads list, 5,000 rows in (cursor)", BUDGET.quick, async () => {
+    const deep = await db.lead.findMany({ where: { deletedAt: null }, orderBy: [{ createdAt: "desc" }, { id: "desc" }], skip: 5_000 * Math.min(SCALE, 1), take: 1, select: { id: true } });
+    return L.list({ limit: 50, cursor: deep[0]?.id } as never);
+  });
+  await timed("leads heading (score bands)", BUDGET.quick, () => L.distribution({} as never));
+  await timed("listings list, area + beds + price", BUDGET.quick, () =>
+    LS.list({ limit: 50, community: "Dubai Marina", bedrooms: 2, maxPriceAed: 3_000_000 } as never));
+  await timed("listings count, same filter", BUDGET.quick, () =>
+    LS.count({ community: "Dubai Marina", bedrooms: 2, maxPriceAed: 3_000_000 } as never));
+  await timed("manager KPIs, last 90 days", BUDGET.tolerable, () =>
+    reportsRouter.createCaller(ctx).kpis({ from: ago(90), to: new Date() }));
+  await timed("Today brief", BUDGET.quick, () => todayRouter.createCaller(ctx).brief());
+
+  /**
+   * The nightly sweep, once. Not an agent's wait, so no warm run and a
+   * budget in minutes: what matters is that it finishes well inside the
+   * night and does not grow faster than the book.
+   */
+  {
+    const t = performance.now();
+    await sweepIntelligence();
+    const ms = Math.round(performance.now() - t);
+    const budget = 5 * 60_000;
+    const ok = ms <= budget;
+    console.log(`  ${ok ? "✓" : "✗"} ${"nightly sweep, every brokerage".padEnd(42)} ${String(ms).padStart(6)}ms once   (budget ${budget}ms)`);
+    if (!ok) fails.push(`nightly sweep took ${ms}ms, budget ${budget}ms`);
+  }
 
   /* ----------------------------- clean up ---------------------------- */
 

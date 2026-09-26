@@ -272,6 +272,10 @@ else
   # try, so the endpoint answered 500 to a correctly signed event. 500
   # is the one status the provider retries.
   step "check:billing" npm run --silent check:billing
+  # Two-step sign-in, asked of the running app: a device with the link
+  # but not the code reaches no API and no screen, and the session
+  # endpoint never hands a script the token.
+  step "check:two-step" npm run --silent check:two-step
   # What the brokerage earned, against the ledger it came from.
   #
   # Needs the application rather than just Postgres, deliberately: read

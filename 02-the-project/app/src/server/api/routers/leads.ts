@@ -535,6 +535,7 @@ export const leadsRouter = router({
           financing: true, notes: true, visaExpiresAt: true,
           optedOutOfOutreach: true, optedOutAt: true,
           assignedTo: { select: { name: true, email: true } },
+          conversation: { select: { id: true } },
         },
       });
       if (!l) throw new TRPCError({ code: "NOT_FOUND", message: "There is nobody here." });
@@ -544,6 +545,7 @@ export const leadsRouter = router({
         budgetMinAed: l.budgetMinFils === null ? null : filsToAed(l.budgetMinFils),
         budgetMaxAed: l.budgetMaxFils === null ? null : filsToAed(l.budgetMaxFils),
         agent: l.assignedTo?.name ?? l.assignedTo?.email ?? null,
+        conversationId: l.conversation?.id ?? null,
       };
     }),
 

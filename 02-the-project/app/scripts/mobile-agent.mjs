@@ -54,6 +54,16 @@ try {
   await p.waitForTimeout(1500);
   ok("tapping a lead opens them", !p.url().endsWith("/leads"), `${name} → ${p.url().replace(BASE, "")}`);
   await noSideways("the lead");
+  // B8: ringing or writing to them is one tap, without scrolling.
+  await p.waitForSelector("[data-quick-actions]", { timeout: 15000 }).catch(() => {});
+  const quick = await p.evaluate(() => {
+    const nav = document.querySelector("[data-quick-actions]");
+    const call = nav?.querySelector('a[href^="tel:"]');
+    const r = nav?.getBoundingClientRect();
+    return { call: call?.getAttribute("href") ?? null, bottom: r ? Math.round(r.bottom) : null, labels: nav ? [...nav.children].map((c) => c.textContent) : [] };
+  });
+  ok("Call and Message are on the first screen", !!quick.call && quick.bottom !== null && quick.bottom <= 844,
+     `${quick.labels.join(" / ")} · ends at ${quick.bottom}px · ${quick.call}`);
 
   console.log("\n=== A task, added and done ===");
   await open("/tasks", "h1");

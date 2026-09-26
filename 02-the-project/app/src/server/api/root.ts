@@ -16,6 +16,7 @@ import { copyRouter } from "./routers/copy";
 import { routingRouter } from "./routers/routing";
 import { migrationRouter } from "./routers/migration";
 import { billingRouter } from "./routers/billing";
+import { securityRouter } from "./routers/security";
 import { offersRouter } from "./routers/offers";
 import { blackbookRouter } from "./routers/blackbook";
 import { channelsRouter } from "./routers/channels";
@@ -70,6 +71,7 @@ export const appRouter = router({
   reports: reportsRouter,
 
   billing: billingRouter,
+  security: securityRouter,
   offers: offersRouter,
   blackbook: blackbookRouter,
   channels: channelsRouter,

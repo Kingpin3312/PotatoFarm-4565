@@ -46,6 +46,7 @@ export const en = {
   "nav.documents": "Documents",
   "nav.privacy": "Privacy",
   "nav.access": "Access",
+  "nav.security": "Security",
   "nav.assistantQuestions": "What it asks",
   "nav.hours": "Working hours",
   "nav.routing": "Routing",

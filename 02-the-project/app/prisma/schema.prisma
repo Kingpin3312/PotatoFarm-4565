@@ -160,6 +160,16 @@ model User {
   createdAt     DateTime  @default(now())
   lastSeenAt    DateTime?
 
+  /// Two-step sign-in (TOTP). The key is sealed with SECRETS_KEY and
+  /// only ever opened to check a code; `totpEnabledAt` is null until a
+  /// first code proves the authenticator app has it. `totpLastStep`
+  /// stops one code being used twice; `totpRecovery` holds hashes of the
+  /// unused recovery codes, never the codes.
+  totpSecret    String?
+  totpEnabledAt DateTime?
+  totpLastStep  Int?
+  totpRecovery  String[]  @default([])
+
   memberships   Membership[]
   assignedLeads Lead[]       @relation("AssignedAgent")
   viewings      Viewing[]
@@ -1035,6 +1045,10 @@ model Session {
   lastActiveAt DateTime @default(now())
   ip           String?
   userAgent    String?
+
+  /// When this sign-in passed the second step. Null on a session of
+  /// somebody with two-step on means the session opens nothing yet.
+  secondFactorAt DateTime?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

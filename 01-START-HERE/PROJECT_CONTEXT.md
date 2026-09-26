@@ -106,8 +106,8 @@ token, which the web app cannot do. Treat it as a design sketch.
 
 ## 4. What is built
 
-**80 database models · 66 enums · 33 API routers · 199 procedures ·
-46 screens · 29 scheduled jobs · 23 audit scripts · 55 check suites.**
+**80 database models · 66 enums · 34 API routers · 206 procedures ·
+46 screens · 29 scheduled jobs · 23 audit scripts · 56 check suites.**
 
 **Five procedures have no screen, and every one of them deliberately:**
 `aml.checkRear`, `aml.visibilityPolicy`, `onboarding.previewImport`,
@@ -254,7 +254,7 @@ thing it checks and confirming it fails.
 ### The unit tests
 
 ```bash
-npm test                    # 403 assertions, no database, ~3 seconds
+npm test                    # 410 assertions, no database, ~3 seconds
 ```
 
 `package.json` declared `"test": "vitest run"` from the beginning with no
@@ -262,7 +262,7 @@ test files and no config behind it, so the command exited 1 and said "No
 test files found" — a command claiming to run tests that could not, which
 is the same shape as a button that does not do what it says.
 
-26 test files, and the selection is not "whatever was easy to test". Every
+27 test files, and the selection is not "whatever was easy to test". Every
 case is a bug that actually happened here or a rule whose failure would
 be silent:
 
@@ -425,12 +425,12 @@ Ask — an agent can see what they asked for earlier and what came back.
 - **Voice recipes** `BOOK_VIEWING` and `COMPARABLES` return a follow-up
   question rather than completing in one step. Deliberate, but the second
   step is not wired to the booking screen.
-**Unit tests cover the pure logic, not the codebase.** 403 assertions in 26 files,
+**Unit tests cover the pure logic, not the codebase.** 410 assertions in 27 files,
   across money, the 24-hour window, Dubai sending hours, the search
   parser, lead scoring, deal risk, the assistant's guardrails and the
   interface's Arabic — the
   pure logic where being wrong is expensive and silent. Everything
-  stateful is still covered only by the 55 check suites and the
+  stateful is still covered only by the 56 check suites and the
   27 browser checks, which is not the same thing as a test suite. What is
   left untested in `assistant/` is everything that needs a model:
   `run.ts` and `prompt.ts` are exercised only through `check:autonomy`

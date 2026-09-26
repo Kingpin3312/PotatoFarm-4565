@@ -92,6 +92,13 @@ const button = cva(
   }
 );
 
+/**
+ * The same look on a link. A call, a thread or a place on the page is a
+ * navigation, and an `<a>` styled as a button keeps it one — long-press,
+ * open in a new tab, `tel:` handed to the phone.
+ */
+export const buttonStyles = button;
+
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof button> {
