@@ -102,7 +102,7 @@ What is verified today, measured rather than assumed:
   `/api/health` returns `200 {"ok":true}` against a real Postgres.
 - The boot log names every unconfigured service with its consequence —
   six of them in a bare development environment.
-- 348 assertions in 21 files, 50 check suites, 23 audits, all green.
+- 381 assertions in 23 files, 50 check suites, 23 audits, all green.
 
 Type errors on a fresh checkout are no longer expected. If you get one,
 it is new.
@@ -807,7 +807,7 @@ send path read it.
 
 ## Run the tests
 
-    npm test          # 348 assertions, pure functions, no database
+    npm test          # 381 assertions, pure functions, no database
     npm run verify    # tsc, the tests, 50 check suites, 23 audits
 
 **The gate is now green end to end, including the two things that used
@@ -858,7 +858,7 @@ skip as a pass, and for a long time it reported two:
   leaving you to guess.
 
 `npm test` was declared from day one with no test files behind it, so it
-exited 1 and said "No test files found". There are 21 test files now, and
+exited 1 and said "No test files found". There are 23 test files now, and
 they cover the pure logic where being wrong is silent: the fils unit, the
 24-hour window on both sides of the boundary, Dubai sending hours, the
 search parser's plural intents and budget bands, lead scoring, deal

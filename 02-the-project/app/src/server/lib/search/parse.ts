@@ -1,4 +1,5 @@
 import { placesIn } from "@/server/lib/places";
+import { looksLikePhone, phoneSearchKey } from "@/lib/phone";
 
 /**
  * "Who was that Emirati investor looking in Downtown around 4 million?"
@@ -39,6 +40,17 @@ export type Money = { minAed: number | null; maxAed: number | null };
 export type Query = {
   /** Words left after the structured parts were consumed. */
   terms: string[];
+  /**
+   * Phone numbers, as the digits to find inside a stored number — the
+   * national number when a whole one was typed, the fragment otherwise.
+   * See `phoneSearchKey`.
+   */
+  phones: string[];
+  /**
+   * Listing references, compacted to letters and digits: "AR-508",
+   * "ar508" and "AR 508" are all `ar508`, and so is the stored one.
+   */
+  refs: string[];
   budget: Money | null;
   bedrooms: number | null;
   communities: string[];
@@ -84,6 +96,8 @@ const STOP = new Set([
   "meet", "met", "saw", "seen", "spoke", "spoken", "talk", "talked",
   "remember", "remembered", "know", "knew", "said", "told", "call",
   "called", "rang", "sent", "added", "add",
+  // Currency, which the budget has already read.
+  "aed", "dhs", "dirhams",
 ]);
 
 /**
@@ -129,6 +143,50 @@ export function parse(raw: string): Query {
     reading.push(`${bedrooms} bedrooms or more`);
     eat(new RegExp(escape_(bed[0]), "g"));
   }
+
+  /**
+   * ---- phone numbers, before the budget reads their digits ----
+   *
+   * "050 100 0041" used to be read as a budget of fifty million and a
+   * stray "100", and "1000041" as a million dirhams, so the one search an
+   * agent can be sure of — the number the client is ringing from — found
+   * nobody unless it was typed exactly as stored, `+971…` and no spaces.
+   * `looksLikePhone` keeps round figures ("3000000") for the budget.
+   */
+  const phones: string[] = [];
+  for (const m of rest.matchAll(/\s(\+?\d[\d\s-]{5,}\d)(?=\s)/g)) {
+    const text = m[1]!.trim();
+    if (!looksLikePhone(text)) continue;
+    const key = phoneSearchKey(text);
+    if (key.length >= 6 && !phones.includes(key)) {
+      phones.push(key);
+      reading.push(key.length >= 9 ? `phone number ${text}` : `phone number containing ${key}`);
+    }
+    eat(new RegExp(escape_(text), "g"));
+  }
+
+  /**
+   * ---- listing references ----
+   *
+   * Agents type what is on the sign board or in the portal: "AR-508",
+   * "ar508", "AR 508". Only the first used to match. The spaced form is
+   * only taken as a reference when the letters are not a word or a unit
+   * ("aed 400000" is money, "in 12" is not a listing), and all of this
+   * runs before the budget so "AR 50" is not read as fifty million.
+   */
+  const refs: string[] = [];
+  const NOT_A_REF = new Set(["aed", "dhs", "usd", "eur", "gbp", "bed", "br", "sqft", "sq", "ft", "mil", "m", "k"]);
+  const addRef = (letters: string, digits: string, whole: string) => {
+    if (NOT_A_REF.has(letters) || STOP.has(letters)) return;
+    const compact = `${letters}${digits}`;
+    if (!refs.includes(compact)) {
+      refs.push(compact);
+      reading.push(`reference ${letters.toUpperCase()}-${digits}`);
+    }
+    eat(new RegExp(`\\s${escape_(whole)}(?=\\s)`, "g"));
+  };
+  for (const m of rest.matchAll(/\s(([a-z]{1,4})-?(\d{2,6}))(?=\s)/g)) addRef(m[2]!, m[3]!, m[1]!);
+  for (const m of rest.matchAll(/\s(([a-z]{2,3}) (\d{2,6}))(?=\s)/g)) addRef(m[2]!, m[3]!, m[1]!);
 
   /* ---- budget ---- */
   let budget: Money | null = null;
@@ -274,7 +332,7 @@ export function parse(raw: string): Query {
   if (kept.length) reading.push(`words: ${kept.join(", ")}`);
 
   return {
-    terms: kept,
+    terms: kept, phones, refs,
     budget, bedrooms, communities: places, intent, purpose, since, only, reading,
   };
 }
@@ -285,6 +343,6 @@ function escape_(s: string) {
 
 /** Did the sentence say anything a query can be built from? */
 export function isEmpty(q: Query): boolean {
-  return q.terms.length === 0 && q.budget === null && q.bedrooms === null &&
+  return q.terms.length === 0 && q.phones.length === 0 && q.refs.length === 0 && q.budget === null && q.bedrooms === null &&
          q.communities.length === 0 && q.intent === null && q.since === null;
 }

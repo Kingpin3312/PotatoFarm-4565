@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { normalisePhone, looksLikePhone, phoneSearchKey } from "@/lib/phone";
 import { TRPCError } from "@trpc/server";
 import { router, orgProcedure, requirePermission } from "../trpc";
 import { leadScope } from "@/server/auth/rbac";
@@ -9,7 +10,22 @@ import { BANDS, band } from "@/server/lib/intelligence/score";
 import { entryStageId } from "@/server/lib/pipeline/defaults";
 import { assignmentFor } from "@/server/lib/routing/apply";
 
-const phone = z.string().regex(/^\+[1-9]\d{7,14}$/, "Include the country code.");
+/**
+ * Any way a person writes a number — "+971 50 100 0041", "0501000041",
+ * "00971…" — stored as E.164. The strict pattern this replaced rejected
+ * the spaced and local forms, which is how numbers are copied off a phone.
+ */
+const phone = z.string().transform((raw, ctx) => {
+  const e164 = normalisePhone(raw);
+  if (!e164) {
+    ctx.addIssue({
+      code: "custom",
+      message: "That doesn't look like a phone number. Numbers outside the UAE need their country code, like +44 7700 900123.",
+    });
+    return z.NEVER;
+  }
+  return e164;
+});
 
 /**
  * What the leads screen is looking at.
@@ -61,7 +77,9 @@ function leadWhere(
     ...(input.search && {
       OR: [
         { name: { contains: input.search, mode: "insensitive" as const } },
-        { phone: { contains: input.search } },
+        // "050 100 0041" against a stored "+971501000041": compare the
+        // national digits, or nobody is found by the number on screen.
+        { phone: { contains: looksLikePhone(input.search) ? phoneSearchKey(input.search) : input.search } },
       ],
     }),
     ...(input.status ? { status: input.status } : {}),

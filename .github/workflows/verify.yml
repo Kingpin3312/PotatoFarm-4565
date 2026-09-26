@@ -452,6 +452,8 @@ jobs:
         run: npm run browser:kyc-details
       - name: Adding a property
         run: npm run browser:add-property
+      - name: Adding a lead the way numbers are written
+        run: npm run browser:add-lead
       - name: Setting a commission plan
         run: npm run browser:commission-plan
 

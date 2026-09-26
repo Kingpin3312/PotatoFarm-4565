@@ -8,8 +8,18 @@ import type { Context } from "./context";
 const t = initTRPC.context<Context>().create({
   transformer: superjson,
   errorFormatter({ shape, error }) {
+    /**
+     * A validation failure's message is the serialised issue list —
+     * `[{"validation":"regex",…}]` — and every form shows `error.message`,
+     * so a person typing a number with spaces was shown JSON. The first
+     * issue's own sentence goes in the message instead; the full detail
+     * stays in `data.zod` for forms that place messages per field.
+     */
+    const zod = error.cause instanceof ZodError ? error.cause : null;
+    const first = zod?.issues[0];
     return {
       ...shape,
+      message: first ? readable(first) : shape.message,
       data: {
         ...shape.data,
         // Field errors go back individually so the client can put each
@@ -19,6 +29,23 @@ const t = initTRPC.context<Context>().create({
     };
   },
 });
+
+/** "Email: Invalid email" reads as a form label, not a stack trace. */
+function readable(issue: import("zod").ZodIssue): string {
+  const field = issue.path.filter((p) => typeof p === "string").at(-1);
+  const name = typeof field === "string"
+    ? field.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/^./, (c) => c.toUpperCase())
+    : null;
+  if (issue.code === "too_big" && "maximum" in issue) {
+    return `${name ?? "That"} is too long — ${String(issue.maximum)} characters at most.`;
+  }
+  if (issue.code === "too_small" && "minimum" in issue && issue.minimum === 1) {
+    return `${name ?? "That"} is required.`;
+  }
+  return name && !issue.message.toLowerCase().includes(name.toLowerCase())
+    ? `${name}: ${issue.message}`
+    : issue.message;
+}
 
 export const router = t.router;
 export const publicProcedure = t.procedure;

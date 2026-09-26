@@ -58,13 +58,12 @@ export function AddLead() {
 
     create.mutate({
       /**
-       * Spaces stripped, because people write numbers with them.
-       *
-       * The procedure requires E.164 — `+971501234567` — and an agent
-       * typing "+971 50 123 4567" is entering a valid number that the
-       * regex rejects. Failing that is technically correct and useless.
+       * Sent as typed. The server reads every way a number is written —
+       * "+971 50 123 4567", "050 123 4567", "00971…" — into one E.164
+       * form (`lib/phone.ts`), so the duplicate check sees one person
+       * however the agent copied it down.
        */
-      phone: (str("phone") ?? "").replace(/[\s-]/g, ""),
+      phone: str("phone") ?? "",
       name: str("name"),
       email: str("email"),
       source: (f.get("source") as "WALK_IN" | "REFERRAL" | "UNKNOWN") ?? "WALK_IN",

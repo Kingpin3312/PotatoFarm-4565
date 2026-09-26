@@ -2,6 +2,7 @@ import { forOrg } from "@/server/db/client";
 import { storedVariants } from "@/server/lib/places";
 import { aedToFils } from "@/server/lib/requests/intake";
 import type { Query } from "./parse";
+import { hasWord, compactRef, refVariants } from "./match";
 
 /**
  * The query, actually run.
@@ -55,6 +56,11 @@ const W = {
   name: 4,
   note: 1,
   fact: 1.5,
+  /** A phone number or a reference is as near to certain as search gets. */
+  phone: 10,
+  reference: 10,
+  /** A name spelt nearly right: below an exact name, above a note. */
+  close: 2.5,
   /** Somebody the brokerage already thinks is hot, all else equal. */
   warmth: 0.01,
 };
@@ -70,6 +76,9 @@ const W = {
  * behind the same call, not a rewrite of the caller.
  */
 const like = (s: string) => ({ contains: s, mode: "insensitive" as const });
+
+/** How close a misspelt name has to be. pg_trgm's word similarity, 0–1. */
+const CLOSE = 0.5;
 
 /**
  * The reasons a colleague is allowed to see.
@@ -88,7 +97,7 @@ const like = (s: string) => ({ contains: s, mode: "insensitive" as const });
  * enough to act on.
  */
 function redact(why: string[]): string[] {
-  const safe = why.filter((w) => !w.startsWith("name matches") && !w.startsWith("remembered"));
+  const safe = why.filter((w) => !w.startsWith("name ") && !w.startsWith("remembered"));
   return safe.length ? safe : ["matches something in their notes"];
 }
 
@@ -123,6 +132,38 @@ export async function search(args: {
    * WhatsApp" are not columns and never will be, and they are exactly
    * what an agent remembers about somebody a year later.
    */
+  /**
+   * Names spelt nearly right.
+   *
+   * "Stephan" for Stephen, "Mohamad" for Mohammed, "Katherine" for
+   * Catherine is how names arrive from a phone call, and `contains` finds
+   * none of them. The trigram indexes behind search already exist; this
+   * asks them for word similarity, inside a scoped transaction so
+   * row-level security applies to the raw query exactly as it does to
+   * everything else. Only for words long enough to have a spelling.
+   */
+  const fuzzy = q.terms.filter((t) => t.length >= 4);
+  const closeLeads = new Map<string, string>();
+  const closeVendors = new Map<string, string>();
+  if (fuzzy.length && q.only !== "properties") {
+    await db.$transaction(async (tx) => {
+      for (const t of fuzzy) {
+        const leads = await tx.$queryRaw<{ id: string }[]>`
+          SELECT id FROM "Lead"
+           WHERE "orgId" = ${args.orgId} AND "deletedAt" IS NULL AND name IS NOT NULL
+             AND word_similarity(${t}, lower(name)) >= ${CLOSE}
+           ORDER BY word_similarity(${t}, lower(name)) DESC LIMIT 40`;
+        for (const r of leads) if (!closeLeads.has(r.id)) closeLeads.set(r.id, t);
+        const vendors = await tx.$queryRaw<{ id: string }[]>`
+          SELECT id FROM "Vendor"
+           WHERE "orgId" = ${args.orgId}
+             AND word_similarity(${t}, lower(name)) >= ${CLOSE}
+           ORDER BY word_similarity(${t}, lower(name)) DESC LIMIT 20`;
+        for (const r of vendors) if (!closeVendors.has(r.id)) closeVendors.set(r.id, t);
+      }
+    });
+  }
+
   const factsByLead = new Map<string, string[]>();
   const factsByVendor = new Map<string, string[]>();
   if (q.terms.length) {
@@ -154,10 +195,13 @@ export async function search(args: {
     const where: Record<string, unknown>[] = [];
 
     for (const t of q.terms) {
-      where.push({ name: like(t) }, { notes: like(t) }, { email: like(t) },
-                  { phone: { contains: t } });
+      where.push({ name: like(t) }, { notes: like(t) }, { email: like(t) });
     }
+    // Stored numbers are E.164, and the key is the national number or a
+    // fragment of one, so `contains` finds it however it was typed.
+    for (const p of q.phones) where.push({ phone: { contains: p } });
     if (factsByLead.size) where.push({ id: { in: [...factsByLead.keys()] } });
+    if (closeLeads.size) where.push({ id: { in: [...closeLeads.keys()] } });
     if (q.communities.length) {
       where.push({
         requirements: {
@@ -207,16 +251,19 @@ export async function search(args: {
         const facts = factsByLead.get(r.id) ?? [];
 
         for (const t of q.terms) {
-          const fact = facts.find((b) => b.toLowerCase().includes(t));
-          if (r.name?.toLowerCase().includes(t)) { score += W.name; why.push(`name matches "${t}"`); }
-          else if (r.notes?.toLowerCase().includes(t)) { score += W.note; why.push(`"${t}" in your notes`); }
+          const fact = facts.find((b) => hasWord(b, t));
+          if (hasWord(r.name, t)) { score += W.name; why.push(`name matches "${t}"`); }
+          else if (hasWord(r.notes, t)) { score += W.note; why.push(`"${t}" in your notes`); }
           else if (fact) {
             score += W.fact;
             why.push(`remembered: ${fact.slice(0, 80)}`);
-          } else if (r.email?.toLowerCase().includes(t) || r.phone.includes(t)) {
-            score += W.note; why.push(`contact details match "${t}"`);
+          } else if (r.email?.toLowerCase().includes(t)) {
+            score += W.note; why.push(`email matches "${t}"`);
+          } else if (closeLeads.get(r.id) === t) {
+            score += W.close; why.push(`name is close to "${t}"`);
           }
         }
+        if (q.phones.some((p) => r.phone.includes(p))) { score += W.phone; why.push("phone number matches"); }
 
         const budgets = [r.budgetMaxFils, ...r.requirements.map((x) => x.budgetMaxFils)]
           .filter((x): x is bigint => x !== null);
@@ -269,15 +316,19 @@ export async function search(args: {
 
   /* ------------------------------- owners ------------------------------ */
 
-  if (q.only !== "properties" && (q.terms.length || q.intent === "SELL")) {
+  if (q.only !== "properties" && (q.terms.length || q.phones.length || q.refs.length || q.intent === "SELL")) {
     const where: Record<string, unknown>[] = [];
     for (const t of q.terms) {
       // No free-text note field on Vendor — what an agent remembers
       // about an owner lives in `ClientFact`, same as for a buyer.
-      where.push({ name: like(t) }, { email: like(t) }, { phone: { contains: t } },
-                 { actingFor: like(t) });
+      where.push({ name: like(t) }, { email: like(t) }, { actingFor: like(t) });
+    }
+    for (const p of q.phones) where.push({ phone: { contains: p } });
+    for (const ref of q.refs) {
+      where.push({ listings: { some: { deletedAt: null, OR: refVariants(ref).map((v) => ({ reference: like(v) })) } } });
     }
     if (factsByVendor.size) where.push({ id: { in: [...factsByVendor.keys()] } });
+    if (closeVendors.size) where.push({ id: { in: [...closeVendors.keys()] } });
     // "Sellers in Palm Jumeirah" with no other clue: every owner of a
     // property there, which is the question actually being asked.
     if (q.communities.length) {
@@ -293,7 +344,7 @@ export async function search(args: {
         orderBy: { updatedAt: "desc" },
         select: {
           id: true, name: true, phone: true, email: true, actingFor: true,
-          listings: { where: { deletedAt: null }, select: { reference: true, community: true }, take: 3 },
+          listings: { where: { deletedAt: null }, select: { reference: true, community: true }, take: 12 },
         },
       });
 
@@ -302,13 +353,22 @@ export async function search(args: {
         let score = 0;
         const facts = factsByVendor.get(r.id) ?? [];
         for (const t of q.terms) {
-          const fact = facts.find((b) => b.toLowerCase().includes(t));
-          if (r.name.toLowerCase().includes(t)) { score += W.name; why.push(`name matches "${t}"`); }
+          const fact = facts.find((b) => hasWord(b, t));
+          if (hasWord(r.name, t)) { score += W.name; why.push(`name matches "${t}"`); }
           else if (fact) { score += W.fact; why.push(`remembered: ${fact.slice(0, 80)}`); }
-          else if (r.actingFor?.toLowerCase().includes(t)) {
+          else if (hasWord(r.actingFor, t)) {
             score += W.note; why.push(`acting for ${r.actingFor}`);
+          } else if (closeVendors.get(r.id) === t) {
+            score += W.close; why.push(`name is close to "${t}"`);
           }
         }
+        if (r.phone && q.phones.some((p) => r.phone!.includes(p))) {
+          score += W.phone; why.push("phone number matches");
+        }
+        const owned = r.listings.find((l) => q.refs.includes(compactRef(l.reference)));
+        // Below the listing itself: a reference names a property, and its
+        // owner is the second thing the agent wants, not the first.
+        if (owned) { score += W.name; why.push(`owns ${owned.reference}`); }
         if (q.communities.length) {
           const want = new Set(q.communities.flatMap(storedVariants).map((s) => s.toLowerCase()));
           const l = r.listings.find((x) => x.community && want.has(x.community.toLowerCase()));
@@ -384,6 +444,9 @@ export async function search(args: {
       words.push({ title: like(t) }, { reference: like(t) }, { community: like(t) },
                  { building: like(t) });
     }
+    for (const ref of q.refs) {
+      for (const v of refVariants(ref)) words.push({ reference: like(v) });
+    }
 
     if (AND.length || words.length) {
       const rows = await db.listing.findMany({
@@ -404,11 +467,15 @@ export async function search(args: {
       for (const r of rows) {
         const why: string[] = [];
         let score = 0;
+        const ref = compactRef(r.reference);
+        if (q.refs.some((x) => ref === x || ref.endsWith(x))) {
+          score += W.reference; why.push(`reference ${r.reference}`);
+        }
         for (const t of q.terms) {
-          if (r.title.toLowerCase().includes(t) || r.reference.toLowerCase().includes(t)) {
+          if (hasWord(r.title, t) || r.reference.toLowerCase().includes(t)) {
             score += W.name; why.push(`matches "${t}"`);
-          } else if (r.building?.toLowerCase().includes(t)) {
-            score += W.note; why.push(`${r.building}`);
+          } else if (hasWord(r.building, t) || hasWord(r.community, t)) {
+            score += W.note; why.push(`${r.building ?? r.community}`);
           }
         }
         if (q.communities.length && r.community) {

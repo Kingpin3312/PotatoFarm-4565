@@ -203,3 +203,44 @@ describe("isEmpty", () => {
     expect(isEmpty(parse("investors"))).toBe(false);
   });
 });
+
+describe("phone numbers and references, before the budget reads them", () => {
+  /**
+   * The audit's probe: "050 100 0041" was read as a fifty-million budget
+   * and "1000041" as a million dirhams, so nobody was found by the number
+   * they were ringing from unless it was typed exactly as stored.
+   */
+  it.each(["050 100 0041", "+971 50 100 0041", "0501000041", "971501000041", "+971501000041"])(
+    "%s is one phone number and no budget", (q) => {
+      const r = parse(q);
+      expect(r.phones).toEqual(["501000041"]);
+      expect(r.budget).toBeNull();
+    });
+  it("a fragment is kept as typed", () => {
+    expect(parse("1000041").phones).toEqual(["1000041"]);
+  });
+  it("a round figure is still a budget", () => {
+    const r = parse("villa under 3000000");
+    expect(r.phones).toEqual([]);
+    expect(r.budget?.maxAed).toBe(3_000_000);
+  });
+  it("bedrooms beside a number stay bedrooms", () => {
+    const r = parse("2 bed 0501000041");
+    expect(r.bedrooms).toBe(2);
+    expect(r.phones).toEqual(["501000041"]);
+  });
+  it.each(["AR-508", "ar508", "AR 508", "ar-508"])("%s is reference ar508", (q) => {
+    const r = parse(q);
+    expect(r.refs).toEqual(["ar508"]);
+    expect(r.budget).toBeNull();
+    expect(r.terms).toEqual([]);
+  });
+  it("money and units are not references", () => {
+    expect(parse("aed 400000").refs).toEqual([]);
+    expect(parse("aed 400000").terms).toEqual([]);
+  });
+  it("a phone or a reference alone is a search", () => {
+    expect(isEmpty(parse("050 100 0041"))).toBe(false);
+    expect(isEmpty(parse("AR 508"))).toBe(false);
+  });
+});
