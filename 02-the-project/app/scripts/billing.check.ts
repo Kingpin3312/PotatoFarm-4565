@@ -83,10 +83,23 @@ async function post(body: string, signature: string | null) {
   return { status: res.status, json: await res.json().catch(() => ({})) };
 }
 
+/**
+ * Invoices first, deliberately by hand. The database refuses to delete a
+ * brokerage that still has invoices — VAT records are kept for five years
+ * — and a test brokerage is the one case where they should go too. This
+ * clean-up used to leave them behind as orphans instead.
+ */
+async function cleanup() {
+  const orgs = await root.organisation.findMany({ where: { slug: { startsWith: SLUG } }, select: { id: true } });
+  const ids = orgs.map((o) => o.id);
+  if (ids.length) await root.invoice.deleteMany({ where: { orgId: { in: ids } } });
+  await root.organisation.deleteMany({ where: { id: { in: ids } } });
+}
+
 async function main() {
   console.log("\nCan this company take money?\n");
 
-  await root.organisation.deleteMany({ where: { slug: { startsWith: SLUG } } });
+  await cleanup();
 
   /* ---------------- a brokerage exists and is billable ------------- */
   console.log("Signing a brokerage up:");
@@ -475,7 +488,7 @@ async function main() {
     ok("a test-mode charge is accepted", Boolean(res), JSON.stringify(res).slice(0, 90));
   }
 
-  await root.organisation.deleteMany({ where: { slug: { startsWith: SLUG } } });
+  await cleanup();
 }
 
 main()

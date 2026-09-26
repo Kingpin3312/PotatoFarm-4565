@@ -345,11 +345,13 @@ function Actions({
 }: {
   actions: {
     id: string; action: string; headline: string; reason: string;
-    priority: number; valueFils: bigint | null; leadId: string | null;
+    priority: number; valueFils: bigint | null; leadId: string | null; dealId?: string | null;
   }[];
   onAct: (id: string) => void;
   onDismiss: (id: string) => void;
 }) {
+  const people = actions.filter((a) => !a.dealId);
+  const deals = actions.filter((a) => a.dealId);
   /**
    * An empty list here is good news, and has to read like it.
    *
@@ -374,13 +376,38 @@ function Actions({
   }
 
   return (
+    <>
+    {people.length > 0 && (
     <section className="mt-10 border-t border-rule pt-6">
       <h2 className="t-label text-ink-3">
-        Today · {actions.length}
+        Today · {people.length}
       </h2>
+      <ActionList items={people} onAct={onAct} onDismiss={onDismiss} />
+    </section>
+    )}
+    {/* Deals apart, beneath the people. They outrank on priority — money
+        and a date are committed — and in one list they pushed a buyer
+        who wrote in this morning off the screen. */}
+    {deals.length > 0 && (
+    <section className="mt-10 border-t border-rule pt-6" aria-label="Deals to keep moving">
+      <h2 className="t-label text-ink-3">
+        Deals to keep moving · {deals.length}
+      </h2>
+      <ActionList items={deals} onAct={onAct} onDismiss={onDismiss} />
+    </section>
+    )}
+    </>
+  );
+}
 
+function ActionList({ items, onAct, onDismiss }: {
+  items: { id: string; action: string; headline: string; reason: string; valueFils: bigint | null; leadId: string | null }[];
+  onAct: (id: string) => void;
+  onDismiss: (id: string) => void;
+}) {
+  return (
       <ol className="mt-2">
-        {actions.map((a, i) => (
+        {items.map((a, i) => (
           <li key={a.id} className="border-b border-rule py-4">
             <div className="flex items-baseline gap-3">
               {/* Ordinal, not a priority score. A number to two decimal
@@ -464,7 +491,6 @@ function Actions({
           </li>
         ))}
       </ol>
-    </section>
   );
 }
 

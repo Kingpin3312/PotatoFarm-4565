@@ -57,9 +57,12 @@ export function FollowUps() {
        A second visual language for a second list reads as a second
        product. */
     <section id="follow-ups" className="mt-10 border-t border-rule pt-6 scroll-mt-6" aria-labelledby="follow-ups-heading">
-      <h2 id="follow-ups-heading" className="t-label text-ink-3">
-        Follow-ups · {items.length}
-      </h2>
+      <div className="flex items-baseline justify-between gap-4">
+        <h2 id="follow-ups-heading" className="t-label text-ink-3">
+          Follow-ups · {items.length}
+        </h2>
+        <Link href="/tasks" className="t-label text-accent-deep no-underline">All tasks</Link>
+      </div>
 
       {failed && (
         <p role="alert" className="mt-2 text-sm text-danger max-w-[52ch]">{failed}</p>

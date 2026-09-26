@@ -16,6 +16,7 @@ import { crossTenant } from "../src/server/db/client";
 import { leadsRouter } from "../src/server/api/routers/leads";
 import { viewsRouter } from "../src/server/api/routers/views";
 import { listingsRouter } from "../src/server/api/routers/listings";
+import { blackbookRouter } from "../src/server/api/routers/blackbook";
 import { fatal } from "./fatal";
 
 const root = crossTenant("sweep");
@@ -38,6 +39,7 @@ async function cleanup() {
   if (ids.length) {
     const where = { orgId: { in: ids } };
     await root.savedView.deleteMany({ where });
+    await root.blackbookEntry.deleteMany({ where });
     await root.listing.deleteMany({ where });
     await root.leadOwnership.deleteMany({ where }).catch(() => {});
     await root.auditLog.deleteMany({ where }).catch(() => {});
@@ -242,6 +244,33 @@ async function main() {
     await root.membership.create({ data: { orgId: rivalOrg.id, userId: other.id, role: "OWNER" } });
     const rival = await viewsRouter.createCaller(ctxFor(rivalOrg.id, other.id, "OWNER")).list({ screen: "leads" });
     ok("another brokerage sees none of them", rival.length === 0, String(rival.length));
+  }
+
+  console.log("\n=== the blackbook, past the three hundred it used to stop at ===");
+  {
+    await root.blackbookEntry.createMany({
+      data: Array.from({ length: 320 }, (_, i) => ({
+        orgId: org.id, agentId: agent.id, standaloneName: i === 7 ? "Farah the conveyancer" : `Contact ${i}`,
+        lastTouched: new Date(Date.now() - i * 60_000),
+      })),
+    });
+    const B = blackbookRouter.createCaller(ctxFor(org.id, agent.id, "AGENT"));
+    const ids: string[] = [];
+    let cursor: string | null | undefined;
+    let total = 0;
+    for (let g = 0; g < 10; g++) {
+      const page = await B.mine({ cursor, limit: 100 });
+      total = page.total;
+      ids.push(...page.rows.map((r) => r.id));
+      if (!page.nextCursor) break;
+      cursor = page.nextCursor;
+    }
+    ok("all 320 come back, none twice", ids.length === 320 && new Set(ids).size === 320, String(ids.length));
+    ok("and the count says 320", total === 320, String(total));
+    const found = await B.mine({ q: "conveyancer" });
+    ok("search finds the one you mean", found.rows.length === 1 && found.rows[0]!.standaloneName === "Farah the conveyancer", String(found.rows.length));
+    const theirs = await blackbookRouter.createCaller(ctxFor(org.id, other.id, "AGENT")).mine({});
+    ok("a colleague's blackbook is empty of yours", theirs.total === 0, String(theirs.total));
   }
 
   console.log("\n=== listings: every one arrives, and the filters are the server's ===");

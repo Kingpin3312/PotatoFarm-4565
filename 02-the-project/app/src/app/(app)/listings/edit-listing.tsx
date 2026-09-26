@@ -3,6 +3,8 @@
 import { useRef, useState } from "react";
 import { api } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
+import { DetailFields, TYPE_OPTIONS } from "./add-property";
+import { filsToAed } from "@/lib/money";
 
 /**
  * Changing a property that already exists.
@@ -50,6 +52,17 @@ type Listing = {
   permitNumber: string | null;
   permitExpiresAt: Date | string | null;
   reraBrokerCard: string | null;
+  propertyType?: string | null;
+  completion?: string;
+  handoverAt?: Date | string | null;
+  developer?: string | null;
+  project?: string | null;
+  paymentPlan?: string | null;
+  unitNumber?: string | null;
+  furnishing?: string | null;
+  rentCheques?: number | null;
+  depositFils?: bigint | null;
+  serviceChargeFils?: bigint | null;
 };
 
 export function EditListing({ listing }: { listing: Listing }) {
@@ -113,6 +126,17 @@ export function EditListing({ listing }: { listing: Listing }) {
         ? new Date(`${expiry}T12:00:00.000Z`).toISOString()
         : null,
       reraBrokerCard: str("reraBrokerCard"),
+      propertyType: str("propertyType") as "APARTMENT" | null,
+      completion: (str("completion") ?? "READY") as "READY" | "OFF_PLAN",
+      handoverAt: str("handoverAt") ? new Date(`${str("handoverAt")}T12:00:00.000Z`).toISOString() : null,
+      developer: str("developer"),
+      project: str("project"),
+      paymentPlan: str("paymentPlan"),
+      unitNumber: str("unitNumber"),
+      furnishing: str("furnishing") as "FURNISHED" | null,
+      rentCheques: num("rentCheques"),
+      depositAed: num("depositAed"),
+      serviceChargeAed: num("serviceChargeAed"),
     });
   }
 
@@ -136,7 +160,7 @@ export function EditListing({ listing }: { listing: Listing }) {
 
   return (
     <>
-      <Button size="sm" variant="secondary" onClick={open}>Edit</Button>
+      <button type="button" className="min-h-11 px-1.5 text-sm text-ink-2 hover:text-ink hover:underline underline-offset-4 focus-visible:outline-none focus-visible:shadow-[var(--ring)] rounded-sm" onClick={open}>Edit</button>
 
       <dialog
         ref={dialog}
@@ -174,6 +198,9 @@ export function EditListing({ listing }: { listing: Listing }) {
                    defaultValue={listing.areaSqft ?? ""} />
             <Field name="priceAed" label="Price (AED)" inputMode="decimal" defaultValue={priceAed} />
 
+            <Select name="propertyType" label="Type" defaultValue={listing.propertyType ?? ""} options={TYPE_OPTIONS} />
+            <Select name="completion" label="Ready or off-plan" defaultValue={listing.completion ?? "READY"}
+                    options={[["READY", "Ready"], ["OFF_PLAN", "Off-plan"]]} />
             <Select name="purpose" label="Purpose" defaultValue={listing.purpose}
                     options={[["SALE", "For sale"], ["RENT", "To let"]]} />
             {/*
@@ -211,6 +238,14 @@ export function EditListing({ listing }: { listing: Listing }) {
                      defaultValue={listing.reraBrokerCard ?? ""} />
             </div>
           </div>
+
+          <DetailFields d={{
+            developer: listing.developer, project: listing.project, unitNumber: listing.unitNumber,
+            handoverAt: listing.handoverAt ? new Date(listing.handoverAt).toISOString() : null,
+            paymentPlan: listing.paymentPlan, furnishing: listing.furnishing, rentCheques: listing.rentCheques,
+            depositAed: listing.depositFils ? filsToAed(listing.depositFils) : null,
+            serviceChargeAed: listing.serviceChargeFils ? filsToAed(listing.serviceChargeFils) : null,
+          }} />
 
           <div className="flex gap-2.5 mt-7">
             <Button type="button" variant="secondary" onClick={() => dialog.current?.close()}>

@@ -30,6 +30,8 @@ const input = z.object({
   bedroomsMin: z.number().int().min(0).max(12).nullable(),
   communities: z.array(z.string().max(60)).max(8),
   preferences: z.array(z.string().max(60)).max(10),
+  propertyTypes: z.array(z.enum(["APARTMENT", "VILLA", "TOWNHOUSE", "PENTHOUSE", "DUPLEX", "PLOT", "OFFICE", "RETAIL", "WAREHOUSE", "OTHER"])).max(10).default([]),
+  completion: z.enum(["READY", "OFF_PLAN"]).nullable().default(null),
 }).refine((v) => v.budgetMinAed == null || v.budgetMaxAed == null || v.budgetMinAed <= v.budgetMaxAed, {
   message: "The lowest budget is above the highest. Swap them round.",
   path: ["budgetMaxAed"],
@@ -63,6 +65,8 @@ export const requirementsRouter = router({
         bedroomsMin: r.bedroomsMin,
         communities: r.communities,
         preferences: r.preferences,
+        propertyTypes: r.propertyTypes,
+        completion: r.completion,
         source: r.source,
         // An agent reads "the assistant thinks" differently from a fact.
         unsure: r.source === "ASSISTANT" && r.confidence !== null && r.confidence < 0.7,
@@ -83,6 +87,8 @@ export const requirementsRouter = router({
           bedroomsMin: input.bedroomsMin,
           communities: canonicalCommunities(input.communities),
           preferences: input.preferences.map((p) => p.trim()).filter(Boolean),
+          propertyTypes: input.propertyTypes,
+          completion: input.completion,
           // Saved by a person, so it is theirs now, whoever wrote it
           // first. The assistant stops touching it from here on.
           source: "AGENT" as const,

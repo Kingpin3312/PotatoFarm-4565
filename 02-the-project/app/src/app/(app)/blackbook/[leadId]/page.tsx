@@ -8,6 +8,7 @@ import { cn } from "@/lib/cn";
 import { Details } from "./details";
 import { Plan } from "./plan";
 import { Requirements } from "./requirements";
+import { PersonTask } from "./task";
 
 /**
  * One person, everything said to them.
@@ -46,6 +47,7 @@ export default function Person({ params }: { params: Promise<{ leadId: string }>
           never said whose they were. */}
       <Details leadId={leadId} />
       <Requirements leadId={leadId} />
+      <PersonTask leadId={leadId} name={null} />
       <Plan leadId={leadId} />
 
       {/* The reply window, on the person rather than the thread. This is

@@ -445,6 +445,28 @@ async function main() {
 
   await seedRequirements(org.id);
 
+  /**
+   * How long each card has sat in its column, re-stated every run.
+   *
+   * `stageEnteredAt` was written once and then aged with the calendar,
+   * like `lastInboundAt` did before the block below — so a week after
+   * seeding every open card on the board read "Untouched 30 days", the
+   * warning was on every card, and a warning on every card is a warning
+   * on none (the audit's D8, which looked like a threshold bug and was a
+   * fixture that had aged). A spread around the stages' limits instead:
+   * most recent, about a third genuinely overdue.
+   */
+  {
+    const open = await db.lead.findMany({
+      where: { orgId: org.id, deletedAt: null, status: { notIn: ["WON", "LOST"] }, name: { in: LEADS.map((l) => l.name) } },
+      orderBy: { createdAt: "asc" }, select: { id: true },
+    });
+    const spreadDays = [0, 1, 1, 2, 3, 1, 4, 6, 2, 9];
+    for (const [i, l] of open.entries()) {
+      await db.lead.update({ where: { id: l.id }, data: { stageEnteredAt: daysAgo(spreadDays[i % spreadDays.length]!) } });
+    }
+  }
+
   const spread = await db.lead.findMany({
     where: { orgId: org.id, deletedAt: null },
     orderBy: { createdAt: "asc" },
@@ -1256,6 +1278,47 @@ async function listings(orgId: string) {
         descriptions: { en, photos: PHOTOS },
       },
     });
+  }
+
+  /**
+   * What each one is, read off its own title, and one off-plan project.
+   *
+   * Added with the type and completion fields: a demo where every
+   * listing says nothing about either shows the filters doing nothing.
+   * Only where the listing has not been given a type, so nothing typed
+   * by hand is overwritten.
+   */
+  const kind = (t: string) =>
+    /villa/i.test(t) ? "VILLA" as const : /townhouse/i.test(t) ? "TOWNHOUSE" as const
+    : /penthouse/i.test(t) ? "PENTHOUSE" as const : "APARTMENT" as const;
+  for (const r of rows) {
+    await db.listing.updateMany({
+      where: { orgId, reference: r.reference, propertyType: null },
+      data: { propertyType: kind(r.title), ...(r.purpose === "RENT" ? { rentCheques: 4, furnishing: "UNFURNISHED" as const } : {}) },
+    });
+  }
+  await db.listing.updateMany({
+    where: { orgId, reference: "CT-515", developer: null },
+    data: {
+      completion: "OFF_PLAN", developer: "Emaar", project: "Creek Rise", paymentPlan: "80/20",
+      unitNumber: "1204", handoverAt: new Date(Date.UTC(new Date().getUTCFullYear() + 1, 5, 30)),
+    },
+  });
+  /**
+   * The rental that is let, with its lease ending inside the renewal
+   * window — so the renewal task is on somebody's list in the demo, the
+   * same way AR-303's permit is inside its warning window on purpose.
+   */
+  const let_ = await db.listing.findFirst({ where: { orgId, reference: "MG-513" }, select: { id: true, agentId: true } });
+  if (let_ && (await db.tenancy.count({ where: { listingId: let_.id } })) === 0) {
+    await db.tenancy.create({
+      data: {
+        orgId, listingId: let_.id, tenantName: "Anna Kowalski", agentId: let_.agentId,
+        startsAt: daysAgo(270), endsAt: new Date(Date.now() + 95 * 86_400_000),
+        rentFils: 185_000n * 100n, cheques: 4, depositFils: 9_250n * 100n, ejariNumber: "0120240009187",
+      },
+    });
+    await db.listing.update({ where: { id: let_.id }, data: { status: "LET" } });
   }
 }
 

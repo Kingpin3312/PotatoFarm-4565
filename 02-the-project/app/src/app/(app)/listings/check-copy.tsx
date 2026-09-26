@@ -54,7 +54,7 @@ export function CheckCopy({ listingId }: { listingId: string }) {
 
   return (
     <>
-      <Button size="sm" variant="secondary" onClick={open}>Check wording</Button>
+      <button type="button" className="min-h-11 px-1.5 text-sm text-ink-2 hover:text-ink hover:underline underline-offset-4 focus-visible:outline-none focus-visible:shadow-[var(--ring)] rounded-sm" onClick={open}>Check wording</button>
 
       <dialog
         ref={dialog}

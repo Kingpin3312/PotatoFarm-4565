@@ -96,6 +96,7 @@ export function AddProperty({ onAdded }: { onAdded?: () => void }) {
       // slip backwards a day for a reader four hours ahead of it.
       ...(expiry ? { permitExpiresAt: new Date(`${expiry}T12:00:00.000Z`).toISOString() } : {}),
       reraBrokerCard: str("reraBrokerCard"),
+      ...listingDetails(f),
     });
   }
 
@@ -139,6 +140,8 @@ export function AddProperty({ onAdded }: { onAdded?: () => void }) {
                 in it, leaving the field looking filled and empty. */}
             <Field name="priceAed" label="Price (AED)" inputMode="decimal" placeholder="2,400,000" />
 
+            <Select name="propertyType" label="Type" options={TYPE_OPTIONS} />
+            <Select name="completion" label="Ready or off-plan" options={[["READY", "Ready"], ["OFF_PLAN", "Off-plan"]]} />
             <Select name="purpose" label="Purpose" options={[["SALE", "For sale"], ["RENT", "To let"]]} />
             <Select
               name="status"
@@ -160,6 +163,8 @@ export function AddProperty({ onAdded }: { onAdded?: () => void }) {
               <Field name="reraBrokerCard" label="RERA broker card" />
             </div>
           </div>
+
+          <DetailFields />
 
           <div className="flex gap-2.5 mt-7">
             <Button type="button" variant="secondary" onClick={() => dialog.current?.close()}>
@@ -221,5 +226,64 @@ function Select({
         {options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
       </select>
     </label>
+  );
+}
+
+export const TYPE_OPTIONS: [string, string][] = [
+  ["", "Not said"], ["APARTMENT", "Apartment"], ["VILLA", "Villa"], ["TOWNHOUSE", "Townhouse"],
+  ["PENTHOUSE", "Penthouse"], ["DUPLEX", "Duplex"], ["PLOT", "Plot"], ["OFFICE", "Office"],
+  ["RETAIL", "Retail"], ["WAREHOUSE", "Warehouse"], ["OTHER", "Other"],
+];
+
+/**
+ * Off-plan and rental terms, read from the form.
+ *
+ * Blank is "not said" and is left out, as with every other field here.
+ * Shared with the edit dialog so the two cannot disagree about a name.
+ */
+export function listingDetails(f: FormData) {
+  const str = (k: string) => { const v = (f.get(k) as string | null)?.trim(); return v ? v : undefined; };
+  const num = (k: string) => { const v = str(k); if (v === undefined) return undefined; const n = Number(v.replace(/,/g, "")); return Number.isFinite(n) ? n : undefined; };
+  const handover = str("handoverAt");
+  return {
+    ...(str("propertyType") ? { propertyType: str("propertyType") as "APARTMENT" } : {}),
+    ...(str("completion") ? { completion: str("completion") as "READY" | "OFF_PLAN" } : {}),
+    ...(handover ? { handoverAt: new Date(`${handover}T12:00:00.000Z`).toISOString() } : {}),
+    ...(str("developer") ? { developer: str("developer") } : {}),
+    ...(str("project") ? { project: str("project") } : {}),
+    ...(str("paymentPlan") ? { paymentPlan: str("paymentPlan") } : {}),
+    ...(str("unitNumber") ? { unitNumber: str("unitNumber") } : {}),
+    ...(str("furnishing") ? { furnishing: str("furnishing") as "FURNISHED" } : {}),
+    ...(num("rentCheques") !== undefined ? { rentCheques: num("rentCheques") } : {}),
+    ...(num("depositAed") !== undefined ? { depositAed: num("depositAed") } : {}),
+    ...(num("serviceChargeAed") !== undefined ? { serviceChargeAed: num("serviceChargeAed") } : {}),
+  };
+}
+
+/** The part most listings leave blank, below its own rule. */
+export function DetailFields({ d }: { d?: Record<string, string | number | null | undefined> }) {
+  const v = (k: string) => (d?.[k] === null || d?.[k] === undefined ? undefined : String(d[k]));
+  return (
+    <details className="mt-6 pt-5 border-t border-rule" open={Boolean(d?.developer || d?.rentCheques || d?.unitNumber)}>
+      <summary className="t-label text-ink-3 cursor-pointer min-h-11 flex items-center">Off-plan and rental details</summary>
+      <div className="grid grid-cols-2 gap-3.5 mt-3">
+        <Field name="developer" label="Developer" placeholder="Emaar" defaultValue={v("developer")} />
+        <Field name="project" label="Project" placeholder="Dubai Creek Harbour" defaultValue={v("project")} />
+        <Field name="unitNumber" label="Unit number" defaultValue={v("unitNumber")} />
+        <Field name="handoverAt" label="Handover" type="date" defaultValue={v("handoverAt")?.slice(0, 10)} />
+        <Field name="paymentPlan" label="Payment plan" placeholder="60/40" defaultValue={v("paymentPlan")} />
+        <label className="flex flex-col gap-1.5">
+          <span className="t-label text-ink-3">Furnishing</span>
+          <select name="furnishing" defaultValue={v("furnishing") ?? ""}
+            className="min-h-11 px-3 text-control bg-ground border border-rule rounded-[3px] text-ink outline-none focus:border-ink">
+            <option value="">Not said</option><option value="UNFURNISHED">Unfurnished</option>
+            <option value="SEMI_FURNISHED">Semi-furnished</option><option value="FURNISHED">Furnished</option>
+          </select>
+        </label>
+        <Field name="rentCheques" label="Rent cheques a year" type="number" inputMode="numeric" defaultValue={v("rentCheques")} />
+        <Field name="depositAed" label="Deposit (AED)" inputMode="decimal" defaultValue={v("depositAed")} />
+        <Field name="serviceChargeAed" label="Service charge a year (AED)" inputMode="decimal" defaultValue={v("serviceChargeAed")} />
+      </div>
+    </details>
   );
 }

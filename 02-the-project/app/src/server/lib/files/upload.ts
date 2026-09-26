@@ -1,7 +1,8 @@
 import { forOrg } from "@/server/db/client";
 import { audit } from "@/server/lib/audit";
 import { LIMITS } from "./send";
-import { signPut, objectExists } from "./storage";
+import { signPut, objectExists, readObjectHead, deleteObject } from "./storage";
+import { matchesType } from "./signature";
 
 /**
  * Getting a file in.
@@ -112,6 +113,24 @@ export async function confirmUpload(args: {
     return { ok: false as const, reason: "That upload didn't finish. Try again." };
   }
 
+  /**
+   * What the bytes are, not what the browser said.
+   *
+   * The type was the browser's word and nothing checked it (the audit's
+   * D2): a renamed executable declared as a PDF was stored and would be
+   * forwarded to a buyer's WhatsApp as their brochure. The first bytes
+   * are read back and must match the declared type; a mismatch is
+   * deleted, never recorded.
+   */
+  const { head, size } = await readObjectHead(args.storageRef);
+  if (!matchesType(head, args.mimeType) || (size !== null && size !== args.sizeBytes)) {
+    await deleteObject(args.storageRef).catch(() => {});
+    return {
+      ok: false as const,
+      reason: `That file isn't the ${args.mimeType.split("/")[1]?.toUpperCase() ?? "file"} it says it is, so it wasn't kept. Save it again as a real ${args.mimeType.split("/")[1]?.toUpperCase()} and upload that.`,
+    };
+  }
+
   const db = forOrg(args.orgId);
   const file = await db.attachment.create({
     data: {
@@ -164,3 +183,4 @@ export async function sweepOrphans() {
     note: "not implemented — needs ListObjectsV2 and a job registration, see the comment",
   };
 }
+

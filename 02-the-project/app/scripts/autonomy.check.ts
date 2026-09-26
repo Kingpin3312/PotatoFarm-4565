@@ -18,6 +18,26 @@ async function main() {
   ok("a call is prepared, never placed", levelFor("AUTOPILOT","CALL")==="DRAFT");
 
   const org = await db.organisation.findFirstOrThrow({ where: { slug: "seed-marina" } });
+  /**
+   * A lead that needs a follow-up and nothing else, owned by the check.
+   *
+   * This used to lean on the demo happening to contain one. When the
+   * demo buyers were given requirements, every stalled buyer became a
+   * "send them the property" instead, and the Autopilot half had nothing
+   * it was allowed to do — a check passing or failing on the state of the
+   * fixture rather than the code. Sitting three weeks in a stage with no
+   * requirement, no viewing and no offer is the one path to FOLLOW_UP
+   * that nothing else outranks.
+   */
+  const agent = await db.membership.findFirstOrThrow({ where: { orgId: org.id, role: "AGENT" }, select: { userId: true } });
+  await db.lead.deleteMany({ where: { orgId: org.id, phone: "+971509990001" } });
+  const stalledLead = await db.lead.create({
+    data: {
+      orgId: org.id, phone: "+971509990001", name: "Autonomy Check Stalled", status: "QUALIFYING",
+      assignedToId: agent.userId, stageEnteredAt: new Date(Date.now() - 21 * 86_400_000),
+      createdAt: new Date(Date.now() - 25 * 86_400_000),
+    },
+  });
   const reset = async () => {
     await db.aiAction.deleteMany({ where: { orgId: org.id, origin: "intelligence.sweep" } });
     await db.followUp.deleteMany({ where: { orgId: org.id } });
@@ -68,6 +88,9 @@ async function main() {
   ok("but it still tells you what to do", r3.recommended > 0);
 
   await db.assistantSettings.update({ where: { orgId: org.id }, data: { enabled: true, autonomy: "COPILOT" } });
+  await reset();
+  await db.leadScoreEvent.deleteMany({ where: { leadId: stalledLead.id } });
+  await db.lead.delete({ where: { id: stalledLead.id } });
   console.log(bad === 0 ? "\nPASS\n" : `\nFAIL — ${bad}\n`);
   process.exit(bad ? 1 : 0);
 }

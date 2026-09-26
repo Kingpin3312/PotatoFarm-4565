@@ -35,6 +35,8 @@
     "check:nurture-plans": "esbuild scripts/nurture-plans.check.ts --bundle --platform=node --format=cjs --outfile=.tmp/nurture-plans.cjs --external:@prisma/client --log-level=warning && node --env-file-if-exists=.env .tmp/nurture-plans.cjs",
     "check:viewing-feedback": "esbuild scripts/viewing-feedback.check.ts --bundle --platform=node --format=cjs --outfile=.tmp/viewing-feedback.cjs --external:@prisma/client --log-level=warning && node --env-file-if-exists=.env .tmp/viewing-feedback.cjs",
     "check:qualification": "esbuild scripts/qualification.check.ts --bundle --platform=node --format=esm --outfile=.tmp/qual.mjs --external:@prisma/client --log-level=warning && node --env-file-if-exists=.env .tmp/qual.mjs",
+    "check:journeys": "esbuild scripts/journeys.check.ts --bundle --platform=node --format=esm --outfile=.tmp/journeys.mjs --external:@prisma/client --log-level=warning && node --env-file-if-exists=.env .tmp/journeys.mjs",
+    "check:listing-model": "esbuild scripts/listing-model.check.ts --bundle --platform=node --format=esm --outfile=.tmp/listing-model.mjs --external:@prisma/client --log-level=warning && node --env-file-if-exists=.env .tmp/listing-model.mjs",
     "check:import-export": "esbuild scripts/import-export.check.ts --bundle --platform=node --format=esm --outfile=.tmp/import-export.mjs --external:@prisma/client --log-level=warning && node --env-file-if-exists=.env .tmp/import-export.mjs",
     "check:lead-lists": "esbuild scripts/lead-lists.check.ts --bundle --platform=node --format=esm --outfile=.tmp/lead-lists.mjs --external:@prisma/client --log-level=warning && node --env-file-if-exists=.env .tmp/lead-lists.mjs",
     "check:requirements": "esbuild scripts/requirements.check.ts --bundle --platform=node --format=esm --outfile=.tmp/requirements.mjs --external:@prisma/client --log-level=warning && node --env-file-if-exists=.env .tmp/requirements.mjs",
@@ -57,6 +59,8 @@
     "backfill:stages": "esbuild scripts/backfill-stages.ts --bundle --platform=node --format=esm --outfile=.tmp/backfill-stages.mjs --external:@prisma/client --log-level=warning && node --env-file-if-exists=.env .tmp/backfill-stages.mjs",
     "browser:optimistic-board": "node scripts/optimistic-board.mjs",
     "browser:add-property": "node scripts/add-property.mjs",
+    "audit:deps": "node scripts/audit-deps.mjs",
+    "browser:mobile-agent": "node scripts/mobile-agent.mjs",
     "browser:add-lead": "node scripts/add-lead.mjs",
     "browser:lead-list": "node --env-file-if-exists=.env scripts/lead-list.mjs",
     "browser:import-leads": "node --env-file-if-exists=.env scripts/import-leads.mjs",
@@ -130,5 +134,8 @@
   },
   "engines": {
     "node": ">=20"
+  },
+  "overrides": {
+    "deepmerge-ts": "8.0.2"
   }
 }

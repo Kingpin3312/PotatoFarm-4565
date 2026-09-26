@@ -9,11 +9,13 @@ import { QueryError } from "@/components/ui/query-state";
 import { aedWhole } from "@/lib/money";
 import { PublishCheck } from "./publish-check";
 import { AttachOwner } from "./attach-owner";
+import { Lease } from "./lease";
 import { WhoWantsIt } from "./who-wants-it";
 import { AddProperty } from "./add-property";
 import { EditListing } from "./edit-listing";
 import { CheckCopy } from "./check-copy";
 import { download } from "@/lib/download";
+import { TYPE_OPTIONS } from "./add-property";
 
 /**
  * Listings.
@@ -184,6 +186,10 @@ function Listings() {
             onBlur={(e) => set({ community: e.target.value.trim() || undefined })}
             onKeyDown={(e) => { if (e.key === "Enter") set({ community: (e.target as HTMLInputElement).value.trim() || undefined }); }} />
         </label>
+        <Pick label="Type" value={f.propertyType ?? ""} onChange={(v) => set({ propertyType: (v || undefined) as ListingFilters["propertyType"] })}
+          options={[["", "Any"], ...TYPE_OPTIONS.slice(1)]} />
+        <Pick label="Ready or off-plan" value={f.completion ?? ""} onChange={(v) => set({ completion: (v || undefined) as ListingFilters["completion"] })}
+          options={[["", "Either"], ["READY", "Ready"], ["OFF_PLAN", "Off-plan"]]} />
         <Pick label="Bedrooms" value={f.bedrooms == null ? "" : String(f.bedrooms)}
           onChange={(v) => set({ bedrooms: v === "" ? undefined : Number(v) })}
           options={[["", "Any"], ["0", "Studio +"], ["1", "1 +"], ["2", "2 +"], ["3", "3 +"], ["4", "4 +"], ["5", "5 +"]]} />
@@ -211,7 +217,7 @@ function Listings() {
             row is its own grid, so `auto` sized it to that row's five
             buttons while the header's empty cell sized it to nothing —
             every heading sat a column to the right of what it named. */}
-        <div className="grid grid-cols-[1.6fr_140px_1fr_120px_470px] gap-4 py-3.5 px-1 border-b border-rule-strong t-label text-ink-3 max-[820px]:hidden">
+        <div className="grid grid-cols-[1.6fr_140px_1fr_120px_400px] gap-4 py-3.5 px-1 border-b border-rule-strong t-label text-ink-3 max-[820px]:hidden">
           <span>Property</span><span>Price</span><span>Portals</span><span>Permit</span><span />
         </div>
 
@@ -226,11 +232,24 @@ function Listings() {
             // with the price parsing deliberately broken, because it was
             // reading a matching number off a different listing.
             data-listing={l.reference}
-            className="grid grid-cols-[1.6fr_140px_1fr_120px_470px] gap-4 items-center py-3.5 px-1 border-b border-rule hover:bg-raised max-[820px]:grid-cols-1 max-[820px]:gap-2"
+            className="grid grid-cols-[1.6fr_140px_1fr_120px_400px] gap-4 items-center py-3.5 px-1 border-b border-rule hover:bg-raised max-[820px]:grid-cols-1 max-[820px]:gap-2"
           >
             <div>
               <div className="font-mono text-label text-ink-3">{l.reference}</div>
               <div className="text-ui font-medium text-ink mt-0.5">{l.title}</div>
+              {/* What it is, when somebody has said: a buyer asks "villa or
+                  apartment? ready or off-plan?" before anything else. */}
+              {(l.propertyType || l.completion === "OFF_PLAN" || l.developer) && (
+                <div className="text-sm text-ink-3 mt-0.5">
+                  {[
+                    l.propertyType ? TYPE_OPTIONS.find(([v]) => v === l.propertyType)?.[1] : null,
+                    l.completion === "OFF_PLAN"
+                      ? `Off-plan${l.handoverAt ? `, handover ${new Date(l.handoverAt).toLocaleDateString("en-GB", { month: "short", year: "numeric" })}` : ""}`
+                      : null,
+                    [l.developer, l.project].filter(Boolean).join(", ") || null,
+                  ].filter(Boolean).join(" · ")}
+                </div>
+              )}
             </div>
 
             <div className="font-mono text-note text-ink">
@@ -307,15 +326,18 @@ function Listings() {
               <button
                 onClick={() => setOwnerFor((o) => (o === l.id ? null : l.id))}
                 aria-expanded={ownerFor === l.id}
-                className="btn-inline min-h-11"
+                className={l.vendor
+                  ? "min-h-11 px-1.5 text-sm text-ink-2 hover:text-ink hover:underline underline-offset-4 focus-visible:outline-none focus-visible:shadow-[var(--ring)] rounded-sm"
+                  : "btn-inline min-h-11"}
               >
-                {l.vendor ? "Owner" : "No owner"}
+                {l.vendor ? "Owner" : "No owner"}{l.purpose === "RENT" ? " & lease" : ""}
               </button>
             </div>
 
             {ownerFor === l.id && (
               <div className="col-span-full">
                 <AttachOwner listingId={l.id} current={l.vendor} agent={l.agent} />
+                {l.purpose === "RENT" && <Lease listingId={l.id} />}
               </div>
             )}
           </div>
@@ -414,6 +436,8 @@ type ListingFilters = {
   status?: "DRAFT" | "AVAILABLE" | "UNDER_OFFER" | "SOLD" | "LET" | "WITHDRAWN";
   search?: string; purpose?: "SALE" | "RENT"; community?: string; agentId?: string;
   bedrooms?: number; minPriceAed?: number; maxPriceAed?: number;
+  propertyType?: "APARTMENT" | "VILLA" | "TOWNHOUSE" | "PENTHOUSE" | "DUPLEX" | "PLOT" | "OFFICE" | "RETAIL" | "WAREHOUSE" | "OTHER";
+  completion?: "READY" | "OFF_PLAN";
 };
 
 /** 16px on every control — below that iOS zooms the page on focus. */

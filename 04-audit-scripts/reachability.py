@@ -444,9 +444,18 @@ router_inputs = {}
 for rf in routers:
     rname = os.path.basename(rf)[:-3]
     rbody = open(rf).read()
+    # Field sets shared between procedures as a plain object and spread
+    # in: `z.object({ ...filters, cursor: … })`. Without this every key of
+    # the shared set read as unknown, and the listings form was reported
+    # as passing eleven arguments its procedure does not take — all of
+    # which it does, through `...detailFields`.
+    field_sets = {name: set(re.findall(r'(\w+)\s*:\s*z\.', fields))
+                  for name, fields in re.findall(r'^const (\w+) = \{(.*?)\n\};', rbody, re.M | re.S)}
     for m in re.finditer(r'^  (\w+): (?:require\w+\([^)]*\)|orgProcedure|publicProcedure)'
                          r'\s*\n\s*\.input\(z\.object\(\{(.*?)\}\)\)', rbody, re.M | re.S):
         keys = set(re.findall(r'(\w+)\s*:\s*z\.', m.group(2)))
+        for spread in re.findall(r'\.\.\.(\w+)', m.group(2)):
+            keys |= field_sets.get(spread, set())
         # Shorthand: `phone,` on its own line, where the value is a
         # shared schema const rather than an inline `z.…`.
         #

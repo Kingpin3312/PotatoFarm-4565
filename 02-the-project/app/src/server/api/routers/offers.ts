@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
+import { moveLeadTo } from "@/server/lib/pipeline/advance";
+import type { Prisma } from "@prisma/client";
 import { router, orgProcedure, requirePermission } from "../trpc";
 import { counter, accept, compare } from "@/server/lib/offers/negotiate";
 import { audit } from "@/server/lib/audit";
@@ -62,6 +64,10 @@ export const offersRouter = router({
         },
       });
 
+      // An offer on the table is the Negotiating column.
+      if (input.leadId) {
+        await moveLeadTo(ctx.db as unknown as Prisma.TransactionClient, input.leadId, "NEGOTIATING", { forwardOnly: true });
+      }
       await audit(ctx.db, ctx.orgId, {
         actorId: ctx.userId, action: "offer.created",
         entity: "Offer", entityId: offer.id,

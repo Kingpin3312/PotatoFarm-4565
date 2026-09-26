@@ -46,15 +46,30 @@ export const todayRouter = router({
     const tz = org?.timezone ?? "Asia/Dubai";
     const { start, end } = dayWindow(now, tz);
 
-    const [actions, viewings, waiting, hot, dueFollowUps] = await Promise.all([
+    /**
+     * People and deals are fetched apart, then shown apart.
+     *
+     * One list of the top five by priority meant deal warnings — scored
+     * highest, because money and a date are committed — could fill it,
+     * and a buyer who wrote in this morning was not on the screen at all
+     * (the audit's D6). Up to five people, then up to three deals.
+     */
+    const pick = {
+      id: true, action: true, headline: true, reason: true,
+      priority: true, valueFils: true, leadId: true, dealId: true,
+    } as const;
+    const [people, deals, viewings, waiting, hot, dueFollowUps] = await Promise.all([
       ctx.db.recommendation.findMany({
-        where: { agentId: ctx.userId, state: "OPEN" },
+        where: { agentId: ctx.userId, state: "OPEN", dealId: null },
         orderBy: [{ priority: "desc" }, { valueFils: "desc" }],
         take: 5,
-        select: {
-          id: true, action: true, headline: true, reason: true,
-          priority: true, valueFils: true, leadId: true,
-        },
+        select: pick,
+      }),
+      ctx.db.recommendation.findMany({
+        where: { agentId: ctx.userId, state: "OPEN", dealId: { not: null } },
+        orderBy: [{ priority: "desc" }, { valueFils: "desc" }],
+        take: 3,
+        select: pick,
       }),
 
       ctx.db.viewing.findMany({
@@ -114,7 +129,7 @@ export const todayRouter = router({
     const pipelineFils = hot.reduce((sum, l) => sum + (l.budgetMaxFils ?? 0n), 0n);
 
     return {
-      actions,
+      actions: [...people, ...deals],
       viewings,
       counts: {
         hot: hot.length,

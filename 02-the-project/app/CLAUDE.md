@@ -102,7 +102,7 @@ What is verified today, measured rather than assumed:
   `/api/health` returns `200 {"ok":true}` against a real Postgres.
 - The boot log names every unconfigured service with its consequence —
   six of them in a bare development environment.
-- 400 assertions in 25 files, 53 check suites, 23 audits, all green.
+- 403 assertions in 26 files, 55 check suites, 23 audits, all green.
 
 Type errors on a fresh checkout are no longer expected. If you get one,
 it is new.
@@ -218,6 +218,20 @@ re-apply the ones already lost by running the original migration file
 against the database. The audit compares every `CREATE INDEX` in the
 migration history against every `DROP`, so it catches this whoever
 causes it.
+
+**The same is true of fifty foreign keys.** Every tenant table's key to
+`Organisation` is raw SQL in `20261004090000_org_foreign_keys`, added
+`NOT VALID` so it takes no lock on a live table — and Prisma cannot see
+it, so `prisma migrate diff` proposes dropping all fifty (measured when
+they were added). A dropped key fails nothing; orphans simply start
+accumulating again, as they had been: the dev database held 697 rows
+naming brokerages that no longer exist, left by test clean-ups.
+`migrations.py` now fails on a dropped constraint as it does on a
+dropped index, and `check:tenancy` requires the key on every `orgId`
+table. Six of them are `RESTRICT` rather than `CASCADE` — invoices, KYC
+files and documents, screenings, beneficial owners and compliance
+reports — because the law keeps those for five years and a hard delete
+of a brokerage must not take them with it.
 
 **Editing an applied migration breaks the local checksum, and Prisma's
 remedy is a reset.** The corollary of the entry above: strip the
@@ -820,8 +834,8 @@ send path read it.
 
 ## Run the tests
 
-    npm test          # 400 assertions, pure functions, no database
-    npm run verify    # tsc, the tests, 53 check suites, 23 audits
+    npm test          # 403 assertions, pure functions, no database
+    npm run verify    # tsc, the tests, 55 check suites, 23 audits
 
 **The gate is now green end to end, including the two things that used
 to skip.** `verify` reports what it did not run rather than counting a
@@ -871,7 +885,7 @@ skip as a pass, and for a long time it reported two:
   leaving you to guess.
 
 `npm test` was declared from day one with no test files behind it, so it
-exited 1 and said "No test files found". There are 25 test files now, and
+exited 1 and said "No test files found". There are 26 test files now, and
 they cover the pure logic where being wrong is silent: the fils unit, the
 24-hour window on both sides of the boundary, Dubai sending hours, the
 search parser's plural intents and budget bands, lead scoring, deal

@@ -23,6 +23,8 @@ type Row = {
   bedroomsMin: number | null;
   communities: string[];
   preferences: string[];
+  propertyTypes: string[];
+  completion: "READY" | "OFF_PLAN" | null;
   source: string;
   unsure: boolean;
 };
@@ -36,13 +38,22 @@ function summary(r: Row): string {
     : "Buying";
   const beds = r.bedroomsMin === null ? null : r.bedroomsMin === 0 ? "studio or bigger" : `${r.bedroomsMin}+ bed`;
   const where = r.communities.length ? r.communities.join(" or ") : null;
+  const kind = [
+    r.completion === "OFF_PLAN" ? "off-plan" : r.completion === "READY" ? "ready" : null,
+    r.propertyTypes.length ? r.propertyTypes.map((t) => TYPE_LABEL[t] ?? t).join(" or ").toLowerCase() : null,
+  ].filter(Boolean).join(" ") || null;
   const money =
     r.budgetMinFils !== null && r.budgetMaxFils !== null ? `${aedShort(r.budgetMinFils)}–${aedShort(r.budgetMaxFils).replace("AED ", "")}`
     : r.budgetMaxFils !== null ? `up to ${aedShort(r.budgetMaxFils)}`
     : r.budgetMinFils !== null ? `from ${aedShort(r.budgetMinFils)}`
     : null;
-  return [why, beds, where, money].filter(Boolean).join(" · ");
+  return [why, kind, beds, where, money].filter(Boolean).join(" · ");
 }
+
+export const TYPE_LABEL: Record<string, string> = {
+  APARTMENT: "Apartment", VILLA: "Villa", TOWNHOUSE: "Townhouse", PENTHOUSE: "Penthouse", DUPLEX: "Duplex",
+  PLOT: "Plot", OFFICE: "Office", RETAIL: "Retail", WAREHOUSE: "Warehouse", OTHER: "Other",
+};
 
 /** "3,000,000", "3m", "2.5 million", "800k" → dirhams. Blank is none. */
 export function readAed(text: string): number | null | "bad" {
@@ -94,6 +105,8 @@ export function Requirements({ leadId }: { leadId: string }) {
       bedroomsMin: beds === "" ? null : Number(beds),
       communities: list(get("communities")),
       preferences: list(get("preferences")),
+      propertyTypes: f.getAll("propertyTypes").map(String) as ("APARTMENT" | "VILLA")[],
+      completion: (get("completion") || null) as "READY" | "OFF_PLAN" | null,
     });
   }
 
@@ -103,6 +116,21 @@ export function Requirements({ leadId }: { leadId: string }) {
         options={[["SALE", "Buying"], ["RENT", "Renting"]]} />
       <Select name="intent" label="Buying to" defaultValue={r?.intent === "RENT" ? "" : (r?.intent ?? "")}
         options={[["", "Not said"], ["BUY_TO_LIVE", "Live in"], ["BUY_TO_INVEST", "Invest"]]} />
+      <fieldset className="sm:col-span-2">
+        <legend className="t-label text-ink-3 mb-1.5">Type (leave all clear for any)</legend>
+        <div className="flex flex-wrap gap-x-4 gap-y-1">
+          {Object.entries(TYPE_LABEL).map(([v, l]) => (
+            <label key={v} className="inline-flex items-center gap-2 min-h-11 text-ui text-ink">
+              <input type="checkbox" name="propertyTypes" value={v} defaultChecked={r?.propertyTypes.includes(v)}
+                className="w-5 h-5 accent-[var(--accent)]" />
+              {l}
+            </label>
+          ))}
+        </div>
+      </fieldset>
+      <Select name="completion" label="Ready or off-plan" defaultValue={r?.completion ?? ""}
+        options={[["", "Either"], ["READY", "Ready to move in"], ["OFF_PLAN", "Off-plan"]]} />
+      <div className="hidden sm:block" />
       <Input name="communities" label="Areas, separated by commas" placeholder="Dubai Marina, JBR"
         defaultValue={r?.communities.join(", ") ?? ""} className="sm:col-span-2" />
       <Input name="bedrooms" label="Bedrooms, at least" type="number" min={0} max={12} inputMode="numeric"

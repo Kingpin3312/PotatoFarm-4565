@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
+import { moveLeadTo } from "@/server/lib/pipeline/advance";
 import { Prisma, FeedbackReason } from "@prisma/client";
 import { router, orgProcedure, requirePermission } from "../trpc";
 import { can, leadScope } from "@/server/auth/rbac";
@@ -343,6 +344,9 @@ export const viewingsRouter = router({
           where: { id: input.viewingId },
           data: { status: "CONFIRMED", heldUntil: null },
         });
+        // A confirmed viewing is the "Viewing booked" column, for anybody
+        // not already past it.
+        await moveLeadTo(tx as unknown as Prisma.TransactionClient, v.leadId, "VIEWING_BOOKED", { forwardOnly: true });
         await audit(tx, ctx.orgId, {
           actorId: ctx.userId, action: "viewing.confirm",
           entity: "Viewing", entityId: v.id,
@@ -424,10 +428,7 @@ export const viewingsRouter = router({
         // pipeline rather than quietly disappearing, because a buyer who
         // missed a Saturday is not a buyer who has gone away.
         if (input.status === "NO_SHOW") {
-          await tx.lead.update({
-            where: { id: v.leadId },
-            data: { status: "QUALIFIED", stageEnteredAt: new Date() },
-          });
+          await moveLeadTo(tx as unknown as Prisma.TransactionClient, v.leadId, "QUALIFIED");
         }
 
         // Corrected to "didn't happen": nobody viewed, so nobody has an

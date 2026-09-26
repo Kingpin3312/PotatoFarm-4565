@@ -222,6 +222,41 @@ async function main() {
     }
   }
 
+  /**
+   * And every one of them points at its brokerage.
+   *
+   * Fifty tenant tables had an `orgId` and no foreign key to
+   * "Organisation" (the audit's C5), so a deleted brokerage left rows
+   * behind naming nobody — found in this very database: invoices,
+   * subscriptions and assignment rules from check runs whose clean-up
+   * deleted the brokerage and not what it owned. Asked of the database,
+   * like the policy above, so a new tenant table without the key fails
+   * here rather than being noticed by an auditor.
+   */
+  console.log("\nEvery table with an orgId points at its brokerage:");
+  {
+    const missing = await root.$queryRaw<{ table_name: string }[]>`
+      SELECT col.table_name
+        FROM information_schema.columns col
+        JOIN pg_class c ON c.relname = col.table_name AND c.relkind = 'r'
+        JOIN pg_namespace n ON n.oid = c.relnamespace AND n.nspname = 'public'
+       WHERE col.table_schema = 'public' AND col.column_name = 'orgId'
+         AND NOT EXISTS (
+           SELECT 1 FROM pg_constraint k
+            WHERE k.conrelid = c.oid AND k.contype = 'f'
+              AND k.confrelid = '"Organisation"'::regclass
+              AND k.conkey = ARRAY[(SELECT attnum FROM pg_attribute WHERE attrelid = c.oid AND attname = 'orgId')]::smallint[]
+         )
+       ORDER BY 1`;
+    const ok = missing.length === 0;
+    console.log(`  ${ok ? "✓" : "✗"} every tenant table has a foreign key to Organisation` +
+                (ok ? "" : ` — ${missing.length} without`));
+    for (const m of missing) {
+      console.log(`      x ${m.table_name} — no foreign key on orgId`);
+      fails.push(`${m.table_name}: no foreign key to Organisation`);
+    }
+  }
+
   console.log("\nA write cannot cross either:");
   const stolen = await forOrg(a.id).lead.updateMany({
     where: { phone: `${TAG}00003` },          // B's lead, from A's client

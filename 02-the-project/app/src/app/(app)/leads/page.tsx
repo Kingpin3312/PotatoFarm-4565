@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { api } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { QueryError } from "@/components/ui/query-state";
@@ -55,8 +56,40 @@ const MANAGERS = new Set(["MANAGER", "ADMIN", "OWNER"]);
 const clean = (f: Filters): Filters =>
   Object.fromEntries(Object.entries(f).filter(([, v]) => v !== undefined && v !== "")) as Filters;
 
-export default function Leads() {
-  const [f, setF] = useState<Filters>({ filter: "all", view: "active" });
+/**
+ * The Suspense boundary is required: reading the address in a client
+ * component makes the route unprerenderable, and Next fails the build
+ * without one (the listings screen has the account).
+ */
+export default function LeadsPage() {
+  return (
+    <Suspense fallback={<div className="max-w-[1180px] mx-auto px-6 pt-10"><div className="h-64 bg-sunk rounded-sm" aria-busy /></div>}>
+      <Leads />
+    </Suspense>
+  );
+}
+
+/**
+ * Filters from the address, so a figure on the reports screen can open
+ * the records behind it — "Bayut: 12 leads, 1 won" goes to exactly those
+ * twelve. Only the names the list understands are read.
+ */
+function fromAddress(p: URLSearchParams): Filters {
+  const pick = <T extends string>(k: string, ok: readonly T[]) => { const v = p.get(k); return v && (ok as readonly string[]).includes(v) ? (v as T) : undefined; };
+  return {
+    filter: pick("filter", ["all", "unassigned", "hot", "cold"] as const) ?? "all",
+    view: pick("view", ["active", "archived", "deleted"] as const) ?? "active",
+    source: pick("source", SOURCES),
+    band: pick("band", ["GOLDEN", "HOT", "WARM", "COLD", "UNSCORED"] as const),
+    agentId: p.get("agentId") ?? undefined,
+    stageId: p.get("stageId") ?? undefined,
+    tag: p.get("tag") ?? undefined,
+  };
+}
+
+function Leads() {
+  const params = useSearchParams();
+  const [f, setF] = useState<Filters>(() => fromAddress(params));
   const [sort, setSort] = useState<Sort>("newest");
   const [typed, setTyped] = useState("");
   const [picked, setPicked] = useState<Set<string>>(new Set());

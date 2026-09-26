@@ -459,6 +459,25 @@ export const dealsRouter = router({
             where: { id: deal.id },
             data: { stage: next, ...(next === "COMPLETED" ? { completedAt: new Date() } : {}) },
           });
+          /**
+           * A completed transfer is a won client.
+           *
+           * Nothing moved the buyer when the deal completed, so they sat
+           * on the board as "Negotiating" after the keys changed hands —
+           * counted as live pipeline, chased by the overnight sweep, and
+           * missing from every won-business figure. Found by the end-to-end
+           * journey check, which is the only thing that ever took a lead
+           * from enquiry to transfer in one run.
+           */
+          if (next === "COMPLETED" && deal.leadId) {
+            const won = await ctx.db.pipelineStage.findFirst({
+              where: { maps: "WON" }, orderBy: { position: "asc" }, select: { id: true },
+            });
+            await ctx.db.lead.update({
+              where: { id: deal.leadId },
+              data: { status: "WON", stageEnteredAt: new Date(), ...(won ? { stageId: won.id } : {}) },
+            });
+          }
         }
       }
 

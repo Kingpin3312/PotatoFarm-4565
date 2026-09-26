@@ -69,6 +69,8 @@ export const SETTINGS_NAV: NavItem[] = [
   // down, rather than being hidden from a nav everybody shares.
   { href: "/reports/revenue", labelKey: "nav.revenue" },
   { href: "/me", labelKey: "nav.mine" },
+  // Every follow-up, not just today's, and the ones handed to others.
+  { href: "/tasks", labelKey: "nav.tasks" },
   { href: "/leads", labelKey: "nav.leads" },
   { href: "/listings", labelKey: "nav.listings" },
   { href: "/settings", labelKey: "nav.general" },
@@ -94,6 +96,7 @@ export const SETTINGS_NAV: NavItem[] = [
 export const MORE: NavItem[] = [
   { href: "/search", labelKey: "nav.findAnyone" },
   { href: "/ask", labelKey: "nav.ask" },
+  { href: "/tasks", labelKey: "nav.tasks" },
   { href: "/deals", labelKey: "nav.deals" },
   { href: "/activity", labelKey: "nav.activity" },
   { href: "/blackbook", labelKey: "nav.blackbook" },

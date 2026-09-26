@@ -18,6 +18,10 @@ export type Requirement = {
   bedrooms: number | null;
   communities: string[];
   intent: "BUY_TO_LIVE" | "BUY_TO_INVEST" | "RENT" | null;
+  /** Types that will do; empty or absent is any. */
+  propertyTypes?: string[];
+  /** Ready or off-plan; null or absent is either. */
+  completion?: "READY" | "OFF_PLAN" | null;
 };
 
 export type Candidate = {
@@ -29,6 +33,8 @@ export type Candidate = {
   community: string | null;
   purpose: "SALE" | "RENT";
   listedAt: Date;
+  propertyType?: string | null;
+  completion?: "READY" | "OFF_PLAN" | null;
 };
 
 export type Match = {
@@ -45,6 +51,15 @@ function disqualified(r: Requirement, c: Candidate): string | null {
   const wantsRent = r.intent === "RENT";
   if (wantsRent && c.purpose !== "RENT") return "wrong purpose";
   if (!wantsRent && r.intent && c.purpose !== "SALE") return "wrong purpose";
+
+  // A villa buyer is not sent an apartment, and somebody who needs to
+  // move in this year is not sent a building still being poured. Unknown
+  // on the listing's side is not a mismatch: an older listing without a
+  // type is left to the other rules rather than hidden from every buyer.
+  if (r.propertyTypes?.length && c.propertyType && !r.propertyTypes.includes(c.propertyType)) return "wrong type";
+  if (r.completion && c.completion && r.completion !== c.completion) {
+    return r.completion === "READY" ? "not ready yet" : "not off-plan";
+  }
 
   // Bedrooms: one fewer is never right, one more sometimes is.
   if (r.bedrooms != null && c.bedrooms != null && c.bedrooms < r.bedrooms) return "too few bedrooms";

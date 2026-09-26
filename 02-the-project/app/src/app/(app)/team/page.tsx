@@ -138,8 +138,11 @@ export default function Team() {
                     is a plain action rather than a warning. */}
                 {/* Two steps, not one. A single tap here used to send a
                     whole book back to the pool with no undo. */}
+                {/* Quiet, because it is the one action on the row that
+                    cannot be taken back lightly: pink made it the loudest
+                    thing on every line (the audit's D9). */}
                 {m.role !== "OWNER" && removing !== m.user.id && (
-                  <button className="btn-inline"
+                  <button className="min-h-11 px-2 text-sm text-ink-3 underline underline-offset-4 decoration-rule-strong hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--ring)] rounded-sm"
                     onClick={() => { setRemoved(null); remove.reset(); setRemoving(m.user.id); }}>
                     Remove
                   </button>

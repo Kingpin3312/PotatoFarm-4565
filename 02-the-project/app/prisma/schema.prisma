@@ -82,6 +82,7 @@ model Organisation {
   leadScores      LeadScoreEvent[]
   aiActions       AiAction[]
   leads           Lead[]
+  tenancies       Tenancy[]
   listings        Listing[]
   conversations   Conversation[]
   viewings        Viewing[]
@@ -667,6 +668,25 @@ model Listing {
   /// Who instructed us. Optional because a listing can be entered
   /// before the paperwork lands — but publishing without one should be
   /// a question rather than a surprise.
+  /// What kind of property. Null on listings from before it was asked.
+  propertyType PropertyType?
+  /// Ready or off-plan. Off-plan is most of Dubai's primary market and a
+  /// listing that could not say so could not be matched to the buyers
+  /// asking for it.
+  completion   Completion    @default(READY)
+  /// Expected handover, for off-plan.
+  handoverAt   DateTime?
+  developer    String?
+  project      String?
+  /// "Payment plan 60/40", as the developer states it.
+  paymentPlan  String?
+  unitNumber   String?
+  furnishing   Furnishing?
+  /// Rentals: cheques a year, the deposit, and the annual service charge.
+  rentCheques       Int?
+  depositFils       BigInt?
+  serviceChargeFils BigInt?
+
   vendorId String?
   /// Who looks after it. The owner's weekly report goes to them, and
   /// removing an agent hands these on. Nullable: a listing can exist
@@ -695,6 +715,7 @@ model Listing {
   /// property. The listing simply has no vendor attached until one is.
   vendor    Vendor?      @relation(fields: [vendorId], references: [id], onDelete: SetNull)
   agent     User?        @relation("ListingAgent", fields: [agentId], references: [id], onDelete: SetNull)
+  tenancies Tenancy[]
   deals     Deal[]
 
   @@unique([orgId, reference])
@@ -2030,6 +2051,11 @@ model Requirement {
   /// Alternatives, not a single value. "Marina or JBR" is one
   /// requirement, not two.
   communities String[] @default([])
+  /// Property types that will do; empty is any. Strict in matching: a
+  /// villa buyer is not sent an apartment.
+  propertyTypes PropertyType[] @default([])
+  /// Ready, off-plan, or null for either.
+  completion    Completion?
   /// Free text, scored loosely. Sea view, high floor, furnished.
   preferences String[] @default([])
 
@@ -3030,6 +3056,11 @@ model FollowUp {
   /// buyer's answer can close the task that asked for it.
   viewingId        String?
 
+  /// Who wrote it, when it was not the system and not the assignee
+  /// themselves — a manager handing a task to a colleague.
+  createdById String?
+  listingId   String?
+
   dueAt       DateTime
   completedAt DateTime?
   /// Set when the reminder actually went out, so a restart does not
@@ -3040,6 +3071,7 @@ model FollowUp {
 
   @@index([orgId, agentId, dueAt, completedAt])
   @@index([orgId, dueAt, notifiedAt])
+  @@index([orgId, createdById, completedAt])
   @@index([viewingId])
 }
 
@@ -3465,4 +3497,62 @@ model SavedView {
   updatedAt DateTime @updatedAt
 
   @@index([orgId, screen, userId])
+}
+
+enum PropertyType {
+  APARTMENT
+  VILLA
+  TOWNHOUSE
+  PENTHOUSE
+  DUPLEX
+  PLOT
+  OFFICE
+  RETAIL
+  WAREHOUSE
+  OTHER
+}
+
+enum Completion {
+  READY
+  OFF_PLAN
+}
+
+enum Furnishing {
+  UNFURNISHED
+  SEMI_FURNISHED
+  FURNISHED
+}
+
+/// A lease on one of the brokerage's rentals.
+///
+/// UAE law gives either side 90 days' notice to change the rent at
+/// renewal, so a lease ending unnoticed is income and a relationship lost
+/// by default. `tenancy.renewals` puts the renewal on the agent's list
+/// before that line.
+model Tenancy {
+  id          String    @id @default(cuid())
+  orgId       String
+  listingId   String
+  /// The tenant, when they are a lead of ours.
+  leadId      String?
+  tenantName  String?
+  startsAt    DateTime
+  endsAt      DateTime
+  rentFils    BigInt
+  cheques     Int?
+  depositFils BigInt?
+  ejariNumber String?
+  agentId     String?
+  /// When the renewal was put on the agent's list. Once per lease.
+  renewalTaskAt DateTime?
+  /// Ended early, or renewed into a new record.
+  endedAt     DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  org     Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  listing Listing      @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, endsAt])
+  @@index([orgId, listingId])
 }

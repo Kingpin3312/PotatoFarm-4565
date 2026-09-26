@@ -15,6 +15,7 @@ import { sweepMailboxes } from "@/server/lib/email/sync";
 import { sendDueFollowUps } from "@/server/lib/reminders";
 import { sweepExpired } from "@/server/lib/offers/negotiate";
 import { sweep as sweepVisaNudges } from "@/server/lib/matching/visa-nudge";
+import { sweepRenewals } from "@/server/lib/tenancy/renewals";
 import { evaluate } from "@/server/lib/health/alert";
 import { assess } from "@/server/lib/deals/timeline";
 import { best, type Candidate } from "@/server/lib/matching/score";
@@ -935,6 +936,12 @@ export const JOBS = {
    * rather than after.
    */
   "matching.visa-nudge": () => run("matching.visa-nudge", async () => sweepVisaNudges()),
+
+  /**
+   * Leases nearing their end. Daily. A renewal missed is a rent frozen
+   * or a flat emptied, and it is noticed only when it has happened.
+   */
+  "tenancy.renewals": () => run("tenancy.renewals", async () => sweepRenewals()),
 
   /**
    * Mailboxes. Every fifteen minutes.

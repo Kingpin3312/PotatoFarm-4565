@@ -93,6 +93,10 @@
       "schedule": "0 9 * * *"
     },
     {
+      "path": "/api/cron/tenancy.renewals",
+      "schedule": "5 9 * * *"
+    },
+    {
       "path": "/api/cron/email.sync",
       "schedule": "*/15 * * * *"
     },

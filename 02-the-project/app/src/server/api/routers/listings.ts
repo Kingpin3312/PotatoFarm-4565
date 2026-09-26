@@ -37,6 +37,35 @@ async function assertOurs(
 }
 
 /**
+ * What kind of property, and on what terms. Added with the audit's B5:
+ * a listing could not say it was off-plan, a villa, or a rental with
+ * four cheques, so none of it could be matched or filtered.
+ */
+const PROPERTY_TYPES = ["APARTMENT", "VILLA", "TOWNHOUSE", "PENTHOUSE", "DUPLEX", "PLOT", "OFFICE", "RETAIL", "WAREHOUSE", "OTHER"] as const;
+const detailFields = {
+  propertyType: z.enum(PROPERTY_TYPES).nullish(),
+  completion: z.enum(["READY", "OFF_PLAN"]).optional(),
+  handoverAt: z.string().datetime().nullish(),
+  developer: z.string().trim().max(80).nullish(),
+  project: z.string().trim().max(80).nullish(),
+  paymentPlan: z.string().trim().max(80).nullish(),
+  unitNumber: z.string().trim().max(40).nullish(),
+  furnishing: z.enum(["UNFURNISHED", "SEMI_FURNISHED", "FURNISHED"]).nullish(),
+  rentCheques: z.number().int().min(1).max(12).nullish(),
+  depositAed: z.number().min(0).max(100_000_000).nullish(),
+  serviceChargeAed: z.number().min(0).max(100_000_000).nullish(),
+};
+
+/** The detail fields as columns: dates parsed, dirhams to fils, `undefined` left alone. */
+function details(input: { handoverAt?: string | null; depositAed?: number | null; serviceChargeAed?: number | null }) {
+  const out: Record<string, unknown> = {};
+  if (input.handoverAt !== undefined) out.handoverAt = input.handoverAt === null ? null : new Date(input.handoverAt);
+  if (input.depositAed !== undefined) out.depositFils = input.depositAed === null ? null : aedToFils(input.depositAed);
+  if (input.serviceChargeAed !== undefined) out.serviceChargeFils = input.serviceChargeAed === null ? null : aedToFils(input.serviceChargeAed);
+  return out;
+}
+
+/**
  * The listings screen's filters, applied in the query.
  *
  * The screen asked for twenty-five and never for more, and could not
@@ -52,6 +81,8 @@ const listingFilters = {
   bedrooms: z.number().int().min(0).max(12).optional(),
   minPriceAed: z.number().int().min(0).optional(),
   maxPriceAed: z.number().int().min(0).optional(),
+  propertyType: z.enum(PROPERTY_TYPES).optional(),
+  completion: z.enum(["READY", "OFF_PLAN"]).optional(),
 };
 
 function listingWhere(input: z.infer<z.ZodObject<typeof listingFilters>>): Prisma.ListingWhereInput {
@@ -63,6 +94,8 @@ function listingWhere(input: z.infer<z.ZodObject<typeof listingFilters>>): Prism
     ...(input.status && { status: input.status }),
     ...(input.purpose && { purpose: input.purpose }),
     ...(input.agentId && { agentId: input.agentId }),
+    ...(input.propertyType && { propertyType: input.propertyType }),
+    ...(input.completion && { completion: input.completion }),
     ...(input.bedrooms != null && { bedrooms: { gte: input.bedrooms } }),
     // A place the vocabulary knows matches every way it is filed ("DHE",
     // "Dubai Hills Estate"); anything else matches as typed.
@@ -163,13 +196,15 @@ export const listingsRouter = router({
         select: {
           reference: true, title: true, status: true, purpose: true, community: true, building: true,
           bedrooms: true, priceFils: true, permitNumber: true, permitExpiresAt: true,
+          propertyType: true, completion: true, developer: true, project: true, handoverAt: true,
           vendor: { select: { name: true } }, agent: { select: { name: true, email: true } },
         },
       });
       const csv = toCsv(
-        ["Reference", "Title", "Status", "Sale or rent", "Area", "Building", "Bedrooms", "Price (AED)", "Permit", "Permit expires", "Owner", "Agent"],
+        ["Reference", "Title", "Status", "Sale or rent", "Type", "Ready or off-plan", "Developer", "Project", "Handover", "Area", "Building", "Bedrooms", "Price (AED)", "Permit", "Permit expires", "Owner", "Agent"],
         rows.map((r) => [
-          r.reference, r.title, r.status, r.purpose, r.community, r.building, r.bedrooms,
+          r.reference, r.title, r.status, r.purpose, r.propertyType ?? "", r.completion, r.developer, r.project,
+          r.handoverAt?.toISOString().slice(0, 10) ?? "", r.community, r.building, r.bedrooms,
           r.priceFils === null ? "" : filsToAed(r.priceFils), r.permitNumber,
           r.permitExpiresAt?.toISOString().slice(0, 10) ?? "", r.vendor?.name ?? "", r.agent?.name ?? r.agent?.email ?? "",
         ]),
@@ -228,9 +263,10 @@ export const listingsRouter = router({
       permitExpiresAt: z.string().datetime().optional(),
       reraBrokerCard: z.string().trim().max(60).optional(),
       vendorId: z.string().optional(),
+      ...detailFields,
     }))
     .mutation(async ({ ctx, input }) => {
-      const { priceAed, permitExpiresAt, ...rest } = input;
+      const { priceAed, permitExpiresAt, handoverAt, depositAed, serviceChargeAed, ...rest } = input;
 
       /**
        * The reference is unique per brokerage, and a collision is an
@@ -262,6 +298,7 @@ export const listingsRouter = router({
           agentId: ctx.userId,
           ...(priceAed !== undefined ? { priceFils: aedToFils(priceAed) } : {}),
           ...(permitExpiresAt ? { permitExpiresAt: new Date(permitExpiresAt) } : {}),
+          ...details({ handoverAt, depositAed, serviceChargeAed }),
         },
         select: { id: true, reference: true, title: true },
       });
@@ -304,9 +341,10 @@ export const listingsRouter = router({
       vendorId: z.string().nullish(),
       /** Who looks after it. Must be on the team. */
       agentId: z.string().nullish(),
+      ...detailFields,
     }))
     .mutation(async ({ ctx, input }) => {
-      const { id, priceAed, permitExpiresAt, ...rest } = input;
+      const { id, priceAed, permitExpiresAt, handoverAt, depositAed, serviceChargeAed, ...rest } = input;
       await assertOurs(ctx.db, ctx.orgId, { vendorId: input.vendorId, agentId: input.agentId });
 
       const before = await ctx.db.listing.findFirst({
@@ -341,6 +379,7 @@ export const listingsRouter = router({
           ...(permitExpiresAt === undefined
             ? {}
             : { permitExpiresAt: permitExpiresAt === null ? null : new Date(permitExpiresAt) }),
+          ...details({ handoverAt, depositAed, serviceChargeAed }),
         },
         select: { id: true, reference: true, title: true },
       });

@@ -1,7 +1,7 @@
 import { leaderboard } from "@/server/lib/reporting/leaderboard";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
-import { router, orgProcedure } from "../trpc";
+import { router, orgProcedure, requirePermission } from "../trpc";
 import { can } from "@/server/auth/rbac";
 import { crossTenant } from "@/server/db/client";
 
@@ -45,7 +45,96 @@ const optionalRange = range.partial({ from: true, to: true }).optional().transfo
   return { from, to, channelId: v?.channelId };
 });
 
+/**
+ * How likely a lead at each stage is to close, for the weighted pipeline.
+ *
+ * Stated here and on the screen, because a weighted figure whose weights
+ * are hidden is a number nobody can argue with — and they should. These
+ * are conservative UAE resale defaults, not a model.
+ */
+export const STAGE_WEIGHT: Record<string, number> = {
+  NEW: 0.05, QUALIFYING: 0.1, QUALIFIED: 0.2, VIEWING_BOOKED: 0.35, NEGOTIATING: 0.6,
+};
+
 export const reportsRouter = router({
+  /**
+   * The figures a manager runs the floor on (the audit's C11), each one
+   * with the filter that opens the records behind it.
+   *
+   * Conversion by source, how long a deal takes, what the pipeline is
+   * worth weighted by stage, what commission is on its way, and who has
+   * leads gone quiet. The last three are "now"; the first two are over
+   * the range.
+   */
+  kpis: requirePermission("lead:read:all")
+    .input(z.object({ from: z.date(), to: z.date() }))
+    .query(async ({ ctx, input }) => {
+      const live = { deletedAt: null, archivedAt: null, status: { notIn: ["WON", "LOST"] as ("WON" | "LOST")[] } };
+      const [bySourceAll, bySourceWon, closed, pipeline, commission, cold, members] = await Promise.all([
+        ctx.db.lead.groupBy({ by: ["source"], where: { deletedAt: null, createdAt: { gte: input.from, lte: input.to } }, _count: { _all: true } }),
+        ctx.db.lead.groupBy({ by: ["source"], where: { deletedAt: null, status: "WON", createdAt: { gte: input.from, lte: input.to } }, _count: { _all: true } }),
+        ctx.db.deal.findMany({
+          where: { stage: "COMPLETED", completedAt: { gte: input.from, lte: input.to }, leadId: { not: null } },
+          select: { completedAt: true, leadId: true, valueFils: true },
+        }),
+        ctx.db.lead.groupBy({ by: ["status"], where: live, _sum: { budgetMaxFils: true }, _count: { _all: true } }),
+        ctx.db.commission.groupBy({ by: ["status"], where: { status: { in: ["FORECAST", "INVOICED"] } }, _sum: { netFils: true }, _count: { _all: true } }),
+        ctx.db.lead.groupBy({
+          by: ["assignedToId"],
+          where: {
+            ...live, assignedToId: { not: null },
+            OR: [
+              { conversation: { is: { lastInboundAt: { lt: new Date(Date.now() - 14 * 86_400_000) } } } },
+              { conversation: { is: null } },
+            ],
+          },
+          _count: { _all: true },
+        }),
+        ctx.db.membership.findMany({ select: { user: { select: { id: true, name: true, email: true } } } }),
+      ]);
+
+      const won = new Map(bySourceWon.map((r) => [r.source, r._count._all]));
+      const bySource = bySourceAll
+        .map((r) => ({ source: r.source, leads: r._count._all, won: won.get(r.source) ?? 0 }))
+        .map((r) => ({ ...r, rate: r.leads ? r.won / r.leads : 0 }))
+        .sort((a, b) => b.leads - a.leads);
+
+      // Days from first contact to completion, per completed deal.
+      const leadIds = closed.map((d) => d.leadId!);
+      const born = leadIds.length
+        ? new Map((await ctx.db.lead.findMany({ where: { id: { in: leadIds } }, select: { id: true, createdAt: true } })).map((l) => [l.id, l.createdAt]))
+        : new Map<string, Date>();
+      const days = closed
+        .map((d) => born.get(d.leadId!) && d.completedAt ? (d.completedAt.getTime() - born.get(d.leadId!)!.getTime()) / 86_400_000 : null)
+        .filter((x): x is number => x !== null)
+        .sort((a, b) => a - b);
+      const median = days.length ? days[Math.floor((days.length - 1) / 2)]! : null;
+
+      const weighted = pipeline.reduce((sum, g) => {
+        const w = STAGE_WEIGHT[g.status] ?? 0;
+        const v = g._sum.budgetMaxFils ?? 0n;
+        return sum + (v * BigInt(Math.round(w * 1000))) / 1000n;
+      }, 0n);
+      const unweighted = pipeline.reduce((sum, g) => sum + (g._sum.budgetMaxFils ?? 0n), 0n);
+
+      const names = new Map(members.map((m) => [m.user.id, m.user.name ?? m.user.email]));
+      return {
+        bySource,
+        timeToClose: { medianDays: median === null ? null : Math.round(median), deals: days.length },
+        pipeline: {
+          weightedFils: weighted, unweightedFils: unweighted,
+          byStage: pipeline.map((g) => ({ status: g.status, leads: g._count._all, fils: g._sum.budgetMaxFils ?? 0n, weight: STAGE_WEIGHT[g.status] ?? 0 })),
+        },
+        commission: {
+          forecastFils: commission.find((c) => c.status === "FORECAST")?._sum.netFils ?? 0n,
+          invoicedFils: commission.find((c) => c.status === "INVOICED")?._sum.netFils ?? 0n,
+        },
+        coldByAgent: cold
+          .map((c) => ({ agentId: c.assignedToId!, name: names.get(c.assignedToId!) ?? "Somebody who left", leads: c._count._all }))
+          .sort((a, b) => b.leads - a.leads),
+      };
+    }),
+
   /**
    * The board, as the person asking is allowed to see it.
    *

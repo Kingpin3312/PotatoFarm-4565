@@ -19,17 +19,39 @@ export const blackbookRouter = router({
   /** My people, most recently touched first. */
   mine: requirePermission("lead:read:own")
     .input(z.object({ q: z.string().trim().max(80).optional(),
-                      tag: z.string().trim().max(40).optional() }).optional())
+                      tag: z.string().trim().max(40).optional(),
+                      cursor: z.string().nullish(),
+                      limit: z.number().int().min(1).max(200).default(100) }).optional())
     .query(async ({ ctx, input }) => {
-      const rows = await ctx.db.blackbookEntry.findMany({
+      /**
+       * Paged, and searchable.
+       *
+       * It stopped at 300 with nothing saying so — an agent's 301st
+       * contact simply was not in their book (the audit's D1) — and the
+       * `q` it accepted was never read.
+       */
+      const q = input?.q;
+      const where = {
         // Scoped to the caller, always. Not a filter a future edit can
         // drop — see the audit invariant.
-        where: {
-          agentId: ctx.userId,
-          ...(input?.tag ? { tags: { has: input.tag } } : {}),
-        },
-        orderBy: [{ starred: "desc" }, { lastTouched: "desc" }],
-        take: 300,
+        agentId: ctx.userId,
+        ...(input?.tag ? { tags: { has: input.tag } } : {}),
+        ...(q ? { OR: [
+          { nickname: { contains: q, mode: "insensitive" as const } },
+          { standaloneName: { contains: q, mode: "insensitive" as const } },
+          { standaloneEmail: { contains: q, mode: "insensitive" as const } },
+          { standalonePhone: { contains: q.replace(/[^\d+]/g, "") || q } },
+          { privateNote: { contains: q, mode: "insensitive" as const } },
+        ] } : {}),
+      };
+      const limit = input?.limit ?? 100;
+      const [rows, total] = await Promise.all([ctx.db.blackbookEntry.findMany({
+        where,
+        orderBy: [{ starred: "desc" }, { lastTouched: "desc" }, { id: "desc" }],
+        take: limit + 1,
+        // The cursor is the first row of the next page (the one popped below),
+        // so no skip — skipping it lost a contact at every page boundary.
+        ...(input?.cursor ? { cursor: { id: input.cursor } } : {}),
         select: {
           id: true, nickname: true, tags: true, starred: true, lastTouched: true,
           standaloneName: true, standalonePhone: true, standaloneEmail: true,
@@ -45,8 +67,9 @@ export const blackbookRouter = router({
            */
           privateNote: true,
         },
-      });
-      return rows;
+      }), ctx.db.blackbookEntry.count({ where })]);
+      const nextCursor = rows.length > limit ? rows.pop()!.id : null;
+      return { rows, nextCursor, total };
     }),
 
   /** One person, everything said to them, newest first. */

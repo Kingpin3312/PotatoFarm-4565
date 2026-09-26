@@ -158,7 +158,9 @@ async function request(method: string, key: string, init?: RequestInit) {
   return fetch(`${c.scheme}://${c.host}${path}`, {
     ...init,
     method,
-    headers: authHeaders({ creds: c.creds, method, host: c.host, path }),
+    // Extra headers (a Range) ride unsigned beside the signed ones, which
+    // S3 and R2 both allow for headers not named in SignedHeaders.
+    headers: { ...(init?.headers as Record<string, string> | undefined), ...authHeaders({ creds: c.creds, method, host: c.host, path }) },
     // A storage call that hangs must not hold a serverless function open
     // until the platform kills it — the caller gets an answer either way.
     signal: AbortSignal.timeout(30_000),
@@ -178,6 +180,25 @@ export async function readObject(key: string): Promise<Uint8Array> {
   const res = await request("GET", key);
   if (!res.ok) throw new Error(`Storage GET ${key}: ${res.status}`);
   return new Uint8Array(await res.arrayBuffer());
+}
+
+/**
+ * The first few bytes, and the object's real size.
+ *
+ * For checking what a file is without downloading a 100MB PDF to read
+ * four bytes of it. A ranged GET; a store that ignores the range simply
+ * sends everything and this still returns the head.
+ */
+export async function readObjectHead(key: string, bytes = 16): Promise<{ head: Uint8Array; size: number | null }> {
+  const res = await request("GET", key, { headers: { range: `bytes=0-${bytes - 1}` } });
+  if (!res.ok) throw new Error(`Storage GET ${key}: ${res.status}`);
+  const all = new Uint8Array(await res.arrayBuffer());
+  // 206: the total is after the slash in Content-Range. 200: the store
+  // ignored the range and sent the whole object, so its length is the
+  // size. Never a missing header read as a number — `Number(null)` is 0,
+  // which would call every real upload the wrong size.
+  const total = res.status === 206 ? Number(res.headers.get("content-range")?.split("/")[1]) : all.length;
+  return { head: all.slice(0, bytes), size: Number.isFinite(total) && total > 0 ? total : null };
 }
 
 /** Called when an attachment is deleted, so the object goes too. */

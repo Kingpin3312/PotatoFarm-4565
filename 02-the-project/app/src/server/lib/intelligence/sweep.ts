@@ -1,4 +1,5 @@
 import { crossTenant } from "@/server/db/client";
+import type { Prisma } from "@prisma/client";
 import { log } from "@/lib/log";
 import { messagingWindow } from "@/server/lib/whatsapp";
 import { best, type Candidate } from "@/server/lib/matching/score";
@@ -22,6 +23,18 @@ import { isAutomatic, levelFor } from "./autonomy";
 
 /** Leads untouched for longer than this are not worth the cycles. */
 const HORIZON_DAYS = 180;
+
+/**
+ * Leads per page.
+ *
+ * The sweep used to take the first 5,000 leads and 500 listings and stop,
+ * silently: the 5,001st lead was never scored and the 501st listing was
+ * never offered to anybody — the audit's B9. It now pages through every
+ * lead, and everything it used to ask one lead at a time (last week's
+ * score, a recent dismissal, an open follow-up) is fetched once per page
+ * or once per brokerage.
+ */
+const PAGE = 1_000;
 
 export async function sweepIntelligence() {
   const db = crossTenant("sweep");
@@ -70,20 +83,7 @@ export async function sweepIntelligence() {
      * Matching every lead against inventory is the expensive part of
      * this sweep, and the inventory does not change between leads.
      */
-    const listingRows = await db.listing.findMany({
-      where: { orgId: org.id, status: { in: ["AVAILABLE", "UNDER_OFFER"] }, deletedAt: null },
-      orderBy: { createdAt: "desc" },
-      take: 500,
-      select: {
-        id: true, reference: true, title: true, priceFils: true,
-        bedrooms: true, community: true, purpose: true, createdAt: true,
-      },
-    });
-    const candidates: Candidate[] = listingRows.map((l) => ({
-      id: l.id, reference: l.reference, title: l.title, priceFils: l.priceFils,
-      bedrooms: l.bedrooms, community: l.community,
-      purpose: l.purpose as "SALE" | "RENT", listedAt: l.createdAt,
-    }));
+    const { byPurpose } = await liveBook(db, org.id);
 
     /**
      * Offers still in play, in one query rather than a relation.
@@ -149,43 +149,87 @@ export async function sweepIntelligence() {
      */
     const mayExecute = settings?.enabled === true;
 
-    const leads = await db.lead.findMany({
-      where: {
-        orgId: org.id,
-        deletedAt: null,
-        status: { notIn: ["WON", "LOST"] },
-        OR: [{ updatedAt: { gte: horizon } }, { createdAt: { gte: horizon } }],
-      },
-      select: {
-        id: true, name: true, status: true, intent: true, timeframe: true,
-        budgetMaxFils: true, createdAt: true, stageEnteredAt: true,
-        optedOutOfOutreach: true, assignedToId: true, lastOutreachAt: true,
-        conversation: {
-          select: {
-            lastInboundAt: true, lastOutboundAt: true,
-            _count: { select: { messages: true } },
-          },
-        },
-        requirements: {
-          where: { active: true },
-          select: {
-            id: true, budgetMinFils: true, budgetMaxFils: true,
-            bedroomsMin: true, communities: true, intent: true, purpose: true,
-          },
-        },
-        viewings: {
-          select: { id: true, scheduledAt: true, status: true, outcome: true },
-        },
-      },
-      take: 5_000,
-    });
-
     // Who is on a plan already, and whether there is one to offer — once
     // per brokerage, not per lead.
     const onPlan = new Set((await db.planSubscription.findMany({
       where: { orgId: org.id, state: { in: ["RUNNING", "PAUSED"] } }, select: { leadId: true },
     })).map((p) => p.leadId));
     const planAvailable = (await db.taskPlan.count({ where: { orgId: org.id, active: true, steps: { some: {} } } })) > 0;
+
+
+    /**
+     * Once per brokerage, not once per lead: the dismissals still being
+     * respected, and who already has a follow-up open.
+     */
+    const dismissedSince = new Date(now.getTime() - 14 * 86_400_000);
+    const dismissedKeys = new Set((await db.recommendation.findMany({
+      where: { orgId: org.id, state: "DISMISSED", leadId: { not: null }, resolvedAt: { gte: dismissedSince } },
+      select: { leadId: true, action: true },
+    })).map((r) => `${r.leadId}:${r.action}`));
+    const hasOpenFollowUp = new Set((await db.followUp.findMany({
+      where: { orgId: org.id, completedAt: null, leadId: { not: null } },
+      select: { leadId: true },
+    })).map((f) => f.leadId!));
+
+    let cursor: string | undefined;
+    for (;;) {
+      const leads = await db.lead.findMany({
+        where: {
+          orgId: org.id,
+          deletedAt: null,
+          status: { notIn: ["WON", "LOST"] },
+          OR: [{ updatedAt: { gte: horizon } }, { createdAt: { gte: horizon } }],
+        },
+        select: {
+          id: true, name: true, status: true, intent: true, timeframe: true,
+          budgetMaxFils: true, createdAt: true, stageEnteredAt: true,
+          optedOutOfOutreach: true, assignedToId: true, lastOutreachAt: true,
+          conversation: {
+            select: {
+              lastInboundAt: true, lastOutboundAt: true,
+              _count: { select: { messages: true } },
+            },
+          },
+          requirements: {
+            where: { active: true },
+            select: {
+              id: true, budgetMinFils: true, budgetMaxFils: true,
+              bedroomsMin: true, communities: true, intent: true, propertyTypes: true, completion: true, purpose: true,
+            },
+          },
+          viewings: {
+            select: { id: true, scheduledAt: true, status: true, outcome: true },
+          },
+        },
+        orderBy: { id: "asc" },
+        take: PAGE,
+        ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+      });
+
+      if (!leads.length) break;
+      cursor = leads[leads.length - 1]!.id;
+
+      /**
+       * Last week's score for everybody on the page, in one query.
+       *
+       * `DISTINCT ON` takes the newest event at least six days old per
+       * lead, which is what "warming — up 12 points this week" compares
+       * with. Bounded below at sixty days so the read stays on the index
+       * rather than walking a year of nightly history per lead.
+       */
+      const weekAgo = new Date(now.getTime() - 6 * 86_400_000);
+      const floor = new Date(now.getTime() - 60 * 86_400_000);
+      const prevRows = await db.$queryRaw<{ leadId: string; score: number }[]>`
+        SELECT DISTINCT ON ("leadId") "leadId", score FROM "LeadScoreEvent"
+         WHERE "orgId" = ${org.id} AND "leadId" = ANY(${leads.map((l) => l.id)})
+           AND "computedAt" <= ${weekAgo} AND "computedAt" >= ${floor}
+         ORDER BY "leadId", "computedAt" DESC`;
+      const prevScore = new Map(prevRows.map((r) => [r.leadId, r.score]));
+
+      const scoreWrites: Prisma.PrismaPromise<unknown>[] = [];
+      const events: Prisma.LeadScoreEventCreateManyInput[] = [];
+      const nothingToDo: string[] = [];
+      const todo: { lead: (typeof leads)[number]; suggestion: NonNullable<ReturnType<typeof nextAction>> }[] = [];
 
     for (const lead of leads) {
       const conv = lead.conversation;
@@ -247,26 +291,17 @@ export async function sweepIntelligence() {
        * points this week" possible at all. A single `Lead.score` column
        * cannot answer it, which is why `LeadScoreEvent` exists.
        */
-      const prev = await db.leadScoreEvent.findFirst({
-        where: { orgId: org.id, leadId: lead.id,
-                 computedAt: { lte: new Date(now.getTime() - 6 * 86_400_000) } },
-        orderBy: { computedAt: "desc" },
-        select: { score: true },
-      });
-      const moved = movement(score.total, prev?.score ?? null);
+      const moved = movement(score.total, prevScore.get(lead.id) ?? null);
       if (moved) score.drivers.unshift(moved);
 
-      await db.$transaction([
-        db.lead.update({ where: { id: lead.id }, data: { score: score.total } }),
-        db.leadScoreEvent.create({
-          data: {
-            orgId: org.id, leadId: lead.id, score: score.total,
-            recency: score.recency, engagement: score.engagement,
-            intent: score.intent, budgetFit: score.budgetFit,
-            drivers: score.drivers, computedAt: now,
-          },
-        }),
-      ]);
+      // Written with the rest of the page, in one batch, below.
+      scoreWrites.push(db.lead.update({ where: { id: lead.id }, data: { score: score.total } }));
+      events.push({
+        orgId: org.id, leadId: lead.id, score: score.total,
+        recency: score.recency, engagement: score.engagement,
+        intent: score.intent, budgetFit: score.budgetFit,
+        drivers: score.drivers, computedAt: now,
+      });
       scored += 1;
 
       /**
@@ -317,8 +352,10 @@ export async function sweepIntelligence() {
               intent: r.intent === "RENT" ? "RENT"
                     : r.intent === "BUY_TO_INVEST" ? "BUY_TO_INVEST"
                     : r.intent === "BUY_TO_LIVE" ? "BUY_TO_LIVE" : null,
+              propertyTypes: r.propertyTypes,
+              completion: r.completion,
             },
-            candidates.filter((c) => c.purpose === r.purpose)
+            byPurpose[r.purpose === "RENT" ? "RENT" : "SALE"]
           );
           if (found) matchesWaiting += 1;
         }
@@ -360,13 +397,23 @@ export async function sweepIntelligence() {
          * morning after James called — the single fastest way to teach
          * an agent to stop reading the list.
          */
+        nothingToDo.push(lead.id);
+        continue;
+      }
+      todo.push({ lead, suggestion });
+      }
+
+      await db.$transaction([...scoreWrites, db.leadScoreEvent.createMany({ data: events })]);
+      if (nothingToDo.length) {
         const { count } = await db.recommendation.updateMany({
-          where: { orgId: org.id, leadId: lead.id, state: "OPEN" },
+          where: { orgId: org.id, leadId: { in: nothingToDo }, state: "OPEN" },
           data: { state: "STALE", resolvedAt: now },
         });
         stale += count;
-        continue;
       }
+
+      for (const { lead, suggestion } of todo) {
+      if (!lead.assignedToId) continue;
 
       /**
        * Upsert on the unique key, so a lead accumulates one live
@@ -377,15 +424,7 @@ export async function sweepIntelligence() {
        * training signal the model does not have, and overriding it is
        * how a suggestion becomes a nag.
        */
-      const dismissed = await db.recommendation.findFirst({
-        where: {
-          orgId: org.id, leadId: lead.id, action: suggestion.action,
-          state: "DISMISSED",
-          resolvedAt: { gte: new Date(now.getTime() - 14 * 86_400_000) },
-        },
-        select: { id: true },
-      });
-      if (dismissed) continue;
+      if (dismissedKeys.has(`${lead.id}:${suggestion.action}`)) continue;
 
       const level = levelFor(mode, suggestion.action);
 
@@ -424,13 +463,10 @@ export async function sweepIntelligence() {
        * autonomy.ts.
        */
       if (mayExecute && isAutomatic(level)) {
-        const already = await db.followUp.findFirst({
-          where: { orgId: org.id, leadId: lead.id, completedAt: null },
-          select: { id: true },
-        });
         // Not a second reminder for a lead that already has one open.
         // An assistant that stacks tasks is one an agent switches off.
-        if (!already) {
+        if (!hasOpenFollowUp.has(lead.id)) {
+          hasOpenFollowUp.add(lead.id);
           const created = await db.followUp.create({
             data: {
               orgId: org.id, agentId: lead.assignedToId, leadId: lead.id,
@@ -468,6 +504,8 @@ export async function sweepIntelligence() {
         data: { state: "STALE", resolvedAt: now },
       });
       stale += count;
+      }
+      if (leads.length < PAGE) break;
     }
   }
 
@@ -613,4 +651,36 @@ export async function sweepIntelligence() {
 
   log.info("intelligence sweep", {}, { orgs: orgs.length, scored, recommended, stale, executed });
   return { orgs: orgs.length, scored, recommended, stale, executed };
+}
+
+/**
+ * Every property a buyer could be offered: available or under offer.
+ *
+ * All of it. The sweep took the newest 500 and matched against those
+ * alone, so in a brokerage with more stock the older listings — often
+ * the ones most in need of a buyer — were never offered to anybody.
+ */
+export async function liveBook(db: ReturnType<typeof crossTenant>, orgId: string) {
+  const listingRows = await db.listing.findMany({
+    where: { orgId: orgId, status: { in: ["AVAILABLE", "UNDER_OFFER"] }, deletedAt: null },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true, reference: true, title: true, priceFils: true,
+      bedrooms: true, community: true, purpose: true, createdAt: true,
+      propertyType: true, completion: true,
+    },
+  });
+  const candidates: Candidate[] = listingRows.map((l) => ({
+    id: l.id, reference: l.reference, title: l.title, priceFils: l.priceFils,
+    bedrooms: l.bedrooms, community: l.community,
+    purpose: l.purpose as "SALE" | "RENT", listedAt: l.createdAt,
+    propertyType: l.propertyType, completion: l.completion,
+  }));
+  // Split once, not filtered again for every requirement of every lead.
+  const byPurpose = {
+    SALE: candidates.filter((c) => c.purpose === "SALE"),
+    RENT: candidates.filter((c) => c.purpose === "RENT"),
+  };
+
+  return { candidates, byPurpose };
 }

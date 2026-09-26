@@ -30,6 +30,8 @@ import { plansRouter } from "./routers/plans";
 import { requirementsRouter } from "./routers/requirements";
 import { viewsRouter } from "./routers/views";
 import { importsRouter } from "./routers/imports";
+import { tenanciesRouter } from "./routers/tenancies";
+import { tasksRouter } from "./routers/tasks";
 
 /**
  * The API surface.
@@ -90,6 +92,10 @@ export const appRouter = router({
   // Leads in from a spreadsheet. The migration router records what is
   // wrong with an export; this one brings the rows in.
   imports: importsRouter,
+  // Leases on rentals, so the renewal comes round before the notice line.
+  tenancies: tenanciesRouter,
+  // Tasks a person writes, and hands to a colleague.
+  tasks: tasksRouter,
 
   privacy: privacyRouter,
   support: supportRouter,

@@ -5,6 +5,7 @@ import { api } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { QueryError } from "@/components/ui/query-state";
 import { Bars, Funnel } from "@/components/ui/chart";
+import { Kpis } from "./kpis";
 
 /**
  * The baseline, and the proof.
@@ -119,6 +120,8 @@ export default function Reports() {
         }))}
         empty="No enquiries have arrived through a connected channel yet."
       />
+
+      <Kpis />
     </div>
   );
 }

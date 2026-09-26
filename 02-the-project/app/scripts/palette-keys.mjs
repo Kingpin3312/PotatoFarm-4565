@@ -113,6 +113,16 @@ await p.waitForTimeout(1500);
 ok("Enter opens the person", !(await isOpen()) && (await p.evaluate(()=>location.pathname)) !== "/pipeline",
    await p.evaluate(()=>location.pathname));
 
+console.log("\n=== it says what it understood (the audit's D10) ===");
+await p.keyboard.press("Control+k");
+await p.waitForTimeout(400);
+await p.keyboard.type("2 bed in dubai marina under 3m");
+await p.waitForSelector("[data-reading]", { timeout: 15000 }).catch(()=>{});
+const reading = await p.evaluate(()=>document.querySelector("[data-reading]")?.textContent ?? "");
+ok("the reading is shown under the box", /read as/i.test(reading) && /marina/i.test(reading) && /2/.test(reading), reading || "nothing");
+await p.keyboard.press("Escape");
+await p.waitForTimeout(300);
+
 console.log("\n=== the shortcut is discoverable ===");
 /**
  * The reason this is asserted rather than eyeballed: the app had no

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "@/lib/trpc";
 import { QueryError } from "@/components/ui/query-state";
 import { cn } from "@/lib/cn";
@@ -22,11 +22,16 @@ import { ExportBlackbook } from "./export";
 export default function Blackbook() {
   const [adding, setAdding] = useState(false);
   const [tag, setTag] = useState<string | undefined>();
-  const { data, isLoading, isError, refetch, error } = api.blackbook.mine.useQuery({ tag });
+  const [typed, setTyped] = useState("");
+  const [q, setQ] = useState<string | undefined>();
+  useEffect(() => { const t = setTimeout(() => setQ(typed.trim() || undefined), 300); return () => clearTimeout(t); }, [typed]);
+  const { data, isLoading, isError, refetch, error, fetchNextPage, hasNextPage, isFetchingNextPage } =
+    api.blackbook.mine.useInfiniteQuery({ tag, q }, { getNextPageParam: (p) => p.nextCursor ?? undefined, placeholderData: (prev) => prev });
 
   if (isError) return <QueryError retry={() => void refetch()} what="your blackbook" error={error} />;
 
-  const rows = data ?? [];
+  const rows = data?.pages.flatMap((p) => p.rows) ?? [];
+  const total = data?.pages[0]?.total ?? rows.length;
   const tags = [...new Set(rows.flatMap((r) => r.tags))].sort();
 
   return (
@@ -36,7 +41,7 @@ export default function Blackbook() {
           Yours
         </span>
         <h1 className="font-sans font-semibold text-page text-ink tabular">
-          {rows.length} {rows.length === 1 ? "person" : "people"}
+          {total.toLocaleString()} {total === 1 ? "person" : "people"}
         </h1>
         <p className="text-sm text-ink-2 mt-3 max-w-[48ch]">
           Your notes and tags. No manager sees this page, and it exports with you if you
@@ -64,6 +69,12 @@ export default function Blackbook() {
           <AddToBlackbook onDone={() => { setAdding(false); void refetch(); }} />
         </div>
       )}
+
+      <label className="flex flex-col gap-1 mb-5">
+        <span className="t-label text-ink-3">Find somebody</span>
+        <input value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="Name, number, or something in your note"
+          className="min-h-11 px-3 text-control bg-ground border border-rule rounded-[3px] text-ink outline-none focus:border-ink" />
+      </label>
 
       {tags.length > 0 && (
         <div className="flex gap-2 flex-wrap mb-6">
@@ -160,6 +171,14 @@ export default function Blackbook() {
           button behind it. Last on the page deliberately: it is the
           thing an agent does once, not the thing they came for. */}
       <ExportBlackbook />
+      {hasNextPage && (
+        <div className="pt-5 flex items-center gap-4">
+          <span className="text-sm text-ink-3 tabular">Showing {rows.length.toLocaleString()} of {total.toLocaleString()}</span>
+          <button type="button" className="btn-inline min-h-11" disabled={isFetchingNextPage} onClick={() => void fetchNextPage()}>
+            {isFetchingNextPage ? "Loading…" : "Show more"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -158,7 +158,7 @@ export async function accept(args: {
 
     const listing = await tx.listing.findUniqueOrThrow({
       where: { id: offer.listingId },
-      select: { reference: true, purpose: true },
+      select: { reference: true, purpose: true, completion: true },
     });
 
     const deal = await tx.deal.create({
@@ -171,7 +171,10 @@ export async function accept(args: {
         reference: listing.reference,
         // DealType is SALE | RENTAL | OFF_PLAN. "LETTING" is the word
         // the UK-English copy uses and is not a value of the enum.
-        type: listing.purpose === "RENT" ? "RENTAL" : "SALE",
+        // Off-plan is its own deal type — an SPA with the developer and
+        // an Oqood registration rather than a transfer at the DLD — and
+        // listings could not say they were off-plan until recently.
+        type: listing.purpose === "RENT" ? "RENTAL" : listing.completion === "OFF_PLAN" ? "OFF_PLAN" : "SALE",
         valueFils: agreedFils,
         stage: "AGREED",
         financing: offer.financing,
