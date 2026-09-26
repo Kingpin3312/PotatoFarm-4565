@@ -38,6 +38,8 @@ const root = crossTenant("sweep");
 const SLUG = "journeys-check-";
 const RUN = Date.now().toString(36);
 const n7 = String(Date.now()).slice(-7);
+// Money is BigInt fils; JSON.stringify throws on it.
+const json = (v: unknown) => JSON.stringify(v, (_k, x) => (typeof x === "bigint" ? x.toString() : x));
 let bad = 0;
 const ok = (l: string, p: boolean, d = "") => { console.log(`  ${p ? "✓" : "✗"} ${l}${d ? "  — " + d : ""}`); if (!p) bad++; };
 
@@ -100,7 +102,7 @@ async function main() {
   await R.save({ leadId: lead.id, purpose: "SALE", intent: "BUY_TO_LIVE", budgetMinAed: null, budgetMaxAed: 3_000_000, bedroomsMin: 2,
                  communities: ["marina"], preferences: [], propertyTypes: ["APARTMENT"], completion: null });
   const matched = await L.buyers({ listingId: flat.id });
-  ok("matched: the flat finds her", JSON.stringify(matched).includes("Priya Nair"), JSON.stringify(matched).slice(0, 120));
+  ok("matched: the flat finds her", json(matched).includes("Priya Nair"), json(matched).slice(0, 120));
   const T = as(tasksRouter, agent.id, "AGENT");
   const due = new Date(Date.now() + 2 * 3_600_000).toISOString();
   await T.create({ title: "Send Priya the Marina Gate floor plan", dueAt: due, leadId: lead.id });
@@ -159,7 +161,7 @@ async function main() {
   await T.complete({ id: mine.rows[0]!.id });
   ok("and ticking one off takes it off Today", (await as(todayRouter, agent.id, "AGENT").followUps()).length === 1);
   const found = await as(searchRouter, agent.id, "AGENT").ask({ q: `050 ${n7.slice(0, 3)} ${n7.slice(3)}` });
-  ok("search finds her by the number she rang from", JSON.stringify(found).includes("Priya Nair"));
+  ok("search finds her by the number she rang from", json(found).includes("Priya Nair"));
 
   console.log("\n=== 4. A manager ===");
   const second = await M.create({ phone: `+97155${n7}`, name: "Omar Haddad", source: "REFERRAL" });

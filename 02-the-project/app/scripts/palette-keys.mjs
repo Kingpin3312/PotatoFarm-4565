@@ -55,7 +55,7 @@ ok("ArrowUp moves it back", (await activeId()) === first);
 
 console.log("\n=== typing filters, and the count is announced ===");
 await p.keyboard.type("pipe");
-await p.waitForTimeout(500);
+await p.waitForFunction(()=>[...document.querySelectorAll('[role="status"]')].some(n=>/result/i.test(n.textContent||"")), null, {timeout:10000}).catch(()=>{});
 const labels = await p.evaluate(()=>[...document.querySelectorAll('[role="option"]')].map(o=>o.textContent?.trim()));
 ok("filters to the matching screen", labels.some(l=>/pipeline/i.test(l||"")), labels.slice(0,3).join(" | "));
 ok("the result count is in a live region",
@@ -63,7 +63,9 @@ ok("the result count is in a live region",
 
 console.log("\n=== Enter navigates ===");
 await p.keyboard.press("Enter");
-await p.waitForTimeout(1200);
+// Wait for the address, not a guessed interval: the first visit to a
+// screen on a dev server compiles it, and 1.2s failed under load.
+await p.waitForURL(/\/pipeline$/, { timeout: 20000 }).catch(() => {});
 ok("the dialog closed", !(await isOpen()));
 ok("and the browser went there", (await p.evaluate(()=>location.pathname)) === "/pipeline",
    await p.evaluate(()=>location.pathname));
@@ -154,13 +156,19 @@ if (hasBtn) {
 }
 
 console.log("\n=== it fires from inside a text field ===");
-await p.goto("http://localhost:3000/search",{waitUntil:"domcontentloaded"});
-await p.waitForTimeout(1200);
+await p.goto("http://localhost:3000/search",{waitUntil:"load"});
 const box = p.locator('input[type=search], input[type=text]').first();
+await box.waitFor({ timeout: 20000 }).catch(() => {});
+await p.waitForTimeout(1200);
 await box.click();
 await box.type("abc");
-await p.keyboard.press("Control+k");
-await p.waitForTimeout(400);
+// A screen compiled on first visit can still be hydrating; the shortcut
+// is only listened for once it has. Asked up to three times, never more
+// once it is open, so this measures the listener rather than a race.
+for (let i = 0; i < 3 && !(await isOpen()); i++) {
+  await p.keyboard.press("Control+k");
+  await p.waitForTimeout(700);
+}
 ok("opens even while typing in a field", await isOpen());
 ok("and did not leave a stray k in the field",
    !(await box.inputValue()).includes("k"), await box.inputValue());
