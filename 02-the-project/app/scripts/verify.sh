@@ -276,6 +276,9 @@ else
   # but not the code reaches no API and no screen, and the session
   # endpoint never hands a script the token.
   step "check:two-step" npm run --silent check:two-step
+  # A mailbox connects over the real routes against loopback providers,
+  # syncs only mail with known people, refreshes, and stays its owner's.
+  step "check:email-connect" npm run --silent check:email-connect
   # What the brokerage earned, against the ledger it came from.
   #
   # Needs the application rather than just Postgres, deliberately: read

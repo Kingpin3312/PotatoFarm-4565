@@ -263,6 +263,16 @@ jobs:
       # than falling back to Graph, so a typo here fails loudly instead
       # of quietly sending a customer's Page token somewhere else.
       META_GRAPH_BASE: http://127.0.0.1:4319
+      # Mailbox connection: stand-ins for Google and Microsoft on 4335 and
+      # 4336, set on the job for the same reason as the line above — the
+      # application has to call them, not just the check. Any client id
+      # and secret work; the stand-ins check that both ends agree.
+      GOOGLE_CLIENT_ID: check-google-client
+      GOOGLE_CLIENT_SECRET: check-google-secret
+      MICROSOFT_CLIENT_ID: check-microsoft-client
+      MICROSOFT_CLIENT_SECRET: check-microsoft-secret
+      GOOGLE_OAUTH_BASE: http://127.0.0.1:4335
+      MICROSOFT_OAUTH_BASE: http://127.0.0.1:4336
       # The Speak button needs a transcription provider before any of
       # its route is reachable: `transcriptionConfigured()` is checked
       # ahead of the rate limit and every validation, so without these
@@ -402,6 +412,11 @@ jobs:
       # matters is the one a real cookie meets.
       - name: Two-step sign-in holds
         run: npm run check:two-step
+
+      # A mailbox connects, syncs only mail with known people, refreshes
+      # its token and cannot be attached to somebody else's account.
+      - name: A mailbox connects and syncs
+        run: npm run check:email-connect
 
       # The inbound path for the lead source the brokerage pays for by
       # the click, and the one whose failure cannot be replayed: Meta

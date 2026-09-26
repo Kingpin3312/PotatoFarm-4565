@@ -1,5 +1,6 @@
 import { forOrg, crossTenant } from "@/server/db/client";
-import { readSecret } from "@/server/lib/secrets";
+import { fetchSecret, writeSecret } from "@/server/lib/secrets/vault";
+import { fetchNew, refresh, TokenError, type Provider, type Tokens } from "./providers";
 import { log } from "@/lib/log";
 
 /**
@@ -60,22 +61,45 @@ export async function syncAccount(accountId: string) {
   for (const l of leads) known.set(l.email!.toLowerCase(), { leadId: l.id });
   for (const v of vendors) known.set(v.email!.toLowerCase(), { vendorId: v.id });
 
-  let token: string;
-  try {
-    token = await readSecret(acct.secretRef);
-  } catch {
+  /**
+   * A live access token, refreshed when it is within a minute of
+   * expiring. What is stored is the refresh token and the current access
+   * token together, sealed; Microsoft rotates the refresh token on use,
+   * so a refresh writes the pair back.
+   */
+  const disconnected = async (why: string) => {
     // A dead token is silent — mail simply stops arriving and nobody
-    // notices for a week. Recorded on the account so health picks it up.
+    // notices for a week. Recorded on the account so health and the
+    // settings screen say so.
     await crossTenant("sweep").emailAccount.update({
       where: { id: acct.id },
-      data: { lastError: "Mailbox disconnected. Reconnect it in Settings — "
-                       + "email has not synced since this was recorded." },
+      data: { lastError: `Mailbox disconnected (${why}). Reconnect it in Settings → Email — mail has not synced since this was recorded.` },
     });
-    return { synced: 0, skipped: "no token" };
+    return { synced: 0, skipped: "no token" as const };
+  };
+  const stored = await fetchSecret(acct.secretRef);
+  if (!stored) return disconnected("no token stored");
+  let tokens: Tokens;
+  try { tokens = JSON.parse(stored) as Tokens; } catch { return disconnected("unreadable token"); }
+  const provider = acct.provider as Provider;
+  if (tokens.expiresAt < Date.now() + 60_000) {
+    try {
+      tokens = await refresh(provider, tokens);
+      await writeSecret({ orgId: acct.orgId, ref: acct.secretRef, value: JSON.stringify(tokens) });
+    } catch (e) {
+      if (e instanceof TokenError) return disconnected(e.code);
+      throw e;
+    }
   }
 
-  const page = await fetchDelta(acct.provider, token, acct.cursor);
-  let stored = 0;
+  let page;
+  try {
+    page = await fetchNew(provider, tokens.accessToken, acct.cursor);
+  } catch (e) {
+    if (e instanceof TokenError) return disconnected(e.code);
+    throw e;
+  }
+  let saved = 0;
 
   for (const m of page.messages) {
     const participants = [m.from, ...m.to].map((a) => a.toLowerCase());
@@ -102,11 +126,14 @@ export async function syncAccount(accountId: string) {
           webLink: m.webLink,
         },
       });
-      stored += 1;
-    } catch {
+      saved += 1;
+    } catch (e) {
       // Already have it. The unique constraint on (account, externalId)
       // is what makes a resync idempotent — re-running a sync must never
-      // duplicate a timeline.
+      // duplicate a timeline. Only that: any other failure is a real one,
+      // and swallowing it as "already have it" hid it (found proving
+      // check:email-connect red).
+      if ((e as { code?: string }).code !== "P2002") throw e;
     }
   }
 
@@ -116,117 +143,26 @@ export async function syncAccount(accountId: string) {
   });
 
   log.info("email synced", { orgId: acct.orgId },
-           { account: acct.address, seen: page.messages.length, stored });
-  return { synced: stored, seen: page.messages.length };
-}
-
-type Raw = {
-  id: string; threadId: string; from: string; to: string[];
-  subject?: string; snippet?: string; sentAt: Date; webLink?: string;
-};
-
-/**
- * The provider call.
- *
- * Both Google and Microsoft give a delta cursor, which is the only
- * sane way to do this — without one, every sync walks the whole mailbox
- * and the tenth sync costs the same as the first.
- */
-async function fetchDelta(
-  provider: "GOOGLE" | "MICROSOFT", token: string, cursor: string | null
-): Promise<{ messages: Raw[]; cursor: string }> {
-  const base = provider === "GOOGLE"
-    ? "https://gmail.googleapis.com/gmail/v1/users/me"
-    : "https://graph.microsoft.com/v1.0/me/messages";
-
-  const url = provider === "GOOGLE"
-    ? `${base}/history?startHistoryId=${cursor ?? ""}`
-    : cursor ?? `${base}/delta?$select=subject,from,toRecipients,bodyPreview,sentDateTime,webLink`;
-
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${token}` },
-    signal: AbortSignal.timeout(20_000),
-  });
-  if (!res.ok) throw new Error(`${provider} ${res.status}`);
-  return normalise(provider, await res.json());
-}
-
-function normalise(provider: string, body: unknown): { messages: Raw[]; cursor: string } {
-  // Shapes differ enough between the two that this is where the
-  // difference is absorbed, once, rather than leaking into the caller.
-  const b = body as Record<string, unknown>;
-  if (provider === "MICROSOFT") {
-    const items = (b.value ?? []) as Record<string, never>[];
-    return {
-      messages: items.map((m: Record<string, never>) => ({
-        id: String(m.id), threadId: String(m.conversationId ?? m.id),
-        from: String((m.from as never as Record<string, Record<string, string>>)
-                     ?.emailAddress?.address ?? ""),
-        to: ((m.toRecipients ?? []) as never as Record<string, Record<string, string>>[])
-              .map((r) => r.emailAddress?.address).filter(Boolean) as string[],
-        subject: m.subject as string | undefined,
-        snippet: m.bodyPreview as string | undefined,
-        sentAt: new Date(String(m.sentDateTime)),
-        webLink: m.webLink as string | undefined,
-      })),
-      cursor: String(b["@odata.deltaLink"] ?? ""),
-    };
-  }
-  /**
-   * Google is not implemented, and it now says so.
-   *
-   * This returned `{ messages: [] }` unconditionally. With a valid Gmail
-   * token and a successful fetch, `syncAccount` would store nothing,
-   * advance the cursor, stamp `lastSyncedAt`, clear `lastError` and log
-   * "email synced … stored 0" — which is exactly what a genuinely quiet
-   * mailbox looks like. A brokerage would have seen a connected Gmail
-   * account, no errors anywhere, and no email in the product, for ever.
-   *
-   * Throwing instead means `sweepMailboxes` catches it, the account
-   * records the reason, and `health` surfaces it. The feature is no more
-   * built than it was; the difference is that it is visibly not built.
-   *
-   * Finishing it needs Gmail's two-step shape — `history.list` returns
-   * message ids and a batched `messages.get` fetches the headers — which
-   * is real work and untestable without a Google Cloud app. Microsoft's
-   * `$delta` returns the messages themselves, which is why that half
-   * exists and this one does not.
-   */
-  throw new Error(
-    "Gmail sync is not implemented. The account has been left connected and " +
-    "nothing has been imported from it — this is not a quiet mailbox."
-  );
+           { account: acct.address, seen: page.messages.length, stored: saved });
+  return { synced: saved, seen: page.messages.length };
 }
 
 /** Swept every fifteen minutes. Email is not WhatsApp — nobody expects
  *  it in seconds, and a tighter loop only burns provider quota. */
 /**
- * ## What is and is not built
+ * ## How a mailbox gets here
  *
- * `EmailAccount` has never had a row, because nothing could connect a
- * mailbox and nothing could store a token. The vault fixes the second
- * half; the first still needs an OAuth flow against Google and
- * Microsoft, which means an app registration with each of them —
- * a client id, a secret, a verified redirect — and none of that can be
- * obtained or tested from inside this repository.
+ * Settings → Email sends the agent to Google or Microsoft
+ * (`/api/oauth/<provider>/start`); the callback exchanges the code, reads
+ * which mailbox it is, seals the tokens in the vault and creates the
+ * `EmailAccount`. From then on this sweep refreshes the access token as
+ * it needs to and reads what is new. `check:email-connect` drives all of
+ * it against loopback stand-ins for both providers.
  *
- * So the honest state, in order:
- *
- *   1. **No connect flow.** There is no route that starts an OAuth
- *      handshake and no callback that exchanges a code for a token.
- *      Until there is, this sweep iterates an empty list — which it has
- *      done every half hour since it was written.
- *   2. **No refresh.** `readSecret` returns whatever was stored. Access
- *      tokens from both providers expire in about an hour, so the
- *      connect flow has to keep the *refresh* token and mint access
- *      tokens from it.
- *   3. **Microsoft only.** `normalise` handles Graph's `$delta`, which
- *      returns messages. Gmail's `history.list` returns ids and needs a
- *      second batched call, and that half is not written.
- *
- * Written down here rather than discovered later, because every one of
- * those is invisible from the outside: a mailbox that syncs nothing
- * looks exactly like a mailbox with no new mail.
+ * What a brokerage still needs is an app registration with each provider
+ * (client id, secret, the callback URL) — see `.env.example`. Without
+ * one, the screen says the provider is not set up rather than offering a
+ * button that fails.
  */
 export async function sweepMailboxes() {
   const accts = await crossTenant("sweep").emailAccount.findMany({

@@ -272,7 +272,6 @@ KNOWN_UNWRITTEN = {
     # `PlanSubscription` was here and has been retired: `plans.create`
     # writes a plan and its steps, `plans.subscribe` puts a lead on one
     # from the person's page, and `plans.advance` works it.
-    "EmailAccount": "no mailbox can be connected",
 
     # The whole notification channel, and it read as written for the
     # life of the project because `registerDevice()` does contain a

@@ -102,7 +102,7 @@ What is verified today, measured rather than assumed:
   `/api/health` returns `200 {"ok":true}` against a real Postgres.
 - The boot log names every unconfigured service with its consequence —
   six of them in a bare development environment.
-- 410 assertions in 27 files, 57 check suites, 23 audits, all green.
+- 410 assertions in 27 files, 58 check suites, 23 audits, all green.
 
 Type errors on a fresh checkout are no longer expected. If you get one,
 it is new.
@@ -851,7 +851,7 @@ send path read it.
 ## Run the tests
 
     npm test          # 410 assertions, pure functions, no database
-    npm run verify    # tsc, the tests, 57 check suites, 23 audits
+    npm run verify    # tsc, the tests, 58 check suites, 23 audits
 
 **The gate is now green end to end, including the two things that used
 to skip.** `verify` reports what it did not run rather than counting a
@@ -1271,14 +1271,24 @@ with an empirical floor under it.
 - goAML submission, image quality checks. Nothing produces a
   `QualityIssue`; `collect.ts` says so at the definition.
 - Migration source adapters.
-- **Connecting a mailbox.** `email/sync.ts` is written and
-  `EmailAccount` has never had a row, because there is no OAuth flow
-  against Google or Microsoft — that needs an app registration with
-  each, which cannot be obtained from inside this repository. Tokens
-  now have somewhere to go (`lib/secrets/vault.ts`); the handshake that
-  produces one does not exist. The Gmail half of `normalise` is also
-  unwritten and **throws** rather than returning zero messages, because
-  a mailbox that syncs nothing is indistinguishable from a quiet one.
+- ~~**Connecting a mailbox.**~~ **Built; the app registrations are the
+  owner's.** Settings → Email runs the OAuth handshake with Google or
+  Microsoft (read-mail scopes only), seals the tokens, refreshes them, and
+  `email.sync` reads Gmail (history + metadata) and Outlook (`$delta`).
+  What a brokerage needs is a client id, secret and registered callback
+  per provider (`.env.example`); without them the screen says the
+  provider is not set up. `check:email-connect` drives it all against
+  loopback stand-ins. Still not built: two-way calendar sync.
+
+  Proving it red found the same shape as a swallowed database error: the
+  per-message `catch` read "already have it" and swallowed *everything*,
+  so a sync that crashed on each message looked like one with nothing
+  new. It rethrows anything but a duplicate now.
+
+  **And a trap when proving a route handler red:** after putting the
+  file back, the dev server can keep serving the broken build — twice now
+  (the session callback, the OAuth callback). Restart it before trusting
+  the green run that follows.
 - ~~An external heartbeat — the alerting cannot report its own absence.~~
   **Built.** `health/deliver.ts` has `heartbeat()` and `alert.ts` calls
   it on a successful evaluation, so silence at the far end is the alarm.
