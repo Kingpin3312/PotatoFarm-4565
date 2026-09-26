@@ -283,7 +283,7 @@ export const viewingsRouter = router({
        * at rung 0, nobody *inside* the brokerage was told either: the
        * viewing simply fell off every list.
        *
-       * `leads.assign` and `pipeline.bulkAssign` have always done this.
+       * `leads.assign` and the bulk assignment have always done this.
        * This procedure took the same class of input and did not.
        */
       // Somebody whose file the caller may open — the same rule as

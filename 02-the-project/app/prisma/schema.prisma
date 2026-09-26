@@ -331,6 +331,12 @@ model Lead {
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
+  /// Free labels a brokerage chooses: "golden visa", "cash buyer",
+  /// "Sobha launch". Filtered and bulk-set from the leads list.
+  tags       String[]  @default([])
+  /// Set aside rather than removed: out of every list by default, back
+  /// with one action, and — unlike `deletedAt` — something an agent may do.
+  archivedAt DateTime?
   deletedAt DateTime?
 
   org          Organisation   @relation(fields: [orgId], references: [id], onDelete: Cascade)
@@ -351,6 +357,7 @@ model Lead {
   @@unique([orgId, phone])
   @@index([orgId, status])
   @@index([orgId, assignedToId])
+  @@index([tags], type: Gin)
   @@index([orgId, createdAt])
   /// Covers the board query: one column, ordered, paginated.
   @@index([orgId, stageId, position])
@@ -3440,4 +3447,22 @@ enum DraftState {
   DISCARDED
   /// Overtaken — the buyer wrote again, or the agent replied in their own words.
   STALE
+}
+
+/// A filter somebody wants back: "my golden-visa buyers", "Bayut leads
+/// nobody has answered". Per person, optionally shared with the team.
+model SavedView {
+  id        String   @id @default(cuid())
+  orgId     String
+  userId    String
+  /// Which screen it belongs to: "leads" or "listings".
+  screen    String
+  name      String
+  /// The screen's own filter object, stored as it was sent.
+  filters   Json
+  shared    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orgId, screen, userId])
 }

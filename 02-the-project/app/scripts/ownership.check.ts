@@ -136,10 +136,13 @@ const COOKIE =
   "__Secure-authjs.session-token=dev-session-token-ask-history";
 
 async function handAssign(leadId: string, agentId: string | null) {
-  const r = await fetch(`${APP}/api/trpc/pipeline.bulkAssign?batch=1`, {
+  // The leads list's bulk action — the one path by which a person moves
+  // leads between agents, from the list or the board. It replaced
+  // `pipeline.bulkAssign`, and runs the same `assignLeads`.
+  const r = await fetch(`${APP}/api/trpc/leads.bulk?batch=1`, {
     method: "POST",
     headers: { "content-type": "application/json", cookie: COOKIE },
-    body: JSON.stringify({ 0: { json: { leadIds: [leadId], agentId } } }),
+    body: JSON.stringify({ 0: { json: { target: { ids: [leadId] }, action: { type: "assign", agentId } } } }),
   });
   const body = await r.text();
   if (r.status !== 200 || body.includes('"error"')) {

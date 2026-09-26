@@ -106,8 +106,8 @@ token, which the web app cannot do. Treat it as a design sketch.
 
 ## 4. What is built
 
-**78 database models · 63 enums · 29 API routers · 183 procedures ·
-46 screens · 28 scheduled jobs · 23 audit scripts · 51 check suites.**
+**79 database models · 63 enums · 31 API routers · 191 procedures ·
+46 screens · 28 scheduled jobs · 23 audit scripts · 53 check suites.**
 
 **Five procedures have no screen, and every one of them deliberately:**
 `aml.checkRear`, `aml.visibilityPolicy`, `onboarding.previewImport`,
@@ -254,7 +254,7 @@ thing it checks and confirming it fails.
 ### The unit tests
 
 ```bash
-npm test                    # 381 assertions, no database, ~3 seconds
+npm test                    # 400 assertions, no database, ~3 seconds
 ```
 
 `package.json` declared `"test": "vitest run"` from the beginning with no
@@ -262,7 +262,7 @@ test files and no config behind it, so the command exited 1 and said "No
 test files found" — a command claiming to run tests that could not, which
 is the same shape as a button that does not do what it says.
 
-23 test files, and the selection is not "whatever was easy to test". Every
+25 test files, and the selection is not "whatever was easy to test". Every
 case is a bug that actually happened here or a rule whose failure would
 be silent:
 
@@ -425,13 +425,13 @@ Ask — an agent can see what they asked for earlier and what came back.
 - **Voice recipes** `BOOK_VIEWING` and `COMPARABLES` return a follow-up
   question rather than completing in one step. Deliberate, but the second
   step is not wired to the booking screen.
-**Unit tests cover the pure logic, not the codebase.** 381 assertions in 23 files,
+**Unit tests cover the pure logic, not the codebase.** 400 assertions in 25 files,
   across money, the 24-hour window, Dubai sending hours, the search
   parser, lead scoring, deal risk, the assistant's guardrails and the
   interface's Arabic — the
   pure logic where being wrong is expensive and silent. Everything
-  stateful is still covered only by the 51 check suites and the
-  24 browser checks, which is not the same thing as a test suite. What is
+  stateful is still covered only by the 53 check suites and the
+  26 browser checks, which is not the same thing as a test suite. What is
   left untested in `assistant/` is everything that needs a model:
   `run.ts` and `prompt.ts` are exercised only through `check:autonomy`
   and by replaying real transcripts. `extract.ts`'s mapping to answers
@@ -752,8 +752,8 @@ Full spec: `03-brand/logo/SPEC.md`.
 
 ## 10. Database, API, auth, integrations
 
-**Database:** PostgreSQL via Prisma. `app/prisma/schema.prisma`, 78
-models. 30 migrations in `app/prisma/migrations/`. **`rls.sql` is
+**Database:** PostgreSQL via Prisma. `app/prisma/schema.prisma`, 79
+models. 31 migrations in `app/prisma/migrations/`. **`rls.sql` is
 appended to the init migration** — it is not a file somebody has to
 remember to run, because the tenant boundary is not something to leave to
 memory.

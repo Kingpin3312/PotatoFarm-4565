@@ -84,9 +84,9 @@ await p.evaluate(async (name) => {
   const input = encodeURIComponent(JSON.stringify({ "0": { json: { search: name } } }));
   const j = await (await fetch(`/api/trpc/leads.list?batch=1&input=${input}`)).json();
   for (const i of j?.[0]?.result?.data?.json?.rows ?? []) {
-    await fetch("/api/trpc/leads.remove?batch=1", {
+    await fetch("/api/trpc/leads.bulk?batch=1", {
       method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ "0": { json: { leadId: i.id } } }),
+      body: JSON.stringify({ "0": { json: { target: { ids: [i.id] }, action: { type: "delete" } } } }),
     });
   }
 }, NAME);

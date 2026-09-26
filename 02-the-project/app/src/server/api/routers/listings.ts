@@ -6,7 +6,10 @@ import { audit } from "@/server/lib/audit";
 import { validateForPublish, blocking, PORTAL_REQUIREMENTS } from "@/server/lib/feeds/validate";
 import { buyersFor, pitch } from "@/server/lib/matching/buyers";
 import { can } from "@/server/auth/rbac";
-import { aedToFils } from "@/lib/money";
+import { aedToFils, filsToAed } from "@/lib/money";
+import { toCsv } from "@/lib/csv";
+import type { Prisma } from "@prisma/client";
+import { placesIn, storedVariants } from "@/server/lib/places";
 
 
 /**
@@ -33,30 +36,80 @@ async function assertOurs(
   }
 }
 
+/**
+ * The listings screen's filters, applied in the query.
+ *
+ * The screen asked for twenty-five and never for more, and could not
+ * filter at all beyond a search box — so "3-bed in the Marina under 3m"
+ * meant scrolling a list that stopped a quarter of the way down.
+ */
+const listingFilters = {
+  status: z.enum(["DRAFT", "AVAILABLE", "UNDER_OFFER", "SOLD", "LET", "WITHDRAWN"]).optional(),
+  search: z.string().trim().max(80).optional(),
+  purpose: z.enum(["SALE", "RENT"]).optional(),
+  community: z.string().trim().max(60).optional(),
+  agentId: z.string().optional(),
+  bedrooms: z.number().int().min(0).max(12).optional(),
+  minPriceAed: z.number().int().min(0).optional(),
+  maxPriceAed: z.number().int().min(0).optional(),
+};
+
+function listingWhere(input: z.infer<z.ZodObject<typeof listingFilters>>): Prisma.ListingWhereInput {
+  const q = input.search;
+  // "AR 508" and "ar508" find AR-508, as they do in search.
+  const compact = q?.replace(/[\s-]/g, "");
+  return {
+    deletedAt: null,
+    ...(input.status && { status: input.status }),
+    ...(input.purpose && { purpose: input.purpose }),
+    ...(input.agentId && { agentId: input.agentId }),
+    ...(input.bedrooms != null && { bedrooms: { gte: input.bedrooms } }),
+    // A place the vocabulary knows matches every way it is filed ("DHE",
+    // "Dubai Hills Estate"); anything else matches as typed.
+    ...(input.community && (() => {
+      const place = placesIn(input.community).places[0];
+      return place
+        ? { community: { in: storedVariants(place), mode: "insensitive" as const } }
+        : { community: { contains: input.community, mode: "insensitive" as const } };
+    })()),
+    ...((input.minPriceAed != null || input.maxPriceAed != null) && {
+      priceFils: {
+        ...(input.minPriceAed != null ? { gte: aedToFils(input.minPriceAed) } : {}),
+        ...(input.maxPriceAed != null ? { lte: aedToFils(input.maxPriceAed) } : {}),
+      },
+    }),
+    ...(q && {
+      OR: [
+        { reference: { contains: q, mode: "insensitive" as const } },
+        ...(compact && compact !== q ? [{ reference: { contains: compact, mode: "insensitive" as const } }] : []),
+        ...(/^[a-z]+\d+$/i.test(compact ?? "") ? [{ reference: { contains: compact!.replace(/^([a-z]+)(\d+)$/i, "$1-$2"), mode: "insensitive" as const } }] : []),
+        { title: { contains: q, mode: "insensitive" as const } },
+        { community: { contains: q, mode: "insensitive" as const } },
+        { building: { contains: q, mode: "insensitive" as const } },
+      ],
+    }),
+  };
+}
+
 export const listingsRouter = router({
   list: orgProcedure
     .input(z.object({
-      status: z.enum(["DRAFT", "AVAILABLE", "UNDER_OFFER", "SOLD", "LET", "WITHDRAWN"]).optional(),
-      search: z.string().trim().max(80).optional(),
+      ...listingFilters,
       cursor: z.string().nullish(),
-      limit: z.number().min(1).max(100).default(25),
+      limit: z.number().min(1).max(100).default(50),
+      sort: z.enum(["updated", "newest", "price_asc", "price_desc"]).default("updated"),
     }))
     .query(async ({ ctx, input }) => {
       const rows = await ctx.db.listing.findMany({
-        where: {
-          deletedAt: null,
-          ...(input.status && { status: input.status }),
-          ...(input.search && {
-            OR: [
-              { reference: { contains: input.search, mode: "insensitive" } },
-              { title: { contains: input.search, mode: "insensitive" } },
-              { community: { contains: input.search, mode: "insensitive" } },
-            ],
-          }),
-        },
+        where: listingWhere(input),
         take: input.limit + 1,
         cursor: input.cursor ? { id: input.cursor } : undefined,
-        orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+        // `id` last on every order, so the cursor has one place to resume.
+        orderBy:
+          input.sort === "newest" ? [{ createdAt: "desc" }, { id: "desc" }]
+          : input.sort === "price_asc" ? [{ priceFils: { sort: "asc", nulls: "last" } }, { id: "asc" }]
+          : input.sort === "price_desc" ? [{ priceFils: { sort: "desc", nulls: "last" } }, { id: "desc" }]
+          : [{ updatedAt: "desc" }, { id: "desc" }],
         include: {
           publications: { select: { channelId: true, state: true, rejection: true } },
           _count: { select: { enquiries: true } },
@@ -82,6 +135,50 @@ export const listingsRouter = router({
             : null,
         })),
       };
+    }),
+
+  /**
+   * How many match, for the heading. The heading read `rows.length` —
+   * the loaded page — and called every one of them "live" whatever its
+   * status. Same `where` as `list`, so the two cannot disagree.
+   */
+  count: orgProcedure
+    .input(z.object(listingFilters))
+    .query(async ({ ctx, input }) => {
+      const [total, available] = await Promise.all([
+        ctx.db.listing.count({ where: { ...listingWhere(input), deletedAt: null } }),
+        ctx.db.listing.count({ where: { ...listingWhere(input), deletedAt: null, status: "AVAILABLE" } }),
+      ]);
+      return { total, available };
+    }),
+
+  /** The stock as a spreadsheet, as filtered. Managers, logged. */
+  exportCsv: requirePermission("lead:export")
+    .input(z.object(listingFilters))
+    .mutation(async ({ ctx, input }) => {
+      const rows = await ctx.db.listing.findMany({
+        where: listingWhere(input),
+        orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+        take: 25_000,
+        select: {
+          reference: true, title: true, status: true, purpose: true, community: true, building: true,
+          bedrooms: true, priceFils: true, permitNumber: true, permitExpiresAt: true,
+          vendor: { select: { name: true } }, agent: { select: { name: true, email: true } },
+        },
+      });
+      const csv = toCsv(
+        ["Reference", "Title", "Status", "Sale or rent", "Area", "Building", "Bedrooms", "Price (AED)", "Permit", "Permit expires", "Owner", "Agent"],
+        rows.map((r) => [
+          r.reference, r.title, r.status, r.purpose, r.community, r.building, r.bedrooms,
+          r.priceFils === null ? "" : filsToAed(r.priceFils), r.permitNumber,
+          r.permitExpiresAt?.toISOString().slice(0, 10) ?? "", r.vendor?.name ?? "", r.agent?.name ?? r.agent?.email ?? "",
+        ]),
+      );
+      await audit(ctx.db, ctx.orgId, {
+        actorId: ctx.userId, action: "listing.export", entity: "Listing", entityId: `${rows.length} listings`,
+        after: { count: rows.length },
+      });
+      return { csv, count: rows.length, filename: `listings-${new Date().toISOString().slice(0, 10)}.csv` };
     }),
 
   /**

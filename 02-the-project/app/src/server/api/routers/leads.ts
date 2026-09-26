@@ -2,10 +2,12 @@ import { z } from "zod";
 import { normalisePhone, looksLikePhone, phoneSearchKey } from "@/lib/phone";
 import { TRPCError } from "@trpc/server";
 import { router, orgProcedure, requirePermission } from "../trpc";
-import { leadScope } from "@/server/auth/rbac";
+import { can, leadScope } from "@/server/auth/rbac";
+import { assignLeads } from "@/server/lib/leads/assign";
+import { toCsv } from "@/lib/csv";
 import { audit } from "@/server/lib/audit";
 import { aedToFils, filsToAed } from "@/lib/money";
-import { Prisma } from "@prisma/client";
+import { Prisma, LeadSource, LeadStatus } from "@prisma/client";
 import { BANDS, band } from "@/server/lib/intelligence/score";
 import { entryStageId } from "@/server/lib/pipeline/defaults";
 import { assignmentFor } from "@/server/lib/routing/apply";
@@ -54,7 +56,26 @@ const filters = {
    * `{ filter }` to a procedure that only understood `status`.
    */
   filter: z.enum(["all", "unassigned", "hot", "cold"]).default("all"),
+
+  /**
+   * The rest of the filter bar. The audit found four presets and nothing
+   * else — no way to ask for "Bayut leads with Omar, scored Hot" — on a
+   * screen whose own header says it is "for finding".
+   */
+  source: z.nativeEnum(LeadSource).optional(),
+  /** A member's user id. "Nobody's" is the `unassigned` tab. */
+  agentId: z.string().optional(),
+  band: z.enum(["GOLDEN", "HOT", "WARM", "COLD", "UNSCORED"]).optional(),
+  tag: z.string().trim().max(40).optional(),
+  stageId: z.string().optional(),
+  /**
+   * Which drawer. Archived is set aside by anybody; deleted is a
+   * manager's, and only a manager may look in it — to put something back.
+   */
+  view: z.enum(["active", "archived", "deleted"]).default("active"),
 };
+
+export const SORTS = ["newest", "oldest", "score", "name", "updated"] as const;
 
 type Filters = z.infer<z.ZodObject<typeof filters>>;
 
@@ -71,8 +92,28 @@ function leadWhere(
   input: Filters,
   scope: ReturnType<typeof leadScope>,
 ): Prisma.LeadWhereInput {
+  /**
+   * `AND`, not spread keys. The search and the "Gone quiet" tab both
+   * wrote an `OR`, and spreading one object over the other kept only the
+   * second — so searching inside "Gone quiet" silently searched nothing.
+   */
+  const AND: Prisma.LeadWhereInput[] = [];
+  if (input.source) AND.push({ source: input.source });
+  if (input.agentId) AND.push({ assignedToId: input.agentId });
+  if (input.stageId) AND.push({ stageId: input.stageId });
+  if (input.tag) AND.push({ tags: { has: input.tag } });
+  if (input.band) {
+    // Ranges read off `BANDS`, which is ordered best first, so the
+    // cutoffs have one owner.
+    const i = BANDS.findIndex((b) => b.band === input.band);
+    AND.push(input.band === "UNSCORED" ? { score: null }
+      : { score: { gte: BANDS[i]!.from, ...(i > 0 ? { lt: BANDS[i - 1]!.from } : {}) } });
+  }
   return {
-    deletedAt: null,
+    deletedAt: input.view === "deleted" ? { not: null } : null,
+    ...(input.view === "archived" ? { archivedAt: { not: null } }
+      : input.view === "active" ? { archivedAt: null } : {}),
+    ...(AND.length ? { AND } : {}),
     ...scope,
     ...(input.search && {
       OR: [
@@ -110,14 +151,40 @@ function leadWhere(
     ...(input.filter === "cold"
       ? {
           status: { notIn: ["WON", "LOST"] },
-          OR: [
-            { conversation: { is: { lastInboundAt: { lt: new Date(Date.now() - 14 * 86_400_000) } } } },
-            { conversation: { is: null } },
-          ],
+          AND: [...AND, {
+            OR: [
+              { conversation: { is: { lastInboundAt: { lt: new Date(Date.now() - 14 * 86_400_000) } } } },
+              { conversation: { is: null } },
+            ],
+          }],
         }
       : {}),
   };
 }
+
+function orderFor(sort: (typeof SORTS)[number]): Prisma.LeadOrderByWithRelationInput[] {
+  switch (sort) {
+    case "oldest": return [{ createdAt: "asc" }, { id: "asc" }];
+    case "score": return [{ score: { sort: "desc", nulls: "last" } }, { id: "desc" }];
+    case "name": return [{ name: { sort: "asc", nulls: "last" } }, { id: "asc" }];
+    case "updated": return [{ updatedAt: "desc" }, { id: "desc" }];
+    default: return [{ createdAt: "desc" }, { id: "desc" }];
+  }
+}
+
+/** The deleted drawer is a manager's — the people who can delete. */
+function refuseDeletedView(role: Parameters<typeof can>[0], view: string) {
+  if (view === "deleted" && !can(role, "lead:delete")) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Only a manager can see deleted leads." });
+  }
+}
+
+/**
+ * The most a bulk action touches at once. Beyond it the agent is asked
+ * to narrow the filter — a mistaken "select all" on a whole book is the
+ * one bulk action nobody can easily undo.
+ */
+const BULK_MAX = 5_000;
 
 export const leadsRouter = router({
   /**
@@ -130,21 +197,26 @@ export const leadsRouter = router({
       z.object({
         ...filters,
         cursor: z.string().nullish(),
-        limit: z.number().min(1).max(100).default(25),
+        limit: z.number().min(1).max(100).default(50),
+        sort: z.enum(SORTS).default("newest"),
       })
     )
     .query(async ({ ctx, input }) => {
+      refuseDeletedView(ctx.role, input.view);
       const rows = await ctx.db.lead.findMany({
         where: leadWhere(input, leadScope(ctx.role, ctx.userId)),
         // One extra row tells us whether there is a next page without a
         // second count query.
         take: input.limit + 1,
         cursor: input.cursor ? { id: input.cursor } : undefined,
-        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        // `id` last on every order, so the cursor has one place to resume
+        // from even when a hundred leads share a score or a name.
+        orderBy: orderFor(input.sort),
         select: {
           // `stageRef` is the relation; `stage` is nothing. The board
           // needs the name, not just the id.
-          id: true, name: true, phone: true, status: true,
+          id: true, name: true, phone: true, status: true, tags: true,
+          archivedAt: true, deletedAt: true,
           stageRef: { select: { id: true, name: true } },
           budgetMinFils: true, budgetMaxFils: true, intent: true, source: true,
           createdAt: true,
@@ -251,6 +323,7 @@ export const leadsRouter = router({
   distribution: orgProcedure
     .input(z.object(filters))
     .query(async ({ ctx, input }) => {
+      refuseDeletedView(ctx.role, input.view);
       const groups = await ctx.db.lead.groupBy({
         by: ["score"],
         where: leadWhere(input, leadScope(ctx.role, ctx.userId)),
@@ -297,7 +370,7 @@ export const leadsRouter = router({
   /**
    * Assign one lead.
    *
-   * **`pipeline.bulkAssign` does the same work and is the one with a
+   * **`leads.bulk` with `assign` does the same work and is the one with a
    * screen** — the selection bar on `/leads` posts to it for one lead as
    * readily as for two hundred, including the "return to the pool"
    * option. This procedure has no caller in the application.
@@ -630,21 +703,176 @@ export const leadsRouter = router({
       });
     }),
 
-  remove: requirePermission("lead:delete")
-    .input(z.object({ leadId: z.string() }))
-    .mutation(async ({ ctx, input }) =>
-      ctx.db.$transaction(async (tx) => {
-        const row = await tx.lead.update({
-          where: { id: input.leadId },
-          data: { deletedAt: new Date() },
-        });
+  /**
+   * The labels in use, for the filter and the tag picker.
+   *
+   * Read from the leads the viewer can see, so an agent's list offers the
+   * tags on their own book — a colleague's private label is not theirs.
+   */
+  tags: orgProcedure.query(async ({ ctx }) => {
+    const rows = await ctx.db.lead.findMany({
+      where: { deletedAt: null, tags: { isEmpty: false }, ...leadScope(ctx.role, ctx.userId) },
+      select: { tags: true },
+      take: 5_000,
+    });
+    const n = new Map<string, number>();
+    for (const r of rows) for (const t of r.tags) n.set(t, (n.get(t) ?? 0) + 1);
+    return [...n.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .map(([tag, count]) => ({ tag, count }));
+  }),
+
+  /**
+   * One action on many leads — the ticked ones, or everything the filter
+   * matches.
+   *
+   * "Everything matching" is resolved here from the same `leadWhere` the
+   * list uses, not from ids the screen has loaded: the screen holds fifty
+   * at a time, and a manager ticking "all 312" means all 312. Scope is
+   * applied either way, so an agent can only ever act on their own book.
+   * Each action carries the permission it would need one lead at a time.
+   */
+  bulk: orgProcedure
+    .input(z.object({
+      target: z.union([
+        z.object({ ids: z.array(z.string()).min(1).max(BULK_MAX) }),
+        z.object({ matching: z.object(filters) }),
+      ]),
+      action: z.discriminatedUnion("type", [
+        z.object({ type: z.literal("assign"), agentId: z.string().nullable() }),
+        z.object({ type: z.literal("stage"), stageId: z.string() }),
+        z.object({ type: z.literal("tag"), tag: z.string().trim().min(1).max(40) }),
+        z.object({ type: z.literal("untag"), tag: z.string().trim().min(1).max(40) }),
+        z.object({ type: z.literal("archive") }),
+        z.object({ type: z.literal("unarchive") }),
+        z.object({ type: z.literal("delete") }),
+        z.object({ type: z.literal("restore") }),
+      ]),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const a = input.action;
+      const need = a.type === "assign" ? "lead:assign"
+        : a.type === "delete" || a.type === "restore" ? "lead:delete"
+        : "lead:update";
+      if (!can(ctx.role, need)) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Your role can't do that to leads." });
+      }
+      const scope = leadScope(ctx.role, ctx.userId);
+      // Restoring reads the deleted drawer; everything else reads what is live.
+      const where: Prisma.LeadWhereInput = "matching" in input.target
+        ? leadWhere({ ...input.target.matching, view: a.type === "restore" ? "deleted" : input.target.matching.view }, scope)
+        : { id: { in: input.target.ids }, deletedAt: a.type === "restore" ? { not: null } : null, ...scope };
+
+      return ctx.db.$transaction(async (scoped) => {
+        // The scoped client's transaction is the plain one underneath
+        // (see `forOrg` in db/client.ts), which is what the shared
+        // assignment function is typed against.
+        const tx = scoped as unknown as Prisma.TransactionClient;
+        const found = await tx.lead.findMany({ where, select: { id: true, tags: true }, take: BULK_MAX + 1 });
+        if (found.length > BULK_MAX) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: `That is more than ${BULK_MAX.toLocaleString("en-GB")} leads. Narrow the filter first.` });
+        }
+        const ids = found.map((l) => l.id);
+        if (!ids.length) return { count: 0 };
+        const now = new Date();
+        let count = ids.length;
+
+        switch (a.type) {
+          case "assign":
+            count = (await assignLeads(tx, { orgId: ctx.orgId, actorId: ctx.userId, leadIds: ids, agentId: a.agentId })).count;
+            return { count };
+          case "stage": {
+            const stage = await tx.pipelineStage.findFirst({ where: { id: a.stageId }, select: { id: true, maps: true } });
+            if (!stage) throw new TRPCError({ code: "NOT_FOUND", message: "That stage no longer exists." });
+            // Status follows the stage, as it does when a card is dragged,
+            // or the list and the board disagree about the same lead.
+            await tx.lead.updateMany({
+              where: { id: { in: ids }, NOT: { stageId: stage.id } },
+              data: { stageId: stage.id, status: stage.maps, stageEnteredAt: now },
+            });
+            break;
+          }
+          case "tag":
+            for (const l of found) {
+              if (!l.tags.includes(a.tag)) {
+                await tx.lead.update({ where: { id: l.id }, data: { tags: { push: a.tag } } });
+              }
+            }
+            break;
+          case "untag":
+            for (const l of found) {
+              if (l.tags.includes(a.tag)) {
+                await tx.lead.update({ where: { id: l.id }, data: { tags: l.tags.filter((t) => t !== a.tag) } });
+              }
+            }
+            break;
+          case "archive":
+            await tx.lead.updateMany({ where: { id: { in: ids } }, data: { archivedAt: now } });
+            break;
+          case "unarchive":
+            await tx.lead.updateMany({ where: { id: { in: ids } }, data: { archivedAt: null } });
+            break;
+          case "delete":
+            await tx.lead.updateMany({ where: { id: { in: ids } }, data: { deletedAt: now } });
+            break;
+          case "restore":
+            await tx.lead.updateMany({ where: { id: { in: ids } }, data: { deletedAt: null } });
+            break;
+        }
+        // One entry for the action, with the ids, so "who archived these"
+        // has an answer and a restore can be traced to its delete.
         await audit(tx, ctx.orgId, {
           actorId: ctx.userId,
-          action: "lead.delete",
+          action: `lead.bulk_${a.type}`,
           entity: "Lead",
-          entityId: row.id,
+          entityId: `${count} leads`,
+          after: { count, ids: ids.slice(0, 500), ...("tag" in a ? { tag: a.tag } : {}), ...("stageId" in a ? { stageId: a.stageId } : {}) },
         });
-        return { ok: true };
-      })
-    ),
+        return { count };
+      });
+    }),
+
+  /**
+   * The list as a spreadsheet, exactly as filtered.
+   *
+   * Managers only, and logged with the count and the filter: this is
+   * every matching client's number in one file, which is the thing a
+   * departing agent takes with them. Cells that would run as formulas in
+   * Excel are neutralised (`lib/csv.ts`).
+   */
+  exportCsv: requirePermission("lead:export")
+    .input(z.object({ ...filters, sort: z.enum(SORTS).default("newest") }))
+    .mutation(async ({ ctx, input }) => {
+      refuseDeletedView(ctx.role, input.view);
+      const LIMIT = 25_000;
+      const rows = await ctx.db.lead.findMany({
+        where: leadWhere(input, leadScope(ctx.role, ctx.userId)),
+        orderBy: orderFor(input.sort),
+        take: LIMIT + 1,
+        select: {
+          name: true, phone: true, email: true, status: true, source: true, score: true, tags: true,
+          budgetMaxFils: true, intent: true, createdAt: true, notes: true,
+          stageRef: { select: { name: true } }, assignedTo: { select: { name: true, email: true } },
+          requirements: { where: { active: true }, select: { communities: true, bedroomsMin: true }, take: 1 },
+        },
+      });
+      if (rows.length > LIMIT) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: `More than ${LIMIT.toLocaleString("en-GB")} leads match. Narrow the filter first.` });
+      }
+      const csv = toCsv(
+        ["Name", "Phone", "Email", "Stage", "Source", "Score", "Agent", "Budget (AED)", "Areas", "Bedrooms", "Tags", "Added", "Notes"],
+        rows.map((r) => [
+          r.name, r.phone, r.email, r.stageRef?.name ?? r.status, r.source, r.score,
+          r.assignedTo?.name ?? r.assignedTo?.email ?? "", r.budgetMaxFils === null ? "" : filsToAed(r.budgetMaxFils),
+          r.requirements[0]?.communities.join("; ") ?? "", r.requirements[0]?.bedroomsMin ?? "",
+          r.tags.join("; "), r.createdAt.toISOString().slice(0, 10), r.notes,
+        ]),
+      );
+      await audit(ctx.db, ctx.orgId, {
+        actorId: ctx.userId, action: "lead.export", entity: "Lead", entityId: `${rows.length} leads`,
+        ip: ctx.ip ?? undefined, userAgent: ctx.userAgent ?? undefined,
+        after: { count: rows.length, filters: { ...input, search: input.search ? "(search)" : undefined } },
+      });
+      return { csv, count: rows.length, filename: `leads-${new Date().toISOString().slice(0, 10)}.csv` };
+    }),
+
 });

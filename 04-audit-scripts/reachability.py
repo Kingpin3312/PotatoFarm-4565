@@ -386,7 +386,7 @@ KNOWN_UNCALLED = {
         "reads them; this is for a client that wants the rules rather than "
         "the sentences",
     "leads.assign":
-        "the single-lead form of pipeline.bulkAssign, which has the screen "
+        "the single-lead form of leads.bulk (assign), which has the screen "
         "and handles one lead as readily as two hundred. Kept for a detail "
         "screen or the mobile client; both write the same LeadOwnership rows "
         "and must be changed together",

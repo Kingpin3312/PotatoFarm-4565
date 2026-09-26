@@ -28,6 +28,8 @@ import { searchRouter } from "./routers/search";
 import { documentsRouter } from "./routers/documents";
 import { plansRouter } from "./routers/plans";
 import { requirementsRouter } from "./routers/requirements";
+import { viewsRouter } from "./routers/views";
+import { importsRouter } from "./routers/imports";
 
 /**
  * The API surface.
@@ -83,6 +85,11 @@ export const appRouter = router({
   // What a buyer is looking for. Matching and search read it; only voice
   // intake had ever written one.
   requirements: requirementsRouter,
+  // Saved filters for the lists.
+  views: viewsRouter,
+  // Leads in from a spreadsheet. The migration router records what is
+  // wrong with an export; this one brings the rows in.
+  imports: importsRouter,
 
   privacy: privacyRouter,
   support: supportRouter,

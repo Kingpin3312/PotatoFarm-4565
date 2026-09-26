@@ -454,6 +454,10 @@ jobs:
         run: npm run browser:add-property
       - name: Adding a lead the way numbers are written
         run: npm run browser:add-lead
+      - name: The leads list past the first page
+        run: npm run browser:lead-list
+      - name: Importing leads from a spreadsheet
+        run: npm run browser:import-leads
       - name: Setting a commission plan
         run: npm run browser:commission-plan
 

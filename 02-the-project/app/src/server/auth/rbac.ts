@@ -36,6 +36,10 @@ export const PERMISSIONS = [
   "org:update", "org:delete", "org:billing",
   "member:invite", "member:update", "member:remove",
   "lead:read:own", "lead:read:all", "lead:create", "lead:update", "lead:delete", "lead:assign",
+  // A book in and a book out. A manager's, not an agent's: an export is
+  // every client's number in one file, and an import can put hundreds of
+  // people on the board at once. Both are audited with a count.
+  "lead:import", "lead:export",
   "conversation:read", "conversation:send", "conversation:takeover",
   "listing:read", "listing:write",
   "viewing:write",
@@ -120,7 +124,7 @@ const AGENT: Permission[] = [
 ];
 
 const MANAGER: Permission[] = [
-  ...AGENT, "lead:read:all", "lead:assign", "lead:delete",
+  ...AGENT, "lead:read:all", "lead:assign", "lead:delete", "lead:import", "lead:export",
   "listing:write", "channel:read", "audit:read", "member:invite",
   "document:write", "plan:manage",
   // A sales manager runs the floor and is measured on what it bills.
