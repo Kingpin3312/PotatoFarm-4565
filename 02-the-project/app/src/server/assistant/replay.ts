@@ -76,7 +76,7 @@ export async function replay(args: {
         },
       },
       messages: {
-        take: 20, orderBy: { sentAt: "asc" },
+        take: 20, orderBy: [{ sentAt: "asc" }, { id: "asc" }],
         select: { body: true, direction: true, author: true },
       },
       org: { select: { name: true } },

@@ -92,7 +92,12 @@ async function prepare(orgId: string, conversationId: string) {
         },
       },
       messages: {
-        take: 20, orderBy: { sentAt: "desc" },
+        // `id` breaks ties. WhatsApp stamps whole seconds, so "Hi" and
+        // "STOP" sent together share a `sentAt`, and without a tiebreak
+        // Postgres may hand back "Hi" as the latest — and a reply is
+        // drafted to somebody who has just said stop. A cuid starts with
+        // its creation time, so it orders in arrival order.
+        take: 20, orderBy: [{ sentAt: "desc" }, { id: "desc" }],
         select: { body: true, direction: true, author: true },
       },
       org: { select: { name: true } },

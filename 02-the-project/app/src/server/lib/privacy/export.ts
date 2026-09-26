@@ -70,7 +70,7 @@ export async function* exportTenant(orgId: string) {
   yield* table("conversations", (c) =>
     db.conversation.findMany({
       take: 500, ...(c && { cursor: { id: c }, skip: 1 }), orderBy: { id: "asc" },
-      include: { messages: { orderBy: { sentAt: "asc" } } },
+      include: { messages: { orderBy: [{ sentAt: "asc" }, { id: "asc" }] } },
     })
   );
 
@@ -121,7 +121,7 @@ export async function exportSubject(orgId: string, phone: string) {
       answers: { include: { question: { select: { prompt: true } } } },
       enquiries: { include: { listing: { select: { reference: true, title: true } } } },
       viewings: { include: { listing: { select: { reference: true, title: true } } } },
-      conversation: { include: { messages: { orderBy: { sentAt: "asc" } } } },
+      conversation: { include: { messages: { orderBy: [{ sentAt: "asc" }, { id: "asc" }] } } },
       assignedTo: { select: { name: true } },
     },
   });

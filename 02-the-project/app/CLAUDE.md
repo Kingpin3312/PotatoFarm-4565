@@ -1249,6 +1249,15 @@ with an empirical floor under it.
   agent. If a brokerage ever wants automatic sending, it is a change to
   the floor in `autonomy.ts` and the promise on the settings screen,
   made on purpose — not a sender added to a job.
+- **One person, several opportunities.** A lead is still one record
+  with one stage, so somebody buying an apartment and letting a villa
+  is one pipeline position (the audit's B5; the listing and tenancy half
+  is built). The split — Contact and Opportunity — is designed in the
+  audit, not built: it touches every screen that reads `Lead.status`.
+- **Two-step sign-in is optional.** Owners and admins are asked on
+  Settings → Security; nothing makes it compulsory for a brokerage,
+  because the day a phone is lost that locks somebody out, and it is the
+  brokerage's decision to make.
 - goAML submission, image quality checks. Nothing produces a
   `QualityIssue`; `collect.ts` says so at the definition.
 - Migration source adapters.

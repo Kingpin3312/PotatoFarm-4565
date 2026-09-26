@@ -67,7 +67,7 @@ export async function releaseHeld(now = new Date()) {
     select: {
       id: true, orgId: true, userId: true, title: true, deeplink: true, sentAt: true,
     },
-    orderBy: { sentAt: "asc" },
+    orderBy: [{ sentAt: "asc" }, { id: "asc" }],
   });
 
   if (held.length === 0) return { people: 0, released: 0 };

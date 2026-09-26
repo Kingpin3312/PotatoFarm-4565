@@ -265,7 +265,7 @@ export const conversationsRouter = router({
           drafts: { where: { state: "OPEN" }, take: 1, select: { id: true } },
           messages: {
             take: 1,
-            orderBy: { sentAt: "desc" },
+            orderBy: [{ sentAt: "desc" }, { id: "desc" }],
             select: { body: true, direction: true, sentAt: true, status: true },
           },
         },
@@ -305,7 +305,7 @@ export const conversationsRouter = router({
           },
           messages: {
             take: input.limit,
-            orderBy: { sentAt: "desc" },
+            orderBy: [{ sentAt: "desc" }, { id: "desc" }],
             select: {
               id: true, body: true, direction: true, author: true,
               status: true, sentAt: true, failure: true, templateName: true,

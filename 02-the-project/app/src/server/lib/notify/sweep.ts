@@ -97,7 +97,7 @@ async function ownersWaiting() {
         },
       },
       messages: {
-        take: 1, orderBy: { sentAt: "desc" },
+        take: 1, orderBy: [{ sentAt: "desc" }, { id: "desc" }],
         select: { id: true, direction: true, body: true, sentAt: true },
       },
     },
