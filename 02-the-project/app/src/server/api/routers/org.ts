@@ -147,7 +147,7 @@ export const orgRouter = router({
   mine: orgProcedure.query(async ({ ctx }) => {
     const rows = await crossTenant("user-scoped").membership.findMany({
       where: { userId: ctx.userId, org: { deletedAt: null } },
-      select: { role: true, org: { select: { id: true, name: true, slug: true } } },
+      select: { role: true, org: { select: { id: true, name: true, slug: true, demo: true } } },
       orderBy: { createdAt: "asc" },
     });
     return rows.map((r) => ({ ...r.org, role: r.role, active: r.org.id === ctx.orgId }));

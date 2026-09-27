@@ -102,7 +102,7 @@ What is verified today, measured rather than assumed:
   `/api/health` returns `200 {"ok":true}` against a real Postgres.
 - The boot log names every unconfigured service with its consequence —
   six of them in a bare development environment.
-- 410 assertions in 27 files, 58 check suites, 23 audits, all green.
+- 410 assertions in 27 files, 59 check suites, 23 audits, all green.
 
 Type errors on a fresh checkout are no longer expected. If you get one,
 it is new.
@@ -837,6 +837,29 @@ working rather than whether servers are up.
 **If you add a module, ask what its silent failure looks like and who
 finds out.**
 
+## A demonstration brokerage
+
+`Organisation.demo` marks the seeded brokerage (Marina Bay) as one that
+is shown to prospects. It is set by the seed and by nothing in the app.
+Three things follow from it, and `check:demo-mode` proves each one and
+proves a real brokerage is untouched:
+
+- **Its sends go nowhere.** `getChannelCredentials` hands it
+  `DEMO_TOKEN`, and `whatsapp.ts` records any send carrying that token as
+  sent (`demo.*` external id) without calling Meta. The first demo would
+  otherwise have ended on "Send as written" with "No stored credential".
+- **Inbox offers "Try a live enquiry"** (`demo.enquiry`): a realistic
+  buyer's message, or one typed in the room, built as Meta's webhook
+  payload and handed to the real `ingest` — routing, lead, board, draft.
+  Refused (FORBIDDEN) for any brokerage without the flag.
+- **Every screen says "Demo"** in the header.
+
+Rehearsal enquiries (phones `+9715000xxxxx`) and check debris are cleared
+by `scripts/lib/demo-debris.mjs`, which the seed runs — so reseeding the
+morning of a demo gives a clean one. A deployed demo is signed into with
+`DEMO_OWNER_EMAIL` / `DEMO_AGENT_EMAIL` / `DEMO_MLRO_EMAIL` (see
+`.env.example` and DEPLOY.md). Never seed production.
+
 ## The 24-hour window
 
 Meta only allows free-form WhatsApp messages within 24 hours of the
@@ -851,7 +874,7 @@ send path read it.
 ## Run the tests
 
     npm test          # 410 assertions, pure functions, no database
-    npm run verify    # tsc, the tests, 58 check suites, 23 audits
+    npm run verify    # tsc, the tests, 59 check suites, 23 audits
 
 **The gate is now green end to end, including the two things that used
 to skip.** `verify` reports what it did not run rather than counting a

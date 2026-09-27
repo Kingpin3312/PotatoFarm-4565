@@ -1,4 +1,5 @@
 import { crossTenant } from "@/server/db/client";
+import { DEMO_TOKEN } from "@/server/lib/whatsapp";
 import { fetchSecret } from "./vault";
 
 /**
@@ -24,8 +25,10 @@ export async function getChannelCredentials(orgId: string, channelId: string): P
 
   const channel = await crossTenant("global-key").channel.findFirst({
     where: { id: channelId, orgId, active: true },
-    select: { identifier: true, secretRef: true, type: true },
+    select: { identifier: true, secretRef: true, type: true, org: { select: { demo: true } } },
   });
+  // A demonstration brokerage never talks to Meta, token or not.
+  if (channel?.org.demo) return { phoneNumberId: channel.identifier, accessToken: DEMO_TOKEN };
   /**
    * Every channel type reaches this, so the message cannot name one.
    *

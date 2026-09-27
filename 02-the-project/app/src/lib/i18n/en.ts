@@ -64,6 +64,8 @@ export const en = {
 
   // ---- The frame ---------------------------------------------------
   "shell.skipToContent": "Skip to content",
+  "shell.demo": "Demo — messages recorded, never delivered",
+  "shell.demoShort": "Demo",
   "shell.assistantStopped": "Assistant stopped",
   "shell.close": "Close",
   "shell.mainNav": "Main",

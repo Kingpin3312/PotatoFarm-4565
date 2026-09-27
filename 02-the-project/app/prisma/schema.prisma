@@ -48,6 +48,10 @@ datasource db {
 
 model Organisation {
   id        String   @id @default(cuid())
+  /// A demonstration brokerage: messages are recorded and never sent to
+  /// WhatsApp, and it can take a simulated enquiry. Set by the seed or an
+  /// operator only — no screen can switch it on for a real brokerage.
+  demo Boolean @default(false)
   name      String
   slug      String   @unique
   /// The brokerage's own clock — and **nothing writes it**.

@@ -101,6 +101,18 @@ export function Shell({ children }: { children: React.ReactNode }) {
                 {t("shell.assistantStopped")}
               </span>
             )}
+            {/* A demonstration brokerage says so on every screen. Its sends
+                are recorded and go nowhere (`DEMO_TOKEN`), and a room being
+                shown the product should never wonder whether a real buyer
+                just got a message. In the bar, not under it: a second row
+                makes the header taller than every full-height screen
+                (Inbox) allows for, and pushed their tops under it. */}
+            {active?.demo && (
+              <span title={t("shell.demo")} className="t-label text-accent-deep border border-accent rounded-[2px] px-1.5 py-0.5 whitespace-nowrap">
+                <span className="xl:hidden">{t("shell.demoShort")}</span>
+                <span className="max-xl:hidden">{t("shell.demo")}</span>
+              </span>
+            )}
             {active && (
               <span className="t-label text-ink-3">
                 {active.name}

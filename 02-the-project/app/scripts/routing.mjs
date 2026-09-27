@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { clearCheckDebris } from "./lib/demo-debris.mjs";
 import { PrismaClient } from "@prisma/client";
 
 /**
@@ -32,6 +33,8 @@ const db = new PrismaClient({
   datasources: { db: { url: process.env.DATABASE_URL_UNSCOPED ?? process.env.DATABASE_URL } },
 });
 const org = await db.organisation.findFirst({ where: { deletedAt: null }, select: { id: true } });
+// Whatever an earlier run left if it died before its clean-up.
+await clearCheckDebris(db, org.id);
 const NUMBER_ID = `ROUTE-TEST-${Date.now()}`;
 const made = [];
 

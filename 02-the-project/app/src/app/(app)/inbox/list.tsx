@@ -6,6 +6,7 @@ import { api } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { aed, aedShort } from "@/lib/money";
 import { when } from "@/lib/when";
+import { LiveEnquiry } from "./live-enquiry";
 
 const FILTERS = [
   { id: "all", label: "All" },
@@ -36,9 +37,12 @@ export function InboxList({
     );
 
   const rows = data?.pages.flatMap((p) => p.rows) ?? [];
+  const { data: orgs } = api.org.mine.useQuery();
+  const demo = orgs?.find((o) => o.active)?.demo ?? false;
 
   return (
-    <aside className="border-e border-rule flex flex-col min-h-0">
+    <aside className="border-e border-rule flex flex-col min-h-0 h-full">
+      {demo && <LiveEnquiry onArrived={onSelect} />}
       <div className="flex gap-4 px-5 py-3.5 border-b border-rule overflow-x-auto">
         {FILTERS.map((f) => (
           <button

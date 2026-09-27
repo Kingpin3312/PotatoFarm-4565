@@ -19,6 +19,7 @@ import { billingRouter } from "./routers/billing";
 import { securityRouter } from "./routers/security";
 import { opportunitiesRouter } from "./routers/opportunities";
 import { emailRouter } from "./routers/email";
+import { demoRouter } from "./routers/demo";
 import { offersRouter } from "./routers/offers";
 import { blackbookRouter } from "./routers/blackbook";
 import { channelsRouter } from "./routers/channels";
@@ -76,6 +77,7 @@ export const appRouter = router({
   security: securityRouter,
   opportunities: opportunitiesRouter,
   email: emailRouter,
+  demo: demoRouter,
   offers: offersRouter,
   blackbook: blackbookRouter,
   channels: channelsRouter,

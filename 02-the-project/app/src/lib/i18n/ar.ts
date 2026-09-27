@@ -75,6 +75,8 @@ export const ar: Messages = {
 
   // ---- The frame ---------------------------------------------------
   "shell.skipToContent": "تخطَّ إلى المحتوى",
+  "shell.demo": "تجريبي — تُسجَّل الرسائل ولا تُرسَل",
+  "shell.demoShort": "تجريبي",
   "shell.assistantStopped": "المساعد متوقف",
   "shell.close": "إغلاق",
   "shell.mainNav": "التنقل الرئيسي",

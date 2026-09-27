@@ -77,7 +77,19 @@ export async function sendTemplate(args: Omit<SendArgs, "body"> & {
   });
 }
 
+/**
+ * The credential a demonstration brokerage gets instead of a token.
+ *
+ * Produced only by `getChannelCredentials`, only for an organisation with
+ * `demo` set. Every send that carries it is recorded as sent and goes
+ * nowhere — the first client demo would otherwise have ended on its most
+ * important button with "No stored credential for this channel".
+ */
+export const DEMO_TOKEN = "demo:recorded-not-delivered";
+const demoId = () => `demo.${Date.now().toString(36)}.${Math.random().toString(36).slice(2, 8)}`;
+
 async function post(phoneNumberId: string, accessToken: string, payload: unknown) {
+  if (accessToken === DEMO_TOKEN) return { externalId: demoId() };
   const res = await fetch(`${graph()}/${phoneNumberId}/messages`, {
     method: "POST",
     headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
@@ -155,6 +167,7 @@ export async function sendDocument(args: {
   mimeType: string;
   caption?: string;
 }): Promise<{ externalId: string }> {
+  if (args.accessToken === DEMO_TOKEN) return { externalId: demoId() };
   const bytes = await readObject(args.storageRef);
 
   // Step one: upload to Meta, get a media id.

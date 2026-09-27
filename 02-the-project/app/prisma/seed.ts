@@ -1,4 +1,6 @@
 import { PrismaClient, type LeadSource, type LeadStatus, type Role } from "@prisma/client";
+// @ts-expect-error — a plain .mjs helper shared with the checks.
+import { clearCheckDebris } from "../scripts/lib/demo-debris.mjs";
 import { entryStageId, seedStages, DEFAULT_STAGES } from "../src/server/lib/pipeline/defaults";
 import { seedHours } from "../src/server/lib/hours/defaults";
 import { seedQualification } from "../src/server/lib/assistant/qualification";
@@ -202,16 +204,46 @@ const LEADS: {
 async function main() {
   const org = await db.organisation.upsert({
     where: { slug: SLUG },
-    update: {},
-    create: { name: "Marina Bay Properties", slug: SLUG, timezone: "Asia/Dubai" },
+    // A demonstration brokerage: its sends are recorded and never
+    // delivered, and Inbox offers "Try a live enquiry". Set here and
+    // nowhere in the app — see `demo.enquiry`.
+    update: { demo: true },
+    create: { name: "Marina Bay Properties", slug: SLUG, timezone: "Asia/Dubai", demo: true },
   });
+
+  /**
+   * Who signs in to a deployed demo.
+   *
+   * Locally the browser checks sign in with the session tokens above. A
+   * deployed demo is signed into the real way — an emailed link — and
+   * nobody can receive mail at omar@marinabay.ae. So the presenter's own
+   * address can be given to a demo person: `DEMO_OWNER_EMAIL` makes the
+   * presenter Omar, the owner, with everything the demo has assigned to
+   * him; `DEMO_AGENT_EMAIL` Lena, for the phone; `DEMO_MLRO_EMAIL` the
+   * compliance officer, the one person who can open Compliance.
+   * (`you+mlro@…` works on most mail providers.) Unset, nothing changes.
+   */
+  const presenter: Partial<Record<Role, string | undefined>> = {
+    OWNER: process.env.DEMO_OWNER_EMAIL?.trim().toLowerCase(),
+    AGENT: process.env.DEMO_AGENT_EMAIL?.trim().toLowerCase(),
+    COMPLIANCE_OFFICER: process.env.DEMO_MLRO_EMAIL?.trim().toLowerCase(),
+  };
 
   const byEmail = new Map<string, string>();
   for (const p of PEOPLE) {
+    const signIn = presenter[p.role];
+    if (signIn) {
+      // The demo person keeps their name and everything assigned to them;
+      // only the address that receives the sign-in link changes.
+      const taken = await db.user.findUnique({ where: { email: signIn }, select: { id: true } });
+      const was = await db.user.findUnique({ where: { email: p.email }, select: { id: true } });
+      if (was && !taken) await db.user.update({ where: { id: was.id }, data: { email: signIn } });
+    }
+    const email = signIn ?? p.email;
     const user = await db.user.upsert({
-      where: { email: p.email },
+      where: { email },
       update: { name: p.name },
-      create: { email: p.email, name: p.name, emailVerified: new Date() },
+      create: { email, name: p.name, emailVerified: new Date() },
     });
     byEmail.set(p.email, user.id);
     await db.membership.upsert({
@@ -472,7 +504,7 @@ async function main() {
     orderBy: { createdAt: "asc" },
     select: {
       id: true, name: true, status: true, phone: true, budgetMaxFils: true,
-      conversation: { select: { id: true } },
+      conversation: { select: { id: true, channelId: true } },
     },
   });
   for (const [i, l] of spread.entries()) {
@@ -539,12 +571,26 @@ async function main() {
         variant
       );
     await db.message.deleteMany({ where: { conversationId: l.conversation.id } });
-    const end = daysAgo(age).getTime();
+    /**
+     * On a real clock, and mostly in the evening.
+     *
+     * Every thread used to end at the same minute of the day — whatever
+     * minute the seed ran — so a prospect looking at the inbox saw
+     * forty-two conversations all stamped 19:14, which reads as a
+     * fixture. Each lead now has its own time of day, stable per phone
+     * number, weighted to the hours the pitch is about: enquiries land
+     * after the team has gone home. The assistant answers in about half
+     * a minute; an agent takes minutes; a buyer comes back in a few.
+     */
+    const HOURS = [21, 22, 23, 20, 9, 13, 19, 0, 8, 17, 22, 18, 21, 11];
+    const end = atDubai(age, HOURS[variant % HOURS.length]!, (variant * 7) % 60).getTime();
+    const gapBefore = (who: string) => (who === "bot" ? 35_000 : who === "agent" ? 9 * 60_000 : 3 * 60_000);
+    const times: number[] = [];
+    for (let k = turns.length - 1, t = end; k >= 0; k--) { times[k] = t; t -= gapBefore(turns[k]![0]); }
     await db.message.createMany({
       data: turns.map(([who, body]: Turn, k: number) => {
         const inbound = who === "them";
-        // Four minutes apart, ending on the conversation's own clock.
-        const sentAt = new Date(end - (turns.length - 1 - k) * 4 * 60_000);
+        const sentAt = new Date(times[k]!);
         return {
           orgId: org.id,
           conversationId: l.conversation!.id,
@@ -559,6 +605,26 @@ async function main() {
         };
       }),
     });
+
+    /**
+     * The enquiry that started it, at the first message.
+     *
+     * The response-time report is built from enquiries — when one came
+     * in, and when the first reply went out — and the demo brokerage had
+     * none of its own, so the chart a brokerage owner most needs to see
+     * said "no replies recorded yet". Upserted on a stable id, so a
+     * reseed moves it with the thread rather than adding another.
+     */
+    const firstThem = turns.findIndex(([w]: Turn) => w === "them");
+    if (firstThem >= 0) {
+      const externalId = `seed-enquiry-${l.id}`;
+      const at = new Date(times[firstThem]!);
+      await db.enquiry.upsert({
+        where: { orgId_externalId: { orgId: org.id, externalId } },
+        create: { orgId: org.id, leadId: l.id, channelId: l.conversation.channelId, externalId, message: turns[firstThem]![1], createdAt: at },
+        update: { createdAt: at, message: turns[firstThem]![1], channelId: l.conversation.channelId },
+      });
+    }
 
     /**
      * The badge, **derived** from the transcript rather than declared
@@ -580,13 +646,13 @@ async function main() {
      */
     const outbound = [...turns].reverse().findIndex(([w]) => w !== "them");
     const unread = outbound === -1 ? turns.length : outbound;
+    const lastThem = turns.map(([w]: Turn) => w).lastIndexOf("them");
+    const lastUs = turns.length - 1 - (outbound === -1 ? turns.length : outbound);
     await db.conversation.update({
       where: { id: l.conversation.id },
       data: {
-        lastInboundAt: daysAgo(age),
-        lastOutboundAt: outbound === -1
-          ? null
-          : new Date(end - outbound * 4 * 60_000),
+        lastInboundAt: lastThem >= 0 ? new Date(times[lastThem]!) : new Date(end),
+        lastOutboundAt: outbound === -1 ? null : new Date(times[lastUs]!),
         unreadCount: unread,
       },
     });
@@ -941,6 +1007,7 @@ async function main() {
   await register(org.id, owner, agent);
   await tidyCheckDebris(org.id);
   await seedOpportunities(org.id, agent);
+  await seedDrafts(org.id);
 
   /**
    * The nightly intelligence sweep, run once so the front door has
@@ -1735,7 +1802,78 @@ async function seedOpportunities(orgId: string, lettingsAgent: string) {
   });
 }
 
+/**
+ * Replies the assistant has drafted, waiting for a person to send.
+ *
+ * The product's headline — a reply written the moment a buyer writes —
+ * had no trace in the demo inbox: not one draft, so the panel an agent
+ * sends from never appeared. Three threads where the buyer spoke last
+ * with an ordinary question get the draft the assistant would write,
+ * and nothing it would not: no invented service charge or pet rule, only
+ * what the listing says and an offer to find the rest. The two
+ * negotiations (James, Stefan) get none — the assistant hands those to a
+ * person, and the Handover tab shows it.
+ *
+ * And a short history — sent as written, edited, thrown away — so the
+ * "sent as written" figure on Settings is a number rather than a dash.
+ * Marked `promptVersion: "demo-seed"`, and replaced on every run.
+ */
+async function seedDrafts(orgId: string) {
+  const OPEN: Record<string, string> = {
+    "Sarah Al Mansoori":
+      "Of course — your husband is welcome to join on video, and Omar will send the link on Saturday morning. " +
+      "The price quoted doesn't include the service charge, which is paid to the building each year; " +
+      "Omar will bring the exact figure from the owner's statement so you have it in writing.",
+    "Emma Lindqvist":
+      "Sorry for the wait, Emma — still here. Pet rules are set building by building, so I'll check them for the " +
+      "high-floor 2-beds in the Marina around 3.2 and send you only the ones that allow pets. " +
+      "Would this week suit to see them?",
+    "David Chen":
+      "JVC is the closest community to that budget, though there's nothing on our books to buy under 300k there today. " +
+      "Would renting work for you in the meantime, or shall I message you as soon as something comes up?",
+  };
+  const convos = await db.conversation.findMany({
+    where: { orgId, lead: { orgId, deletedAt: null } },
+    select: { id: true, lead: { select: { name: true } } },
+  });
+  const ids = convos.map((c) => c.id);
+  await db.replyDraft.deleteMany({ where: { orgId, conversationId: { in: ids }, promptVersion: "demo-seed" } });
+
+  for (const c of convos) {
+    const body = OPEN[c.lead?.name ?? ""];
+    if (!body) continue;
+    const last = await db.message.findFirst({
+      where: { conversationId: c.id, direction: "INBOUND" },
+      orderBy: [{ sentAt: "desc" }, { id: "desc" }], select: { id: true, sentAt: true },
+    });
+    if (!last) continue;
+    await db.replyDraft.create({
+      data: {
+        orgId, conversationId: c.id, inboundMessageId: last.id, body, state: "OPEN",
+        model: "assistant", promptVersion: "demo-seed", createdAt: new Date(last.sentAt.getTime() + 6_000),
+      },
+    });
+  }
+
+  // History: the assistant's earlier replies, as the drafts they were.
+  const past = await db.message.findMany({
+    where: { orgId, conversationId: { in: ids }, author: "ASSISTANT", sentAt: { gte: daysAgo(28) } },
+    orderBy: { sentAt: "desc" }, take: 14, select: { id: true, conversationId: true, body: true, sentAt: true },
+  });
+  const fate = (k: number) => (k % 7 === 3 ? "EDITED" : k % 7 === 6 ? "DISCARDED" : "SENT") as "SENT" | "EDITED" | "DISCARDED";
+  await db.replyDraft.createMany({
+    data: past.map((m, k) => ({
+      orgId, conversationId: m.conversationId, body: m.body, state: fate(k),
+      model: "assistant", promptVersion: "demo-seed",
+      messageId: fate(k) === "DISCARDED" ? null : m.id,
+      createdAt: new Date(m.sentAt.getTime() - 20_000), resolvedAt: m.sentAt,
+    })),
+  });
+}
+
 async function tidyCheckDebris(orgId: string) {
+  // Channels, enquiries and leads the HTTP checks leave when they die early.
+  await clearCheckDebris(db, orgId);
   const stray = await db.membership.findMany({
     where: { orgId, user: { email: { endsWith: "@example.invalid" } } },
     select: { userId: true },
@@ -2285,6 +2423,16 @@ function threadFor(
 
 function daysAgo(n: number) {
   return new Date(Date.now() - n * 86_400_000);
+}
+
+/** `n` days ago at this hour and minute in Dubai, never in the future. */
+function atDubai(n: number, hour: number, minute: number) {
+  const DUBAI = 4 * 3_600_000;
+  const local = new Date(Date.now() - n * 86_400_000 + DUBAI);
+  local.setUTCHours(hour, minute, 0, 0);
+  let at = local.getTime() - DUBAI;
+  if (at > Date.now() - 60_000) at -= 86_400_000;
+  return new Date(at);
 }
 
 main()

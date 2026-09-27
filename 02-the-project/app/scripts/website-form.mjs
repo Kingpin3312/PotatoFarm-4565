@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { clearCheckDebris } from "./lib/demo-debris.mjs";
 
 /**
  * A brokerage's own website form, end to end, against the real application.
@@ -42,6 +43,8 @@ const db = new PrismaClient({
 });
 const org = await db.organisation.findFirst({ where: { deletedAt: null }, select: { id: true } });
 if (!org) { console.error("no organisation — run npm run db:seed"); process.exit(1); }
+// Whatever an earlier run left if it died before its clean-up.
+await clearCheckDebris(db, org.id);
 
 const STAMP = Date.now();
 const EMAIL = `web.check.${STAMP}@example.com`;

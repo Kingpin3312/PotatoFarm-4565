@@ -172,6 +172,29 @@ notice before that happens.
 
 ---
 
+## A demo deployment, for showing prospects
+
+Separate from the real application: its own Vercel project and its own
+database, so nothing seeded ever sits next to a customer's data.
+
+1. A second Postgres database (Neon or Supabase), and a second Vercel
+   project from this repository with the same variables as production,
+   except the database URLs.
+2. `ANTHROPIC_API_KEY` — without it every live enquiry is handed to a
+   person, and the room sees no drafted reply.
+3. Resend with a verified domain, as for production: sign-in is by
+   emailed link.
+4. Set `DEMO_OWNER_EMAIL` (you become Omar, the owner),
+   `DEMO_AGENT_EMAIL` (Lena, for the phone) and `DEMO_MLRO_EMAIL` (the
+   compliance officer — `you+mlro@…` works on most providers).
+5. `npx prisma migrate deploy`, then `npm run db:seed` against **this**
+   database only. The seeded brokerage is a demonstration one: nothing
+   it sends reaches WhatsApp, and Inbox has "Try a live enquiry".
+6. Re-run `npm run db:seed` the morning of each demo. Times in the demo
+   are relative to now, and the seed clears rehearsal enquiries.
+
+No WhatsApp number or Meta approval is needed for a demo.
+
 ## Testing without Meta
 
 Real WhatsApp needs business verification that takes days. Almost

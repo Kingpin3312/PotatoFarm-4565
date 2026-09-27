@@ -1,4 +1,6 @@
 import fs from "node:fs";
+import { PrismaClient } from "@prisma/client";
+import { clearCheckDebris } from "./lib/demo-debris.mjs";
 import pw from "playwright";
 import { sessionCookies } from "./lib/session-cookie.mjs";
 
@@ -20,6 +22,12 @@ let bad=0;
 const ok=(l,p,d="")=>{console.log(`  ${p?"✓":"✗"} ${l}${d?"  — "+d:""}`);if(!p)bad++;};
 
 const NUM = `TESTNUM${Date.now()}`;
+// The channels this check connects stay in the demo brokerage otherwise,
+// and "Test sales number" had accumulated six times on its Channels screen.
+const cleanDb = new PrismaClient({ datasources: { db: { url: process.env.DATABASE_URL_UNSCOPED } } });
+const demoOrg = await cleanDb.organisation.findFirst({ where: { deletedAt: null }, select: { id: true } });
+if (demoOrg) await clearCheckDebris(cleanDb, demoOrg.id);
+
 const b=await pw.chromium.launch({executablePath:cp()});
 const ctx=await b.newContext({viewport:{width:1280,height:900}});
 await ctx.addCookies([...sessionCookies("dev-session-token-ask-history")]);
@@ -122,5 +130,7 @@ ok("it is refused", /already connected/i.test(err), JSON.stringify(err.slice(0,9
 ok("and does not reveal who holds it", !/brokerage|org|company/i.test(err.replace(/brokerages?/i,"")) || !/[A-Z][a-z]+ (Bay|Properties|Brokerage)/.test(err), err.slice(0,60));
 
 await b.close();
+if (demoOrg) await clearCheckDebris(cleanDb, demoOrg.id);
+await cleanDb.$disconnect();
 console.log(bad?`\n${bad} PROBLEM(S)`:"\nPASS");
 process.exitCode=bad?1:0;

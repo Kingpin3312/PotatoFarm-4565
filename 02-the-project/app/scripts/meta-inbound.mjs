@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { clearCheckDebris } from "./lib/demo-debris.mjs";
 import http from "node:http";
 import { PrismaClient } from "@prisma/client";
 
@@ -57,6 +58,8 @@ const db = new PrismaClient({
 
 const org = await db.organisation.findFirst({ where: { deletedAt: null }, select: { id: true } });
 if (!org) { console.error("no organisation — run npm run db:seed"); process.exit(1); }
+// Whatever an earlier run left if it died before its clean-up.
+await clearCheckDebris(db, org.id);
 
 const PAGE_ID = String(Date.now()).slice(-12);          // Meta ids are numeric strings
 const LEADGEN = "99" + String(Date.now()).slice(-10);
