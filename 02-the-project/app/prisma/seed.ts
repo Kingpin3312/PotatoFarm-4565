@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { PrismaClient, type LeadSource, type LeadStatus, type Role } from "@prisma/client";
 // @ts-expect-error — a plain .mjs helper shared with the checks.
 import { clearCheckDebris } from "../scripts/lib/demo-debris.mjs";
@@ -332,6 +333,30 @@ async function main() {
     },
   });
 
+  /**
+   * The brokerage's website form, beside its number.
+   *
+   * The fixture has buyers whose source is the website, and every one of
+   * them had their first enquiry filed against the WhatsApp number — so
+   * Reports said every enquiry came through one number while the same
+   * buyers' own records said otherwise. A website enquiry arrives through
+   * the form (`portals/website-form.ts`) and the conversation then
+   * carries on over WhatsApp, which is what these now record.
+   *
+   * No `lastSyncAt`: the silence alarm only watches a channel that has
+   * reported a delivery time, and a seeded one has not, so this cannot
+   * put a "nothing for 90 hours" warning in front of a prospect.
+   */
+  const webForm = await db.channel.upsert({
+    where: { orgId_type_identifier: { orgId: org.id, type: "WEBSITE_FORM", identifier: "main-site-form" } },
+    update: { active: true },
+    create: {
+      orgId: org.id, type: "WEBSITE_FORM", label: "Website enquiry form",
+      identifier: "main-site-form", active: true,
+      webhookToken: randomBytes(24).toString("base64url"),
+    },
+  });
+
   const owner = byEmail.get("omar@marinabay.ae")!;
   const agent = byEmail.get("lena@marinabay.ae")!;
 
@@ -503,7 +528,7 @@ async function main() {
     where: { orgId: org.id, deletedAt: null },
     orderBy: { createdAt: "asc" },
     select: {
-      id: true, name: true, status: true, phone: true, budgetMaxFils: true,
+      id: true, name: true, status: true, phone: true, budgetMaxFils: true, source: true,
       conversation: { select: { id: true, channelId: true } },
     },
   });
@@ -619,10 +644,12 @@ async function main() {
     if (firstThem >= 0) {
       const externalId = `seed-enquiry-${l.id}`;
       const at = new Date(times[firstThem]!);
+      // Where it arrived, which is not always where the talking happens.
+      const channelId = l.source === "WEBSITE" ? webForm.id : l.conversation.channelId;
       await db.enquiry.upsert({
         where: { orgId_externalId: { orgId: org.id, externalId } },
-        create: { orgId: org.id, leadId: l.id, channelId: l.conversation.channelId, externalId, message: turns[firstThem]![1], createdAt: at },
-        update: { createdAt: at, message: turns[firstThem]![1], channelId: l.conversation.channelId },
+        create: { orgId: org.id, leadId: l.id, channelId, externalId, message: turns[firstThem]![1], createdAt: at },
+        update: { createdAt: at, message: turns[firstThem]![1], channelId },
       });
     }
 

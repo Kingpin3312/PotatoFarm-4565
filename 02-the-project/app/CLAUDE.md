@@ -862,6 +862,11 @@ proves a real brokerage is untouched:
   replies while qualifying for the demo brokerage).
   Refused (FORBIDDEN) for any brokerage without the flag.
 - **Every screen says "Demo"** in the header.
+- **It has a website form beside its number.** The buyers whose source
+  is the website had their first enquiry filed under the WhatsApp number,
+  so Reports said everything came through one number while those buyers'
+  own records disagreed. The seed files them under "Website enquiry form"
+  now; it sets no `lastSyncAt`, so the silence alarm cannot fire on it.
 
 Rehearsal enquiries (phones `+9715000xxxxx`) and check debris are cleared
 by `scripts/lib/demo-debris.mjs`, which the seed runs — so reseeding the

@@ -318,9 +318,19 @@ sec("reports", "manage", "Reports", ["manager", "owner"],
     ["<b>Response time</b>: the median first reply.",
      "<b>Capture this week as your baseline</b> before switching the assistant on. It freezes the current numbers, so the difference afterwards can be measured.",
      "<b>By hour of day</b>: when enquiries arrive and how quickly they are answered. The gap after six in the evening is usually the whole story.",
-     "<b>Where they come from</b>: each source's share of your enquiries as a ring, and how quickly each is first answered. With only one source, a sentence says so.",
+     "<b>Where they come from</b>: each source's share of your enquiries, as a ring (next page).",
      "<b>The business</b>: the pipeline weighted by stage, commission on its way, enquiry-to-completion time, leads, wins and conversion by source, and who has gone quiet, by agent."],
     ["Choose the period: last 30 days, 90 days or year."])
+
+sec("reports-sources", "manage", "Where your enquiries come from", ["manager", "owner"],
+    [("reports-sources", "Reports → Where they come from: each source's share of enquiries, and how quickly each is first answered.")],
+    "Further down Reports: which sources your enquiries arrive through, and how well each is answered. Every enquiry arrives through exactly one source, so together they make a whole, drawn as a ring.",
+    ["The <b>ring</b> shows each source's share. The number in the middle is the total for the period.",
+     "Beside it, every source with its <b>count</b>, its <b>share</b> and its typical <b>first reply</b>. Point at a slice or a row to pick it out.",
+     "Past three sources, the smallest are drawn together as one grey slice; the list still names every one.",
+     "On a phone, the first-reply time sits under each source's name."],
+    ["A busy source with a slow first reply is where the next deal is being lost.",
+     "With only one source connected, a sentence says so instead of a ring."])
 
 sec("activity", "manage", "What the assistant did", ["manager", "owner"],
     [("activity", "What it did: everything the assistant has done for you, why, and how to take it back.")],
@@ -353,14 +363,22 @@ sec("compliance", "manage", "Compliance (for the compliance officer)", ["mlro"],
 
 # ----------------------------------------------------------------- settings
 sec("set-general", "settings", "Settings: the assistant's brake, calendar and listing feed", ["owner", "manager"],
-    [("settings", "Settings: the assistant's status and stop button, your calendar link, and your listing feed."),
-     ("settings-drafts", "Its drafts, last 30 days: what happened to every draft somebody decided about.")],
-    "The first Settings screen: whether the assistant is running, how its drafts are received, the button that stops it, your calendar link, and the feed address a portal collects your listings from.",
-    ["<b>Its drafts, last 30 days</b>: a ring of the drafts somebody decided about (sent as written, changed first, thrown away), with the share sent as written in the middle. The closer that is to all of them, the stronger the case for automatic replies. Drafts overtaken or still waiting are listed underneath, not counted.",
-     "<b>Stop the assistant</b> halts every conversation in the brokerage at once: no delay, no cache, no messages still going out. Press it again to start.",
+    [("settings", "Settings: the assistant's status and stop button, your calendar link, and your listing feed.")],
+    "The first Settings screen: whether the assistant is running, the button that stops it, your calendar link, and the feed address a portal collects your listings from. Further down: how its drafts are received (next page).",
+    ["<b>Stop the assistant</b> halts every conversation in the brokerage at once: no delay, no cache, no messages still going out. Press it again to start.",
      "<b>Create my calendar link</b> puts every viewing booked for you in the calendar you already use (Apple, Google or Outlook). It is read-only.",
      "<b>Your feed address</b> is what a portal collects your available, permitted listings from. Copy it and give it to Property Finder, Bayut or Dubizzle once your agreement is signed."],
     ["Treat the feed address like a password. Anyone with it can read every property you have for sale or rent."])
+
+sec("set-drafts", "settings", "How the assistant's drafts are received", ["owner", "manager"],
+    [("settings-drafts", "Settings → Its drafts, last 30 days: every draft somebody decided about, and the share sent exactly as written.")],
+    "Further down the first Settings screen: what your team did with the assistant's drafts over the last 30 days. It is the evidence for deciding how far to trust it.",
+    ["The <b>ring</b> counts every draft somebody decided about: <b>sent as written</b> in pink, <b>changed first</b> and <b>thrown away</b> in grey.",
+     "The number in the middle is the share <b>sent exactly as written</b>.",
+     "Beside the ring, each outcome with its count and its share. Point at a slice or a row to pick it out.",
+     "Underneath: drafts <b>overtaken</b> (the buyer wrote again, or somebody replied first) and drafts <b>still waiting</b>. Nobody decided about those, so they are not in the ring."],
+    ["When nearly all go out as written, that is the case for automatic replies: Settings → Assistant.",
+     "Colour is never the only clue. Every slice has its name, count and share written beside it."])
 
 sec("set-assistant", "settings", "The assistant: questions, tone and automatic replies", ["owner"],
     [("set-assistant", "Settings → Assistant: replies while qualifying, the five questions, and the tone.")],

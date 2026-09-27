@@ -18,6 +18,10 @@ const extra = [
   ["x-m-palette", "/inbox", AGENT, M, async (p) => { await p.getByRole("button", { name: /More/ }).last().click(); await p.waitForTimeout(1200); }],
   ["x-filters", "/leads", OWNER, D, null],
   // A section further down a screen, scrolled to its heading.
+  ["reports-sources", "/reports", OWNER, D, async (p) => {
+    await p.getByRole("heading", { name: /Where they come from/ }).evaluate((h) => scrollTo(0, h.getBoundingClientRect().top + scrollY - 96));
+    await p.waitForTimeout(600);
+  }],
   ["settings-drafts", "/settings", OWNER, D, async (p) => {
     await p.getByRole("heading", { name: /Its drafts/ }).evaluate((h) => scrollTo(0, h.getBoundingClientRect().top + scrollY - 96));
     await p.waitForTimeout(600);

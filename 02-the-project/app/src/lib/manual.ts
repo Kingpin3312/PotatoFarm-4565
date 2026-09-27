@@ -2,13 +2,13 @@
 // Rebuild the manual, then run it again; the reader follows.
 
 export const EDITION = "e2";
-export const PAGE_COUNT = 62;
+export const PAGE_COUNT = 64;
 // Changes with every rebuild, and rides on every page and PDF address:
 // the files are cached for an hour, and the addresses do not otherwise
 // change, so without it a reader could see last edition's pages.
-export const VERSION = "8f20e01642";
+export const VERSION = "264ed0be2b";
 export const PDF_URL = "/api/manual/pdf";
-export const PDF_BYTES = 6114512;
+export const PDF_BYTES = 6233792;
 
 export type Entry = { no: string; title: string; page: number; part: boolean };
 export const CONTENTS: Entry[] = [
@@ -230,140 +230,152 @@ export const CONTENTS: Entry[] = [
   },
   {
     "no": "4.2",
-    "title": "What the assistant did",
+    "title": "Where your enquiries come from",
     "page": 39,
     "part": false
   },
   {
     "no": "4.3",
-    "title": "Team",
+    "title": "What the assistant did",
     "page": 40,
     "part": false
   },
   {
     "no": "4.4",
-    "title": "Compliance (for the compliance officer)",
+    "title": "Team",
     "page": 41,
+    "part": false
+  },
+  {
+    "no": "4.5",
+    "title": "Compliance (for the compliance officer)",
+    "page": 42,
     "part": false
   },
   {
     "no": "05",
     "title": "Settings",
-    "page": 42,
+    "page": 43,
     "part": true
   },
   {
     "no": "5.1",
     "title": "Settings: the assistant's brake, calendar and listing feed",
-    "page": 43,
-    "part": false
-  },
-  {
-    "no": "5.2",
-    "title": "The assistant: questions, tone and automatic replies",
     "page": 44,
     "part": false
   },
   {
-    "no": "5.3",
-    "title": "Channels",
+    "no": "5.2",
+    "title": "How the assistant's drafts are received",
     "page": 45,
     "part": false
   },
   {
-    "no": "5.4",
-    "title": "Lead routing",
+    "no": "5.3",
+    "title": "The assistant: questions, tone and automatic replies",
     "page": 46,
     "part": false
   },
   {
-    "no": "5.5",
-    "title": "Working hours",
+    "no": "5.4",
+    "title": "Channels",
     "page": 47,
     "part": false
   },
   {
-    "no": "5.6",
-    "title": "Nurture plans",
+    "no": "5.5",
+    "title": "Lead routing",
     "page": 48,
     "part": false
   },
   {
-    "no": "5.7",
-    "title": "Commission plans",
+    "no": "5.6",
+    "title": "Working hours",
     "page": 49,
     "part": false
   },
   {
-    "no": "5.8",
-    "title": "Email",
+    "no": "5.7",
+    "title": "Nurture plans",
     "page": 50,
     "part": false
   },
   {
-    "no": "5.9",
-    "title": "Import your history",
+    "no": "5.8",
+    "title": "Commission plans",
     "page": 51,
     "part": false
   },
   {
-    "no": "5.10",
-    "title": "Security and two-step sign-in",
+    "no": "5.9",
+    "title": "Email",
     "page": 52,
     "part": false
   },
   {
-    "no": "5.11",
-    "title": "Support access",
+    "no": "5.10",
+    "title": "Import your history",
     "page": 53,
     "part": false
   },
   {
-    "no": "5.12",
-    "title": "Privacy requests",
+    "no": "5.11",
+    "title": "Security and two-step sign-in",
     "page": 54,
     "part": false
   },
   {
-    "no": "5.13",
-    "title": "Billing and invoices",
+    "no": "5.12",
+    "title": "Support access",
     "page": 55,
+    "part": false
+  },
+  {
+    "no": "5.13",
+    "title": "Privacy requests",
+    "page": 56,
+    "part": false
+  },
+  {
+    "no": "5.14",
+    "title": "Billing and invoices",
+    "page": 57,
     "part": false
   },
   {
     "no": "06",
     "title": "On your phone",
-    "page": 56,
+    "page": 58,
     "part": true
   },
   {
     "no": "6.1",
     "title": "Using PotatoFarm.io on your phone",
-    "page": 57,
+    "page": 59,
     "part": false
   },
   {
     "no": "07",
     "title": "Routines and reference",
-    "page": 58,
+    "page": 60,
     "part": true
   },
   {
     "no": "7.1",
     "title": "Routines by role",
-    "page": 59,
+    "page": 61,
     "part": false
   },
   {
     "no": "7.2",
     "title": "When something looks wrong",
-    "page": 60,
+    "page": 62,
     "part": false
   },
   {
     "no": "7.3",
     "title": "Words we use",
-    "page": 61,
+    "page": 63,
     "part": false
   }
 ];
