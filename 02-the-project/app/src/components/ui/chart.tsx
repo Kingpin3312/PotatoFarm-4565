@@ -1,7 +1,10 @@
+"use client";
+
+import { useState } from "react";
 import { cn } from "@/lib/cn";
 
 /**
- * The four shapes this product draws, and nothing else.
+ * The shapes this product draws, and nothing else.
  *
  * ## Why these are hand-drawn SVG and not a charting library
  *
@@ -203,6 +206,165 @@ export function Bars({ bars, empty, format, axisEvery = 6, height = 150 }: {
         ))}
       </div>
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+
+export type Slice = { label: string; value: number; note?: string };
+
+/**
+ * The fills a ring is drawn in, by how many slices it has.
+ *
+ * The one accent and the product's own greys — `palette.py` allows no
+ * other saturated colour, and a tint ramp of the accent was measured and
+ * rejected (see above). Measured against the ground, not judged: every
+ * fill is at least 3.6:1 against it, and every pair that can sit side by
+ * side is at least 11 apart in OKLab ΔE (×100), which is clear of the 8
+ * a reader with a colour-vision deficiency needs. Three slices take the
+ * light and the dark grey, the widest pair; a fourth takes the middle.
+ * Past four there is nothing left that separates, so the ring folds the
+ * rest into one slice rather than inventing a fifth colour.
+ */
+const RING_FILLS: Record<number, string[]> = {
+  1: ["var(--accent)"],
+  2: ["var(--accent)", "var(--ink-2)"],
+  3: ["var(--accent)", "var(--ink-2)", "var(--rule-strong)"],
+  4: ["var(--accent)", "var(--ink-2)", "var(--ink-3)", "var(--rule-strong)"],
+};
+
+/** "61%", and "under 1%" rather than a zero beside a real count. */
+function share(v: number, total: number): string {
+  if (v === 0) return "0%";
+  const p = (v / total) * 100;
+  return p < 1 ? "under 1%" : `${Math.round(p)}%`;
+}
+
+/**
+ * One whole, split into the parts it is made of.
+ *
+ * Only for a whole: every item counted belongs to exactly one slice, so
+ * the slices add up to something a person would say out loud — "of the
+ * drafts somebody decided about", "of the enquiries this month". Anything
+ * ordered (stages), across time (months, hours) or not additive (reply
+ * times, rates) stays with `Funnel` or `Bars`; a pie of those says
+ * something false. The centre carries the one number the ring is for.
+ *
+ * The legend is the chart's text and it is the accessible version: every
+ * slice has its name, its count and its share written beside it, so no
+ * reader depends on telling two greys apart. Slices with nothing in them
+ * stay in the legend at 0, for the reason `Funnel` draws its empty rows.
+ * Past `max` the ring folds the smallest into one "everything else"
+ * slice; the legend still lists every one of them, marked with that
+ * slice's colour, so folding costs the picture detail and the reader
+ * nothing.
+ */
+export function Donut({ slices, empty, caption, centre, centreLabel, max = 4, otherLabel = "Everything else", noteLabel, one }: {
+  slices: Slice[];
+  /** Heads the notes column, when the notes are a figure of their own. */
+  noteLabel?: string;
+  /**
+   * What to say when there is only one category, instead of a solid
+   * ring. Omit it where a single category is still a real split — three
+   * named outcomes of which only one has happened yet are drawn, with
+   * the other two at 0.
+   */
+  one?: (s: Slice) => React.ReactNode;
+  empty: React.ReactNode;
+  caption: string;
+  centre: string;
+  centreLabel: string;
+  max?: number;
+  otherLabel?: string;
+}) {
+  const [hot, setHot] = useState<number | null>(null);
+  const total = slices.reduce((n, s) => n + s.value, 0);
+  if (slices.length === 0 || total === 0) return <Empty>{empty}</Empty>;
+  // One category is not a split. A solid ring reads as a fault — or as
+  // a chart with nothing to say — so say the one thing in words.
+  if (slices.length === 1 && one) return <p className="text-sm text-ink-2 leading-snug max-w-[56ch] py-2">{one(slices[0]!)}</p>;
+
+  const cap = Math.min(max, 4);
+  const folds = slices.length > cap;
+  const ring: Slice[] = folds
+    ? [...slices.slice(0, cap - 1),
+       { label: otherLabel, value: slices.slice(cap - 1).reduce((n, s) => n + s.value, 0) }]
+    : slices;
+  const fills = RING_FILLS[ring.length]!;
+  /** Which ring slice a legend row belongs to. */
+  const slot = (i: number) => (folds && i >= cap - 1 ? cap - 1 : i);
+
+  const R = 50, C = 2 * Math.PI * R;
+  // A sliver of ground between slices, so two neighbours never merge
+  // into one shape. None when one slice is the whole ring.
+  const drawn = ring.filter((s) => s.value > 0).length;
+  const gap = drawn > 1 ? 2 : 0;
+  let start = 0;
+
+  return (
+    <figure className="m-0 flex flex-wrap items-center gap-x-10 gap-y-6" aria-label={caption}>
+      <div className="relative w-[148px] h-[148px] shrink-0" onMouseLeave={() => setHot(null)}>
+        <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90" aria-hidden="true">
+          {ring.map((s, i) => {
+            const len = (s.value / total) * C;
+            const at = start;
+            start += len;
+            if (s.value === 0) return null;
+            return (
+              <circle key={s.label} cx="60" cy="60" r={R} fill="none"
+                stroke={fills[i]} strokeWidth="18"
+                strokeDasharray={`${Math.max(len - gap, 0.6)} ${C}`}
+                strokeDashoffset={-at}
+                onMouseEnter={() => setHot(i)}
+                className="motion-safe:transition-opacity"
+                style={{ opacity: hot === null || hot === i ? 1 : 0.3 }}>
+                <title>{`${s.label}: ${s.value.toLocaleString()} (${share(s.value, total)})`}</title>
+              </circle>
+            );
+          })}
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
+          <span className="font-sans font-semibold text-title leading-none text-ink tabular">{centre}</span>
+          <span className="t-label text-ink-3 mt-1.5 max-w-[88px] leading-tight">{centreLabel}</span>
+        </div>
+      </div>
+
+      <ul className="flex-1 min-w-[240px] max-w-[520px] border-t border-rule-strong">
+        {noteLabel && (
+          <li aria-hidden="true" className="hidden sm:flex items-center gap-3 py-1.5 px-1 border-b border-rule t-label text-ink-3">
+            <span className="w-2.5 shrink-0" />
+            <span className="flex-1" />
+            <span className="w-10 text-end shrink-0">Count</span>
+            <span className="w-[68px] text-end shrink-0">Share</span>
+            <span className="w-[96px] text-end shrink-0">{noteLabel}</span>
+          </li>
+        )}
+        {slices.map((s, i) => (
+          <li key={s.label}
+              onMouseEnter={() => setHot(slot(i))} onMouseLeave={() => setHot(null)}
+              className={cn("flex items-center gap-3 py-2.5 px-1 border-b border-rule motion-safe:transition-colors",
+                            hot === slot(i) && "bg-sunk")}>
+            <span aria-hidden="true" className="w-2.5 h-2.5 rounded-[2px] shrink-0"
+                  style={{ background: fills[slot(i)] }} />
+            <span className="flex-1 min-w-0">
+              <span className="block text-sm text-ink truncate">{s.label}</span>
+              {/* On a phone the notes column does not fit; the note goes
+                  under the name rather than being dropped. */}
+              {s.note !== undefined && (
+                <span className="block sm:hidden text-note text-ink-3 tabular">
+                  {noteLabel ? `${noteLabel}: ` : ""}{s.note}
+                </span>
+              )}
+            </span>
+            <span className="text-note tabular text-ink font-medium w-10 text-end shrink-0">{s.value.toLocaleString()}</span>
+            <span className="text-note tabular text-ink-3 w-[68px] text-end shrink-0">{share(s.value, total)}</span>
+            {s.note !== undefined && (
+              <span className="text-note tabular text-ink-3 w-[96px] text-end shrink-0 hidden sm:block">{s.note}</span>
+            )}
+          </li>
+        ))}
+      </ul>
+    </figure>
   );
 }
 
