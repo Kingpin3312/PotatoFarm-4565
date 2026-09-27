@@ -1,4 +1,5 @@
 import { crossTenant } from "@/server/db/client";
+import { detectLanguage, languageName } from "@/server/lib/language";
 import { endpoint } from "@/server/lib/loopback";
 import { buildSystemPrompt } from "./prompt";
 import { screenOutbound } from "./guardrails";
@@ -125,7 +126,9 @@ export async function replay(args: {
       agentName: null,
       questions: profile.questions.map((q) => ({ key: q.key, prompt: q.prompt, required: q.required })),
       listing: listing as any,
-      language: lead.language ?? "en",
+      // The same rule as `run.ts`, or a replay measures a prompt the live
+      // assistant never sends.
+      language: languageName(detectLanguage(context.filter((m) => m.direction === "INBOUND").at(-1)?.body) ?? lead.language),
       tone: profile.tone,
     });
 

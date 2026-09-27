@@ -1008,6 +1008,7 @@ async function main() {
   await tidyCheckDebris(org.id);
   await seedOpportunities(org.id, agent);
   await seedDrafts(org.id);
+  await seedProfiles(org.id);
 
   /**
    * The nightly intelligence sweep, run once so the front door has
@@ -1800,6 +1801,55 @@ async function seedOpportunities(orgId: string, lettingsAgent: string) {
       agentId: lettingsAgent, valueFils: 18_000_000n, stageEnteredAt: daysAgo(2),
     },
   });
+}
+
+/**
+ * What an agent writes on a person's page: what they want, when, how
+ * they pay, and an address.
+ *
+ * No demo lead had any of it, so every person page — the screen a
+ * prospect is shown more than any other — opened on five dashes under
+ * the name. Filled only where empty, so an edit made during a rehearsal
+ * survives a reseed, and derived from the search already recorded for
+ * them so the page never contradicts itself. Addresses are on
+ * example.com: a demo must never hold an address that reaches somebody.
+ * A few visas renew soon, which is what the visa-renewal follow-up is
+ * for; those dates move with the reseed so they never fall behind.
+ */
+async function seedProfiles(orgId: string) {
+  const leads = await db.lead.findMany({
+    where: { orgId, deletedAt: null },
+    orderBy: { createdAt: "asc" },
+    select: {
+      id: true, name: true, email: true, intent: true, timeframe: true, financing: true,
+      visaExpiresAt: true, budgetMaxFils: true,
+      requirements: { where: { active: true }, select: { intent: true, purpose: true }, take: 1 },
+    },
+  });
+  const WHEN = ["Within 3 months", "Next month", "This year", "Within a month", "Just looking for now"];
+  const day = 86_400_000;
+  let n = 0;
+  for (const [i, l] of leads.entries()) {
+    const req = l.requirements[0];
+    const intent = l.intent ?? req?.intent ?? (req?.purpose === "RENT" ? "RENT"
+      : l.budgetMaxFils !== null && l.budgetMaxFils < 50_000_000n ? "RENT" : i % 3 === 0 ? "BUY_TO_INVEST" : "BUY_TO_LIVE");
+    const words = (l.name ?? "").normalize("NFKD").replace(/[^A-Za-z ]/g, "").trim().toLowerCase().split(/\s+/).filter(Boolean);
+    const email = l.email ?? (words.length >= 2 ? `${words[0]}.${words.at(-1)}@example.com` : null);
+    const visaDue = i % 9 === 4 && (!l.visaExpiresAt || l.visaExpiresAt < new Date());
+    await db.lead.update({
+      where: { id: l.id },
+      data: {
+        intent,
+        timeframe: l.timeframe ?? WHEN[i % WHEN.length],
+        // How a renter pays is cheques, not this question.
+        financing: l.financing ?? (intent === "RENT" ? null : i % 2 ? "CASH" : "MORTGAGE"),
+        email,
+        ...(visaDue ? { visaExpiresAt: new Date(Date.now() + (40 + (i % 5) * 9) * day) } : {}),
+      },
+    });
+    n++;
+  }
+  return n;
 }
 
 /**

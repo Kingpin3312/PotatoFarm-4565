@@ -42,6 +42,8 @@ const refused = async (fn: () => Promise<unknown>) => {
 };
 
 const sent: string[] = [];
+/** The system prompt of each reply the model was asked for (not extraction). */
+const asked: string[] = [];
 const standIn = http.createServer((req, res) => {
   let raw = "";
   req.on("data", (c) => { raw += c; });
@@ -49,6 +51,7 @@ const standIn = http.createServer((req, res) => {
     const body = raw ? JSON.parse(raw) : {};
     res.setHeader("content-type", "application/json");
     if (req.url === "/v1/messages") {
+      if (body.max_tokens === 300) asked.push(String(body.system ?? ""));
       res.end(JSON.stringify({ content: [{ type: "text", text: REPLY }], usage: { input_tokens: 100, output_tokens: 20 } }));
       return;
     }
@@ -135,6 +138,14 @@ async function main() {
     const own = await demo.D.enquiry({ name: "Aisha Rahman", body: "مرحبا، هل الشقة في دبي مارينا متاحة؟" });
     const t = await root.conversation.findUniqueOrThrow({ where: { id: own.conversationId }, include: { lead: true, messages: true } });
     ok("a presenter can type their own, in Arabic", t.lead?.name === "Aisha Rahman" && t.messages[0]!.body === "مرحبا، هل الشقة في دبي مارينا متاحة؟");
+    // The website promises a reply in the language the buyer wrote in;
+    // every lead was "en" and the prompt read `Reply in en`.
+    ok("an Arabic buyer is recorded as writing in Arabic", t.lead?.language === "ar", t.lead?.language ?? "none");
+    ok("and the assistant is told to reply in Arabic", asked.at(-1)?.includes("Reply in Arabic") === true,
+       asked.at(-1)?.match(/Reply in \w+/)?.[0] ?? "no reply asked for");
+    await demo.D.enquiry({ name: "Ben Hart", body: "Hi, is the 2 bed in Dubai Marina still available next month?" });
+    ok("an English buyer, in English", asked.at(-1)?.includes("Reply in English") === true,
+       asked.at(-1)?.match(/Reply in \w+/)?.[0] ?? "no reply asked for");
     const e = await refused(() => demo.D.enquiry({ body: "   " }));
     ok("an empty message is refused", e?.code === "BAD_REQUEST", e?.code ?? "allowed");
   }

@@ -6,6 +6,7 @@ import { entryStageId } from "@/server/lib/pipeline/defaults";
 import { assignmentFor } from "@/server/lib/routing/apply";
 import { normalisePhone } from "@/server/lib/portals/normalise";
 import { draftReply } from "@/server/assistant/run";
+import { detectLanguage } from "@/server/lib/language";
 
 /**
  * Inbound WhatsApp.
@@ -158,6 +159,9 @@ async function inbound(
         orgId: channel.orgId,
         phone: from,
         name: profileName,
+        // The language they wrote their first message in, so the reply
+        // is in it too. See `lib/language.ts`.
+        language: detectLanguage(body) ?? "en",
         status: "NEW",
         source: "WHATSAPP_AD",
         ...(stageId ? { stageId } : {}),

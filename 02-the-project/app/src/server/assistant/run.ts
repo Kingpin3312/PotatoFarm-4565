@@ -1,4 +1,5 @@
 import { log, report } from "@/lib/log";
+import { detectLanguage, languageName } from "@/server/lib/language";
 import { endpoint } from "@/server/lib/loopback";
 import { aedToFils } from "@/lib/money";
 import { forOrg } from "@/server/db/client";
@@ -220,7 +221,11 @@ async function prepare(orgId: string, conversationId: string) {
       purpose: listing.purpose as "SALE" | "RENT",
       status: listing.status,
     },
-    language: lead.language ?? "en",
+    // The language of the message being answered, not only the one on
+    // the lead: a buyer who opened in English and switches to Arabic is
+    // answered in Arabic. "Arabic", not "ar" — the prompt said
+    // `Reply in en` to everybody.
+    language: languageName(detectLanguage(lastInbound.body) ?? lead.language),
     tone: profile.tone,
   });
 
