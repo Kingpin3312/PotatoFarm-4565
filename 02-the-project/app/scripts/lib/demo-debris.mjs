@@ -66,6 +66,13 @@ export async function clearCheckDebris(db, orgId) {
     await db.lead.updateMany({ where: { id: { in: rehearsed.map((l) => l.id) } }, data: { deletedAt: new Date() } });
   }
 
+  // `browser:voice` transcribes the same sentence into the brokerage on
+  // every run: 339 identical rows on the Activity screen by the time the
+  // first training manual was captured.
+  const voice = await db.aiAction.deleteMany({
+    where: { orgId, origin: "voice.transcribe", interpretation: "Met Sarah at the Marina Gate viewing, she wants a two-bed." },
+  });
+
   if (channelIds.length) {
     const convos = await db.conversation.findMany({ where: { channelId: { in: channelIds } }, select: { id: true } });
     const convoIds = convos.map((c) => c.id);
@@ -82,5 +89,5 @@ export async function clearCheckDebris(db, orgId) {
     // removed from every list is what matters on a screen.
     await db.lead.updateMany({ where: { id: { in: leads } }, data: { deletedAt: new Date() } });
   }
-  return { channels: channelIds.length, leads: leads.length, rehearsed: rehearsed.length };
+  return { channels: channelIds.length, leads: leads.length, rehearsed: rehearsed.length, voice: voice.count };
 }

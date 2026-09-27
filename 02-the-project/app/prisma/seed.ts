@@ -1009,6 +1009,7 @@ async function main() {
   await seedOpportunities(org.id, agent);
   await seedDrafts(org.id);
   await seedProfiles(org.id);
+  await seedWeek(org.id);
   // The demo shows what the owner chose: replies sent by the assistant
   // while a new buyer is qualified. A real brokerage turns this on in
   // Settings → Assistant; it is off by default.
@@ -1809,6 +1810,25 @@ async function seedOpportunities(orgId: string, lettingsAgent: string) {
       agentId: lettingsAgent, valueFils: 18_000_000n, stageEnteredAt: daysAgo(2),
     },
   });
+}
+
+/**
+ * The setup checklist, as a brokerage a few weeks in would have it.
+ *
+ * It had no rows, so Setup said "0 of 9" on a brokerage with forty
+ * leads and three deals. Written only where nothing is there, so a
+ * change made in a rehearsal survives a reseed. Portals and the baseline
+ * are left to do: the first waits on agreements, the second is a choice
+ * the owner makes on the Reports screen.
+ */
+async function seedWeek(orgId: string) {
+  for (const key of ["company", "whatsapp", "team", "hours", "listings", "questions", "assistant"]) {
+    await db.onboardingStep.upsert({
+      where: { orgId_key: { orgId, key } },
+      create: { orgId, key, state: "DONE", doneAt: new Date() },
+      update: {},
+    });
+  }
 }
 
 /**

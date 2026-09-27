@@ -1,5 +1,6 @@
 import http from "node:http";
 import { PrismaClient } from "@prisma/client";
+import { clearCheckDebris } from "./lib/demo-debris.mjs";
 
 /**
  * The Speak button, end to end.
@@ -42,6 +43,9 @@ const db = new PrismaClient({
 });
 const org = await db.organisation.findFirst({ where: { deletedAt: null }, select: { id: true } });
 if (!org) { console.error("no organisation — run npm run db:seed"); process.exit(1); }
+// The sentence this check transcribes is written into that brokerage on
+// every run; clear the last run's so the Activity screen does not fill up.
+await clearCheckDebris(db, org.id);
 
 /* ------------------------------------------------------------------ *
  * A stand-in for the transcription provider, speaking the same shape
