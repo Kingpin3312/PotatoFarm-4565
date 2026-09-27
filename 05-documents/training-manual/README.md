@@ -80,3 +80,8 @@ the route checks for itself. `next.config.ts` lists the folder in
 `outputFileTracingIncludes` so a production build ships it.
 `npm run browser:manual` asserts all of it, including that the old public
 addresses serve nothing.
+
+Every page and PDF address carries `?v=<VERSION>`, a hash of the PDF that
+`publish.py` writes into `src/lib/manual.ts`. The files are cached for an
+hour and their paths never change between rebuilds, so without it an agent
+who had the manual open could go on seeing the previous edition's pages.

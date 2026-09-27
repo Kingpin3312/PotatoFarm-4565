@@ -21,6 +21,7 @@ const PAGE_COUNT = Number(/PAGE_COUNT = (\d+)/.exec(src)[1]);
 const PDF_BYTES = Number(/PDF_BYTES = (\d+)/.exec(src)[1]);
 const EDITION = /EDITION = "([^"]+)"/.exec(src)[1];
 const PDF_URL = /PDF_URL = "([^"]+)"/.exec(src)[1];
+const VERSION = /VERSION = "([^"]+)"/.exec(src)[1];
 const CONTENTS = JSON.parse(/CONTENTS: Entry\[\] = (\[[\s\S]*\]);/.exec(src)[1]);
 
 let bad = 0;
@@ -94,6 +95,8 @@ for (const [who, vp, token] of [["desk", { width: 1440, height: 900 }, "dev-sess
   await p.waitForFunction(() => { const i = document.querySelector("#page-1 img"); return i?.complete && i.naturalWidth > 0; }, null, { timeout: 60_000 }).catch(() => {});
   const shown = await p.locator("figure[id^=page-] img").count();
   ok(`all ${PAGE_COUNT} pages are on the screen, in order`, shown === PAGE_COUNT, `${shown}`);
+  const stale = await p.evaluate((v) => [...document.querySelectorAll("figure[id^=page-] img")].filter((i) => !i.src.endsWith(`?v=${v}`)).length, VERSION);
+  ok("every page asks for this edition, not a cached older one", stale === 0, `${stale} without ?v=${VERSION}`);
   ok("the first page has drawn", await p.evaluate(() => (document.querySelector("#page-1 img")?.naturalWidth ?? 0) > 0));
   ok("nothing scrolls sideways", await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
 

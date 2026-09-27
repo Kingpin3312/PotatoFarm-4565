@@ -4,7 +4,7 @@ and stops), the PDF itself for download, and the contents as a module.
 
 python publish.py <manual.pdf> <pages2.json>
 """
-import json, os, shutil, sys
+import hashlib, json, os, shutil, sys
 import pypdfium2 as pdfium
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -39,12 +39,15 @@ ts = (
     "// Rebuild the manual, then run it again; the reader follows.\n\n"
     f"export const EDITION = {json.dumps(EDITION)};\n"
     f"export const PAGE_COUNT = {len(pdf)};\n"
+    "// Changes with every rebuild, and rides on every page and PDF address:\n"
+    "// the files are cached for an hour, and the addresses do not otherwise\n"
+    "// change, so without it a reader could see last edition's pages.\n"
+    f"export const VERSION = {json.dumps(hashlib.sha256(open(pdf_path, 'rb').read()).hexdigest()[:10])};\n"
     "export const PDF_URL = \"/api/manual/pdf\";\n"
     f"export const PDF_BYTES = {os.path.getsize(pdf_path)};\n\n"
     "export type Entry = { no: string; title: string; page: number; part: boolean };\n"
     f"export const CONTENTS: Entry[] = {json.dumps(rows, indent=2)};\n"
 )
-os.makedirs(f"{APP}/src/app/(app)/manual", exist_ok=True)
 open(f"{APP}/src/lib/manual.ts", "w").write(ts)
 size = sum(os.path.getsize(f"{out}/{f}") for f in os.listdir(out))
 print(f"{len(pdf)} pages, {size / 1e6:.1f} MB of page images, contents {len(rows)} entries")

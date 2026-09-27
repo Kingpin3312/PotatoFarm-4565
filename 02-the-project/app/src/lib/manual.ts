@@ -3,8 +3,12 @@
 
 export const EDITION = "e2";
 export const PAGE_COUNT = 62;
+// Changes with every rebuild, and rides on every page and PDF address:
+// the files are cached for an hour, and the addresses do not otherwise
+// change, so without it a reader could see last edition's pages.
+export const VERSION = "8f20e01642";
 export const PDF_URL = "/api/manual/pdf";
-export const PDF_BYTES = 5986211;
+export const PDF_BYTES = 6114512;
 
 export type Entry = { no: string; title: string; page: number; part: boolean };
 export const CONTENTS: Entry[] = [

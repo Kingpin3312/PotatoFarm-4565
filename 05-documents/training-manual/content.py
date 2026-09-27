@@ -318,8 +318,8 @@ sec("reports", "manage", "Reports", ["manager", "owner"],
     ["<b>Response time</b>: the median first reply.",
      "<b>Capture this week as your baseline</b> before switching the assistant on. It freezes the current numbers, so the difference afterwards can be measured.",
      "<b>By hour of day</b>: when enquiries arrive and how quickly they are answered. The gap after six in the evening is usually the whole story.",
-     "<b>Where they come from</b>: leads, wins and conversion by source.",
-     "<b>The business</b>: the pipeline weighted by stage, commission on its way, enquiry-to-completion time and who has gone quiet, by agent."],
+     "<b>Where they come from</b>: each source's share of your enquiries as a ring, and how quickly each is first answered. With only one source, a sentence says so.",
+     "<b>The business</b>: the pipeline weighted by stage, commission on its way, enquiry-to-completion time, leads, wins and conversion by source, and who has gone quiet, by agent."],
     ["Choose the period: last 30 days, 90 days or year."])
 
 sec("activity", "manage", "What the assistant did", ["manager", "owner"],
@@ -353,9 +353,11 @@ sec("compliance", "manage", "Compliance (for the compliance officer)", ["mlro"],
 
 # ----------------------------------------------------------------- settings
 sec("set-general", "settings", "Settings: the assistant's brake, calendar and listing feed", ["owner", "manager"],
-    [("settings", "Settings: the assistant's status and stop button, your calendar link, and your listing feed.")],
-    "The first Settings screen: whether the assistant is running, the button that stops it, your calendar link, and the feed address a portal collects your listings from.",
-    ["<b>Stop the assistant</b> halts every conversation in the brokerage at once: no delay, no cache, no messages still going out. Press it again to start.",
+    [("settings", "Settings: the assistant's status and stop button, your calendar link, and your listing feed."),
+     ("settings-drafts", "Its drafts, last 30 days: what happened to every draft somebody decided about.")],
+    "The first Settings screen: whether the assistant is running, how its drafts are received, the button that stops it, your calendar link, and the feed address a portal collects your listings from.",
+    ["<b>Its drafts, last 30 days</b>: a ring of the drafts somebody decided about (sent as written, changed first, thrown away), with the share sent as written in the middle. The closer that is to all of them, the stronger the case for automatic replies. Drafts overtaken or still waiting are listed underneath, not counted.",
+     "<b>Stop the assistant</b> halts every conversation in the brokerage at once: no delay, no cache, no messages still going out. Press it again to start.",
      "<b>Create my calendar link</b> puts every viewing booked for you in the calendar you already use (Apple, Google or Outlook). It is read-only.",
      "<b>Your feed address</b> is what a portal collects your available, permitted listings from. Copy it and give it to Property Finder, Bayut or Dubizzle once your agreement is signed."],
     ["Treat the feed address like a password. Anyone with it can read every property you have for sale or rent."])

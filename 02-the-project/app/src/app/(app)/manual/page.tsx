@@ -1,7 +1,7 @@
 "use client";
 
 import { buttonStyles } from "@/components/ui/button";
-import { CONTENTS, PAGE_COUNT, PDF_BYTES, PDF_URL } from "@/lib/manual";
+import { CONTENTS, PAGE_COUNT, PDF_BYTES, PDF_URL, VERSION } from "@/lib/manual";
 
 /**
  * The training manual, read inside the CRM.
@@ -18,7 +18,7 @@ import { CONTENTS, PAGE_COUNT, PDF_BYTES, PDF_URL } from "@/lib/manual";
  * Every page and the PDF come through `api/manual/[...path]`, which serves
  * them to signed-in people only.
  */
-const page = (n: number) => `/api/manual/page/${String(n).padStart(2, "0")}`;
+const page = (n: number) => `/api/manual/page/${String(n).padStart(2, "0")}?v=${VERSION}`;
 const mb = (PDF_BYTES / 1e6).toFixed(1);
 
 export default function Manual() {
@@ -38,10 +38,10 @@ export default function Manual() {
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
-          <a href={`${PDF_URL}?download=1`} download="PotatoFarm-Training-Manual.pdf" className={buttonStyles({ variant: "primary" })}>
+          <a href={`${PDF_URL}?download=1&v=${VERSION}`} download="PotatoFarm-Training-Manual.pdf" className={buttonStyles({ variant: "primary" })}>
             Download PDF · {mb} MB
           </a>
-          <a href={PDF_URL} target="_blank" rel="noopener" className={buttonStyles({ variant: "secondary" })}>
+          <a href={`${PDF_URL}?v=${VERSION}`} target="_blank" rel="noopener" className={buttonStyles({ variant: "secondary" })}>
             Open as PDF
           </a>
         </div>
