@@ -76,16 +76,23 @@ export const demoRouter = router({
         where: { externalId }, select: { conversationId: true },
       });
       if (!msg) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "The enquiry was not recorded." });
-      const draft = await ctx.db.replyDraft.findFirst({
-        where: { conversationId: msg.conversationId, state: "OPEN" }, select: { id: true },
-      });
+      const [draft, replied] = await Promise.all([
+        ctx.db.replyDraft.findFirst({
+          where: { conversationId: msg.conversationId, state: "OPEN" }, select: { id: true },
+        }),
+        ctx.db.message.findFirst({
+          where: { conversationId: msg.conversationId, direction: "OUTBOUND", author: "ASSISTANT" },
+          select: { id: true },
+        }),
+      ]);
       return {
         conversationId: msg.conversationId,
         drafted: Boolean(draft),
-        // Said on screen rather than left as a missing draft.
-        why: draft ? null : process.env.ANTHROPIC_API_KEY?.trim()
-          ? "The assistant chose not to draft this one — it is waiting for a person."
-          : "No reply was drafted: this environment has no ANTHROPIC_API_KEY.",
+        replied: Boolean(replied),
+        // Said on screen rather than left as a missing reply.
+        why: draft || replied ? null : process.env.ANTHROPIC_API_KEY?.trim()
+          ? "The assistant handed this one to a person rather than reply."
+          : "No reply was written: this environment has no ANTHROPIC_API_KEY.",
       };
     }),
 });

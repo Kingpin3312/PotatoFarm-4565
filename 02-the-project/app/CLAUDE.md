@@ -102,7 +102,7 @@ What is verified today, measured rather than assumed:
   `/api/health` returns `200 {"ok":true}` against a real Postgres.
 - The boot log names every unconfigured service with its consequence —
   six of them in a bare development environment.
-- 410 assertions in 28 files, 59 check suites, 23 audits, all green.
+- 410 assertions in 28 files, 60 check suites, 23 audits, all green.
 
 Type errors on a fresh checkout are no longer expected. If you get one,
 it is new.
@@ -744,11 +744,18 @@ nothing that starts it — and the sixth is the product itself:
    `check:owner-conversations`, against loopback stand-ins
    (`lib/loopback.ts`).
 
-   **Wired as drafts, by the owner's decision.** Every new buyer message
-   gets a reply written in seconds (`draftReply`) and a person sends it
-   — as written, edited, or not at all — from a panel in the thread. The
-   state each draft ends in is the evidence for ever letting it send
-   alone; `respond()` still has no caller, on purpose. Building it found
+   **Wired as drafts, then — by the owner's decision of 27 September
+   2026 — as automatic replies while qualifying.** `reply()` decides: at
+   a brokerage that has switched on "Replies while qualifying"
+   (`AssistantSettings.autoReply`, off by default, owner's switch on
+   Settings → Assistant, audited), a buyer who is NEW or QUALIFYING and
+   whose thread no agent has written in gets `respond()` — read receipt,
+   "typing…", a pause of a few seconds (`humanPause`), then the reply.
+   Everyone else gets `draftReply` and a person sends it. The prompt
+   (p4) writes like an agent texting — one question at a time, their
+   language, no form-letter phrases — and **still never claims to be a
+   person**; that line is not a style choice, it is what keeps the
+   brokerage honest with its clients. `check:auto-reply`. Building it found
    the per-conversation mute had never been read: `isMuted` was imported
    into the assistant and not called, so "I've got this" silenced
    nothing. `check:reply-drafts`, and `assistant/README.md`.
@@ -850,7 +857,9 @@ proves a real brokerage is untouched:
   otherwise have ended on "Send as written" with "No stored credential".
 - **Inbox offers "Try a live enquiry"** (`demo.enquiry`): a realistic
   buyer's message, or one typed in the room, built as Meta's webhook
-  payload and handed to the real `ingest` — routing, lead, board, draft.
+  payload and handed to the real `ingest` — routing, lead, board, and
+  the assistant's reply (sent by itself: the seed turns on automatic
+  replies while qualifying for the demo brokerage).
   Refused (FORBIDDEN) for any brokerage without the flag.
 - **Every screen says "Demo"** in the header.
 
@@ -874,7 +883,7 @@ send path read it.
 ## Run the tests
 
     npm test          # 410 assertions, pure functions, no database
-    npm run verify    # tsc, the tests, 59 check suites, 23 audits
+    npm run verify    # tsc, the tests, 60 check suites, 23 audits
 
 **The gate is now green end to end, including the two things that used
 to skip.** `verify` reports what it did not run rather than counting a
@@ -1255,10 +1264,10 @@ with an empirical floor under it.
   the phrase conservatively — "within six months" is somebody buying
   now and reads as zero, and anything it cannot read suggests nothing.
   Still not built: which step loses people.
-- **The assistant replying by itself.** It drafts every reply and a
-  person sends it (item 21). The per-brokerage switch to automatic
-  replies is not built: the owner chose drafts first, and the Settings
-  page's "Sent as written" figure is what that decision will be made on.
+- ~~**The assistant replying by itself.**~~ **Built, for qualification
+  only** (item 21): the owner's switch on Settings → Assistant, off by
+  default, on in the demo brokerage. Past qualification, and in any
+  thread an agent has written in, every reply is still a draft.
 - ~~**Erasure and data export for owners.**~~ **Built**, with two faults
   found on the way that were not about owners at all. Erasure left every
   name that later work had written — follow-up titles, alerts, private

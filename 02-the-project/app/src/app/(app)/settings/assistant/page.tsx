@@ -24,6 +24,52 @@ import { QueryError } from "@/components/ui/query-state";
  * So `configured` is the first thing this screen renders, and it is the
  * whole point of it.
  */
+/**
+ * Whether the assistant replies by itself while qualifying, with the
+ * evidence beside the switch: what agents did with its drafts. An owner
+ * deciding to let it send should be looking at that number when they do.
+ */
+function AutoReply() {
+  const { data: status } = api.assistant.status.useQuery();
+  const { data: stats } = api.assistant.draftStats.useQuery();
+  const utils = api.useUtils();
+  const set = api.assistant.setAutoReply.useMutation({
+    onSuccess: () => void utils.assistant.status.invalidate(),
+  });
+  if (!status) return null;
+  const on = status.autoReply;
+  return (
+    <section className="border-t border-rule-strong pt-6 pb-8" aria-labelledby="auto-reply">
+      <h2 id="auto-reply" className="text-sub font-semibold text-ink">Replies while qualifying</h2>
+      <p className="text-sm text-ink-2 mt-2 max-w-[52ch]">
+        {on
+          ? "On. When a new buyer writes, the assistant replies within seconds, asks your questions one at a time, and hands over to their agent. Once an agent writes in a conversation, it goes back to drafting there."
+          : "Off. Every reply is drafted for an agent to send. Turn this on and the assistant replies to new buyers itself while it qualifies them, then hands over to their agent."}
+      </p>
+      <p className="text-note text-ink-3 mt-2 max-w-[52ch]">
+        It never claims to be a person, and says it is the brokerage&rsquo;s assistant if asked.
+        “Stop everything” and “I&rsquo;ve got this” still stop it at once.
+      </p>
+      {stats && stats.sentAsWrittenPct !== null && (
+        <p className="text-note text-ink-2 mt-2">
+          Last 30 days: agents sent {stats.sentAsWrittenPct}% of {stats.decided} drafts exactly as written.
+        </p>
+      )}
+      <div className="mt-4 flex items-center gap-3">
+        <Button
+          variant={on ? "secondary" : "primary"}
+          loading={set.isPending}
+          onClick={() => set.mutate({ on: !on })}
+          aria-pressed={on}
+        >
+          {on ? "Turn off — draft every reply" : "Turn on automatic replies"}
+        </Button>
+        {set.error && <span role="alert" className="text-sm text-danger-deep">{set.error.message}</span>}
+      </div>
+    </section>
+  );
+}
+
 export default function AssistantScript() {
   const { data, isLoading, isError, refetch, error } = api.assistant.script.useQuery();
   const utils = api.useUtils();
@@ -78,6 +124,8 @@ export default function AssistantScript() {
           </p>
         )}
       </header>
+
+      {script.configured && <AutoReply />}
 
       {!script.configured ? (
         <p className="text-sm text-ink-2 max-w-[46ch]">

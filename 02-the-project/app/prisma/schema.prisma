@@ -1127,6 +1127,14 @@ model AssistantSettings {
    */
   autonomy AutonomyMode @default(COPILOT)
 
+  /// Replies sent by the assistant itself while a buyer is being
+  /// qualified (a new lead, before any agent has written in the thread).
+  /// The owner's switch, off by default; everything else is still drafted
+  /// for a person. `autonomy` governs what the product does unasked —
+  /// follow-ups, properties, reactivation — and is not loosened by this:
+  /// this only answers a buyer who has just written.
+  autoReply Boolean @default(false)
+
   updatedAt DateTime @updatedAt
 
   org Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)

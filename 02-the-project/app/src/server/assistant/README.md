@@ -73,25 +73,39 @@ reach the model at all:
     inbound screening             -> handover, no model call
     generate                      -> 8s timeout, model failure is a handover
     outbound screening            -> handover on any failure, never a silent retry
-    leave the draft, tell the agent  (a person reads, edits and sends)
+    send it, or leave the draft   -> sent while qualifying at a brokerage that
+                                     chose it (read, typing…, a short pause);
+                                     otherwise a person reads, edits and sends
     extract separately            -> never blocks anything
 
-## Drafts, not sends
+## Sent while qualifying, drafted after
 
-The brokerage's owner chose this. Every new message from a buyer is
-answered with a **draft** the moment it arrives (`draftReply`, called by
-the WhatsApp ingest), the agent who has the buyer is notified at once, and
-the reply goes only when a person presses send — as written, after
-editing, or not at all. A manager hears if a draft sits for fifteen
-minutes. A new message from the buyer retires the waiting draft, so a
-reply written before "STOP" can never be one tap from going out.
+The brokerage's owner chooses, on Settings → Assistant ("Replies while
+qualifying", off by default, every change audited).
+
+**On:** while a buyer is NEW or QUALIFYING and no agent has written in
+the thread, the assistant replies by itself (`respond()`, reached through
+`reply()` in `run.ts`): it marks their message read, shows "typing…",
+waits a couple of seconds as a person would (`humanPause`, never more
+than seven) and sends. It writes like an agent texting — their language,
+one question at a time, picking up what they said — and it never claims
+to be a person; asked, it says it is the brokerage's assistant and offers
+somebody. The moment an agent writes in the thread, or the buyer is
+qualified, it goes back to drafting there.
+
+**Off, and everywhere past qualification:** every new message from a
+buyer is answered with a **draft** the moment it arrives (`draftReply`),
+the agent who has the buyer is notified at once, and the reply goes only
+when a person presses send — as written, after editing, or not at all. A
+manager hears if a draft sits for fifteen minutes. A new message from the
+buyer retires the waiting draft, so a reply written before "STOP" can
+never be one tap from going out — and an automatic reply retires it too.
 
 What becomes of each draft — sent as written, edited, discarded,
-overtaken — is kept (`ReplyDraft.state`) and shown to the owner on the
-Settings page as "Sent as written". That number is the evidence for the
-next step: letting the assistant reply by itself, outside working hours
-first, once nearly every draft goes out unchanged. `respond()` is that
-step, and nothing calls it until an owner chooses it.
+overtaken — is kept (`ReplyDraft.state`) and shown beside the switch as
+"sent exactly as written", which is the evidence an owner should be
+looking at when they turn it on. `check:auto-reply` and
+`check:reply-drafts`.
 
 A failed outbound check is always a handover, never a retry. An assistant
 that quietly rewrites its own hallucinations is harder to trust than one

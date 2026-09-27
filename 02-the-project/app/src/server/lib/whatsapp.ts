@@ -107,6 +107,34 @@ async function post(phoneNumberId: string, accessToken: string, payload: unknown
   return { externalId: data.messages?.[0]?.id as string | undefined };
 }
 
+/**
+ * "Read", and "typing…" on the buyer's screen, for a reply about to be
+ * sent automatically.
+ *
+ * A reply that lands one second after the question reads as a machine;
+ * the two blue ticks and a few seconds of typing are what a person
+ * replying looks like. Meta shows the indicator until the reply arrives
+ * or 25 seconds pass. Best effort: a failure here must never cost the
+ * buyer their reply, so it is swallowed and the send goes ahead.
+ */
+export async function markReadTyping(args: { phoneNumberId: string; accessToken: string; messageId: string }) {
+  if (args.accessToken === DEMO_TOKEN) return false;
+  try {
+    const res = await fetch(`${graph()}/${args.phoneNumberId}/messages`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${args.accessToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messaging_product: "whatsapp", status: "read", message_id: args.messageId,
+        typing_indicator: { type: "text" },
+      }),
+      signal: AbortSignal.timeout(5_000),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 export class WhatsAppError extends Error {
   constructor(
     message: string,

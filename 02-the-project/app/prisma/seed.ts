@@ -1009,6 +1009,14 @@ async function main() {
   await seedOpportunities(org.id, agent);
   await seedDrafts(org.id);
   await seedProfiles(org.id);
+  // The demo shows what the owner chose: replies sent by the assistant
+  // while a new buyer is qualified. A real brokerage turns this on in
+  // Settings → Assistant; it is off by default.
+  await db.assistantSettings.upsert({
+    where: { orgId: org.id },
+    create: { orgId: org.id, enabled: true, autoReply: true },
+    update: { autoReply: true },
+  });
 
   /**
    * The nightly intelligence sweep, run once so the front door has

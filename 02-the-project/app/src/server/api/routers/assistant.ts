@@ -44,6 +44,7 @@ export const assistantRouter = router({
 
     return {
       enabled: settings?.enabled ?? false,
+      autoReply: settings?.autoReply ?? false,
       pausedReason: settings?.pausedReason ?? null,
       pausedAt: settings?.pausedAt ?? null,
       pausedBy,
@@ -230,6 +231,34 @@ export const assistantRouter = router({
         });
       });
       return after;
+    }),
+
+  /**
+   * The owner's switch for replies the assistant sends by itself while a
+   * buyer is being qualified (`assistant/run.ts` → `reply`). Its own
+   * mutation, like `resume`, so turning it on or off always leaves an
+   * audit entry saying who did it and when.
+   */
+  setAutoReply: requirePermission("channel:write")
+    .input(z.object({ on: z.boolean() }))
+    .mutation(async ({ ctx, input }) => {
+      const before = await crossTenant("user-scoped").assistantSettings.findUnique({ where: { orgId: ctx.orgId } });
+      const after = await crossTenant("user-scoped").assistantSettings.upsert({
+        where: { orgId: ctx.orgId },
+        create: { orgId: ctx.orgId, enabled: false, autoReply: input.on },
+        update: { autoReply: input.on },
+      });
+      await crossTenant("user-scoped").$transaction(async (tx) => {
+        await audit(tx, ctx.orgId, {
+          actorId: ctx.userId,
+          action: input.on ? "assistant.auto_reply_on" : "assistant.auto_reply_off",
+          entity: "AssistantSettings",
+          entityId: ctx.orgId,
+          before: { autoReply: before?.autoReply ?? false },
+          after: { autoReply: after.autoReply },
+        });
+      });
+      return { autoReply: after.autoReply };
     }),
 
   /** Recent handovers, so a brokerage can see why it is stepping in. */

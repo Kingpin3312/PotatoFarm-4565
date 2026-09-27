@@ -2,9 +2,9 @@ import { log, report } from "@/lib/log";
 import { detectLanguage, languageName } from "@/server/lib/language";
 import { endpoint } from "@/server/lib/loopback";
 import { aedToFils } from "@/lib/money";
-import { forOrg } from "@/server/db/client";
+import { crossTenant, forOrg } from "@/server/db/client";
 import { audit } from "@/server/lib/audit";
-import { messagingWindow, sendText } from "@/server/lib/whatsapp";
+import { markReadTyping, messagingWindow, sendText } from "@/server/lib/whatsapp";
 import { recordAnswered } from "@/server/lib/billing/conversations";
 import { getChannelCredentials } from "@/server/lib/secrets";
 import { buildSystemPrompt, PROMPT_VERSION, type GenerationTrace } from "./prompt";
@@ -287,13 +287,73 @@ async function prepare(orgId: string, conversationId: string) {
 
 
 /**
- * Sends a reply by itself. **Nothing calls this**, deliberately: the
- * brokerage's owner has not chosen automatic replies, and every buyer
- * message is drafted for a person instead (`draftReply`). Kept, and kept
- * working, because automatic replies are the step a brokerage graduates
- * to once its drafts go out as written — see `assistant.draftStats`.
+ * What happens when a buyer writes: a reply sent, or a reply drafted.
+ *
+ * The owner's decision (27 September 2026): the assistant replies by
+ * itself while a buyer is being qualified — humanised, in their language,
+ * one question at a time — and a person takes it from there. So it sends
+ * only when all of these hold, and drafts for the agent otherwise:
+ *
+ * - the brokerage has turned on "Reply automatically while qualifying"
+ *   (`AssistantSettings.autoReply`, off by default);
+ * - the lead is still being qualified — NEW or QUALIFYING. Once they are
+ *   qualified, viewing, negotiating or closed, every word is an agent's;
+ * - no agent has written in the thread. The moment a person replies in
+ *   their own words, the conversation is theirs and the assistant goes
+ *   back to drafting.
+ *
+ * Every other stop — the kill switch, the budget, a handover, "I've got
+ * this", the 24-hour window, STOP, the guardrails — is in `prepare`, and
+ * applies to both paths identically.
  */
-export async function respond(orgId: string, conversationId: string) {
+export async function reply(orgId: string, conversationId: string, inboundMessageId?: string, inboundExternalId?: string) {
+  if (await sendsItself(orgId, conversationId)) {
+    return respond(orgId, conversationId, inboundExternalId);
+  }
+  return draftReply(orgId, conversationId, inboundMessageId);
+}
+
+async function sendsItself(orgId: string, conversationId: string) {
+  const settings = await crossTenant("sweep").assistantSettings.findUnique({
+    where: { orgId }, select: { autoReply: true },
+  });
+  if (!settings?.autoReply) return false;
+  const convo = await forOrg(orgId).conversation.findUnique({
+    where: { id: conversationId },
+    select: {
+      lead: { select: { status: true } },
+      _count: { select: { messages: { where: { author: "AGENT" } } } },
+    },
+  });
+  if (!convo?.lead) return false;
+  return (convo.lead.status === "NEW" || convo.lead.status === "QUALIFYING") && convo._count.messages === 0;
+}
+
+/**
+ * How long a person would take to type this. A reply that lands in one
+ * second reads as a machine; one that takes a minute has lost the race
+ * the product exists to win. So: a couple of seconds, plus a little for
+ * length, never more than seven. `ASSISTANT_REPLY_PAUSE_MS` overrides it
+ * — the checks set 0.
+ */
+export function humanPause(text: string) {
+  const fixed = process.env.ASSISTANT_REPLY_PAUSE_MS;
+  if (fixed !== undefined && fixed !== "") return Math.max(0, Number(fixed) || 0);
+  return Math.min(2_000 + text.length * 25, 7_000);
+}
+
+/**
+ * Sends a reply by itself, through every check `prepare` makes. Reached
+ * only through `reply`, and only while a buyer is being qualified at a
+ * brokerage that has switched automatic replies on.
+ */
+export async function respond(orgId: string, conversationId: string, inboundExternalId?: string) {
+  // A draft written for an earlier message must not be sent later on top
+  // of this reply.
+  await forOrg(orgId).replyDraft.updateMany({
+    where: { conversationId, state: "OPEN" },
+    data: { state: "STALE", resolvedAt: new Date() },
+  });
   const p = await prepare(orgId, conversationId);
   if (p.kind === "stopped") return p.result;
   const { db, convo, lead, history, trace, started } = p;
@@ -303,6 +363,11 @@ export async function respond(orgId: string, conversationId: string) {
   // 7. Send, then record. Recorded either way — a message that left
   //    without a row is a message nobody can account for.
   const creds = await getChannelCredentials(orgId, convo.channelId);
+  // Read, typing…, then the reply — the way a person answers. Nothing is
+  // typed at a demonstration brokerage, so nobody waits for it there.
+  if (inboundExternalId && await markReadTyping({ ...creds, messageId: inboundExternalId })) {
+    await new Promise((r) => setTimeout(r, humanPause(checked.text)));
+  }
   const { externalId } = await sendText({
     phoneNumberId: creds.phoneNumberId,
     accessToken: creds.accessToken,

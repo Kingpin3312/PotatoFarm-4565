@@ -5,7 +5,7 @@ import { Prisma } from "@prisma/client";
 import { entryStageId } from "@/server/lib/pipeline/defaults";
 import { assignmentFor } from "@/server/lib/routing/apply";
 import { normalisePhone } from "@/server/lib/portals/normalise";
-import { draftReply } from "@/server/assistant/run";
+import { reply } from "@/server/assistant/run";
 import { detectLanguage } from "@/server/lib/language";
 
 /**
@@ -44,7 +44,9 @@ export async function ingest(payload: any) {
       for (const msg of value.messages ?? []) {
         const fresh = await inbound(db, channel, msg, value);
         /**
-         * A reply, drafted for a person to send.
+         * A reply: sent by the assistant while the buyer is being
+         * qualified at a brokerage that has switched that on, drafted for
+         * a person otherwise — `reply` in `assistant/run.ts` decides.
          *
          * After the message is stored and committed, never inside that
          * transaction: the model takes seconds, and a failure here must
@@ -53,8 +55,8 @@ export async function ingest(payload: any) {
          * rest (kill switch, handover, mute, the window) in `prepare`.
          */
         if (fresh) {
-          await draftReply(channel.orgId, fresh.conversationId, fresh.messageId).catch((err) =>
-            log.error("[whatsapp] could not draft a reply", { orgId: channel.orgId }, { reason: String(err).slice(0, 200) }));
+          await reply(channel.orgId, fresh.conversationId, fresh.messageId, msg.id).catch((err) =>
+            log.error("[whatsapp] could not reply", { orgId: channel.orgId }, { reason: String(err).slice(0, 200) }));
         }
       }
       for (const st of value.statuses ?? []) await status(db, st);
