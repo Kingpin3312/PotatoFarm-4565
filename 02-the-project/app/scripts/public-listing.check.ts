@@ -153,7 +153,8 @@ async function main() {
     const masthead = /<header[\s\S]*?<\/header>/.exec(html)?.[0] ?? "";
     ok("the page opens", res.status === 200, String(res.status));
     ok("under the brokerage's name", masthead.includes(alpha.name));
-    ok("and not ours", !masthead.includes("PotatoFarm") && !/<main[\s\S]*PotatoFarm[\s\S]*<\/main>/.test(html));
+    ok("theirs at the top, not ours", !masthead.includes("PotatoFarm"));
+    ok("and signed \"Powered by PotatoFarm.io\" at the foot", /Powered by[\s\S]{0,8000}?>PotatoFarm</.test(/<main[\s\S]*<\/main>/.exec(html)?.[0] ?? ""));
     ok("its first action is a private viewing, by WhatsApp or not at all",
        html.includes("Arrange a private viewing") || !html.includes("wa.me"));
     const og = /property="og:image" content="([^"]+)"/.exec(html)?.[1];

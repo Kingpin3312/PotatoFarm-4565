@@ -62,7 +62,12 @@ export default async function Image({ params }: { params: Promise<{ slug: string
         {/* One string: the renderer refuses a block with two text
             children unless it is laid out as flex. */}
         <div style={{ fontSize: 48, color: "#FF1493" }}>{`${price ?? ""}${l.purpose === "RENT" && price ? " a year" : ""}`}</div>
-        <div style={{ fontSize: 20, color: "#A0A5AE" }}>{`Ref ${l.reference}   ·   Permit ${l.permitNumber}`}</div>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+          <div style={{ fontSize: 20, color: "#A0A5AE" }}>{`Ref ${l.reference}   ·   Permit ${l.permitNumber}`}</div>
+          <div style={{ display: "flex", fontSize: 20, color: "#A0A5AE", marginTop: 10 }}>
+            <span>Powered by PotatoFarm</span><span style={{ color: "#FF1493" }}>.io</span>
+          </div>
+        </div>
       </div>
     </div>,
     size,

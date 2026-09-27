@@ -343,10 +343,12 @@ parties' names and addresses as they were when issued, and the printable
 document reads "Tax invoice" only when it carries a TRN.
 `billing/README.md` has all of it.
 
-**The property page a buyer opens carries no PotatoFarm.io branding.**
-`(property)/p/[slug]/[reference]` is the brokerage's advertisement,
-sent by its agent to its client: the masthead is the brokerage's name
-and the agent is named. It keeps the agreed palette below — it was
+**The property page a buyer opens leads with the brokerage and is
+signed by us.** `(property)/p/[slug]/[reference]` is the brokerage's
+advertisement, sent by its agent to its client: the masthead is the
+brokerage's name and the agent is named, and "Powered by" with the
+PotatoFarm.io lockup signs the foot of the page and the preview card —
+the owner's decision, after a version that left us off entirely. It keeps the agreed palette below — it was
 briefly drawn without the pink, on the reasoning that the pink is our
 brand, and that was a change to the owner's decision made without
 asking; it was put back. Colour is the owner's call. It sits in its own route group so the

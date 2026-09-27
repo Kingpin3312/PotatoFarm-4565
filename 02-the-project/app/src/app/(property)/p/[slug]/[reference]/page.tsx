@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { publicListing, enquiryText, viewingText } from "@/server/lib/listings/public";
 import { aedWhole } from "@/lib/money";
+import { Logo } from "@/components/brand/logo";
 
 type Params = { params: Promise<{ slug: string; reference: string }> };
 
@@ -11,7 +12,8 @@ type Params = { params: Promise<{ slug: string; reference: string }> };
  * ## The brokerage's page, not ours
  *
  * Its client, its agent, its property. So the brokerage's name is the
- * masthead and PotatoFarm.io appears nowhere. The colours are the
+ * masthead, and PotatoFarm.io signs the foot of the page — "Powered by",
+ * with the lockup, the owner's decision. The colours are the
  * product's agreed scheme — pink #FF1493 on grey #292C32, the owner's
  * decision — with the pink kept for the one thing a buyer should do.
  *
@@ -181,6 +183,10 @@ export default async function PropertyPage({ params }: Params) {
           <p>Trakheesi permit {l.permitNumber}</p>
           <p>{l.brokerage}</p>
         </footer>
+        <a href="https://potatofarm.io" rel="noopener"
+           className="mt-8 inline-flex items-center gap-3 no-underline text-note text-ink-3 hover:text-ink-2 focus-visible:outline-none focus-visible:shadow-[var(--ring)] rounded-sm">
+          Powered by <Logo size={20} word={15} />
+        </a>
       </main>
     </>
   );
