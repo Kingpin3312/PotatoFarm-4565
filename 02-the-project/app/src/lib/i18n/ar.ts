@@ -54,6 +54,7 @@ export const ar: Messages = {
   "nav.listings": "العقارات",
   "nav.general": "عام",
   "nav.compliance": "الامتثال",
+  "nav.manual": "دليل التدريب",
   "nav.documents": "المستندات",
   "nav.privacy": "الخصوصية",
   "nav.access": "الصلاحيات",

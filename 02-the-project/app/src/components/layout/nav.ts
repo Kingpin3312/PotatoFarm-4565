@@ -97,6 +97,7 @@ export const SETTINGS_NAV: NavItem[] = [
   { href: "/team", labelKey: "nav.team" },
   { href: "/settings/commission", labelKey: "nav.commissionPlans" },
   { href: "/settings/billing", labelKey: "nav.billing" },
+  { href: "/manual", labelKey: "nav.manual" },
 ];
 
 /** Behind More on a phone, ordered by how often an agent opens them. */
@@ -115,5 +116,6 @@ export const MORE: NavItem[] = [
   { href: "/documents", labelKey: "nav.documents" },
   { href: "/reports", labelKey: "nav.reports" },
   { href: "/team", labelKey: "nav.team" },
+  { href: "/manual", labelKey: "nav.manual" },
   { href: "/settings", labelKey: "nav.settings" },
 ];

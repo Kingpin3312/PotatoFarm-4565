@@ -311,6 +311,7 @@ else
   # sees what the screens actually do, which is where the two worst
   # faults in this codebase were hiding.
   step "browser:screens" npm run --silent browser:screens
+  step "browser:manual" npm run --silent browser:manual
 fi
 
 printf '\n%sAudits%s\n' "$bold" "$off"

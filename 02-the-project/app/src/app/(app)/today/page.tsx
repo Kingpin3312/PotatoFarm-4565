@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { NextAction } from "@prisma/client";
 
 import Link from "next/link";
+import { buttonStyles } from "@/components/ui/button";
 import { api } from "@/lib/trpc";
 import { cn } from "@/lib/cn";
 import { aedShort, aedWhole } from "@/lib/money";
@@ -95,6 +96,10 @@ export default function Today() {
      */
     <div className="mx-auto max-w-[1180px] px-6 pb-28">
       <header className="pt-10 pb-6">
+        {/* The manual, one tap from where every day starts. Beside the
+            greeting rather than in a menu: a new agent's first question is
+            "how do I…", and the answer should be on the first screen. */}
+        <div className="flex items-start justify-between gap-4">
         <h1 className="font-sans text-page font-semibold text-ink">
           {/* "day" while it loads, not a guess at "morning". It is
               correct English at any hour, so the one-word settle when
@@ -103,6 +108,13 @@ export default function Today() {
               small wrongness that makes a product feel careless. */}
           Good {data?.partOfDay ?? "day"}
         </h1>
+          <Link href="/manual" className={buttonStyles({ size: "sm", variant: "secondary" })}>
+            <svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="me-2">
+              <path d="M4 19.5V5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2Z" /><path d="M19 17v4H6" />
+            </svg>
+            Training manual
+          </Link>
+        </div>
         {data && (
           <Summary
             counts={data.counts}

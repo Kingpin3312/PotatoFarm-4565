@@ -43,6 +43,7 @@ export const en = {
   "nav.listings": "Listings",
   "nav.general": "General",
   "nav.compliance": "Compliance",
+  "nav.manual": "Training manual",
   "nav.documents": "Documents",
   "nav.privacy": "Privacy",
   "nav.access": "Access",

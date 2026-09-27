@@ -110,9 +110,14 @@ for (const [name, url, token, vp, act] of shots) {
     await p.goto("http://localhost:3000" + url, { waitUntil: "domcontentloaded", timeout: 90000 });
     await p.waitForLoadState("load").catch(() => {});
     await p.waitForTimeout(2500);
-    await p.waitForFunction(() => !/Loading/.test(document.body.innerText), null, { timeout: 30000 }).catch(() => {});
+    // Still loading? Placeholders say "Loading…" or are marked aria-busy;
+    // a screenshot of a placeholder is a blank page in the manual (Documents
+    // and Reports, first edition 2). Wait for both, then refuse to save one.
+    const busy = () => /Loading/.test(document.body.innerText) || !!document.querySelector('[aria-busy]:not([aria-busy="false"])');
+    await p.waitForFunction(`!(${busy.toString()})()`, null, { timeout: 45000 }).catch(() => {});
     await p.waitForTimeout(1200);
     if (act) await act(p);
+    if (await p.evaluate(busy)) throw new Error("still loading — not saving a placeholder");
     await p.screenshot({ path: `${OUT}/raw/${name}.png` });
     texts[name] = { url: p.url().replace("http://localhost:3000", ""), text: (await p.locator("body").innerText()).slice(0, 6000) };
     console.log("ok", name, texts[name].url);

@@ -37,7 +37,7 @@ a charcoal stage at the head of every page with the screen framed, light
 headings, hairline rules, steps and notes in two columns, one section per
 sheet, and a line saying the sample brokerage is illustrative.
 
-## Three checks, every rebuild, every page
+## Four checks, every rebuild, every page
 
 A page that looks right here can look wrong on the reader's phone. Edition
 2 as first published looked perfect in Chrome's and MuPDF's renderers and,
@@ -48,6 +48,11 @@ faded or see-through images, CSS gradients — its own way. So the manual now
 uses none: flat charcoal, crisp frame edges instead of shadows, and a flat
 image of the potato (`mark_flat.png`) instead of the blurred SVG.
 
+- `captures.py texts.json` — every screenshot the manual uses was taken with
+  content on it. Documents and Reports went out as grey blocks: their
+  loading placeholders are marked `aria-busy` rather than saying
+  "Loading", and the capture waited only for the word. `capture.mjs` now
+  waits for both and refuses to save a placeholder.
 - `overflow.mjs manual.html` — every page's words fit its sheet.
 - `pixels.py <pdf> pages2.json` — on every section page, in two PDF engines,
   the charcoal band runs unbroken to one edge and nothing lands on the
@@ -55,3 +60,11 @@ image of the potato (`mark_flat.png`) instead of the blurred SVG.
 - `structure.py <pdf>` — no page carries a translucent layer. This is the
   one that catches the iPhone fault (the two renderers above cannot show
   it): 62 of 62 pages flagged on the edition you saw, 0 now.
+
+## In the CRM
+
+`publish.py <pdf> pages.json` puts the manual into the app: every page as an
+image under `public/manual/<edition>/` (an iPhone shows only the first page
+of a PDF inside a web page, so the reader shows images), the PDF for
+download, and the contents as `src/app/(app)/manual/contents.ts`. Agents open
+it from **Training manual** on Today, or from More and search.

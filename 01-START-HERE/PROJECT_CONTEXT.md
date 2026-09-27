@@ -431,7 +431,7 @@ Ask — an agent can see what they asked for earlier and what came back.
   interface's Arabic — the
   pure logic where being wrong is expensive and silent. Everything
   stateful is still covered only by the 60 check suites and the
-  27 browser checks, which is not the same thing as a test suite. What is
+  28 browser checks, which is not the same thing as a test suite. What is
   left untested in `assistant/` is everything that needs a model:
   `run.ts` and `prompt.ts` are exercised only through `check:autonomy`
   and by replaying real transcripts. `extract.ts`'s mapping to answers
