@@ -13,13 +13,14 @@ APP = os.path.abspath(f"{HERE}/../../02-the-project/app")
 EDITION = "e2"
 pdf_path, pages_json = sys.argv[1], sys.argv[2]
 pages = json.load(open(pages_json))
-out = f"{APP}/public/manual/{EDITION}"
+# Outside public/: served only to signed-in people, by api/manual/[...path].
+out = f"{APP}/manual-assets/{EDITION}"
 shutil.rmtree(out, ignore_errors=True); os.makedirs(out)
 pdf = pdfium.PdfDocument(pdf_path)
 for i in range(len(pdf)):
     img = pdf[i].render(scale=1240 / pdf[i].get_width()).to_pil().convert("RGB")
     img.save(f"{out}/page-{i + 1:02d}.webp", "WEBP", quality=80, method=6)
-shutil.copy(pdf_path, f"{APP}/public/manual/PotatoFarm-Training-Manual.pdf")
+shutil.copy(pdf_path, f"{APP}/manual-assets/PotatoFarm-Training-Manual.pdf")
 
 num, rows = {}, []
 for pi, (pid, ptitle, _) in enumerate(PARTS, 1):
@@ -38,12 +39,12 @@ ts = (
     "// Rebuild the manual, then run it again; the reader follows.\n\n"
     f"export const EDITION = {json.dumps(EDITION)};\n"
     f"export const PAGE_COUNT = {len(pdf)};\n"
-    "export const PDF_URL = \"/manual/PotatoFarm-Training-Manual.pdf\";\n"
+    "export const PDF_URL = \"/api/manual/pdf\";\n"
     f"export const PDF_BYTES = {os.path.getsize(pdf_path)};\n\n"
     "export type Entry = { no: string; title: string; page: number; part: boolean };\n"
     f"export const CONTENTS: Entry[] = {json.dumps(rows, indent=2)};\n"
 )
 os.makedirs(f"{APP}/src/app/(app)/manual", exist_ok=True)
-open(f"{APP}/src/app/(app)/manual/contents.ts", "w").write(ts)
+open(f"{APP}/src/lib/manual.ts", "w").write(ts)
 size = sum(os.path.getsize(f"{out}/{f}") for f in os.listdir(out))
 print(f"{len(pdf)} pages, {size / 1e6:.1f} MB of page images, contents {len(rows)} entries")

@@ -64,7 +64,19 @@ image of the potato (`mark_flat.png`) instead of the blurred SVG.
 ## In the CRM
 
 `publish.py <pdf> pages.json` puts the manual into the app: every page as an
-image under `public/manual/<edition>/` (an iPhone shows only the first page
+image under `manual-assets/<edition>/` (an iPhone shows only the first page
 of a PDF inside a web page, so the reader shows images), the PDF for
-download, and the contents as `src/app/(app)/manual/contents.ts`. Agents open
+download beside them, and the contents as `src/lib/manual.ts`. Agents open
 it from **Training manual** on Today, or from More and search.
+
+**It is behind sign in.** `manual-assets/` is deliberately not under
+`public/`: anything there is served to anyone who has the address, and the
+manual is a map of the product for a competitor. Every page and the PDF
+come through `src/app/api/manual/[...path]/route.ts`, which refuses (401)
+without a session, before two-step sign-in is finished, or without a
+membership, and sends `Cache-Control: private` so no shared cache keeps a
+copy. `/api` is outside the middleware's sign-in redirect, which is why
+the route checks for itself. `next.config.ts` lists the folder in
+`outputFileTracingIncludes` so a production build ships it.
+`npm run browser:manual` asserts all of it, including that the old public
+addresses serve nothing.

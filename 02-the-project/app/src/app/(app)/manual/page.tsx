@@ -1,7 +1,7 @@
 "use client";
 
 import { buttonStyles } from "@/components/ui/button";
-import { CONTENTS, EDITION, PAGE_COUNT, PDF_BYTES, PDF_URL } from "./contents";
+import { CONTENTS, PAGE_COUNT, PDF_BYTES, PDF_URL } from "@/lib/manual";
 
 /**
  * The training manual, read inside the CRM.
@@ -13,10 +13,12 @@ import { CONTENTS, EDITION, PAGE_COUNT, PDF_BYTES, PDF_URL } from "./contents";
  * download or to open in the device's own viewer.
  *
  * Built from `05-documents/training-manual/` by `publish.py`, which writes
- * the page images to `public/manual/<edition>/` and the contents to
- * `./contents.ts`; rebuild the manual and publish again and this follows.
+ * the page images to `manual-assets/<edition>/` and the contents to
+ * `src/lib/manual.ts`; rebuild the manual and publish again and this follows.
+ * Every page and the PDF come through `api/manual/[...path]`, which serves
+ * them to signed-in people only.
  */
-const page = (n: number) => `/manual/${EDITION}/page-${String(n).padStart(2, "0")}.webp`;
+const page = (n: number) => `/api/manual/page/${String(n).padStart(2, "0")}`;
 const mb = (PDF_BYTES / 1e6).toFixed(1);
 
 export default function Manual() {
@@ -36,7 +38,7 @@ export default function Manual() {
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
-          <a href={PDF_URL} download="PotatoFarm-Training-Manual.pdf" className={buttonStyles({ variant: "primary" })}>
+          <a href={`${PDF_URL}?download=1`} download="PotatoFarm-Training-Manual.pdf" className={buttonStyles({ variant: "primary" })}>
             Download PDF · {mb} MB
           </a>
           <a href={PDF_URL} target="_blank" rel="noopener" className={buttonStyles({ variant: "secondary" })}>

@@ -3,7 +3,7 @@
 
 export const EDITION = "e2";
 export const PAGE_COUNT = 62;
-export const PDF_URL = "/manual/PotatoFarm-Training-Manual.pdf";
+export const PDF_URL = "/api/manual/pdf";
 export const PDF_BYTES = 5986211;
 
 export type Entry = { no: string; title: string; page: number; part: boolean };
