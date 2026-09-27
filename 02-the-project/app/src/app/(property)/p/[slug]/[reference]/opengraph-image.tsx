@@ -8,16 +8,16 @@ import { aedWhole } from "@/lib/money";
  * It is what the buyer sees first, and usually all they see before
  * deciding whether to tap. Drawn from the listing rather than from a
  * photograph — photos are references until storage is wired for them —
- * in the page's own monochrome, under the brokerage's name.
+ * in the product's agreed scheme, under the brokerage's name.
  *
  * A property the page withholds gets a card that names nothing: not
  * the brokerage, not the title. The preview must give the same one
  * answer the page does, or a link becomes a way to learn what a
  * brokerage has taken off the market.
  *
- * Colours are the product's neutrals written out, because this renders
- * outside the stylesheet: ground #292C32, ink #F3F4F6, ink-3 #A0A5AE,
- * rule #3D4148.
+ * Colours are the agreed scheme written out, because this renders
+ * outside the stylesheet: ground #292C32, accent #FF1493, ink #F3F4F6,
+ * ink-3 #A0A5AE.
  */
 export const alt = "A property, with its price and main facts";
 export const size = { width: 1200, height: 630 };
@@ -53,7 +53,7 @@ export default async function Image({ params }: { params: Promise<{ slug: string
         <span>{l.brokerage}</span>
         <span style={{ color: "#A0A5AE" }}>{l.purpose === "RENT" ? "To let" : "For sale"}</span>
       </div>
-      <div style={{ display: "flex", height: 1, background: "#3D4148", marginTop: 28 }} />
+      <div style={{ display: "flex", width: 72, height: 3, background: "#FF1493", marginTop: 28 }} />
       <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, justifyContent: "center" }}>
         <div style={{ fontSize: 66, lineHeight: 1.1, maxWidth: 980 }}>{l.title}</div>
         {facts && <div style={{ fontSize: 28, color: "#A0A5AE", marginTop: 26 }}>{facts}</div>}
@@ -61,7 +61,7 @@ export default async function Image({ params }: { params: Promise<{ slug: string
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
         {/* One string: the renderer refuses a block with two text
             children unless it is laid out as flex. */}
-        <div style={{ fontSize: 48 }}>{`${price ?? ""}${l.purpose === "RENT" && price ? " a year" : ""}`}</div>
+        <div style={{ fontSize: 48, color: "#FF1493" }}>{`${price ?? ""}${l.purpose === "RENT" && price ? " a year" : ""}`}</div>
         <div style={{ fontSize: 20, color: "#A0A5AE" }}>{`Ref ${l.reference}   ·   Permit ${l.permitNumber}`}</div>
       </div>
     </div>,

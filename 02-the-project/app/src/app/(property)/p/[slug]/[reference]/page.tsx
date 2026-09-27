@@ -11,9 +11,9 @@ type Params = { params: Promise<{ slug: string; reference: string }> };
  * ## The brokerage's page, not ours
  *
  * Its client, its agent, its property. So the brokerage's name is the
- * masthead, PotatoFarm.io appears nowhere, and the page is drawn in
- * monochrome from the product's neutrals: the pink is our brand, and on
- * somebody else's advertisement it would read as theirs.
+ * masthead and PotatoFarm.io appears nowhere. The colours are the
+ * product's agreed scheme — pink #FF1493 on grey #292C32, the owner's
+ * decision — with the pink kept for the one thing a buyer should do.
  *
  * ## The metadata is the feature
  *
@@ -122,7 +122,7 @@ export default async function PropertyPage({ params }: Params) {
         {l.whatsapp && (
           <div className="mt-10 flex flex-wrap gap-3">
             <a href={wa(l.whatsapp, viewingText(l))}
-               className="inline-flex items-center justify-center min-h-12 px-7 rounded-full bg-ink text-ground font-medium text-ui no-underline hover:bg-ink-2 focus-visible:outline-none focus-visible:shadow-[var(--ring)]">
+               className="inline-flex items-center justify-center min-h-12 px-7 rounded-full bg-accent text-on-accent border border-[color:var(--accent-edge)] font-medium text-ui no-underline hover:bg-accent-hover focus-visible:outline-none focus-visible:shadow-[var(--ring)]">
               Arrange a private viewing
             </a>
             <a href={wa(l.whatsapp, enquiryText(l))}
