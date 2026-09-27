@@ -36,3 +36,22 @@ glow-and-collage cover. Edition 2 keeps the words and changes the setting:
 a charcoal stage at the head of every page with the screen framed, light
 headings, hairline rules, steps and notes in two columns, one section per
 sheet, and a line saying the sample brokerage is illustrative.
+
+## Three checks, every rebuild, every page
+
+A page that looks right here can look wrong on the reader's phone. Edition
+2 as first published looked perfect in Chrome's and MuPDF's renderers and,
+on an iPhone, showed each screenshot's soft shadow as a hard grey box
+spilling off the charcoal band onto the white (pages 6, 22 and 27 were
+reported). Apple's PDF viewer draws translucent layers — blurred shadows,
+faded or see-through images, CSS gradients — its own way. So the manual now
+uses none: flat charcoal, crisp frame edges instead of shadows, and a flat
+image of the potato (`mark_flat.png`) instead of the blurred SVG.
+
+- `overflow.mjs manual.html` — every page's words fit its sheet.
+- `pixels.py <pdf> pages2.json` — on every section page, in two PDF engines,
+  the charcoal band runs unbroken to one edge and nothing lands on the
+  white below it.
+- `structure.py <pdf>` — no page carries a translucent layer. This is the
+  one that catches the iPhone fault (the two renderers above cannot show
+  it): 62 of 62 pages flagged on the edition you saw, 0 now.

@@ -13,7 +13,9 @@ RAW, IMG = f"{HERE}/raw", f"{HERE}/img"
 os.makedirs(IMG, exist_ok=True)
 pages = json.load(open(sys.argv[1])) if len(sys.argv) > 1 and os.path.exists(sys.argv[1]) else {}
 F = f"{HERE}/fonts/package/files"
-MARK = open("/home/user/PotatoFarm-4565/02-the-project/app/public/favicon.svg").read()
+# A flat image of the potato: the inline SVG blurs and fades, which a PDF
+# carries as translucent layers that Apple's viewer draws as grey boxes.
+MARK = '<img class="mark" src="img/mark_flat.png" alt="">'
 
 # Per-section treatment, measured by .tmp/overflow.mjs: crop = keep the top
 # of the screen at this height/width ratio; w = frame width in mm; wide =
@@ -21,7 +23,7 @@ MARK = open("/home/user/PotatoFarm-4565/02-the-project/app/public/favicon.svg").
 TREAT = {
     "setup": {"crop": .42, "wide": True}, "today": {"crop": .52}, "thread": {"crop": .42, "wide": True},
     "leads": {"crop": .5}, "person": {"crop": .47, "wide": True}, "listings": {"crop": .6},
-    "reports": {"crop": .58}, "compliance": {"w": 118}, "set-assistant": {"crop": .5}, "layout": {"crop": .6}, "phone": {"wide": True},
+    "reports": {"crop": .58}, "compliance": {"w": 108}, "set-assistant": {"crop": .5}, "layout": {"crop": .6}, "phone": {"wide": True},
 }
 CROP = {}
 
@@ -67,26 +69,26 @@ html, body { margin: 0; background: var(--paper); color: var(--body); font-famil
   font-size: 9.4pt; line-height: 1.62; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-feature-settings: "cv11", "ss01"; }
 b, strong { color: var(--ink); font-weight: 600; }
 h1, h2, h3 { margin: 0; color: var(--ink); font-weight: 300; letter-spacing: -0.022em; line-height: 1.08; text-wrap: balance; }
-.marker { position: absolute; font-size: 2pt; color: #fff; opacity: .01; }
+.marker { position: absolute; left: 3mm; bottom: 2mm; font-size: 2pt; line-height: 1; color: #fff; }
+.cover .marker, .divider .marker, .back .marker { color: var(--char); }
 .cap { font-size: 6.8pt; font-weight: 600; letter-spacing: .22em; text-transform: uppercase; }
 .rule { width: 14mm; height: .45mm; background: var(--pink); }
 
 /* ---------- frames ---------- */
-.browser { background: var(--char3); border: .3mm solid var(--line); border-radius: 2.6mm; overflow: hidden;
-  box-shadow: 0 6mm 14mm rgba(0,0,0,.42), 0 1mm 2.5mm rgba(0,0,0,.35); }
+.browser { background: var(--char3); border: .35mm solid #50545D; border-radius: 2.6mm; overflow: hidden; outline: 1.2mm solid #2F3238; }
 .browser .bar { height: 5.2mm; display: flex; align-items: center; gap: 1.4mm; padding: 0 2.6mm; background: #202226; border-bottom: .25mm solid var(--line); }
 .browser .bar i { width: 1.6mm; height: 1.6mm; border-radius: 50%; background: #474B53; display: block; }
 .browser .bar span { margin: 0 auto; transform: translateX(-4mm); font-size: 5.4pt; color: #8B919B; letter-spacing: .02em;
   background: #2A2D33; border-radius: 1mm; padding: .3mm 6mm; }
 .browser img { display: block; width: 100%; }
-.phone { background: #0E0F11; border-radius: 6.5mm; padding: 1.5mm; box-shadow: 0 6mm 14mm rgba(0,0,0,.45); }
+.phone { background: #0E0F11; border-radius: 6.5mm; padding: 1.5mm; border: .35mm solid #50545D; }
 .phone img { display: block; width: 100%; border-radius: 5.2mm; }
 
 /* ---------- cover ---------- */
-.cover { background: linear-gradient(180deg, #2B2E34 0%, #24272C 62%, #1E2024 100%);
+.cover { background: var(--char);
   color: #fff; position: relative; overflow: hidden; }
 .cover .brand { position: absolute; left: 20mm; top: 20mm; display: flex; align-items: center; gap: 3mm; }
-.cover .brand svg { width: 9mm; height: 9mm; }
+.cover .brand .mark { width: 9mm; height: 9mm; }
 .word { font-weight: 600; font-size: 12pt; letter-spacing: -0.015em; color: #fff; }
 .word em { font-style: normal; color: var(--pink); }
 .cover .ed { position: absolute; right: 20mm; top: 22.5mm; color: #9EA4AE; }
@@ -101,9 +103,9 @@ h1, h2, h3 { margin: 0; color: var(--ink); font-weight: 300; letter-spacing: -0.
 .cover .dev .phone { position: absolute; right: 2mm; bottom: -10mm; width: 43mm; }
 .cover .foot { position: absolute; left: 20mm; right: 20mm; bottom: 14mm; display: flex; justify-content: space-between; color: #8B919B; }
 
-.back { background: linear-gradient(180deg, #2B2E34, #1E2024); position: relative; color: #B8BDC5; }
+.back { background: var(--char); position: relative; color: #B8BDC5; }
 .back .mid { position: absolute; left: 0; right: 0; top: 118mm; text-align: center; }
-.back svg { width: 16mm; height: 16mm; }
+.back .mark { width: 16mm; height: 16mm; }
 .back .word { display: block; font-size: 17pt; margin-top: 5mm; }
 .back p { max-width: 110mm; margin: 6mm auto 0; font-size: 10pt; line-height: 1.6; }
 .back .rule { margin: 8mm auto 0; }
@@ -138,7 +140,7 @@ td:first-child { text-align: left; color: var(--ink); }
 .illus { margin-top: 10mm; font-size: 7.8pt; color: var(--muted); border-top: .25mm solid var(--hair); padding-top: 3mm; }
 
 /* ---------- part divider ---------- */
-.divider { background: linear-gradient(180deg, #2B2E34 0%, #1F2125 100%);
+.divider { background: var(--char);
   position: relative; color: #fff; overflow: hidden; }
 .divider .n { position: absolute; left: 20mm; top: 22mm; font-size: 120pt; font-weight: 300; line-height: .9; color: var(--pink); letter-spacing: -0.06em; }
 .divider .txt { position: absolute; left: 20mm; right: 20mm; bottom: 34mm; }
@@ -152,12 +154,12 @@ td:first-child { text-align: left; color: var(--ink); }
 
 /* ---------- section: one fixed A4 sheet each, laid out like print ---------- */
 .sec { }
-.stage { padding: 15mm 17mm 8mm; background: linear-gradient(180deg, #2C2F35 0%, #23262B 100%); position: relative; }
+.stage { padding: 15mm 17mm 8mm; background: var(--char); position: relative; overflow: hidden; }
 .stage .shots { position: relative; display: flex; justify-content: center; align-items: flex-end; }
 .stage .main { width: 150mm; }
-.stage.two .shots { justify-content: flex-start; }
+.stage.two .shots { justify-content: flex-start; padding-bottom: 6mm; }
 .stage.two .main { width: 132mm; }
-.stage .inset { position: absolute; right: 0; bottom: -5mm; width: 74mm; }
+.stage .inset { position: absolute; right: 0; bottom: 0; width: 74mm; }
 .stage .phones { display: flex; gap: 7mm; justify-content: center; }
 .stage .phones .phone { width: 44mm; }
 .stage .phones.four .phone { width: 34mm; }
