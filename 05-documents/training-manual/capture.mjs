@@ -17,6 +17,21 @@ const extra = [
   ["x-m-more", "/today", AGENT, M, async (p) => { await p.getByRole("button", { name: /More/ }).last().click(); await p.waitForTimeout(1200); }],
   ["x-m-palette", "/inbox", AGENT, M, async (p) => { await p.getByRole("button", { name: /More/ }).last().click(); await p.waitForTimeout(1200); }],
   ["x-filters", "/leads", OWNER, D, null],
+  ["x-send-property", "/inbox/cmty36uaw001d7dxy2wzo1lhr", OWNER, D, async (p) => {
+    await p.getByRole("button", { name: "Send a property" }).click();
+    await p.getByPlaceholder("Reference, name or building").fill("MG-202");
+    await p.waitForTimeout(2000);
+    await p.locator("button", { hasText: "MG-202" }).first().click();
+    await p.waitForTimeout(1500);
+    // The address a brokerage's agents will see: the product's own
+    // domain, as in every browser frame in this manual, not this
+    // development server's.
+    await p.locator("#reply").evaluate((el) => {
+      el.value = el.value.replace("http://localhost:3000", "https://app.potatofarm.io");
+      el.scrollIntoView({ block: "center" });
+    });
+    await p.waitForTimeout(500);
+  }],
   // A section further down a screen, scrolled to its heading.
   ["reports-sources", "/reports", OWNER, D, async (p) => {
     await p.getByRole("heading", { name: /Where they come from/ }).evaluate((h) => scrollTo(0, h.getBoundingClientRect().top + scrollY - 96));

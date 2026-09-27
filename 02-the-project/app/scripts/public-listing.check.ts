@@ -21,7 +21,8 @@
  */
 import { PrismaClient } from "@prisma/client";
 import { randomUUID } from "node:crypto";
-import { publicListing, enquiryText } from "../src/server/lib/listings/public";
+import { publicListing, enquiryText, propertyPath } from "../src/server/lib/listings/public";
+import { listingsRouter } from "../src/server/api/routers/listings";
 
 const db = new PrismaClient({
   datasources: { db: { url: process.env.DATABASE_URL_UNSCOPED ?? process.env.DATABASE_URL } },
@@ -112,7 +113,67 @@ async function main() {
     (await publicListing(beta.slug, live.reference)) === null,
   );
 
+  /* ---------------- who looks after it ------------------------------- */
+  const agentUser = await db.user.create({ data: { email: `pubcheck-agent-${tag}@example.com`, name: "Layla Agent" } });
+  const leaver = await db.user.create({ data: { email: `pubcheck-left-${tag}@example.com`, name: "Gone Agent" } });
+  await db.membership.create({ data: { orgId: alpha.id, userId: agentUser.id, role: "AGENT" } });
+  await db.listing.update({ where: { id: live.id }, data: { agentId: agentUser.id } });
+  ok("the page names the agent who looks after it",
+     (await publicListing(alpha.slug, live.reference))?.agent === "Layla Agent");
+  const orphan = await listing(alpha.id, `PL-${tag}`, { agentId: leaver.id });
+  ok("an agent who has left the brokerage is not advertised",
+     (await publicListing(alpha.slug, orphan.reference))?.agent === null);
+
+  /* ---------------- an agent sends it --------------------------------- */
+  const caller = listingsRouter.createCaller({
+    session: { user: { id: agentUser.id } },
+    membership: { orgId: alpha.id, orgName: alpha.name, role: "AGENT" },
+    ip: "127.0.0.1", userAgent: "public-listing-check",
+  } as never);
+  const shared = await caller.share({ id: live.id });
+  ok("an agent gets the page's address to send",
+     shared.ok && shared.path === propertyPath(alpha.slug, live.reference), shared.ok ? shared.path : shared.reason);
+  const refused = await caller.share({ id: noPermit.id });
+  ok("a property the page would withhold is refused, with the reason",
+     !refused.ok && /permit/i.test(refused.reason), refused.ok ? "offered a link" : refused.reason);
+  const soldShare = await caller.share({ id: sold.id });
+  ok("a sold property has no page to send", !soldShare.ok);
+  let foreign = "";
+  try { await caller.share({ id: betaLive.id }); foreign = "shared"; } catch (e) { foreign = (e as { code?: string }).code ?? "error"; }
+  ok("another brokerage's property cannot be shared, or even found", foreign === "NOT_FOUND", foreign);
+
+  /* ---------------- what the buyer and WhatsApp see -------------------- */
+  const BASE = process.env.APP_BASE ?? "http://localhost:3000";
+  const up = await fetch(`${BASE}/sign-in`).then((r) => r.ok).catch(() => false);
+  if (!up) {
+    ok(`the page itself, over HTTP — needs the app on ${BASE}`, false, "not running");
+  } else {
+    const res = await fetch(`${BASE}${propertyPath(alpha.slug, live.reference)}`);
+    const html = await res.text();
+    const masthead = /<header[\s\S]*?<\/header>/.exec(html)?.[0] ?? "";
+    ok("the page opens", res.status === 200, String(res.status));
+    ok("under the brokerage's name", masthead.includes(alpha.name));
+    ok("and not ours", !masthead.includes("PotatoFarm") && !/<main[\s\S]*PotatoFarm[\s\S]*<\/main>/.test(html));
+    ok("its first action is a private viewing, by WhatsApp or not at all",
+       html.includes("Arrange a private viewing") || !html.includes("wa.me"));
+    const og = /property="og:image" content="([^"]+)"/.exec(html)?.[1];
+    const card = og ? await fetch(og.replace(/^https?:\/\/[^/]+/, BASE)) : null;
+    ok("WhatsApp gets a preview card image", card?.status === 200 && card.headers.get("content-type") === "image/png",
+       og ? `${card?.status} ${card?.headers.get("content-type")}` : "no og:image");
+    // A withheld property's card must be the same picture as a property
+    // that never existed: nothing about it, not even that it did.
+    const route = og ? new URL(og).pathname.split("/").pop()! : "opengraph-image";
+    const bytes = async (ref: string) =>
+      Buffer.from(await (await fetch(`${BASE}${propertyPath(alpha.slug, ref)}/${route}`)).arrayBuffer()).toString("base64");
+    ok("a sold property's card gives nothing away",
+       (await bytes(sold.reference)) === (await bytes(`NOPE-${tag}`)));
+    ok("and its page is not found", (await fetch(`${BASE}${propertyPath(alpha.slug, sold.reference)}`)).status === 404);
+  }
+
   await db.listing.deleteMany({ where: { orgId: { in: [alpha.id, beta.id] } } });
+  await db.auditLog.deleteMany({ where: { orgId: { in: [alpha.id, beta.id] } } }).catch(() => {});
+  await db.membership.deleteMany({ where: { orgId: { in: [alpha.id, beta.id] } } });
+  await db.user.deleteMany({ where: { id: { in: [agentUser.id, leaver.id] } } });
   await db.organisation.deleteMany({ where: { id: { in: [alpha.id, beta.id] } } });
   await db.$disconnect();
 

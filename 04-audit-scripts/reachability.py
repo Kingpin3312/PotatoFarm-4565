@@ -408,8 +408,13 @@ for rf in routers:
     # better than exempting it by name, which would rot the moment
     # somebody adds a second internal query.
     internal = set(re.findall(r'^\s{2}(\w+):\s*requirePermission\("audit:read"\)', body, re.M))
+    # `utils.<router>.<proc>.fetch(...)` is a call too: a screen asking on
+    # demand (a button press) rather than on render. listings.share is
+    # the first, and was reported as reachable by nothing while two
+    # screens called it.
     uncalled = [pr for pr in procs
-                if pr not in internal and f"api.{router}.{pr}" not in screens]
+                if pr not in internal and f"api.{router}.{pr}" not in screens
+                and f"utils.{router}.{pr}.fetch(" not in screens]
     if not uncalled:
         continue
     if router in REVENUE:

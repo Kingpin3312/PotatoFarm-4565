@@ -343,6 +343,20 @@ parties' names and addresses as they were when issued, and the printable
 document reads "Tax invoice" only when it carries a TRN.
 `billing/README.md` has all of it.
 
+**The property page a buyer opens carries no PotatoFarm.io branding,
+and no pink.** `(property)/p/[slug]/[reference]` is the brokerage's
+advertisement, sent by its agent to its client: the masthead is the
+brokerage's name, the agent is named, and it is drawn in the product's
+neutrals only, because the pink is our brand and on somebody else's
+advert reads as theirs. It sits in its own route group so the
+`(public)` layout's lockup cannot reach it. Its WhatsApp preview card is
+drawn by `opengraph-image.tsx` beside it, and a withheld property's card
+is byte-for-byte the card of one that never existed —
+`check:public-listing` compares them. Agents reach it from **Share link**
+on Listings and **Send a property** in the composer (`listings.share`,
+which calls `publicListing` exactly as a stranger's browser does, so the
+button cannot offer a link the page then refuses).
+
 **The palette is neon pink `#FF1493` on grey `#292C32`, set by the
 owner, and it is a recolour rather than a redesign.** Every token kept
 its name and job; the values changed in `tokens.css` and its three
@@ -1305,6 +1319,13 @@ with an empirical floor under it.
   `requireAnyPermission` or `signedInProcedure` was invisible to them —
   the count went *down* when four procedures were added. A new builder
   goes in those patterns in the same commit.
+- **Listing photographs.** A listing's `photos` are file names, not
+  stored images, so the buyer's page offers photography on request
+  rather than showing it. Object storage exists (`lib/files/storage.ts`,
+  S3-compatible) and carries brochures; wiring listing photos through it
+  — upload on the listing, a signed read route for the page, the first
+  photo as the preview card — is the next step for the buyer's page,
+  and needs a bucket (R2, S3) configured first.
 - **Two-step sign-in is optional.** Owners and admins are asked on
   Settings → Security; nothing makes it compulsory for a brokerage,
   because the day a phone is lost that locks somebody out, and it is the

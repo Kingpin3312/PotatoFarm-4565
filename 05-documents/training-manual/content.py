@@ -108,7 +108,7 @@ sec("thread", "day", "A conversation, and the assistant's replies", ["agent", "m
     ["<b>While a new buyer is being qualified</b>, the assistant replies by itself in their language, one question at a time, if your owner has switched that on (Settings → Assistant). It never claims to be a person.",
      "<b>Once you have written in a conversation</b>, or the buyer is qualified, the assistant stops sending and drafts instead. The draft appears above the reply box as <i>Suggested reply</i>.",
      "Press <b>Send as written</b> to send it, <b>Edit</b> to change it first, or <b>Discard</b> to throw it away.",
-     "To write your own, type in <b>Write a reply…</b> and press <b>Send</b>. <b>Attach</b> sends a brochure, floor plan or document.",
+     "To write your own, type in <b>Write a reply…</b> and press <b>Send</b>. <b>Attach</b> sends a brochure, floor plan or document. <b>Send a property</b> puts a property's page into your reply.",
      "<b>I've got this</b> silences the assistant on this conversation only, for a delicate negotiation. <b>Hand back</b> gives it back.",
      "<b>Call</b> and <b>WhatsApp</b> at the top open your phone's dialler or WhatsApp with the number ready."],
     ["Below the thread: <b>Identity</b> shows whether a compliance file is needed (one opens by itself when an offer is accepted), and <b>How this came to you</b> shows why the lead was routed to you. If it should have gone to somebody else, say so there; it goes to a manager with the routing decision attached.",
@@ -222,7 +222,7 @@ sec("listings", "deals", "Listings", ["agent", "manager"],
     "Every property on the book, with its price, portals and Trakheesi permit. The two panels at the top are the ones that cost money when missed: permits expiring inside 14 days, and listings a portal has rejected.",
     ["Filter by status, sale or rent, area, type, ready or off-plan, bedrooms, price and agent.",
      "Each row shows days left on the permit. An expired Trakheesi permit means the listing is pulled and you are advertising illegally until someone notices.",
-     "<b>Edit</b> changes the details. <b>Check wording</b> checks the advert for claims that break the rules. <b>Who wants it</b> lists buyers whose search matches. <b>Publish</b> queues it for the portals. <b>Owner</b> sets who owns it and which agent looks after it.",
+     "<b>Edit</b> changes the details. <b>Check wording</b> checks the advert for claims that break the rules. <b>Who wants it</b> lists buyers whose search matches. <b>Publish</b> queues it for the portals. <b>Owner</b> sets who owns it and which agent looks after it. <b>Share link</b> gives you the property's own page to send (see <i>The page a buyer sees</i>).",
      "<b>Export</b> downloads the list."],
     ["A listing will not publish without a valid permit."])
 
@@ -236,10 +236,15 @@ sec("addprop", "deals", "Adding a property", ["manager"],
      "Press <b>Add it</b>. It appears on Listings, and <b>Who wants it</b> immediately lists matching buyers."])
 
 sec("public", "deals", "The page a buyer sees", ["all"],
-    [("pub-listing", "A listing's public page: what a buyer sees from a link you send.")],
-    "Every available listing has a public page you can send to a buyer. It shows the facts, the permit and RERA numbers, and a button to ask about it, which arrives as an enquiry.",
-    ["Open the listing and copy its link, or send it from a conversation.",
-     "When the buyer presses <b>Ask about this property</b>, it arrives in your Inbox like any other enquiry."])
+    [("pub-listing", "A property's own page, in your brokerage's name: what a buyer opens from a link you send."),
+     ("x-send-property", "Send a property: its name, price and link, in your reply, for you to send.")],
+    "Every available property with a valid permit has its own page, in your brokerage's name and never ours. Send the link and WhatsApp shows a preview card: the property, its price and your brokerage's name.",
+    ["On Listings, press <b>Share link</b>. At a desk the link is copied; on a phone your share sheet opens, WhatsApp included.",
+     "In a conversation, press <b>Send a property</b>, find it by reference, name or building, and pick it. Its name, price and link go into your reply; read it and press <b>Send</b>.",
+     "The buyer sees the property, its details, you as their agent, and the permit, which the law requires on every advert.",
+     "<b>Arrange a private viewing</b> and <b>Ask a question</b> open WhatsApp to your brokerage's number with the property already named, so it arrives in the Inbox as an enquiry about the right property."],
+    ["A property that is not available, or has no valid permit, has no page. <b>Share link</b> says why instead of sending a dead link.",
+     "The price on the page is always the current one. Change it on Listings and every link you have sent shows the new price."])
 
 sec("owners", "deals", "Owners (vendors)", ["agent", "manager"],
     [("vendor", "An owner's page: their properties, and what has happened since you last spoke."), ("vendor-new", "Add an owner, and how they want to hear from you.")],

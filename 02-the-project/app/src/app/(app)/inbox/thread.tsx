@@ -7,6 +7,7 @@ import { Message } from "@/components/ui/message";
 import { WindowState } from "@/components/ui/window-state";
 import { ThreadControls } from "./thread-controls";
 import { SendFile } from "./send-file";
+import { SendProperty } from "./send-property";
 import { LeadRouting } from "../pipeline/lead-routing";
 import { ContactRow } from "@/components/ui/contact-row";
 import { KycPanel } from "./kyc-panel";
@@ -27,6 +28,7 @@ export function Thread({ conversationId }: { conversationId: string }) {
     onSettled: () => void utils.conversations.thread.invalidate({ conversationId }),
   });
   const [attaching, setAttaching] = useState(false);
+  const [offering, setOffering] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -197,7 +199,9 @@ export function Thread({ conversationId }: { conversationId: string }) {
               <label htmlFor="reply" className="sr-only">Message</label>
               <textarea
                 id="reply"
-                rows={1}
+                // Grows with what is in it, so a property and its link
+                // are both in view before anybody presses Send.
+                rows={Math.min(6, Math.max(1, draft.split("\n").length))}
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 onKeyDown={(e) => {
@@ -240,15 +244,34 @@ export function Thread({ conversationId }: { conversationId: string }) {
                 the busiest screen, and an attachment is occasional. */}
             <div className="mt-2">
               <button
-                onClick={() => setAttaching((a) => !a)}
+                onClick={() => { setAttaching((a) => !a); setOffering(false); }}
                 aria-expanded={attaching}
                 className="min-h-11 px-2 t-label text-ink-3 hover:text-ink"
               >
                 {attaching ? "Never mind" : "Attach"}
               </button>
+              {/* A property as its page: the brokerage's preview card in
+                  the chat, and the price that updates if it changes. It
+                  fills the reply box; the agent still presses Send. */}
+              <button
+                onClick={() => { setOffering((o) => !o); setAttaching(false); }}
+                aria-expanded={offering}
+                className="min-h-11 px-2 t-label text-ink-3 hover:text-ink"
+              >
+                {offering ? "Never mind" : "Send a property"}
+              </button>
               {attaching && (
                 <div className="mt-2">
                   <SendFile conversationId={conversationId} windowOpen={w.open} />
+                </div>
+              )}
+              {offering && (
+                <div className="mt-2">
+                  <SendProperty onInsert={(text) => {
+                    setDraft((d) => (d.trim() ? `${d.trim()}\n\n${text}` : text));
+                    setOffering(false);
+                    document.getElementById("reply")?.focus();
+                  }} />
                 </div>
               )}
             </div>

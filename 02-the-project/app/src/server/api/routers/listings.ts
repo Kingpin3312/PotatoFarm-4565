@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import type { forOrg } from "@/server/db/client";
+import { crossTenant, type forOrg } from "@/server/db/client";
 import { router, orgProcedure, requirePermission } from "../trpc";
 import { audit } from "@/server/lib/audit";
 import { validateForPublish, blocking, PORTAL_REQUIREMENTS } from "@/server/lib/feeds/validate";
@@ -10,6 +10,7 @@ import { aedToFils, filsToAed } from "@/lib/money";
 import { toCsv } from "@/lib/csv";
 import type { Prisma } from "@prisma/client";
 import { placesIn, storedVariants } from "@/server/lib/places";
+import { publicListing, propertyPath, PUBLIC_REQUIREMENTS } from "@/server/lib/listings/public";
 
 
 /**
@@ -540,6 +541,49 @@ export const listingsRouter = router({
    * being raised. A VIEWER already has `lead:read:all`, so nothing here
    * widens what anybody can see.
    */
+  /**
+   * A property's page, ready to send.
+   *
+   * The public page existed and nothing in the product linked to it: an
+   * agent had no way to get the address of the thing built for "send
+   * somebody a property". This is that way, and the page's own gate
+   * decides — `publicListing` is called exactly as a stranger's browser
+   * would call it, so the button can never offer a link the page then
+   * refuses. When it would refuse, the reason comes from the same
+   * validator, in the words it uses.
+   *
+   * The listing is read through the scoped client first, so an id from
+   * another brokerage is simply not found.
+   */
+  share: requirePermission("listing:read")
+    .input(z.object({ id: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const listing = await ctx.db.listing.findFirst({
+        where: { id: input.id, deletedAt: null },
+      });
+      if (!listing) throw new TRPCError({ code: "NOT_FOUND", message: "No such property." });
+      const org = await crossTenant("user-scoped").organisation.findUnique({
+        where: { id: ctx.orgId }, select: { slug: true },
+      });
+      const shown = org ? await publicListing(org.slug, listing.reference) : null;
+      if (shown && org) {
+        return {
+          ok: true as const,
+          path: propertyPath(org.slug, listing.reference),
+          reference: shown.reference,
+          title: shown.title,
+          priceFils: shown.priceFils,
+          purpose: shown.purpose,
+        };
+      }
+      if (listing.status !== "AVAILABLE") {
+        return { ok: false as const, reason: "Only an available property has a page to send." };
+      }
+      const photos = ((listing.descriptions ?? {}) as { photos?: string[] }).photos?.length ?? 0;
+      const why = blocking(validateForPublish(listing as never, PUBLIC_REQUIREMENTS, photos))[0];
+      return { ok: false as const, reason: why?.message ?? "This property cannot be advertised yet." };
+    }),
+
   buyers: requirePermission("listing:read")
     .input(z.object({
       listingId: z.string(),

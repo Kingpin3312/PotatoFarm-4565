@@ -14,6 +14,7 @@ import { WhoWantsIt } from "./who-wants-it";
 import { AddProperty } from "./add-property";
 import { EditListing } from "./edit-listing";
 import { CheckCopy } from "./check-copy";
+import { ShareLink } from "./share-link";
 import { download } from "@/lib/download";
 import { TYPE_OPTIONS } from "./add-property";
 
@@ -309,6 +310,7 @@ function Listings() {
 
             <div className="justify-self-end flex gap-2 flex-wrap justify-end max-[820px]:justify-self-start max-[820px]:justify-start">
               <EditListing listing={l} />
+              <ShareLink listingId={l.id} />
               <CheckCopy listingId={l.id} />
               <WhoWantsIt listingId={l.id} reference={l.reference} />
               <PublishCheck

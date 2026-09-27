@@ -34,7 +34,7 @@ import { validateForPublish, blocking } from "@/server/lib/feeds/validate";
  * a fineable offence for the brokerage, and a public page is
  * advertising in exactly the sense the law means.
  */
-const PUBLIC_REQUIREMENTS = {
+export const PUBLIC_REQUIREMENTS = {
   requiresPermit: true,
   languages: ["en"],
   minPhotos: 1,
@@ -57,6 +57,13 @@ export type PublicListing = {
   brokerage: string;
   /** E.164, for the WhatsApp link. Null when the brokerage has no channel. */
   whatsapp: string | null;
+  /**
+   * The agent who looks after it, by name. A buyer at this level wants
+   * to know who they will be dealing with before they write, and the
+   * RERA card beside it is only half an answer without a name. Null
+   * when nobody has been given the listing.
+   */
+  agent: string | null;
 };
 
 /**
@@ -90,7 +97,7 @@ export async function publicListing(
       priceFils: true, community: true, building: true, bedrooms: true,
       bathrooms: true, areaSqft: true, permitNumber: true,
       permitExpiresAt: true, reraBrokerCard: true, descriptions: true,
-      deletedAt: true, orgId: true,
+      deletedAt: true, orgId: true, agentId: true,
     },
   });
   if (!row || row.deletedAt || row.status !== "AVAILABLE") return null;
@@ -116,6 +123,15 @@ export async function publicListing(
     select: { identifier: true },
   });
 
+  // Only someone who still belongs to this brokerage: a listing whose
+  // agent has left must not advertise a person the buyer cannot reach.
+  const agent = row.agentId
+    ? await crossTenant("global-key").membership.findFirst({
+        where: { orgId: row.orgId, userId: row.agentId },
+        select: { user: { select: { name: true } } },
+      })
+    : null;
+
   return {
     reference: row.reference,
     title: row.title,
@@ -132,6 +148,7 @@ export async function publicListing(
     photos,
     brokerage: org.name,
     whatsapp: channel?.identifier ?? null,
+    agent: agent?.user.name ?? null,
   };
 }
 
@@ -145,4 +162,17 @@ export async function publicListing(
  */
 export function enquiryText(l: Pick<PublicListing, "reference" | "title">) {
   return `Hi — I'm interested in ${l.reference} (${l.title}). Is it still available?`;
+}
+
+/**
+ * The message a request to see it arrives as. Same rule: the reference
+ * first, so the assistant and the agent know which property at once.
+ */
+export function viewingText(l: Pick<PublicListing, "reference" | "title">) {
+  return `Hello — I'd like to arrange a private viewing of ${l.reference} (${l.title}).`;
+}
+
+/** Where a property's page lives. One place builds it. */
+export function propertyPath(slug: string, reference: string) {
+  return `/p/${encodeURIComponent(slug)}/${encodeURIComponent(reference)}`;
 }
