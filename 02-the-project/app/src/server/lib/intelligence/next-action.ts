@@ -95,7 +95,10 @@ export function nextAction(s: Subject): Suggestion | null {
   if (s.offerExpiringInDays !== null && s.offerExpiringInDays <= 2) {
     return {
       action: "NEGOTIATE",
-      headline: `${who(s)}'s offer expires ${s.offerExpiringInDays <= 0 ? "today" : `in ${s.offerExpiringInDays} day${s.offerExpiringInDays === 1 ? "" : "s"}`}`,
+      // "Within": the days are rounded up (`Math.ceil` in the sweep), so
+      // an offer with three hours left said "expires in 1 day" beside an
+      // Offers screen showing 3h.
+      headline: `${who(s)}'s offer expires ${s.offerExpiringInDays <= 0 ? "today" : `within ${s.offerExpiringInDays === 1 ? "a day" : `${s.offerExpiringInDays} days`}`}`,
       reason: "An offer that lapses un-answered is the cheapest deal anybody ever loses.",
       priority: priority(1, s),
       valueFils: s.budgetMaxFils,

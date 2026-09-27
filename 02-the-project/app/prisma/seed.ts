@@ -2090,9 +2090,28 @@ async function offers(orgId: string) {
     // what identifies an offer in a fixture that never edits one.
     const already = await db.offer.findFirst({
       where: { orgId, listingId, leadId, amountFils: BigInt(r.aed) * 100n },
-      select: { id: true },
+      select: { id: true, status: true },
     });
-    if (already) continue;
+    if (already) {
+      /**
+       * The clock restarts; the amount never changes.
+       *
+       * Deadlines are hours from when the offer was first seeded, so a
+       * day later every one had lapsed and the Offers screen of the first
+       * client demo read "No live offers — 2 have just expired". The
+       * story is put back: deadline and status as the fixture has them —
+       * except on a property where an offer was accepted, because that
+       * one became a deal and the rest were turned down for a reason.
+       */
+      const sold = await db.offer.count({ where: { orgId, listingId, status: "ACCEPTED" } });
+      if (r.hoursLeft !== null && !sold) {
+        await db.offer.update({
+          where: { id: already.id },
+          data: { expiresAt: hours(r.hoursLeft), status: r.status, decidedAt: null },
+        });
+      }
+      continue;
+    }
     const offer = await db.offer.create({
       data: {
         orgId, listingId, leadId,
