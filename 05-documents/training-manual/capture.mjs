@@ -5,7 +5,7 @@ import { chromePath } from "../scripts/_browser.mjs";
 const OUT = process.argv[2];
 const only = process.argv[3] ? new RegExp(process.argv[3]) : null;
 const OWNER = "dev-session-token-ask-history", AGENT = "dev-session-manager", MLRO = "dev-session-compliance_officer";
-const D = { width: 1440, height: 1000 }, M = { width: 390, height: 844 }, T = { width: 1440, height: 1700 };
+const D = { width: 1120, height: 760 }, M = { width: 390, height: 844 }, T = { width: 1120, height: 760 };
 const click = (label) => async (p) => { await p.getByRole("button", { name: label }).first().click(); await p.waitForTimeout(1500); };
 const extra = [
   ["x-palette", "/today", OWNER, D, async (p) => { await p.keyboard.press("Control+k"); await p.waitForTimeout(800); await p.keyboard.type("marina"); await p.waitForTimeout(2000); }],
@@ -87,9 +87,21 @@ const texts = fs.existsSync(`${OUT}/texts.json`) ? JSON.parse(fs.readFileSync(`$
 const errs = [];
 for (const [name, url, token, vp, act] of shots) {
   if (only && !only.test(name)) continue;
-  const ctx = await b.newContext({ viewport: vp, deviceScaleFactor: vp.width < 500 ? 2 : 1.5, timezoneId: "Asia/Dubai", locale: "en-GB" });
+  const ctx = await b.newContext({ viewport: vp, deviceScaleFactor: 2, timezoneId: "Asia/Dubai", locale: "en-GB" });
   // The development build's "N" badge: nobody using the real app sees it.
-  await ctx.addInitScript(() => { const s = document.createElement("style"); s.textContent = "nextjs-portal{display:none!important}"; document.addEventListener("DOMContentLoaded", () => document.head.appendChild(s)); });
+  // What an agency's own agents see: no development badge, no "Demo" label,
+  // and no demonstration-only tools (except on the one capture about them).
+  const keepDemoTools = name === "x-live-type";
+  await ctx.addInitScript((keep) => {
+    const s = document.createElement("style");
+    s.textContent = "nextjs-portal{display:none!important} header span[title^='Demo']{display:none!important}";
+    document.addEventListener("DOMContentLoaded", () => document.head.appendChild(s));
+    if (!keep) new MutationObserver(() => {
+      for (const b of document.querySelectorAll("button")) {
+        if (b.textContent?.trim() === "Try a live enquiry") { const box = b.closest("div.border-b"); if (box) box.style.display = "none"; }
+      }
+    }).observe(document, { childList: true, subtree: true });
+  }, keepDemoTools);
   if (token) await ctx.addCookies([...sessionCookies(token)]);
   const p = await ctx.newPage();
   p.on("pageerror", (e) => errs.push(`${name}: ${e.message}`));

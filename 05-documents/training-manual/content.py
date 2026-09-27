@@ -55,7 +55,6 @@ sec("layout", "start", "Finding your way round", ["all"],
      "<b>Diary</b>: viewings.",
      "<b>Settings</b>: everything else, including Offers, Deals, Commission, Reports, Compliance and Team."],
     ["The brokerage name on the right tells you which brokerage you are in. If you work for two, check it before you message anybody.",
-     "A pink <b>Demo</b> label means you are in a demonstration brokerage: messages are recorded and never delivered. You will not see it in a real brokerage.",
      "If the assistant has been stopped, the top bar says <b>Assistant stopped</b>. Its absence is the normal state."])
 
 sec("palette", "start", "Search anything (Ctrl K)", ["all"],
@@ -114,14 +113,6 @@ sec("thread", "day", "A conversation, and the assistant's replies", ["agent", "m
      "<b>Call</b> and <b>WhatsApp</b> at the top open your phone's dialler or WhatsApp with the number ready."],
     ["Below the thread: <b>Identity</b> shows whether a compliance file is needed (one opens by itself when an offer is accepted), and <b>How this came to you</b> shows why the lead was routed to you. If it should have gone to somebody else, say so there; it goes to a manager with the routing decision attached.",
      "What you do with each draft (sent as written, edited, discarded) is recorded. It is how your owner decides how much to trust the assistant."])
-
-sec("live", "day", "Try a live enquiry (demonstration brokerage only)", ["owner"],
-    [("x-live-type", "Only in a demonstration brokerage: send a buyer's message through the real system.")],
-    "In a demonstration brokerage, the Inbox has two extra buttons for showing the product to someone. They push a realistic buyer's message through exactly the path a WhatsApp message takes: it becomes a lead, is routed, lands on the board and is answered.",
-    ["Press <b>Try a live enquiry</b> for a ready-made buyer (English or Arabic), or <b>Type your own</b> to let somebody in the room write one.",
-     "The new conversation opens at the top of the Inbox, with the assistant's reply a few seconds later.",
-     "Nothing is sent to anybody. The Demo label is on every screen."],
-    ["You will never see these buttons in a real brokerage."])
 
 sec("leads", "day", "Leads", ["agent", "manager"],
     [("leads", "Leads: tabs, filters, score bands and every person with their source, agent and what is happening.")],
@@ -466,7 +457,7 @@ sec("set-billing", "settings", "Billing and invoices", ["owner"],
 
 # ----------------------------------------------------------------- phone
 sec("phone", "phone", "Using PotatoFarm.io on your phone", ["agent"],
-    [("m-today", "Today on a phone."), ("m-inbox", "The Inbox."), ("m-thread", "A conversation."), ("m-person", "A person: Call, Message and Next step first."), ("m-pipeline", "The board."), ("x-m-more", "More: everything else.")],
+    [("m-today", "Today."), ("m-inbox", "The Inbox."), ("m-person", "A person: Call, Message and Next step first."), ("x-m-more", "More: everything else.")],
     "Everything works on a phone, in the browser, and it installs to your home screen like an app. Navigation moves to a bar at the bottom, within reach of your thumb: <b>Today</b>, <b>Inbox</b>, <b>Diary</b>, <b>Pipeline</b> and <b>More</b>.",
     ["<b>Install it</b>: open PotatoFarm.io in Safari (iPhone) or Chrome (Android), then choose <b>Share → Add to Home Screen</b> (iPhone) or <b>Install app</b> (Android). It opens full-screen from the icon.",
      "Turn on notifications when asked, so a buyer waiting reaches you.",

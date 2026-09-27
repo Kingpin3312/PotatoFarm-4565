@@ -1,278 +1,329 @@
-"""Build the training manual HTML from content.py and the captured screens.
+"""Edition 2 of the training manual: the same words, set the way a
+top-end agency's printed material is set.
 
-python build.py [pages.json]   -> manual.html (pages.json fills the contents page numbers)
+python build.py [pages.json]  -> manual.html
 """
 import html, json, os, sys
 from PIL import Image
-sys.path.insert(0, os.path.dirname(__file__))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from content import PARTS, ROLES, S, ROUTINES, TROUBLE, GLOSSARY
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 RAW, IMG = f"{HERE}/raw", f"{HERE}/img"
 os.makedirs(IMG, exist_ok=True)
 pages = json.load(open(sys.argv[1])) if len(sys.argv) > 1 and os.path.exists(sys.argv[1]) else {}
+F = f"{HERE}/fonts/package/files"
+MARK = open("/home/user/PotatoFarm-4565/02-the-project/app/public/favicon.svg").read()
 
-CROP_TOP = {"today": 0.74, "person": 0.74, "reports": 0.74}
+# Per-section treatment, measured by .tmp/overflow.mjs: crop = keep the top
+# of the screen at this height/width ratio; w = frame width in mm; wide =
+# steps in two columns with the notes underneath.
+TREAT = {
+    "setup": {"crop": .42, "wide": True}, "today": {"crop": .52}, "thread": {"crop": .42, "wide": True},
+    "leads": {"crop": .5}, "person": {"crop": .47, "wide": True}, "listings": {"crop": .6},
+    "reports": {"crop": .58}, "compliance": {"w": 118}, "set-assistant": {"crop": .5}, "layout": {"crop": .6}, "phone": {"wide": True},
+}
+CROP = {}
 
 def img(name):
-    """A compressed copy of a capture; returns (file, is_phone, aspect)."""
-    src = f"{RAW}/{name}.png"
-    im = Image.open(src).convert("RGB")
+    im = Image.open(f"{RAW}/{name}.png").convert("RGB")
     w, h = im.size
-    if name in CROP_TOP and h / w > 0.8:
-        # The top of a long screen, at the size every other screenshot is:
-        # squeezing the whole page onto one sheet made it unreadable.
-        im = im.crop((0, 0, w, round(w * CROP_TOP[name]))); h = im.size[1]
+    if name in CROP and h / w > CROP[name]:
+        im = im.crop((0, 0, w, round(w * CROP[name]))); h = im.size[1]
     phone = w < 1000
-    tw = 560 if phone else 1500
+    tw = 700 if phone else 1800
     out = f"{IMG}/{name}.jpg"
-    if True:
-        im.resize((tw, round(h * tw / w)), Image.LANCZOS).save(out, quality=80, optimize=True)
-    return f"img/{name}.jpg", phone, h / w
+    im.resize((tw, round(h * tw / w)), Image.LANCZOS).save(out, quality=84, optimize=True)
+    return f"img/{name}.jpg", phone
 
-MARK = open("/home/user/PotatoFarm-4565/02-the-project/app/public/favicon.svg").read()
-FONTS = f"{HERE}/fonts/package/files"
+URL = {"pub": "potatofarm.io"}
+def url_for(name, cap):
+    return "app.potatofarm.io"
 
 css = f"""
-@font-face {{ font-family: Inter; font-weight: 400; src: url('file://{FONTS}/inter-latin-400-normal.woff2') format('woff2'); }}
-@font-face {{ font-family: Inter; font-weight: 500; src: url('file://{FONTS}/inter-latin-500-normal.woff2') format('woff2'); }}
-@font-face {{ font-family: Inter; font-weight: 600; src: url('file://{FONTS}/inter-latin-600-normal.woff2') format('woff2'); }}
-@font-face {{ font-family: Inter; font-weight: 700; src: url('file://{FONTS}/inter-latin-700-normal.woff2') format('woff2'); }}
-@font-face {{ font-family: Inter; font-weight: 800; src: url('file://{FONTS}/inter-latin-800-normal.woff2') format('woff2'); }}
-:root {{
-  --ground:#292C32; --deep:#1F2126; --pink:#FF1493; --pinkdeep:#C8106F; --pinksoft:#FFE6F2;
-  --ink:#1D2025; --ink2:#454A53; --ink3:#737985; --rule:#E2E4E8; --panel:#F4F5F7; --paper:#FFFFFF;
-}}
-@page {{ size: A4; margin: 17mm 17mm 21mm 17mm; }}
-@page :first {{ margin: 0; }}
-@page bleed {{ margin: 0; }}
-* {{ box-sizing: border-box; }}
-html, body {{ margin: 0; background: var(--paper); color: var(--ink2); font-family: Inter, "Liberation Sans", Arial, sans-serif;
-  font-size: 10pt; line-height: 1.55; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
-b, strong {{ color: var(--ink); font-weight: 600; }}
-i {{ font-style: italic; }}
-h1, h2, h3 {{ color: var(--ink); margin: 0; line-height: 1.15; letter-spacing: -0.015em; text-wrap: balance; }}
-.marker {{ position: absolute; font-size: 2pt; color: #fff; opacity: .01; }}
+@font-face {{ font-family: Inter; font-weight: 300; src: url('file://{F}/inter-latin-400-normal.woff2') format('woff2'); }}
+"""
+# Inter at 300 is not in the pack; fetch the light cut if it is there.
+light = f"{F}/inter-latin-300-normal.woff2"
+if os.path.exists(light):
+    css = f"@font-face {{ font-family: Inter; font-weight: 300; src: url('file://{light}') format('woff2'); }}\n"
+for wgt in (400, 500, 600, 700):
+    css += f"@font-face {{ font-family: Inter; font-weight: {wgt}; src: url('file://{F}/inter-latin-{wgt}-normal.woff2') format('woff2'); }}\n"
 
-/* cover */
-.cover {{ page: bleed; width: 210mm; height: 297mm; background: var(--ground); color: #fff; position: relative; overflow: hidden; }}
-.cover .glow {{ position: absolute; width: 170mm; height: 170mm; right: -60mm; top: -50mm; border-radius: 50%;
-  background: radial-gradient(circle, rgba(255,20,147,.28), rgba(255,20,147,0) 65%); }}
-.cover .top {{ position: absolute; left: 20mm; top: 22mm; display: flex; align-items: center; gap: 4mm; }}
-.cover .top svg {{ width: 15mm; height: 15mm; }}
-.word {{ font-weight: 700; font-size: 17pt; color: #fff; letter-spacing: -0.02em; }}
-.word em {{ font-style: normal; color: var(--pink); }}
-.cover .title {{ position: absolute; left: 20mm; top: 62mm; right: 20mm; }}
-.cover .kicker {{ font-size: 9pt; letter-spacing: .18em; text-transform: uppercase; color: var(--pink); font-weight: 600; }}
-.cover h1 {{ color: #fff; font-size: 44pt; font-weight: 800; letter-spacing: -0.035em; margin-top: 5mm; line-height: 1.02; }}
-.cover .sub {{ color: #C9CCD2; font-size: 13pt; margin-top: 6mm; max-width: 125mm; line-height: 1.45; }}
-.cover .shots {{ position: absolute; left: 20mm; right: 0; bottom: 30mm; height: 118mm; }}
-.cover .shots .desk {{ position: absolute; left: 0; bottom: 0; width: 158mm; border-radius: 3mm; border: .4mm solid #444852;
-  box-shadow: 0 6mm 16mm rgba(0,0,0,.45); }}
-.cover .shots .ph {{ position: absolute; right: 16mm; bottom: -8mm; width: 44mm; border-radius: 5mm; border: .8mm solid #444852;
-  box-shadow: 0 6mm 16mm rgba(0,0,0,.5); }}
-.cover .foot {{ position: absolute; left: 20mm; right: 20mm; bottom: 12mm; display: flex; justify-content: space-between;
-  color: #9EA4AE; font-size: 8.5pt; }}
+css += """
+:root {
+  --char:#292C32; --char2:#23262B; --char3:#1C1E22; --line:#3A3E46;
+  --ink:#16191D; --body:#474C54; --muted:#8B919B; --hair:#E4E5E8; --paper:#FFFFFF;
+  --pink:#FF1493; --pinkdeep:#C8106F;
+}
+@page { size: A4; margin: 0; }
+/* Every page is a fixed A4 sheet with its own inner spacing: this renderer
+   ignores per-page margin rules, so nothing is left to the page box. */
+section { width: 210mm; height: 297mm; overflow: hidden; position: relative; break-before: page; }
+section:first-child { break-before: auto; }
+.front, .refp { padding: 18mm 17mm 26mm; }
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--paper); color: var(--body); font-family: Inter, "Liberation Sans", Arial, sans-serif;
+  font-size: 9.4pt; line-height: 1.62; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-feature-settings: "cv11", "ss01"; }
+b, strong { color: var(--ink); font-weight: 600; }
+h1, h2, h3 { margin: 0; color: var(--ink); font-weight: 300; letter-spacing: -0.022em; line-height: 1.08; text-wrap: balance; }
+.marker { position: absolute; font-size: 2pt; color: #fff; opacity: .01; }
+.cap { font-size: 6.8pt; font-weight: 600; letter-spacing: .22em; text-transform: uppercase; }
+.rule { width: 14mm; height: .45mm; background: var(--pink); }
 
-/* back cover */
-.back {{ page: bleed; break-before: page; width: 210mm; height: 297mm; background: var(--ground); color: #C9CCD2; position: relative; }}
-.back .mid {{ position: absolute; left: 0; right: 0; top: 110mm; text-align: center; }}
-.back svg {{ width: 24mm; height: 24mm; }}
-.back .word {{ font-size: 22pt; display: block; margin-top: 5mm; }}
-.back p {{ margin: 5mm auto 0; max-width: 120mm; font-size: 10.5pt; }}
-.back .contact {{ position: absolute; bottom: 22mm; left: 0; right: 0; text-align: center; font-size: 9pt; color: #9EA4AE; }}
+/* ---------- frames ---------- */
+.browser { background: var(--char3); border: .3mm solid var(--line); border-radius: 2.6mm; overflow: hidden;
+  box-shadow: 0 6mm 14mm rgba(0,0,0,.42), 0 1mm 2.5mm rgba(0,0,0,.35); }
+.browser .bar { height: 5.2mm; display: flex; align-items: center; gap: 1.4mm; padding: 0 2.6mm; background: #202226; border-bottom: .25mm solid var(--line); }
+.browser .bar i { width: 1.6mm; height: 1.6mm; border-radius: 50%; background: #474B53; display: block; }
+.browser .bar span { margin: 0 auto; transform: translateX(-4mm); font-size: 5.4pt; color: #8B919B; letter-spacing: .02em;
+  background: #2A2D33; border-radius: 1mm; padding: .3mm 6mm; }
+.browser img { display: block; width: 100%; }
+.phone { background: #0E0F11; border-radius: 6.5mm; padding: 1.5mm; box-shadow: 0 6mm 14mm rgba(0,0,0,.45); }
+.phone img { display: block; width: 100%; border-radius: 5.2mm; }
 
-/* running pages */
-.page {{ break-before: page; }}
-.eyebrow {{ font-size: 8pt; letter-spacing: .16em; text-transform: uppercase; color: var(--pinkdeep); font-weight: 600; }}
-.lead {{ font-size: 11.5pt; color: var(--ink2); max-width: 160mm; }}
-.contents h1, .roles h1, .ref h1 {{ font-size: 26pt; font-weight: 800; margin: 3mm 0 5mm; }}
-.toc-part {{ margin-top: 3.2mm; padding-top: 2mm; border-top: .3mm solid var(--rule); display: grid; grid-template-columns: 12mm 1fr 12mm; }}
-.toc-part .n {{ color: var(--pink); font-weight: 700; font-size: 11pt; }}
-.toc-part .t {{ color: var(--ink); font-weight: 700; font-size: 11pt; }}
-.toc-part .p, .toc-row .p {{ text-align: right; font-variant-numeric: tabular-nums; color: var(--ink3); }}
-.toc-row {{ display: grid; grid-template-columns: 12mm 1fr 12mm; font-size: 9pt; padding: .45mm 0; }}
-.toc-row .t {{ color: var(--ink2); display: flex; gap: 2mm; }}
-.toc-row .t::after {{ content: ""; flex: 1; border-bottom: .25mm dotted #C5C9D0; transform: translateY(-1.2mm); }}
+/* ---------- cover ---------- */
+.cover { background: linear-gradient(180deg, #2B2E34 0%, #24272C 62%, #1E2024 100%);
+  color: #fff; position: relative; overflow: hidden; }
+.cover .brand { position: absolute; left: 20mm; top: 20mm; display: flex; align-items: center; gap: 3mm; }
+.cover .brand svg { width: 9mm; height: 9mm; }
+.word { font-weight: 600; font-size: 12pt; letter-spacing: -0.015em; color: #fff; }
+.word em { font-style: normal; color: var(--pink); }
+.cover .ed { position: absolute; right: 20mm; top: 22.5mm; color: #9EA4AE; }
+.cover .t { position: absolute; left: 20mm; top: 58mm; right: 20mm; }
+.cover .t .cap { color: #B8BDC5; }
+.cover h1 { color: #fff; font-size: 50pt; line-height: 1.0; letter-spacing: -0.035em; margin-top: 7mm; }
+.cover h1 span { color: #9EA4AE; }
+.cover .t .rule { margin-top: 9mm; }
+.cover .t p { color: #B8BDC5; font-size: 11.5pt; line-height: 1.55; max-width: 118mm; margin: 7mm 0 0; font-weight: 400; }
+.cover .dev { position: absolute; left: 20mm; right: 20mm; bottom: 36mm; height: 104mm; }
+.cover .dev .browser { position: absolute; left: 0; bottom: 0; width: 146mm; }
+.cover .dev .phone { position: absolute; right: 2mm; bottom: -10mm; width: 43mm; }
+.cover .foot { position: absolute; left: 20mm; right: 20mm; bottom: 14mm; display: flex; justify-content: space-between; color: #8B919B; }
 
-table {{ border-collapse: collapse; width: 100%; font-size: 9pt; }}
-th, td {{ text-align: left; padding: 2.4mm 2.6mm; border-bottom: .25mm solid var(--rule); vertical-align: top; }}
-th {{ color: var(--ink3); font-weight: 600; font-size: 7.5pt; letter-spacing: .08em; text-transform: uppercase; background: var(--panel); }}
-td:first-child {{ color: var(--ink); font-weight: 600; }}
-.yes {{ color: var(--pinkdeep); font-weight: 700; }}
-.no {{ color: #B9BDC5; }}
+.back { background: linear-gradient(180deg, #2B2E34, #1E2024); position: relative; color: #B8BDC5; }
+.back .mid { position: absolute; left: 0; right: 0; top: 118mm; text-align: center; }
+.back svg { width: 16mm; height: 16mm; }
+.back .word { display: block; font-size: 17pt; margin-top: 5mm; }
+.back p { max-width: 110mm; margin: 6mm auto 0; font-size: 10pt; line-height: 1.6; }
+.back .rule { margin: 8mm auto 0; }
+.back .foot { position: absolute; bottom: 18mm; left: 0; right: 0; text-align: center; color: #8B919B; }
 
-/* part divider */
-.divider {{ break-before: page; height: 257mm; background: var(--ground); border-radius: 4mm; color: #fff; position: relative; overflow: hidden; }}
-.divider .glow {{ position: absolute; width: 150mm; height: 150mm; left: -50mm; bottom: -60mm; border-radius: 50%;
-  background: radial-gradient(circle, rgba(255,20,147,.30), rgba(255,20,147,0) 65%); }}
-.divider .num {{ position: absolute; left: 14mm; top: 14mm; font-size: 90pt; font-weight: 800; color: var(--pink); line-height: 1; letter-spacing: -0.05em; }}
-.divider .txt {{ position: absolute; left: 14mm; right: 14mm; bottom: 26mm; }}
-.divider h2 {{ color: #fff; font-size: 34pt; font-weight: 800; letter-spacing: -0.03em; }}
-.divider p {{ color: #C9CCD2; font-size: 12.5pt; max-width: 120mm; margin-top: 5mm; }}
-.divider ul {{ list-style: none; padding: 0; margin: 8mm 0 0; columns: 2; column-gap: 8mm; color: #E4E6EA; font-size: 9.5pt; }}
-.divider li {{ padding: 1mm 0; break-inside: avoid; }}
-.divider li span {{ color: var(--pink); font-weight: 700; margin-right: 2mm; font-variant-numeric: tabular-nums; }}
+/* ---------- front matter ---------- */
+.front { }
+.front .cap { color: var(--pinkdeep); }
+.front h1 { font-size: 30pt; margin: 4mm 0 0; }
+.front .rule { margin: 6mm 0 7mm; }
+.front .lead { font-size: 11pt; color: var(--body); max-width: 150mm; margin: 0; }
+.toc { columns: 2; column-gap: 12mm; margin-top: 2mm; }
+.toc .part { break-inside: avoid; margin-bottom: 4.2mm; }
+.toc .ph { display: flex; align-items: baseline; gap: 3mm; border-bottom: .25mm solid var(--hair); padding-bottom: 1.2mm; margin-bottom: 1.2mm; }
+.toc .ph b { font-weight: 300; font-size: 15pt; color: var(--pink); letter-spacing: -0.02em; width: 8mm; }
+.toc .ph span { color: var(--ink); font-weight: 600; font-size: 9.6pt; flex: 1; }
+.toc .ph em, .toc .row em { font-style: normal; color: var(--muted); font-variant-numeric: tabular-nums; font-size: 8.6pt; }
+.toc .row { display: flex; gap: 3mm; font-size: 8.2pt; padding: .15mm 0; line-height: 1.5; }
+.toc .row i { font-style: normal; color: var(--muted); width: 8mm; font-variant-numeric: tabular-nums; }
+.toc .row span { flex: 1; color: var(--body); }
+table { border-collapse: collapse; width: 100%; font-size: 8.8pt; margin-top: 4mm; }
+th { text-align: center; font-size: 6.4pt; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--muted);
+  padding: 0 1.5mm 3mm; border-bottom: .3mm solid var(--ink); vertical-align: bottom; }
+th:first-child { text-align: left; }
+td { padding: 2.6mm 1.5mm; border-bottom: .25mm solid var(--hair); text-align: center; }
+td:first-child { text-align: left; color: var(--ink); }
+.dot { display: inline-block; width: 2.2mm; height: 2.2mm; border-radius: 50%; background: var(--pink); }
+.dash { display: inline-block; width: 2.4mm; height: .3mm; background: #C9CDD3; vertical-align: middle; }
+.notes { margin-top: 9mm; display: grid; grid-template-columns: repeat(3, 1fr); gap: 7mm; }
+.notes div { border-top: .3mm solid var(--ink); padding-top: 3mm; font-size: 8.6pt; }
+.notes .cap { display: block; color: var(--muted); margin-bottom: 1.6mm; }
+.illus { margin-top: 10mm; font-size: 7.8pt; color: var(--muted); border-top: .25mm solid var(--hair); padding-top: 3mm; }
 
-/* section */
-.sec {{ break-before: page; }}
-.sec-head {{ display: flex; align-items: baseline; gap: 4mm; }}
-.sec-no {{ font-size: 11pt; font-weight: 700; color: var(--pink); font-variant-numeric: tabular-nums; }}
-.sec h2 {{ font-size: 21pt; font-weight: 800; }}
-.chips {{ margin: 3mm 0 0; display: flex; gap: 1.6mm; flex-wrap: wrap; }}
-.chip {{ font-size: 7.3pt; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--pinkdeep);
-  background: var(--pinksoft); border-radius: 10mm; padding: .6mm 2.6mm; }}
-.intro {{ margin: 4mm 0 0; font-size: 10.5pt; color: var(--ink2); }}
-figure {{ margin: 5mm 0 0; break-inside: avoid; }}
-figure img {{ display: block; width: auto; max-width: 100%; max-height: 100mm; margin: 0 auto; border-radius: 2mm; border: .3mm solid #D5D8DD; box-shadow: 0 1.2mm 3.5mm rgba(29,32,37,.12); }}
-figure.tall img {{ max-height: 128mm; }}
-.phones figure img {{ max-height: 84mm; }}
-figcaption {{ text-align: center; }}
-figcaption {{ font-size: 8.3pt; color: var(--ink3); margin-top: 2mm; }}
-.phones {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 5mm; margin-top: 5mm; }}
-.phones figure {{ margin: 0; }}
-.phones figure img {{ border-radius: 4mm; }}
-.pair {{ display: grid; grid-template-columns: 1fr; gap: 0; }}
-h3 {{ font-size: 11.5pt; font-weight: 700; margin: 6mm 0 2.5mm; }}
-ol.steps {{ list-style: none; margin: 0; padding: 0; counter-reset: s; display: grid; gap: 2.2mm; }}
-ol.steps li {{ counter-increment: s; position: relative; padding-left: 9mm; break-inside: avoid; }}
-ol.steps li::before {{ content: counter(s); position: absolute; left: 0; top: .2mm; width: 5.6mm; height: 5.6mm; border-radius: 50%;
-  background: var(--pink); color: #fff; font-size: 7.6pt; font-weight: 700; text-align: center; line-height: 5.6mm; }}
-.tips {{ margin-top: 5mm; background: var(--panel); border-radius: 2.5mm; padding: 3.5mm 4.5mm; break-inside: avoid; }}
-.tips .eyebrow {{ color: var(--ink3); }}
-.tips ul {{ margin: 1.5mm 0 0; padding-left: 4.5mm; }}
-.tips li {{ margin: 1.2mm 0; }}
-.tips li::marker {{ color: var(--pink); }}
+/* ---------- part divider ---------- */
+.divider { background: linear-gradient(180deg, #2B2E34 0%, #1F2125 100%);
+  position: relative; color: #fff; overflow: hidden; }
+.divider .n { position: absolute; left: 20mm; top: 22mm; font-size: 120pt; font-weight: 300; line-height: .9; color: var(--pink); letter-spacing: -0.06em; }
+.divider .txt { position: absolute; left: 20mm; right: 20mm; bottom: 34mm; }
+.divider .cap { color: #9EA4AE; }
+.divider h2 { color: #fff; font-size: 40pt; margin-top: 5mm; letter-spacing: -0.03em; }
+.divider .rule { margin-top: 8mm; }
+.divider p { color: #B8BDC5; font-size: 11pt; max-width: 120mm; margin: 7mm 0 0; }
+.divider ul { list-style: none; margin: 10mm 0 0; padding: 0; columns: 2; column-gap: 10mm; }
+.divider li { break-inside: avoid; display: flex; gap: 3mm; padding: 1.8mm 0; border-top: .25mm solid #3A3E46; font-size: 9pt; color: #D7DADF; }
+.divider li span { color: #8B919B; font-variant-numeric: tabular-nums; width: 8mm; }
 
-/* reference */
-.routines {{ display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; }}
-.card {{ border: .3mm solid var(--rule); border-radius: 2.5mm; padding: 4mm; break-inside: avoid; }}
-.card h3 {{ margin: 0 0 2mm; font-size: 10.5pt; }}
-.card ul {{ list-style: none; padding: 0; margin: 0; }}
-.card li {{ padding: 1.2mm 0 1.2mm 6.5mm; position: relative; font-size: 9.3pt; }}
-.card li::before {{ content: ""; position: absolute; left: 0; top: 2.1mm; width: 3.4mm; height: 3.4mm; border: .35mm solid var(--pink); border-radius: .8mm; }}
-.qa {{ display: grid; gap: 3mm; }}
-.qa div {{ border-left: .8mm solid var(--pink); padding: 1mm 0 1mm 4mm; break-inside: avoid; }}
-.qa .q {{ display: block; margin-bottom: .8mm; color: var(--ink); font-weight: 600; }}
-dl.gl {{ display: grid; grid-template-columns: 46mm 1fr; gap: 2.2mm 5mm; margin: 0; font-size: 9.3pt; }}
-dl.gl dt {{ color: var(--ink); font-weight: 600; }}
-dl.gl dd {{ margin: 0; }}
+/* ---------- section: one fixed A4 sheet each, laid out like print ---------- */
+.sec { }
+.stage { padding: 15mm 17mm 8mm; background: linear-gradient(180deg, #2C2F35 0%, #23262B 100%); position: relative; }
+.stage .shots { position: relative; display: flex; justify-content: center; align-items: flex-end; }
+.stage .main { width: 150mm; }
+.stage.two .shots { justify-content: flex-start; }
+.stage.two .main { width: 132mm; }
+.stage .inset { position: absolute; right: 0; bottom: -5mm; width: 74mm; }
+.stage .phones { display: flex; gap: 7mm; justify-content: center; }
+.stage .phones .phone { width: 44mm; }
+.stage .phones.four .phone { width: 34mm; }
+.stage .legend { margin-top: 5.5mm; color: #8B919B; font-size: 6.9pt; }
+.stage .legend b { color: #C9CDD3; font-weight: 500; }
+.body { padding: 0 17mm; }
+.head { margin-top: 7mm; display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 6mm; }
+.head .no { font-size: 8pt; color: var(--pinkdeep); font-weight: 600; letter-spacing: .14em; }
+.head h2 { font-size: 23pt; margin-top: 2mm; }
+.head .for { text-align: right; color: var(--muted); }
+.head .for .cap { display: block; margin-bottom: 1mm; }
+.head .for span.r { font-size: 8.4pt; color: var(--ink); }
+.body > .rule { margin: 4.5mm 0 5mm; }
+.cols { display: grid; grid-template-columns: 1.55fr 1fr; gap: 10mm; }
+.cols.wide { grid-template-columns: 1fr; gap: 3mm; }
+.cols.wide ol.steps { columns: 2; column-gap: 8mm; }
+.cols.wide ol.steps li { break-inside: avoid; }
+.cols.wide .side { columns: 2; column-gap: 8mm; }
+.cols.wide .side .cap { column-span: all; }
+.intro { margin: 0 0 4mm; font-size: 9.8pt; color: var(--body); }
+ol.steps { list-style: none; margin: 0; padding: 0; counter-reset: s; }
+ol.steps li { counter-increment: s; display: grid; grid-template-columns: 8mm 1fr; gap: 1mm; padding: 2mm 0; border-top: .25mm solid var(--hair); break-inside: avoid; }
+ol.steps li::before { content: counter(s, decimal-leading-zero); color: var(--pink); font-weight: 300; font-size: 10.5pt; line-height: 1.35; font-variant-numeric: tabular-nums; }
+.side .cap { color: var(--muted); display: block; margin-bottom: 2.4mm; }
+.side .note { border-left: .45mm solid var(--pink); padding: .4mm 0 .4mm 3.4mm; margin-bottom: 3.6mm; font-size: 8.7pt; color: var(--body); line-height: 1.55; break-inside: avoid; }
+
+/* ---------- reference ---------- */
+.refp { }
+.refp .no { font-size: 8pt; color: var(--pinkdeep); font-weight: 600; letter-spacing: .14em; }
+.refp h2 { font-size: 26pt; margin-top: 2mm; }
+.refp .rule { margin: 6mm 0 7mm; }
+.refp .intro { max-width: 150mm; }
+.routines { display: grid; grid-template-columns: 1fr 1fr; gap: 8mm 10mm; }
+.routines .r { border-top: .3mm solid var(--ink); padding-top: 3mm; break-inside: avoid; }
+.routines h3 { font-size: 11pt; font-weight: 600; letter-spacing: -0.01em; margin-bottom: 2mm; }
+.routines ul { list-style: none; margin: 0; padding: 0; }
+.routines li { display: grid; grid-template-columns: 6mm 1fr; padding: 1.3mm 0; font-size: 8.8pt; border-bottom: .25mm solid var(--hair); }
+.routines li::before { content: ""; width: 2.8mm; height: 2.8mm; border: .3mm solid var(--pink); border-radius: .5mm; margin-top: .9mm; }
+.qa { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm 10mm; }
+.qa div { border-top: .3mm solid var(--ink); padding-top: 2.6mm; font-size: 8.8pt; break-inside: avoid; }
+.qa .q { display: block; color: var(--ink); font-weight: 600; margin-bottom: 1.2mm; font-size: 9.2pt; }
+dl.gl { display: grid; grid-template-columns: 44mm 1fr; margin: 0; }
+dl.gl dt, dl.gl dd { margin: 0; padding: 2.1mm 0; border-top: .25mm solid var(--hair); font-size: 8.9pt; }
+dl.gl dt { color: var(--ink); font-weight: 600; }
 """
 
 def esc(s): return html.escape(s, quote=True)
+def pg(k): return str(pages.get(k, "")) if pages else ""
 
-out = []
-out.append(f"<!doctype html><html lang='en-GB'><head><meta charset='utf-8'><title>PotatoFarm.io Training Manual</title><style>{css}</style></head><body>")
+def browser(name):
+    f, _ = img(name)
+    return f'<div class="browser"><div class="bar"><i></i><i></i><i></i><span>app.potatofarm.io</span></div><img src="{f}" alt=""></div>'
+def phone(name):
+    f, _ = img(name)
+    return f'<div class="phone"><img src="{f}" alt=""></div>'
 
-# cover
-desk, _, _ = img("inbox-thread")
-ph, _, _ = img("m-today")
-out.append(f"""<section class="cover"><div class="glow"></div>
-<div class="top">{MARK}<span class="word">PotatoFarm<em>.io</em></span></div>
-<div class="title"><div class="kicker">Training manual</div><h1>Every enquiry answered.<br>Every deal on track.</h1>
-<p class="sub">The complete guide to PotatoFarm.io for agents, managers, owners and compliance officers, on desktop and on your phone.</p></div>
-<div class="shots"><img class="desk" src="{desk}" alt=""><img class="ph" src="{ph}" alt=""></div>
-<div class="foot"><span>Edition 1 · September 2026</span><span>potatofarm.io</span></div></section>""")
+o = [f"<!doctype html><html lang='en-GB'><head><meta charset='utf-8'><title>PotatoFarm.io Training Manual</title><style>{css}</style></head><body>"]
 
-# number sections
+# numbering
 num = {}
-for pi, (pid, ptitle, _) in enumerate(PARTS, 1):
+for pi, (pid, _, _) in enumerate(PARTS, 1):
     k = 0
     for s in S:
         if s["part"] == pid:
             k += 1; num[s["id"]] = f"{pi}.{k}"
-ref_items = [("routines", "Routines by role"), ("trouble", "When something looks wrong"), ("glossary", "Words we use")]
-for k, (rid, _) in enumerate(ref_items, 1):
+REF = [("routines", "Routines by role"), ("trouble", "When something looks wrong"), ("glossary", "Words we use")]
+for k, (rid, _) in enumerate(REF, 1):
     num[rid] = f"{len(PARTS)}.{k}"
 
-def pg(key): return str(pages.get(key, "")) if pages else ""
+# cover
+o.append(f"""<section class="cover">
+<div class="brand">{MARK}<span class="word">PotatoFarm<em>.io</em></span></div>
+<div class="ed cap">Edition 1 · 2026</div>
+<div class="t"><div class="cap">The training manual</div>
+<h1>Every enquiry answered.<br><span>Every deal on track.</span></h1>
+<div class="rule"></div>
+<p>The complete guide for agents, managers, owners and compliance officers — at the desk and in the car.</p></div>
+<div class="dev">{browser("today")}{phone("m-inbox")}</div>
+<div class="foot cap"><span>For the brokerage team</span><span>potatofarm.io</span></div>
+</section>""")
 
 # contents
-out.append('<section class="page contents"><div class="marker">§contents§</div><div class="eyebrow">Contents</div><h1>What’s inside</h1>')
-out.append(f'<div class="toc-row"><span></span><span class="t">Who does what</span><span class="p">{pg("roles")}</span></div>')
-for pi, (pid, ptitle, _) in enumerate(PARTS, 1):
-    out.append(f'<div class="toc-part"><span class="n">{pi}</span><span class="t">{esc(ptitle)}</span><span class="p">{pg("part-"+pid)}</span></div>')
-    items = [(s["id"], s["title"]) for s in S if s["part"] == pid] + (ref_items if pid == "ref" else [])
-    for sid, t in items:
-        out.append(f'<div class="toc-row"><span class="p" style="text-align:left">{num[sid]}</span><span class="t">{esc(t)}</span><span class="p">{pg(sid)}</span></div>')
-out.append('</section>')
+o.append('<section class="front"><div class="marker">§contents§</div><div class="cap">Contents</div><h1>What’s inside</h1><div class="rule"></div><div class="toc">')
+o.append(f'<div class="part"><div class="ph"><b></b><span>Who does what</span><em>{pg("roles")}</em></div></div>')
+for pi, (pid, t, _) in enumerate(PARTS, 1):
+    items = [(s["id"], s["title"]) for s in S if s["part"] == pid] + (REF if pid == "ref" else [])
+    rows = "".join(f'<div class="row"><i>{num[i]}</i><span>{esc(tt)}</span><em>{pg(i)}</em></div>' for i, tt in items)
+    o.append(f'<div class="part"><div class="ph"><b>{pi:02d}</b><span>{esc(t)}</span><em>{pg("part-"+pid)}</em></div>{rows}</div>')
+o.append("</div></section>")
 
 # roles
-R = [
-    ("See every lead in the brokerage", "", "no", "yes", "yes", "yes", "yes"),
-    ("See their own leads and message them", "", "yes", "yes", "yes", "yes", "no"),
-    ("Add and edit leads, book viewings", "", "yes", "yes", "yes", "yes", "no"),
-    ("Give leads to agents, import and export", "", "no", "yes", "yes", "yes", "no"),
-    ("Add and change listings", "", "no", "yes", "yes", "yes", "no"),
-    ("See the brokerage's revenue", "", "no", "yes", "yes", "yes", "no"),
-    ("Invite people", "", "no", "yes", "yes", "yes", "no"),
-    ("Remove people, change channels, settle commission", "", "no", "no", "yes", "yes", "no"),
-    ("Billing", "", "no", "no", "no", "yes", "no"),
-    ("Open Compliance and decide on reports", "", "no", "no", "no", "no", "yes"),
-]
-out.append('<section class="page roles"><div class="marker">§roles§</div><div class="eyebrow">Before you start</div><h1>Who does what</h1>')
-out.append('<p class="lead">Everybody signs in to the same system and sees what their role needs. Each section of this manual is marked with the roles it is for.</p>')
-out.append('<table style="margin-top:6mm"><thead><tr><th style="width:44%">What</th><th>Agent</th><th>Manager</th><th>Admin</th><th>Owner</th><th>Compliance officer</th></tr></thead><tbody>')
-for row in R:
-    cells = "".join(f'<td class="{c}">{"●" if c=="yes" else "–"}</td>' for c in row[2:])
-    out.append(f"<tr><td>{esc(row[0])}</td>{cells}</tr>")
-out.append('</tbody></table>')
-out.append('<div class="tips" style="margin-top:7mm"><div class="eyebrow">Good to know</div><ul>'
-           '<li>A <b>Viewer</b> can read leads, conversations and listings and change nothing: for a partner or an auditor.</li>'
-           '<li>Owners and admins cannot open Compliance. By law, the compliance officer’s reports are kept from everybody else: telling a client a report has been filed is an offence.</li>'
-           '<li>Agents see their own leads; managers and owners see everybody’s. An agent handling another piece of business with a person (a letting alongside a purchase) can read that person’s page, but changes to the lead stay with its own agent.</li>'
-           '</ul></div></section>')
-
-CAP = {"layout": 80, "setup": 78, "thread": 84, "set-assistant": 84, "set-channels": 64, "today": 88, "person": 80}
+R = [("See every lead in the brokerage", "-", "y", "y", "y", "y"),
+     ("See their own leads and message them", "y", "y", "y", "y", "-"),
+     ("Add and edit leads, book viewings", "y", "y", "y", "y", "-"),
+     ("Give leads to agents, import and export", "-", "y", "y", "y", "-"),
+     ("Add and change listings", "-", "y", "y", "y", "-"),
+     ("See the brokerage’s revenue", "-", "y", "y", "y", "-"),
+     ("Invite people", "-", "y", "y", "y", "-"),
+     ("Remove people, change channels, settle commission", "-", "-", "y", "y", "-"),
+     ("Billing", "-", "-", "-", "y", "-"),
+     ("Open Compliance and decide on reports", "-", "-", "-", "-", "y")]
+o.append('<section class="front"><div class="marker">§roles§</div><div class="cap">Before you start</div><h1>Who does what</h1><div class="rule"></div>'
+         '<p class="lead">Everybody signs in to the same system and sees what their role needs. Each section of this manual says who it is for.</p>'
+         '<table style="margin-top:8mm"><thead><tr><th style="width:46%">&nbsp;</th><th>Agent</th><th>Manager</th><th>Admin</th><th>Owner</th><th>Compliance<br>officer</th></tr></thead><tbody>')
+for r in R:
+    o.append("<tr><td>" + esc(r[0]) + "</td>" + "".join(f'<td>{"<span class=dot></span>" if c=="y" else "<span class=dash></span>"}</td>' for c in r[1:]) + "</tr>")
+o.append('</tbody></table><div class="notes">'
+         '<div><span class="cap">Viewer</span>Reads leads, conversations and listings and changes nothing: for a partner or an auditor.</div>'
+         '<div><span class="cap">Compliance</span>Owners and admins cannot open it. By law the compliance officer’s reports are kept from everybody else.</div>'
+         '<div><span class="cap">Visibility</span>Agents see their own leads; managers and owners see everybody’s. Changes to a lead stay with its own agent.</div>'
+         '</div><p class="illus">The screens in this manual show Marina Bay Properties, a sample brokerage. Its people, properties and figures are illustrative.</p></section>')
 
 def section(s):
-    o = [f'<section class="sec"><div class="marker">§{s["id"]}§</div>',
-         f'<div class="sec-head"><span class="sec-no">{num[s["id"]]}</span><h2>{esc(s["title"])}</h2></div>',
-         '<div class="chips">' + "".join(f'<span class="chip">{ROLES[r]}</span>' for r in s["roles"]) + '</div>',
-         f'<p class="intro">{s["intro"]}</p>']
-    phones = [(n, c) for n, c in s["imgs"] if img(n)[1]]
+    t = TREAT.get(s["id"], {})
+    for n, _ in s["imgs"]:
+        if "crop" in t: CROP[n] = t["crop"]
     desks = [(n, c) for n, c in s["imgs"] if not img(n)[1]]
-    for n, c in desks:
-        f, _, a = img(n)
-        cls = "tall" if a > 0.9 else ""
-        cap = CAP.get(s["id"])
-        style = f' style="max-height:{cap}mm"' if cap else ""
-        o.append(f'<figure class="{cls}"><img src="{f}"{style} alt="{esc(c)}"><figcaption>{esc(c)}</figcaption></figure>')
+    phones = [(n, c) for n, c in s["imgs"] if img(n)[1]]
     if phones:
-        o.append('<div class="phones">' + "".join(f'<figure><img src="{img(n)[0]}" alt="{esc(c)}"><figcaption>{esc(c)}</figcaption></figure>' for n, c in phones) + '</div>')
-    if s["steps"]:
-        o.append('<h3>How to</h3><ol class="steps">' + "".join(f"<li>{x}</li>" for x in s["steps"]) + "</ol>")
-    if s["tips"]:
-        o.append('<div class="tips"><div class="eyebrow">Good to know</div><ul>' + "".join(f"<li>{x}</li>" for x in s["tips"]) + "</ul></div>")
-    o.append("</section>")
-    return "".join(o)
+        cls = "phones four" if len(phones) > 3 else "phones"
+        stage = f'<div class="stage"><div class="{cls}">' + "".join(phone(n) for n, _ in phones) + "</div>"
+        legend = " · ".join(esc(c) for _, c in phones[:3])
+    elif len(desks) == 1:
+        stage = f'<div class="stage"><div class="shots"><div class="main" style="width:{t.get("w", 150)}mm">{browser(desks[0][0])}</div></div>'
+        legend = esc(desks[0][1])
+    else:
+        stage = (f'<div class="stage two"><div class="shots"><div class="main" style="width:{t.get("w", 132)}mm">{browser(desks[0][0])}</div>'
+                 f'<div class="inset">{browser(desks[1][0])}</div></div>')
+        legend = f"{esc(desks[0][1])} <b>Inset:</b> {esc(desks[1][1])}"
+    stage += f'<div class="legend"><span>{legend}</span></div></div>'
+    part = dict((p, t) for p, t, _ in PARTS)[s["part"]]
+    who = " · ".join(ROLES[r] for r in s["roles"])
+    steps = "".join(f"<li><span>{x}</span></li>" for x in s["steps"])
+    side = "".join(f'<div class="note">{x}</div>' for x in s["tips"])
+    return (f'<section class="sec"><div class="marker">§{s["id"]}§</div>{stage}'
+            f'<div class="body"><div class="head"><div><div class="no">{num[s["id"]]} &nbsp;·&nbsp; {esc(part.upper())}</div><h2>{esc(s["title"])}</h2></div>'
+            f'<div class="for"><span class="cap">For</span><span class="r">{esc(who)}</span></div></div><div class="rule"></div>'
+            f'<div class="cols{" wide" if t.get("wide") else ""}"><div><p class="intro">{s["intro"]}</p>' + (f'<ol class="steps">{steps}</ol>' if steps else "") + "</div>"
+            f'<div class="side">' + (f'<span class="cap">Good to know</span>{side}' if side else "") + "</div></div></div></section>")
 
-for pi, (pid, ptitle, pdesc) in enumerate(PARTS, 1):
-    items = [(num[s["id"]], s["title"]) for s in S if s["part"] == pid] + ([(num[r], t) for r, t in ref_items] if pid == "ref" else [])
-    lis = "".join(f"<li><span>{n}</span>{esc(t)}</li>" for n, t in items)
-    out.append(f'<section class="divider"><div class="marker">§part-{pid}§</div><div class="glow"></div><div class="num">{pi:02d}</div>'
-               f'<div class="txt"><h2>{esc(ptitle)}</h2><p>{esc(pdesc)}</p><ul>{lis}</ul></div></section>')
+for pi, (pid, t, d) in enumerate(PARTS, 1):
+    items = [(num[s["id"]], s["title"]) for s in S if s["part"] == pid] + ([(num[r], tt) for r, tt in REF] if pid == "ref" else [])
+    lis = "".join(f"<li><span>{n}</span>{esc(tt)}</li>" for n, tt in items)
+    o.append(f'<section class="divider"><div class="marker">§part-{pid}§</div><div class="n">{pi:02d}</div>'
+             f'<div class="txt"><div class="cap">Part {pi}</div><h2>{esc(t)}</h2><div class="rule"></div><p>{esc(d)}</p><ul>{lis}</ul></div></section>')
     for s in S:
         if s["part"] == pid:
-            out.append(section(s))
+            o.append(section(s))
     if pid == "ref":
-        out.append(f'<section class="sec ref"><div class="marker">§routines§</div><div class="sec-head"><span class="sec-no">{num["routines"]}</span><h2>Routines by role</h2></div>'
-                   '<p class="intro">Tick through these until they are habit. They are the difference between a CRM that is filled in and one that is used.</p><div class="routines" style="margin-top:5mm">')
-        for t, items in ROUTINES:
-            out.append(f'<div class="card"><h3>{esc(t)}</h3><ul>' + "".join(f"<li>{esc(x)}</li>" for x in items) + "</ul></div>")
-        out.append("</div></section>")
-        out.append(f'<section class="sec ref"><div class="marker">§trouble§</div><div class="sec-head"><span class="sec-no">{num["trouble"]}</span><h2>When something looks wrong</h2></div><div class="qa" style="margin-top:5mm">')
+        o.append(f'<section class="refp"><div class="marker">§routines§</div><div class="no">{num["routines"]} &nbsp;·&nbsp; ROUTINES AND REFERENCE</div><h2>Routines by role</h2><div class="rule"></div>'
+                 '<p class="intro">Tick through these until they are habit. They are the difference between a CRM that is filled in and one that is used.</p><div class="routines" style="margin-top:6mm">')
+        for tt, items in ROUTINES:
+            o.append(f'<div class="r"><h3>{esc(tt)}</h3><ul>' + "".join(f"<li><span>{esc(x)}</span></li>" for x in items) + "</ul></div>")
+        o.append("</div></section>")
+        o.append(f'<section class="refp"><div class="marker">§trouble§</div><div class="no">{num["trouble"]} &nbsp;·&nbsp; ROUTINES AND REFERENCE</div><h2>When something looks wrong</h2><div class="rule"></div><div class="qa">')
         for q, a in TROUBLE:
-            out.append(f"<div><span class=\"q\">{esc(q)}</span>{a}</div>")
-        out.append('</div><div class="tips" style="margin-top:7mm"><div class="eyebrow">Still stuck?</div><ul><li>Email <b>hello@potatofarm.io</b> from the address you sign in with, and a person will reply.</li></ul></div></section>')
-        out.append(f'<section class="sec ref"><div class="marker">§glossary§</div><div class="sec-head"><span class="sec-no">{num["glossary"]}</span><h2>Words we use</h2></div><dl class="gl" style="margin-top:6mm">')
-        for t, d in GLOSSARY:
-            out.append(f"<dt>{esc(t)}</dt><dd>{esc(d)}</dd>")
-        out.append("</dl></section>")
+            o.append(f'<div><span class="q">{esc(q)}</span>{a}</div>')
+        o.append('</div><p class="illus" style="margin-top:9mm">Still stuck? Email <b>hello@potatofarm.io</b> from the address you sign in with, and a person will reply.</p></section>')
+        o.append(f'<section class="refp"><div class="marker">§glossary§</div><div class="no">{num["glossary"]} &nbsp;·&nbsp; ROUTINES AND REFERENCE</div><h2>Words we use</h2><div class="rule"></div><dl class="gl">')
+        for tt, dd in GLOSSARY:
+            o.append(f"<dt>{esc(tt)}</dt><dd>{esc(dd)}</dd>")
+        o.append("</dl></section>")
 
-out.append(f"""<section class="back"><div class="marker">§back§</div><div class="mid">{MARK}<span class="word">PotatoFarm<em>.io</em></span>
-<p>Every property enquiry answered in seconds, qualified in the buyer’s own language, and carried through to transfer.</p></div>
-<div class="contact">hello@potatofarm.io · potatofarm.io · Dubai, United Arab Emirates</div></section>""")
-out.append("</body></html>")
-open(f"{HERE}/manual.html", "w").write("".join(out))
-print("sections", len(S), "images", len(os.listdir(IMG)))
+o.append(f"""<section class="back"><div class="marker">§back§</div><div class="mid">{MARK}<span class="word">PotatoFarm<em>.io</em></span>
+<div class="rule"></div><p>Every property enquiry answered in seconds, qualified in the buyer’s own language, and carried through to transfer.</p></div>
+<div class="foot cap">hello@potatofarm.io &nbsp;·&nbsp; potatofarm.io &nbsp;·&nbsp; Dubai</div></section>""")
+o.append("</body></html>")
+open(f"{HERE}/manual.html", "w").write("".join(o))
+print("sections", len(S))

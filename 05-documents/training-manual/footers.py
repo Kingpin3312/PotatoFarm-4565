@@ -11,11 +11,11 @@ def part_of(i):
         if i >= p: cur = t
     return cur
 css = f"""@font-face{{font-family:Inter;font-weight:500;src:url('file://{F}/inter-latin-500-normal.woff2')}}
-@font-face{{font-family:Inter;font-weight:700;src:url('file://{F}/inter-latin-700-normal.woff2')}}
+@font-face{{font-family:Inter;font-weight:600;src:url('file://{F}/inter-latin-600-normal.woff2')}}
 @page{{size:A4;margin:0}} body{{margin:0;font-family:Inter,sans-serif}}
 .pg{{width:210mm;height:297mm;position:relative;break-after:page}}
-.f{{position:absolute;left:17mm;right:17mm;bottom:9mm;display:flex;justify-content:space-between;align-items:center;
- font-size:7.4pt;color:#737985;border-top:.25mm solid #E2E4E8;padding-top:2.4mm}}
-.f b{{color:#1D2025;font-weight:700}} .f em{{font-style:normal;color:#FF1493;font-weight:700}} .n{{color:#1D2025;font-weight:700;font-variant-numeric:tabular-nums}}"""
-body = "".join(f'<div class="pg"><div class="f"><span><b>PotatoFarm<em>.io</em></b> &nbsp;Training manual</span><span>{part_of(i)} &nbsp;·&nbsp; <span class="n">{i}</span></span></div></div>' for i in range(1, n + 1))
+.f{{position:absolute;left:17mm;right:17mm;bottom:10mm;display:flex;justify-content:space-between;align-items:baseline;
+ font-size:6.4pt;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:#8B919B}}
+.f em{{font-style:normal;color:#FF1493}} .n{{color:#16191D;font-variant-numeric:tabular-nums;letter-spacing:.06em;font-size:7.4pt;margin-left:3mm}}"""
+body = "".join(f'<div class="pg"><div class="f"><span>PotatoFarm<em>.io</em> &nbsp;·&nbsp; Training manual</span><span>{part_of(i)}<span class="n">{i:02d}</span></span></div></div>' for i in range(1, n + 1))
 open(f"{HERE}/footers.html", "w").write(f"<!doctype html><html><head><meta charset='utf-8'><style>{css}</style></head><body>{body}</body></html>")
