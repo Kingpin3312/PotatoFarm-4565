@@ -45,6 +45,7 @@ export const assistantRouter = router({
     return {
       enabled: settings?.enabled ?? false,
       autoReply: settings?.autoReply ?? false,
+      autoReplyOutOfHours: settings?.autoReplyOutOfHours ?? false,
       pausedReason: settings?.pausedReason ?? null,
       pausedAt: settings?.pausedAt ?? null,
       pausedBy,
@@ -239,26 +240,36 @@ export const assistantRouter = router({
    * mutation, like `resume`, so turning it on or off always leaves an
    * audit entry saying who did it and when.
    */
+  /**
+   * Off, on outside working hours only, or on.
+   *
+   * `outOfHours` means nothing while `on` is false and is stored false
+   * then, so turning it back on later starts from "always" or "out of
+   * hours" as the owner chooses it at that moment, not from a choice
+   * made months ago and forgotten.
+   */
   setAutoReply: requirePermission("channel:write")
-    .input(z.object({ on: z.boolean() }))
+    .input(z.object({ on: z.boolean(), outOfHours: z.boolean().optional() }))
     .mutation(async ({ ctx, input }) => {
+      const outOfHours = input.on && (input.outOfHours ?? false);
       const before = await crossTenant("user-scoped").assistantSettings.findUnique({ where: { orgId: ctx.orgId } });
       const after = await crossTenant("user-scoped").assistantSettings.upsert({
         where: { orgId: ctx.orgId },
-        create: { orgId: ctx.orgId, enabled: false, autoReply: input.on },
-        update: { autoReply: input.on },
+        create: { orgId: ctx.orgId, enabled: false, autoReply: input.on, autoReplyOutOfHours: outOfHours },
+        update: { autoReply: input.on, autoReplyOutOfHours: outOfHours },
       });
       await crossTenant("user-scoped").$transaction(async (tx) => {
         await audit(tx, ctx.orgId, {
           actorId: ctx.userId,
-          action: input.on ? "assistant.auto_reply_on" : "assistant.auto_reply_off",
+          action: !input.on ? "assistant.auto_reply_off"
+            : outOfHours ? "assistant.auto_reply_out_of_hours" : "assistant.auto_reply_on",
           entity: "AssistantSettings",
           entityId: ctx.orgId,
-          before: { autoReply: before?.autoReply ?? false },
-          after: { autoReply: after.autoReply },
+          before: { autoReply: before?.autoReply ?? false, autoReplyOutOfHours: before?.autoReplyOutOfHours ?? false },
+          after: { autoReply: after.autoReply, autoReplyOutOfHours: after.autoReplyOutOfHours },
         });
       });
-      return { autoReply: after.autoReply };
+      return { autoReply: after.autoReply, autoReplyOutOfHours: after.autoReplyOutOfHours };
     }),
 
   /** Recent handovers, so a brokerage can see why it is stepping in. */

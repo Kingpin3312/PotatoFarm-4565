@@ -1134,6 +1134,11 @@ model AssistantSettings {
   /// follow-ups, properties, reactivation — and is not loosened by this:
   /// this only answers a buyer who has just written.
   autoReply Boolean @default(false)
+  /// With `autoReply` on: send by itself only while the brokerage is
+  /// closed (its `WorkingHours`), and draft for a person while it is
+  /// open. The first step most owners take — the evening and Friday
+  /// morning are when nobody answers.
+  autoReplyOutOfHours Boolean @default(false)
 
   updatedAt DateTime @updatedAt
 

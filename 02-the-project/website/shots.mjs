@@ -43,7 +43,9 @@ const SHOTS = [
   // viewport photographs a field of cream with a product in the middle.
   { file: "shot-today-desktop.webp", path: "/today", w: 1040, h: 760, cap: [1600, 1600] },
   { file: "shot-today-phone.webp", path: "/today", w: 390, h: 844, cap: [760, 1400], mobile: true },
-  { file: "shot-inbox-desktop.webp", path: "/inbox", w: 1040, h: 760, cap: [1600, 1600] },
+  // A conversation open, not the empty "Pick a conversation" pane: the
+  // caption promises the thread and its reply window.
+  { file: "shot-inbox-desktop.webp", path: "/inbox/cmty36uaw001d7dxy2wzo1lhr", w: 1040, h: 760, cap: [1600, 1600] },
   // /leads rather than /pipeline: the pipeline board is empty in a fresh
   // brokerage, and an empty board photographs as a broken product. The
   // 500-character guard caught that on the first run.
@@ -60,6 +62,9 @@ for (const s of SHOTS) {
     deviceScaleFactor: 2,
     isMobile: !!s.mobile,
     hasTouch: !!s.mobile,
+    // The brokerage's clock, so "Good evening" and "14:00" read as Dubai.
+    timezoneId: "Asia/Dubai",
+    locale: "en-GB",
   });
   await ctx.addCookies([{
     name: "authjs.session-token", value: SESSION,
@@ -91,6 +96,19 @@ for (const s of SHOTS) {
   // The Next.js dev badge is a development artifact and must not appear
   // in a picture of the product.
   await p.addStyleTag({ content: "nextjs-portal,#__next-build-watcher{display:none!important}" });
+  // Nor do the demonstration brokerage's own markings: the "Demo" label
+  // and the "Try a live enquiry" panel exist for a sales meeting, and no
+  // brokerage using the product ever sees them. Same rule as the
+  // training manual's captures.
+  await p.addStyleTag({ content: "header span[title^='Demo']{display:none!important}" });
+  await p.evaluate(() => {
+    for (const b of document.querySelectorAll("button")) {
+      if (b.textContent?.trim() === "Try a live enquiry") {
+        const box = b.closest("div.border-b");
+        if (box) box.style.display = "none";
+      }
+    }
+  });
   await p.waitForTimeout(1200);
 
   const info = await p.evaluate(() => ({

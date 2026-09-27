@@ -23,7 +23,7 @@ MARK = '<img class="mark" src="img/mark_flat.png" alt="">'
 TREAT = {
     "setup": {"crop": .42, "wide": True}, "today": {"crop": .52}, "thread": {"crop": .42, "wide": True},
     "leads": {"crop": .5}, "person": {"crop": .47, "wide": True}, "listings": {"crop": .6},
-    "reports": {"crop": .58}, "reports-sources": {"crop": .5}, "set-drafts": {"crop": .5}, "compliance": {"w": 108}, "set-assistant": {"crop": .5}, "layout": {"crop": .6}, "phone": {"wide": True},
+    "reports": {"crop": .58}, "reports-sources": {"crop": .5}, "set-drafts": {"crop": .5}, "compliance": {"w": 108}, "set-assistant": {"crop": .6, "wide": True}, "layout": {"crop": .6}, "phone": {"wide": True},
 }
 CROP = {}
 

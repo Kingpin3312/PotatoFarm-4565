@@ -235,6 +235,8 @@ if the lead cannot do Saturday morning the conversation stalls.
   assistant has stopped but not why.
 - ~~**Per-conversation opt-out**~~ — "stop" is recorded by the ingest
   and the assistant writes nothing in reply to it.
-- **The switch to automatic replies.** The evidence is measured; the
-  per-brokerage setting that would let `respond()` send (outside working
-  hours first) is not built, because nobody has chosen it yet.
+- ~~**The switch to automatic replies.**~~ Built: "Replies while
+  qualifying" on Settings → Assistant — off, outside working hours only
+  (`autoReplyOutOfHours`, read against the brokerage's `WorkingHours` by
+  `lib/hours/open.ts`; no hours set counts as open, so it drafts), or
+  always. `check:auto-reply`.

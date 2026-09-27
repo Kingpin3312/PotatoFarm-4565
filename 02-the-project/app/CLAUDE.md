@@ -7,7 +7,7 @@ until you know why they are that way.
 ## What this is
 
 A WhatsApp-first CRM for UAE real estate brokerages. An assistant answers
-property enquiries within seconds, qualifies the lead, books a viewing,
+property enquiries within seconds, qualifies the lead, lines up a viewing,
 and hands to a human at the right moment.
 
 Next.js App Router · tRPC · Prisma · Postgres · Expo for mobile.
@@ -102,7 +102,7 @@ What is verified today, measured rather than assumed:
   `/api/health` returns `200 {"ok":true}` against a real Postgres.
 - The boot log names every unconfigured service with its consequence —
   six of them in a bare development environment.
-- 410 assertions in 28 files, 60 check suites, 23 audits, all green.
+- 423 assertions in 29 files, 60 check suites, 23 audits, all green.
 
 Type errors on a fresh checkout are no longer expected. If you get one,
 it is new.
@@ -749,7 +749,10 @@ nothing that starts it — and the sixth is the product itself:
    a brokerage that has switched on "Replies while qualifying"
    (`AssistantSettings.autoReply`, off by default, owner's switch on
    Settings → Assistant, audited), a buyer who is NEW or QUALIFYING and
-   whose thread no agent has written in gets `respond()` — read receipt,
+   whose thread no agent has written in gets `respond()` — unless the
+   owner chose "Outside working hours" (`autoReplyOutOfHours`) and the
+   brokerage is open by its own `WorkingHours`, when it drafts; no hours
+   set counts as open (`lib/hours/open.ts`) — read receipt,
    "typing…", a pause of a few seconds (`humanPause`), then the reply.
    Everyone else gets `draftReply` and a person sends it. The prompt
    (p4) writes like an agent texting — one question at a time, their
@@ -887,7 +890,7 @@ send path read it.
 
 ## Run the tests
 
-    npm test          # 410 assertions, pure functions, no database
+    npm test          # 423 assertions, pure functions, no database
     npm run verify    # tsc, the tests, 60 check suites, 23 audits
 
 **The gate is now green end to end, including the two things that used
@@ -947,7 +950,7 @@ skip as a pass, and for a long time it reported two:
   leaving you to guess.
 
 `npm test` was declared from day one with no test files behind it, so it
-exited 1 and said "No test files found". There are 28 test files now, and
+exited 1 and said "No test files found". There are 29 test files now, and
 they cover the pure logic where being wrong is silent: the fils unit, the
 24-hour window on both sides of the boundary, Dubai sending hours, the
 search parser's plural intents and budget bands, lead scoring, deal
@@ -1270,8 +1273,9 @@ with an empirical floor under it.
   now and reads as zero, and anything it cannot read suggests nothing.
   Still not built: which step loses people.
 - ~~**The assistant replying by itself.**~~ **Built, for qualification
-  only** (item 21): the owner's switch on Settings → Assistant, off by
-  default, on in the demo brokerage. Past qualification, and in any
+  only** (item 21): the owner's choice on Settings → Assistant — off
+  (the default), outside working hours only, or always (the demo
+  brokerage). Past qualification, and in any
   thread an agent has written in, every reply is still a draft.
 - ~~**Erasure and data export for owners.**~~ **Built**, with two faults
   found on the way that were not about owners at all. Erasure left every

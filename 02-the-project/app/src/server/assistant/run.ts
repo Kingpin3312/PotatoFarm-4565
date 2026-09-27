@@ -16,6 +16,7 @@ import { HANDOVER_TRIGGERS, type HandoverReason } from "./policy";
 import { gate, isMuted, record } from "./controls";
 import { dispatch } from "@/server/lib/notify/dispatch";
 import { isOptOut } from "@/server/lib/matching/outreach";
+import { isOpen } from "@/server/lib/hours/open";
 
 /**
  * The current Sonnet tier, and it was a generation behind.
@@ -295,7 +296,9 @@ async function prepare(orgId: string, conversationId: string) {
  * only when all of these hold, and drafts for the agent otherwise:
  *
  * - the brokerage has turned on "Reply automatically while qualifying"
- *   (`AssistantSettings.autoReply`, off by default);
+ *   (`AssistantSettings.autoReply`, off by default) — and, if the owner
+ *   chose "outside working hours" (`autoReplyOutOfHours`), the brokerage
+ *   is closed right now by its own `WorkingHours`;
  * - the lead is still being qualified — NEW or QUALIFYING. Once they are
  *   qualified, viewing, negotiating or closed, every word is an agent's;
  * - no agent has written in the thread. The moment a person replies in
@@ -315,9 +318,11 @@ export async function reply(orgId: string, conversationId: string, inboundMessag
 
 async function sendsItself(orgId: string, conversationId: string) {
   const settings = await crossTenant("sweep").assistantSettings.findUnique({
-    where: { orgId }, select: { autoReply: true },
+    where: { orgId }, select: { autoReply: true, autoReplyOutOfHours: true },
   });
   if (!settings?.autoReply) return false;
+  // Out of hours only: while somebody is in, a person sends.
+  if (settings.autoReplyOutOfHours && (await isOpen(orgId))) return false;
   const convo = await forOrg(orgId).conversation.findUnique({
     where: { id: conversationId },
     select: {

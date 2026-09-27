@@ -89,6 +89,7 @@ async function cleanup() {
     await root.pipelineStage.deleteMany({ where });
     await root.qualificationProfile.deleteMany({ where });
     await root.assistantSettings.deleteMany({ where });
+    await root.workingHours.deleteMany({ where });
     await root.subscription.deleteMany({ where });
     await root.channel.deleteMany({ where });
     await root.membership.deleteMany({ where });
@@ -249,6 +250,44 @@ async function main() {
     ok("\"Stop everything\" stops it — nothing sent, nothing drafted", texts().length === b4 &&
        (await root.replyDraft.count({ where: { conversationId: kl.conversation!.id } })) === 0);
     await root.assistantSettings.update({ where: { orgId: org.id }, data: { enabled: true } });
+  }
+
+  console.log("\n=== outside working hours only ===");
+  {
+    const e = await refused(() => A.setAutoReply({ on: true, outOfHours: true }));
+    ok("an agent cannot choose it either", e?.code === "FORBIDDEN", e?.code ?? "allowed");
+    await O.setAutoReply({ on: true, outOfHours: true });
+    ok("the owner can choose outside working hours", (await O.status()).autoReplyOutOfHours === true);
+    ok("and that choice is on the audit log",
+       (await root.auditLog.count({ where: { orgId: org.id, action: "assistant.auto_reply_out_of_hours", actorId: owner.id } })) === 1);
+
+    // Open every day, all day: somebody is always in.
+    await root.workingHours.createMany({ data: [0, 1, 2, 3, 4, 5, 6].map((d) => ({ orgId: org.id, dayOfWeek: d, startMin: 0, endMin: 1440 })) });
+    const open = phone();
+    const b1 = texts().length;
+    await ingest(write(open, "Hi, is the Marina flat available?").payload);
+    const ol = await threadOf(open);
+    ok("while the brokerage is open, a new buyer's reply is drafted for a person", texts().length === b1 &&
+       (await root.replyDraft.count({ where: { conversationId: ol.conversation!.id, state: "OPEN" } })) === 1);
+
+    // Closed every day: nobody is in.
+    await root.workingHours.updateMany({ where: { orgId: org.id }, data: { closed: true } });
+    const shut = phone();
+    const b2 = texts().length;
+    await ingest(write(shut, "Hi, is the Marina flat available?").payload);
+    ok("while it is closed, the reply is sent by itself", texts().length === b2 + 1 && texts().at(-1)?.to === shut.slice(1));
+
+    // No hours at all: nobody has said, so it does not guess.
+    await root.workingHours.deleteMany({ where: { orgId: org.id } });
+    const none = phone();
+    const b3 = texts().length;
+    await ingest(write(none, "Hello, any 2 beds?").payload);
+    const nl = await threadOf(none);
+    ok("with no working hours set, it drafts rather than guess", texts().length === b3 &&
+       (await root.replyDraft.count({ where: { conversationId: nl.conversation!.id, state: "OPEN" } })) === 1);
+
+    await O.setAutoReply({ on: true });
+    ok("choosing Always clears it", (await O.status()).autoReplyOutOfHours === false);
   }
 
   console.log("\n=== the owner turns it off ===");
