@@ -109,7 +109,7 @@ export default function Team() {
         )}
         {invite.isSuccess && (
           <p className="text-sm text-success mt-3">
-            Sent. The link signs them in — there's no password to choose.
+            Sent. The link signs them in — there’s no password to choose.
           </p>
         )}
       </div>

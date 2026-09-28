@@ -47,7 +47,7 @@ export default function Compliance() {
         </h1>
         <p className="text-sm text-ink-2 mt-3 max-w-[52ch]">
           Every brokerage concluding a sale is a DNFBP. Nothing here is auto-cleared — a
-          possible match is a person's decision, and the record of who decided is the point.
+          possible match is a person’s decision, and the record of who decided is the point.
         </p>
       </header>
 

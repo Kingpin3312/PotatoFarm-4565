@@ -102,7 +102,7 @@ export default function OfferThread({ params }: { params: Promise<{ listingId: s
             {accept.data.toTell.length} {accept.data.toTell.length === 1 ? "buyer needs" : "buyers need"} a call
           </p>
           <p className="text-sm text-ink-2 mt-1.5 max-w-[46ch] leading-snug">
-            Their offers closed when you accepted. Ring them today — they'll find out from the
+            Their offers closed when you accepted. Ring them today — they’ll find out from the
             portal otherwise.
           </p>
         </div>

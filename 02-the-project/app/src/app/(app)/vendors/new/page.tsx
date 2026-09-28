@@ -92,7 +92,7 @@ export default function NewVendor() {
               </button>
             </div>
             <p className="text-sm text-ink-2 mt-2 max-w-[44ch] leading-snug">
-              A quiet week is still worth sending. An owner who hears nothing assumes you've
+              A quiet week is still worth sending. An owner who hears nothing assumes you’ve
               stopped trying.
             </p>
           </div>

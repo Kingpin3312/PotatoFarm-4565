@@ -7,6 +7,7 @@ import { aed } from "@/lib/money";
 import { Button } from "@/components/ui/button";
 import { QueryError } from "@/components/ui/query-state";
 import { AssessRisk } from "../risk";
+import Link from "next/link";
 
 /**
  * One screening, and the decision.
@@ -62,7 +63,7 @@ export default function Screening({ params }: { params: Promise<{ kycId: string 
             ? "The decision not to file is on the record, with your name and the reason against it."
             : "Prepared. File it on goAML — we don't submit on your behalf."}
         </p>
-        <a href="/compliance" className="btn-inline mt-6 inline-block">Back</a>
+        <Link href="/compliance" className="btn-inline mt-6 inline-block">Back</Link>
       </div>
     );
   }
@@ -70,9 +71,9 @@ export default function Screening({ params }: { params: Promise<{ kycId: string 
   return (
     <div className="max-w-[680px] mx-auto px-6 pb-24">
       <header className="pt-10 pb-6">
-        <a href="/compliance" className="t-label text-ink-3 no-underline">
+        <Link href="/compliance" className="t-label text-ink-3 no-underline">
           ← Compliance
-        </a>
+        </Link>
         {/*
           * Five states, and it used to be three.
           *

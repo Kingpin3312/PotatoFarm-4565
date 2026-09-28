@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { api } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 /**
  * Who owns a listing, and who looks after it.
@@ -61,7 +62,7 @@ export function AttachOwner({ listingId, current, agent }: {
               onClick={() => attach.mutate({ listingId, vendorId: picked })}>
               Attach
             </Button>
-            <a href="/vendors/new" className="btn-inline">Add a new one</a>
+            <Link href="/vendors/new" className="btn-inline">Add a new one</Link>
           </div>
         </div>
       )}

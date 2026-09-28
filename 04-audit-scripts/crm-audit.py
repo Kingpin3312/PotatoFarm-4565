@@ -233,6 +233,23 @@ for p2, s2 in src.items():
              f"so the RLS bypass is declared, not assumed")
 
 
+# 7c-2. No work handed to a `waitUntil` the request does not have.
+#
+# `(req as { waitUntil? }).waitUntil` is undefined on a Next.js request,
+# so the work it was meant to keep alive is registered with nothing and
+# a serverless function freezes as soon as it responds. Three routes
+# carried it — the demo form and both inbound webhooks — and every check
+# passed, because a dev server never freezes. Use `after()` from
+# next/server.
+for p2, s2 in src.items():
+    for m2 in re.finditer(r'as\s+unknown\s+as\s*\{\s*waitUntil|\(\s*req\s+as\s*\{\s*waitUntil', s2):
+        line2 = s2[:m2.start()].count("\n") + 1
+        text2 = s2.split("\n")[line2 - 1].lstrip()
+        if text2.startswith(("*", "//", "/*")): continue   # a comment quoting it
+        fail(f"{os.path.basename(p2)}:{line2}: work handed to req.waitUntil, which a "
+             f"Next.js request does not have — use after() from next/server")
+
+
 # 7d. An imported name that the target file does not export.
 #
 # Three invented APIs in one file today: a `portalChannel` model that is

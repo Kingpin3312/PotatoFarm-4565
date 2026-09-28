@@ -94,7 +94,7 @@ What is verified today, measured rather than assumed:
 
 - `npm run build` exits 0 with no warnings — the production build, not a
   dev server.
-- 62 routes, **every one of them `ƒ` (dynamic) and none prerendered**,
+- 72 routes, **every one of them `ƒ` (dynamic) and none prerendered**,
   which is the `force-dynamic`/CSP-nonce invariant below holding rather
   than having quietly drifted. A static route in that list is the tell
   that somebody removed the line.
@@ -124,6 +124,17 @@ blank page with a perfect-looking security header — sixteen scripts
 refused, fifteen characters rendered, no hydration. If you want the
 static pages back, put `'unsafe-inline'` back in `src/lib/csp.ts` in the
 same commit.
+
+**Webhooks answer first and keep working with `after()`.** The WhatsApp
+and portal webhooks acknowledge in milliseconds, because Meta retries
+anything slow, and do the ingest — and now the assistant's reply, with
+its human pause — afterwards. That work is registered with `after()`
+from next/server, which on Vercel holds the function open until it is
+done, and each route sets `maxDuration = 60`. It used to be handed to
+`(req as { waitUntil? }).waitUntil`, which a Next.js request does not
+have: on a serverless host the function froze on responding, and a
+buyer's message could be half-recorded and never answered. A dev server
+never freezes, so every check passed. `crm-audit.py` fails on the cast.
 
 **The kill switch is not cached.** `assistant/controls.ts` does one
 database read per assistant turn on purpose. A five-minute cache means
@@ -908,7 +919,7 @@ send path read it.
 ## Run the tests
 
     npm test          # 423 assertions, pure functions, no database
-    npm run verify    # tsc, the tests, 60 check suites, 23 audits
+    npm run verify    # tsc, eslint, the tests, 60 check suites, 23 audits
 
 **The gate is now green end to end, including the two things that used
 to skip.** `verify` reports what it did not run rather than counting a
@@ -1188,7 +1199,7 @@ with an empirical floor under it.
 ## What is not built
 
 - ~~Most React screens.~~ **Out of date and left here as a warning.**
-  There are 46, every one of them opens in a browser, and
+  There are 53, every one of them opens in a browser, and
   `browser:screens` fails the build if one stops rendering or starts a
   refetch loop. This line survived the screens being built, which is the
   same drift the audit scripts exist to catch — in the file that warns

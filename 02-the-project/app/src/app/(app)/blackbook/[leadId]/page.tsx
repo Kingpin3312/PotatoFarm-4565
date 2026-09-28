@@ -10,6 +10,7 @@ import { Plan } from "./plan";
 import { Requirements } from "./requirements";
 import { PersonTask } from "./task";
 import { Opportunities } from "./opportunities";
+import Link from "next/link";
 
 /**
  * One person, everything said to them.
@@ -42,9 +43,9 @@ export default function Person({ params }: { params: Promise<{ leadId: string }>
   return (
     <div className="max-w-[680px] mx-auto px-6 pb-24">
       <header className="pt-10 pb-5">
-        <a href="/blackbook" className="t-label text-ink-3 no-underline">
+        <Link href="/blackbook" className="t-label text-ink-3 no-underline">
           ← Blackbook
-        </a>
+        </Link>
       </header>
 
       {/* Who they are, first. The page showed a history and a note and
@@ -63,7 +64,7 @@ export default function Person({ params }: { params: Promise<{ leadId: string }>
         <div className="bg-sunk rounded-xl p-4 border-s-[3px] border-s-accent-edge mb-6">
           <p className="text-ui text-ink font-medium">The reply window has closed</p>
           <p className="text-sm text-ink-2 mt-1 max-w-[46ch] leading-snug">
-            A normal message won't arrive — WhatsApp accepts it and never delivers it. Use an
+            A normal message won’t arrive — WhatsApp accepts it and never delivers it. Use an
             approved template, or ring them.
           </p>
         </div>

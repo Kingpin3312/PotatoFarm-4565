@@ -26,8 +26,9 @@ export function ShareLink({ listingId }: { listingId: string }) {
       const url = `${location.origin}${r.path}`;
       const touch = window.matchMedia("(pointer: coarse)").matches;
       if (touch && navigator.share) {
-        await navigator.share({ title: r.title, url }).catch(() => {});
-        setSaid({ text: "Shared", href: url });
+        // Only "Shared" if it was: closing the sheet is not sharing.
+        const sent = await navigator.share({ title: r.title, url }).then(() => true, () => false);
+        if (sent) setSaid({ text: "Shared", href: url });
         return;
       }
       await navigator.clipboard.writeText(url);

@@ -153,15 +153,16 @@ function Leads() {
 
   // The next fifty, as the end of the list comes into view.
   const sentinel = useRef<HTMLDivElement>(null);
+  const { hasNextPage, isFetchingNextPage, fetchNextPage } = list;
   useEffect(() => {
     const el = sentinel.current;
     if (!el) return;
     const io = new IntersectionObserver((es) => {
-      if (es[0]?.isIntersecting && list.hasNextPage && !list.isFetchingNextPage) void list.fetchNextPage();
+      if (es[0]?.isIntersecting && hasNextPage && !isFetchingNextPage) void fetchNextPage();
     }, { rootMargin: "400px" });
     io.observe(el);
     return () => io.disconnect();
-  }, [list.hasNextPage, list.isFetchingNextPage, list.fetchNextPage]);
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   if (list.isError) return <QueryError retry={() => void list.refetch()} what="your leads" error={list.error} />;
 

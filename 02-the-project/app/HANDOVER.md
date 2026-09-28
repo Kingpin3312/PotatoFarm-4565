@@ -9,7 +9,7 @@ the single most important sentence in this document, because the natural
 instinct on arriving at a large codebase is to find something to build,
 and building is not what this project needs.
 
-The gate is green: `tsc` clean, 400 unit assertions, 60 check suites, 23
+The gate is green: `tsc` clean, 423 unit assertions, 60 check suites, 23
 audit scripts, all browser suites, and a production build that succeeds.
 CI runs the lot on every push.
 
@@ -159,7 +159,7 @@ by putting a bug back and watching them stay green.
     src/server/lib/           the domain: portals, feeds, scheduling,
                               billing, privacy, notify, health, support
     src/server/jobs/          29 scheduled jobs, one run at a time by lease
-    src/app/                  46 screens, every one opened by browser:screens
+    src/app/                  53 screens, every one opened by browser:screens
     mobile/                   push, offline policy, auth — does not build
 
 **These numbers said 34 models, 11 routers and 11 scheduled jobs until <!-- counts: ignore -->

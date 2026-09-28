@@ -140,6 +140,7 @@ printf '\n%sUnit tests%s\n' "$bold" "$off"
 # Pure functions, no database, milliseconds. Deliberately before the
 # check suites: if the window arithmetic or the money formatter is wrong,
 # there is no point spending two minutes seeding Postgres to find out.
+step "eslint" npm run --silent lint
 step "vitest" npm run --silent test
 
 printf '\n%sChecks%s\n' "$bold" "$off"

@@ -175,7 +175,7 @@ export function VendorBrief({ vendorId }: { vendorId: string }) {
       {data.sinceThen.viewings === 0 && !dontCall && (
         <p className="text-sm text-ink-2 mt-4 max-w-[46ch] leading-snug">
           Nothing this week. Ring them anyway — an owner who hears nothing assumes you have
-          stopped trying, and "no viewings, here is what we are changing" is the call that
+          stopped trying, and “no viewings, here is what we are changing” is the call that
           keeps an instruction.
         </p>
       )}

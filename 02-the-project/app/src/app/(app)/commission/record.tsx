@@ -44,7 +44,7 @@ export function RecordCommission({ dealId, valueFils }: {
   if (record.isSuccess) {
     return (
       <p className="text-ui text-success">
-        Recorded. It shows on everyone's Mine page from now.
+        Recorded. It shows on everyone’s Mine page from now.
       </p>
     );
   }

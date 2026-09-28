@@ -67,7 +67,7 @@ export function CheckCopy({ listingId }: { listingId: string }) {
             Check the wording
           </h2>
           <p className="text-sm text-ink-3 mb-5">
-            Draft it from the property's facts, or paste your own. Either way it is
+            Draft it from the property’s facts, or paste your own. Either way it is
             checked against the rules portals reject listings for.
           </p>
 
