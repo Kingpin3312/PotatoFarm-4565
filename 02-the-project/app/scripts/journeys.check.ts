@@ -23,6 +23,7 @@ import { leadsRouter } from "../src/server/api/routers/leads";
 import { pipelineRouter } from "../src/server/api/routers/pipeline";
 import { requirementsRouter } from "../src/server/api/routers/requirements";
 import { listingsRouter } from "../src/server/api/routers/listings";
+import { ensurePath } from "../src/server/lib/locations";
 import { tasksRouter } from "../src/server/api/routers/tasks";
 import { todayRouter } from "../src/server/api/routers/today";
 import { viewingsRouter } from "../src/server/api/routers/viewings";
@@ -85,7 +86,9 @@ async function main() {
 
   // Stock to match against.
   const L = as(listingsRouter, manager.id, "MANAGER");
-  const flat = await L.create({ reference: `JN-${RUN}`, title: "2-bed, Marina Gate", community: "Dubai Marina", bedrooms: 2, priceAed: 2_900_000, propertyType: "APARTMENT" });
+  // Every new listing has an exact place on the location tree.
+  const marinaGate1 = (await ensurePath(root, ["Dubai", "Dubai Marina", "Marina Gate", "Marina Gate 1"]))!.id;
+  const flat = await L.create({ reference: `JN-${RUN}`, title: "2-bed, Marina Gate", locationId: marinaGate1, bedrooms: 2, priceAed: 2_900_000, propertyType: "APARTMENT" });
 
   console.log("=== 1. A new lead ===");
   const M = as(leadsRouter, manager.id, "MANAGER");

@@ -343,8 +343,13 @@ for model, _ in DRIVERS:
 # Most procedures legitimately have no UI yet; that is a note. The
 # revenue path is not, because a billing procedure nothing calls means
 # nobody can pay.
+# `src/components` too: a shared control is a screen's caller. The
+# location picker calls `locations.search` from `components/ui`, on the
+# Add a property and Edit forms, and scanning `src/app` alone reported
+# it as a procedure nothing could reach.
 screens = "\n".join(open(p2).read() for p2 in
-                    ours(glob.glob(f"{ROOT}/src/app/**/*.tsx", recursive=True)))
+                    ours(glob.glob(f"{ROOT}/src/app/**/*.tsx", recursive=True)
+                         + glob.glob(f"{ROOT}/src/components/**/*.tsx", recursive=True)))
 routers = glob.glob(f"{ROOT}/src/server/api/routers/*.ts")
 
 REVENUE = {"billing"}

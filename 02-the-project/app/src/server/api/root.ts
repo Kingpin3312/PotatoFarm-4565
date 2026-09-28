@@ -4,6 +4,7 @@ import { leadsRouter } from "./routers/leads";
 import { conversationsRouter } from "./routers/conversations";
 import { pipelineRouter } from "./routers/pipeline";
 import { listingsRouter } from "./routers/listings";
+import { locationsRouter } from "./routers/locations";
 import { viewingsRouter } from "./routers/viewings";
 import { assistantRouter } from "./routers/assistant";
 import { reportsRouter } from "./routers/reports";
@@ -67,6 +68,7 @@ export const appRouter = router({
   conversations: conversationsRouter,
   pipeline: pipelineRouter,
   listings: listingsRouter,
+  locations: locationsRouter,
   viewings: viewingsRouter,
 
   assistant: assistantRouter,

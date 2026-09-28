@@ -102,7 +102,7 @@ What is verified today, measured rather than assumed:
   `/api/health` returns `200 {"ok":true}` against a real Postgres.
 - The boot log names every unconfigured service with its consequence —
   six of them in a bare development environment.
-- 423 assertions in 29 files, 60 check suites, 23 audits, all green.
+- 423 assertions in 29 files, 61 check suites, 23 audits, all green.
 
 Type errors on a fresh checkout are no longer expected. If you get one,
 it is new.
@@ -370,6 +370,22 @@ is byte-for-byte the card of one that never existed —
 on Listings and **Send a property** in the composer (`listings.share`,
 which calls `publicListing` exactly as a stranger's browser does, so the
 button cannot offer a link the page then refuses).
+
+**Every new listing has an exact place, and the tree is not the
+brokerage's.** `Location` is shared reference data — no `orgId`, no RLS —
+and `potato_app` can only read it (`REVOKE` in
+`20261012090000_location_tree`); the seed and `npm run
+locations:import` write it as the owning role. `listings.create`
+requires a leaf node and derives `community` and `building` from it, so
+search, matching and the buyer's page keep reading the columns they
+always read. **Property Finder's ids are never typed in, seeded or
+guessed**: a wrong one files the property in somebody else's building
+and the portal accepts it silently. They come only from Property
+Finder's own list through the import, and until a place has one,
+publishing there is refused — failing closed, so a caller that forgets
+to load the node is refused rather than waved through. Listings made
+before the tree say "No exact location" in red. `check:locations`, and
+`portals/README.md`.
 
 **The palette is neon pink `#FF1493` on grey `#292C32`, set by the
 owner, and it is a recolour rather than a redesign.** Every token kept
@@ -919,7 +935,7 @@ send path read it.
 ## Run the tests
 
     npm test          # 423 assertions, pure functions, no database
-    npm run verify    # tsc, eslint, the tests, 60 check suites, 23 audits
+    npm run verify    # tsc, eslint, the tests, 61 check suites, 23 audits
 
 **The gate is now green end to end, including the two things that used
 to skip.** `verify` reports what it did not run rather than counting a

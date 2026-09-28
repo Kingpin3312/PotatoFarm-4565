@@ -670,6 +670,12 @@ model Listing {
   title     String
   community String?
   building  String?
+  /// Where it is, exactly: the most specific node of the location tree
+  /// (a building, or a sub-community for a villa). `community` and
+  /// `building` are kept as the names, filled from it, for search and
+  /// matching. Required on a new listing; Property Finder will not take
+  /// a listing without one.
+  locationId String?
   bedrooms  Int?
   bathrooms Int?
   areaSqft  Int?
@@ -735,11 +741,45 @@ model Listing {
   tenancies Tenancy[]
   deals     Deal[]
   opportunities Opportunity[]
+  /// Restrict: a node with listings on it is not deleted by an import.
+  location  Location?    @relation(fields: [locationId], references: [id], onDelete: Restrict)
 
   @@unique([orgId, reference])
   @@index([orgId, status])
   @@index([orgId, permitExpiresAt])
   @@index([orgId, agentId])
+  @@index([locationId])
+}
+
+/// The location tree Property Finder files every listing under:
+/// city → community → sub-community → building.
+///
+/// Shared by every brokerage, because it describes the city rather than
+/// anybody's book — so it has no `orgId` and no row-level policy, and
+/// the application role may read it and nothing more (the migration
+/// revokes writes). The seed and `npm run locations:import` write it.
+model Location {
+  id       String        @id @default(cuid())
+  parentId String?
+  level    LocationLevel
+  name     String
+  /// "Dubai > Dubai Marina > Marina Gate > Marina Gate 1". Kept whole so
+  /// a search matches any part of it and a listing shows it as one line.
+  path     String
+  /// Property Finder's own id for this node, from its location list.
+  /// Null until that list is imported: never made up, because a wrong id
+  /// files the property somewhere else.
+  pfLocationId Int? @unique
+
+  parent   Location?  @relation("LocationTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children Location[] @relation("LocationTree")
+  listings Listing[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([parentId, name])
+  @@index([level])
 }
 
 /// One row per listing per portal. Separate from the listing because the
@@ -3532,6 +3572,13 @@ model SavedView {
   updatedAt DateTime @updatedAt
 
   @@index([orgId, screen, userId])
+}
+
+enum LocationLevel {
+  CITY
+  COMMUNITY
+  SUB_COMMUNITY
+  BUILDING
 }
 
 enum PropertyType {

@@ -54,6 +54,16 @@ export type FeedListing = {
   priceFils: bigint | null;
   community: string | null;
   building: string | null;
+  /**
+   * Its place on the location tree, level by level, and Property
+   * Finder's id for it once that list is imported. Null for a listing
+   * nobody has placed yet — it is still in the feed (see below), and
+   * Listings flags it.
+   */
+  location: {
+    city: string | null; community: string | null; subCommunity: string | null;
+    building: string | null; pfLocationId: number | null;
+  } | null;
   bedrooms: number | null;
   bathrooms: number | null;
   areaSqft: number | null;
@@ -91,6 +101,7 @@ export async function feedFor(orgId: string): Promise<FeedListing[]> {
       community: true, building: true, bedrooms: true, bathrooms: true,
       areaSqft: true, permitNumber: true, permitExpiresAt: true,
       reraBrokerCard: true, descriptions: true, updatedAt: true,
+      location: { select: { path: true, pfLocationId: true } },
     },
     orderBy: { updatedAt: "desc" },
     take: 5000,
@@ -107,6 +118,7 @@ export async function feedFor(orgId: string): Promise<FeedListing[]> {
       priceFils: r.priceFils,
       community: r.community,
       building: r.building,
+      location: r.location ? byLevel(r.location.path, r.location.pfLocationId) : null,
       bedrooms: r.bedrooms,
       bathrooms: r.bathrooms,
       areaSqft: r.areaSqft,
@@ -167,6 +179,17 @@ function xml(value: string | null | undefined): string {
  * because a feed without them is rejected wholesale and the rejection
  * usually names only the first offending listing.
  */
+/**
+ * A path from the tree ("Dubai > Dubai Marina > Marina Gate > Marina
+ * Gate 1") as its levels. The tree is built by depth — city, community,
+ * sub-community, building — so position is level, the same rule the
+ * seed and the Property Finder import write it with.
+ */
+export function byLevel(path: string, pfLocationId: number | null) {
+  const [city = null, community = null, subCommunity = null, building = null] = path.split(" > ");
+  return { city, community, subCommunity, building, pfLocationId };
+}
+
 export function toXml(listings: FeedListing[], meta: { brokerage: string }): string {
   const items = listings.map((l) => `  <listing>
     <reference>${xml(l.reference)}</reference>
@@ -176,6 +199,12 @@ export function toXml(listings: FeedListing[], meta: { brokerage: string }): str
     <price currency="AED">${aedPlain(l.priceFils)}</price>
     <community>${xml(l.community)}</community>
     <building>${xml(l.building)}</building>
+    <location${l.location?.pfLocationId != null ? ` pfLocationId="${l.location.pfLocationId}"` : ""}>
+      <city>${xml(l.location?.city ?? null)}</city>
+      <community>${xml(l.location?.community ?? null)}</community>
+      <subCommunity>${xml(l.location?.subCommunity ?? null)}</subCommunity>
+      <building>${xml(l.location?.building ?? null)}</building>
+    </location>
     <bedrooms>${l.bedrooms ?? ""}</bedrooms>
     <bathrooms>${l.bathrooms ?? ""}</bathrooms>
     <size unit="sqft">${l.areaSqft ?? ""}</size>

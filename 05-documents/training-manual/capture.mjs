@@ -10,7 +10,16 @@ const click = (label) => async (p) => { await p.getByRole("button", { name: labe
 const extra = [
   ["x-palette", "/today", OWNER, D, async (p) => { await p.keyboard.press("Control+k"); await p.waitForTimeout(800); await p.keyboard.type("marina"); await p.waitForTimeout(2000); }],
   ["x-add-lead", "/leads", OWNER, D, click("Add a lead")],
-  ["x-add-property", "/listings", OWNER, D, click("Add a property")],
+  ["x-add-property", "/listings", OWNER, D, async (p) => {
+    await click("Add a property")(p);
+    // The location list open, as an agent sees it while choosing: the
+    // buildings first, then the areas they sit in.
+    await p.locator('dialog[open] input[name=reference]').fill("MG-305");
+    await p.locator('dialog[open] input[name=title]').fill("2-bed, Marina Gate 1, high floor");
+    await p.locator('dialog[open] input[placeholder^="Building"]').fill("marina gate");
+    await p.locator('dialog[open] ul[aria-label="Places"] button').first().waitFor({ timeout: 10000 });
+    await p.waitForTimeout(800);
+  }],
   ["x-live-type", "/inbox", OWNER, D, click("Type your own")],
   ["x-add-task", "/tasks", OWNER, D, click("Add a task")],
   ["x-connect-channel", "/settings/channels", OWNER, D, click("Connect a channel")],

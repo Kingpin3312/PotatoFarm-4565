@@ -2,6 +2,8 @@ import { randomBytes } from "node:crypto";
 import { PrismaClient, type LeadSource, type LeadStatus, type Role } from "@prisma/client";
 // @ts-expect-error — a plain .mjs helper shared with the checks.
 import { clearCheckDebris } from "../scripts/lib/demo-debris.mjs";
+import { ensurePath, pathsOf, SEPARATOR } from "../src/server/lib/locations";
+import { STARTING_TREE } from "../src/server/lib/locations/tree";
 import { entryStageId, seedStages, DEFAULT_STAGES } from "../src/server/lib/pipeline/defaults";
 import { seedHours } from "../src/server/lib/hours/defaults";
 import { seedQualification } from "../src/server/lib/assistant/qualification";
@@ -1033,6 +1035,7 @@ async function main() {
   await blackbook(org.id, owner, agent);
   await register(org.id, owner, agent);
   await tidyCheckDebris(org.id);
+  await seedLocations(org.id);
   await seedOpportunities(org.id, agent);
   await seedDrafts(org.id);
   await seedProfiles(org.id);
@@ -1974,6 +1977,35 @@ async function seedDrafts(orgId: string) {
       createdAt: new Date(m.sentAt.getTime() - 20_000), resolvedAt: m.sentAt,
     })),
   });
+}
+
+/**
+ * The location tree, and each demo listing's place in it.
+ *
+ * The tree is shared (no orgId) and names only — Property Finder's ids
+ * arrive with its location list. Each listing is matched by the names
+ * it already carries: its building under its community, or failing
+ * that its community, and only an exact node (one with nothing beneath
+ * it) is written, because that is the rule a new listing is held to.
+ */
+async function seedLocations(orgId: string) {
+  for (const names of pathsOf(STARTING_TREE)) await ensurePath(db, names);
+  const listings = await db.listing.findMany({
+    where: { orgId, deletedAt: null, locationId: null },
+    select: { id: true, community: true, building: true },
+  });
+  let placed = 0;
+  for (const l of listings) {
+    if (!l.community || !l.building) continue;
+    const node = await db.location.findFirst({
+      where: { name: l.building, path: { contains: `${SEPARATOR}${l.community}${SEPARATOR}` }, children: { none: {} } },
+      select: { id: true },
+    });
+    if (!node) continue;
+    await db.listing.update({ where: { id: l.id }, data: { locationId: node.id } });
+    placed++;
+  }
+  if (placed) console.log(`  locations — ${placed} listings placed on the tree`);
 }
 
 async function tidyCheckDebris(orgId: string) {

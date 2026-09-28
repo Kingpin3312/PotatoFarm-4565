@@ -2,6 +2,7 @@ import { crossTenant } from "../src/server/db/client";
 import { listingsRouter } from "../src/server/api/routers/listings";
 import { vendorsRouter } from "../src/server/api/routers/vendors";
 import { fatal } from "./fatal";
+import { ensurePath } from "../src/server/lib/locations";
 
 /**
  * Who owns a listing and who looks after it — both ours, both settable.
@@ -68,7 +69,8 @@ async function main() {
   } as never;
   const L = listingsRouter.createCaller(ctx), V = vendorsRouter.createCaller(ctx);
 
-  const made = await L.create({ reference: `LA-${RUN}`, title: "2-bed, Marina", purpose: "SALE", priceAed: 2_000_000 } as never) as { id: string };
+  const place = (await ensurePath(root, ["Dubai", "Dubai Marina", "Marina Gate", "Marina Gate 1"]))!.id;
+  const made = await L.create({ reference: `LA-${RUN}`, title: "2-bed, Marina", purpose: "SALE", priceAed: 2_000_000, locationId: place } as never) as { id: string };
   const row = () => root.listing.findUniqueOrThrow({ where: { id: made.id } });
 
   console.log("=== who looks after it ===");

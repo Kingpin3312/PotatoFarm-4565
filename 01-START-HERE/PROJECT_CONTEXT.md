@@ -106,8 +106,8 @@ token, which the web app cannot do. Treat it as a design sketch.
 
 ## 4. What is built
 
-**81 database models · 67 enums · 37 API routers · 216 procedures ·
-53 screens · 29 scheduled jobs · 23 audit scripts · 60 check suites.**
+**82 database models · 68 enums · 38 API routers · 217 procedures ·
+53 screens · 29 scheduled jobs · 23 audit scripts · 61 check suites.**
 
 **Five procedures have no screen, and every one of them deliberately:**
 `aml.checkRear`, `aml.visibilityPolicy`, `onboarding.previewImport`,
@@ -430,7 +430,7 @@ Ask — an agent can see what they asked for earlier and what came back.
   parser, lead scoring, deal risk, the assistant's guardrails and the
   interface's Arabic — the
   pure logic where being wrong is expensive and silent. Everything
-  stateful is still covered only by the 60 check suites and the
+  stateful is still covered only by the 61 check suites and the
   28 browser checks, which is not the same thing as a test suite. What is
   left untested in `assistant/` is everything that needs a model:
   `run.ts` and `prompt.ts` are exercised only through `check:autonomy`
@@ -752,8 +752,8 @@ Full spec: `03-brand/logo/SPEC.md`.
 
 ## 10. Database, API, auth, integrations
 
-**Database:** PostgreSQL via Prisma. `app/prisma/schema.prisma`, 81
-models. 31 migrations in `app/prisma/migrations/`. **`rls.sql` is
+**Database:** PostgreSQL via Prisma. `app/prisma/schema.prisma`, 82
+models. 40 migrations in `app/prisma/migrations/`. **`rls.sql` is
 appended to the init migration** — it is not a file somebody has to
 remember to run, because the tenant boundary is not something to leave to
 memory.

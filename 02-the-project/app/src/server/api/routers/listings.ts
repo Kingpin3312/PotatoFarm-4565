@@ -11,6 +11,7 @@ import { toCsv } from "@/lib/csv";
 import type { Prisma } from "@prisma/client";
 import { placesIn, storedVariants } from "@/server/lib/places";
 import { publicListing, propertyPath, PUBLIC_REQUIREMENTS } from "@/server/lib/listings/public";
+import { resolveLocation, listingNames } from "@/server/lib/locations";
 
 
 /**
@@ -125,6 +126,28 @@ function listingWhere(input: z.infer<z.ZodObject<typeof listingFilters>>): Prism
   };
 }
 
+/**
+ * An exact place on the location tree, or a plain refusal.
+ *
+ * "Exact" is the most specific node the tree has there — a building, or
+ * a villa's sub-community — because a community with buildings under
+ * it is a neighbourhood, not an address, and Property Finder files a
+ * listing under the node it is given. The names written beside it
+ * (`community`, `building`) come from the tree, so search and matching
+ * read the same place the portal does.
+ */
+async function exactLocation(locationId: string) {
+  const r = await resolveLocation(locationId);
+  if (!r) throw new TRPCError({ code: "BAD_REQUEST", message: "That location is not on the list. Choose one from the search." });
+  if (!r.exact) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: `"${r.path}" is an area, not an exact location. Choose the building or sub-community within it.`,
+    });
+  }
+  return { locationId: r.id, ...listingNames(r) };
+}
+
 export const listingsRouter = router({
   list: orgProcedure
     .input(z.object({
@@ -153,6 +176,7 @@ export const listingsRouter = router({
           // listings were in that state.
           vendor: { select: { id: true, name: true } },
           agent: { select: { id: true, name: true, email: true } },
+          location: { select: { id: true, path: true, pfLocationId: true } },
         },
       });
 
@@ -244,8 +268,13 @@ export const listingsRouter = router({
     .input(z.object({
       reference: z.string().trim().min(1).max(40),
       title: z.string().trim().min(1).max(160),
-      community: z.string().trim().max(80).optional(),
-      building: z.string().trim().max(80).optional(),
+      /**
+       * Where it is, exactly — a node of the location tree. Required:
+       * every new listing is placed, because Property Finder will not
+       * take one that is not, and fixing it afterwards is the step that
+       * gets forgotten. `community` and `building` are filled from it.
+       */
+      locationId: z.string({ required_error: "Choose the property's location." }).min(1, "Choose the property's location."),
       bedrooms: z.number().int().min(0).max(20).optional(),
       bathrooms: z.number().int().min(0).max(20).optional(),
       areaSqft: z.number().int().min(1).max(1_000_000).optional(),
@@ -267,7 +296,8 @@ export const listingsRouter = router({
       ...detailFields,
     }))
     .mutation(async ({ ctx, input }) => {
-      const { priceAed, permitExpiresAt, handoverAt, depositAed, serviceChargeAed, ...rest } = input;
+      const { priceAed, permitExpiresAt, handoverAt, depositAed, serviceChargeAed, locationId, ...rest } = input;
+      const place = await exactLocation(locationId);
 
       /**
        * The reference is unique per brokerage, and a collision is an
@@ -292,6 +322,7 @@ export const listingsRouter = router({
       const listing = await ctx.db.listing.create({
         data: {
           ...rest,
+          ...place,
           orgId: ctx.orgId,
           // Whoever adds it looks after it until somebody says otherwise.
           // Without a default every listing starts with nobody, and the
@@ -328,8 +359,8 @@ export const listingsRouter = router({
       id: z.string(),
       reference: z.string().trim().min(1).max(40).optional(),
       title: z.string().trim().min(1).max(160).optional(),
-      community: z.string().trim().max(80).nullish(),
-      building: z.string().trim().max(80).nullish(),
+      /** Move it to another exact place. Once placed, it stays placed. */
+      locationId: z.string().min(1).optional(),
       bedrooms: z.number().int().min(0).max(20).nullish(),
       bathrooms: z.number().int().min(0).max(20).nullish(),
       areaSqft: z.number().int().min(1).max(1_000_000).nullish(),
@@ -345,8 +376,9 @@ export const listingsRouter = router({
       ...detailFields,
     }))
     .mutation(async ({ ctx, input }) => {
-      const { id, priceAed, permitExpiresAt, handoverAt, depositAed, serviceChargeAed, ...rest } = input;
+      const { id, priceAed, permitExpiresAt, handoverAt, depositAed, serviceChargeAed, locationId, ...rest } = input;
       await assertOurs(ctx.db, ctx.orgId, { vendorId: input.vendorId, agentId: input.agentId });
+      const place = locationId ? await exactLocation(locationId) : {};
 
       const before = await ctx.db.listing.findFirst({
         where: { id, deletedAt: null },
@@ -371,6 +403,7 @@ export const listingsRouter = router({
         where: { id },
         data: {
           ...rest,
+          ...place,
           // `null` clears the price, `undefined` leaves it. Collapsing
           // the two would make every edit of the bedroom count wipe the
           // asking price.
@@ -391,7 +424,7 @@ export const listingsRouter = router({
         entity: "Listing",
         entityId: id,
         before: { reference: before.reference, status: before.status },
-        after: { reference: listing.reference, changed: Object.keys(rest) },
+        after: { reference: listing.reference, changed: [...Object.keys(rest), ...(locationId ? ["location"] : [])] },
       });
 
       return listing;
@@ -406,6 +439,9 @@ export const listingsRouter = router({
     .query(async ({ ctx, input }) => {
       const listing = await ctx.db.listing.findFirst({
         where: { id: input.listingId, deletedAt: null },
+        // Property Finder refuses a place it has no id for, so the gate
+        // needs the node's id, not only that there is one.
+        include: { location: { select: { pfLocationId: true } } },
       });
       if (!listing) throw new TRPCError({ code: "NOT_FOUND" });
 
@@ -456,6 +492,7 @@ export const listingsRouter = router({
       ctx.db.$transaction(async (tx) => {
         const listing = await tx.listing.findFirst({
           where: { id: input.listingId, deletedAt: null },
+          include: { location: { select: { pfLocationId: true } } },
         });
         if (!listing) throw new TRPCError({ code: "NOT_FOUND" });
 

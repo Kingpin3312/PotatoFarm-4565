@@ -15,6 +15,7 @@ import { tenanciesRouter } from "../src/server/api/routers/tenancies";
 import { buyersFor } from "../src/server/lib/matching/buyers";
 import { sweepRenewals } from "../src/server/lib/tenancy/renewals";
 import { fatal } from "./fatal";
+import { ensurePath } from "../src/server/lib/locations";
 
 const root = crossTenant("sweep");
 const SLUG = "listing-model-check-";
@@ -53,15 +54,19 @@ async function main() {
   const R = requirementsRouter.createCaller(ctx(org.id));
   const T = tenanciesRouter.createCaller(ctx(org.id));
 
+  // Every new listing has an exact place on the location tree.
+  const creekRise = (await ensurePath(root, ["Dubai", "Dubai Creek Harbour", "Creek Rise"]))!.id;
+  const marinaGate1 = (await ensurePath(root, ["Dubai", "Dubai Marina", "Marina Gate", "Marina Gate 1"]))!.id;
+
   console.log("=== off-plan, and what kind ===");
   const offplan = await L.create({
-    reference: `OP-${RUN}`, title: "2-bed, Creek Rise", community: "Dubai Creek Harbour", bedrooms: 2, priceAed: 2_100_000,
+    reference: `OP-${RUN}`, title: "2-bed, Creek Rise", locationId: creekRise, bedrooms: 2, priceAed: 2_100_000,
     propertyType: "APARTMENT", completion: "OFF_PLAN", handoverAt: inDays(400), developer: "Emaar", project: "Creek Rise",
     paymentPlan: "80/20", unitNumber: "1204",
   });
   // Off-plan too, so that the type is the only thing it gets wrong.
-  const villa = await L.create({ reference: `VL-${RUN}`, title: "4-bed villa", community: "Dubai Creek Harbour", bedrooms: 4, priceAed: 2_000_000, propertyType: "VILLA", completion: "OFF_PLAN" });
-  const ready = await L.create({ reference: `RD-${RUN}`, title: "2-bed, ready", community: "Dubai Creek Harbour", bedrooms: 2, priceAed: 2_050_000, propertyType: "APARTMENT" });
+  const villa = await L.create({ reference: `VL-${RUN}`, title: "4-bed villa", locationId: creekRise, bedrooms: 4, priceAed: 2_000_000, propertyType: "VILLA", completion: "OFF_PLAN" });
+  const ready = await L.create({ reference: `RD-${RUN}`, title: "2-bed, ready", locationId: creekRise, bedrooms: 2, priceAed: 2_050_000, propertyType: "APARTMENT" });
   const stored = await root.listing.findUnique({ where: { id: offplan.id } });
   ok("the off-plan details are stored", stored?.completion === "OFF_PLAN" && stored.developer === "Emaar" && stored.paymentPlan === "80/20" && !!stored.handoverAt);
   ok("a listing that did not say is ready, as every earlier one was", (await root.listing.findUnique({ where: { id: ready.id } }))?.completion === "READY");
@@ -89,7 +94,7 @@ async function main() {
      (forReady?.matches ?? []).map((m) => m.name).join(" | ") || "none");
 
   console.log("\n=== the lease ===");
-  const flat = await L.create({ reference: `RN-${RUN}`, title: "1-bed to let", purpose: "RENT", priceAed: 95_000, rentCheques: 4, depositAed: 5_000 });
+  const flat = await L.create({ reference: `RN-${RUN}`, title: "1-bed to let", locationId: marinaGate1, purpose: "RENT", priceAed: 95_000, rentCheques: 4, depositAed: 5_000 });
   const sale = await refused(() => T.record({ listingId: villa.id, startsAt: inDays(-270), endsAt: inDays(95), rentAed: 95_000 }));
   ok("a lease goes on a rental only", sale?.code === "BAD_REQUEST", sale?.message);
   const backwards = await refused(() => T.record({ listingId: flat.id, startsAt: inDays(10), endsAt: inDays(5), rentAed: 95_000 }));
@@ -105,7 +110,7 @@ async function main() {
 
   console.log("\n=== the renewal comes round before the notice line ===");
   // A second rental, ending in 95 days: inside the reminder window.
-  const soon = await L.create({ reference: `RS-${RUN}`, title: "Studio to let", purpose: "RENT", priceAed: 60_000 });
+  const soon = await L.create({ reference: `RS-${RUN}`, title: "Studio to let", locationId: marinaGate1, purpose: "RENT", priceAed: 60_000 });
   await T.record({ listingId: soon.id, tenantName: "Omar Said", startsAt: inDays(-270), endsAt: inDays(95), rentAed: 60_000 });
   const r1 = await sweepRenewals();
   const tasks = await root.followUp.findMany({ where: { orgId: org.id, title: { contains: `RS-${RUN}` } } });

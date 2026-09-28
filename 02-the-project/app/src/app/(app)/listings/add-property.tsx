@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { api } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
+import { LocationPicker } from "@/components/ui/location-picker";
 
 /**
  * Adding a property, which the product could not do.
@@ -77,13 +78,19 @@ export function AddProperty({ onAdded }: { onAdded?: () => void }) {
       return Number.isFinite(n) ? n : undefined;
     };
 
+    // The hidden input cannot be `required`, so the picker's star is
+    // enforced here, before a round trip, as well as by the procedure.
+    if (!str("locationId")) {
+      setError("Choose the property’s location — the building, or the sub-community for a villa.");
+      return;
+    }
+
     const expiry = str("permitExpiresAt");
 
     create.mutate({
       reference: str("reference") ?? "",
       title: str("title") ?? "",
-      community: str("community"),
-      building: str("building"),
+      locationId: str("locationId") ?? "",
       bedrooms: num("bedrooms"),
       bathrooms: num("bathrooms"),
       areaSqft: num("areaSqft"),
@@ -118,7 +125,7 @@ export function AddProperty({ onAdded }: { onAdded?: () => void }) {
             Add a property
           </h2>
           <p className="text-sm text-ink-3 mb-5">
-            A reference and a name are enough to start. Everything else can follow.
+            A reference, a name and where it is are enough to start. Everything else can follow.
           </p>
 
           {error && (
@@ -130,8 +137,7 @@ export function AddProperty({ onAdded }: { onAdded?: () => void }) {
           <div className="grid grid-cols-2 gap-3.5">
             <Field name="reference" label="Reference" required placeholder="DH-101" autoFocus />
             <Field name="title" label="Name" required placeholder="2-bed, Marina Gate" />
-            <Field name="community" label="Community" placeholder="Dubai Marina" />
-            <Field name="building" label="Building" placeholder="Marina Gate 1" />
+            <LocationPicker name="locationId" required />
             <Field name="bedrooms" label="Bedrooms" type="number" inputMode="numeric" />
             <Field name="bathrooms" label="Bathrooms" type="number" inputMode="numeric" />
             <Field name="areaSqft" label="Area (sq ft)" type="number" inputMode="numeric" />

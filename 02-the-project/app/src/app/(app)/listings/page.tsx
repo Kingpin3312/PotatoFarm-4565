@@ -238,6 +238,12 @@ function Listings() {
             <div>
               <div className="font-mono text-label text-ink-3">{l.reference}</div>
               <div className="text-ui font-medium text-ink mt-0.5">{l.title}</div>
+              {/* Where it is, as Property Finder will file it — or the
+                  fact that it is not placed yet, which keeps it off that
+                  portal until somebody chooses the building. */}
+              {l.location
+                ? <div className="text-sm text-ink-3 mt-0.5">{l.location.path.split(" > ").slice(1).join(" › ")}</div>
+                : <div className="text-sm text-accent-deep mt-0.5">No exact location. Edit it to choose the building.</div>}
               {/* What it is, when somebody has said: a buyer asks "villa or
                   apartment? ready or off-plan?" before anything else. */}
               {(l.propertyType || l.completion === "OFF_PLAN" || l.developer) && (
@@ -380,7 +386,7 @@ function Listings() {
             <p className="text-sub font-medium text-ink">No properties yet.</p>
             <p className="text-sm text-ink-2 mt-2">
               Add the first one and it appears here, ready to match against your
-              buyers. A reference and a name are enough — the permit can follow.
+              buyers. A reference, a name and where it is are enough — the permit can follow.
             </p>
             <div className="mt-4"><AddProperty /></div>
           </div>

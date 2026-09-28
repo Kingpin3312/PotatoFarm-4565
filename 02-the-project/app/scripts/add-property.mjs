@@ -39,8 +39,8 @@ ok("it opens a real modal",
    await p.evaluate(()=>document.querySelector("dialog[open]")?.matches(":modal") ?? false));
 ok("every field is labelled", await p.evaluate(()=>{
   const d=document.querySelector("dialog[open]");
-  return [...d.querySelectorAll("input,select")].every(el=>
-    !!el.closest("label") || !!el.getAttribute("aria-label"));
+  return [...d.querySelectorAll("input:not([type=hidden]),select")].every(el=>
+    !!el.closest("label") || !!el.getAttribute("aria-label") || el.labels?.length > 0);
 }));
 ok("no input under 16px — iOS would zoom the page", await p.evaluate(()=>{
   const d=document.querySelector("dialog[open]");
@@ -48,19 +48,44 @@ ok("no input under 16px — iOS would zoom the page", await p.evaluate(()=>{
     parseFloat(getComputedStyle(el).fontSize) >= 16);
 }));
 
-console.log("\n=== only two fields are required ===");
-ok("reference and name, nothing else", await p.evaluate(()=>{
+console.log("\n=== three things are required: reference, name and exact location ===");
+ok("reference and name are required fields", await p.evaluate(()=>{
   const d=document.querySelector("dialog[open]");
   return [...d.querySelectorAll("input")].filter(i=>i.required).map(i=>i.name).sort().join(",");
 }) === "reference,title");
+ok("the location is marked required", await p.evaluate(()=>
+  /Location\s*\*/.test(document.querySelector("dialog[open]")?.innerText ?? "")));
+
+/** Type into the picker and choose the exact place, as an agent does. */
+async function pick(words, exact) {
+  // The dialog keeps its fields between opens, the place included.
+  const change = p.locator('dialog[open] button', { hasText: /^Change$/ }).first();
+  if (await change.isVisible().catch(()=>false)) await change.click();
+  await p.fill('dialog[open] input[placeholder^="Building"]', words);
+  const choice = p.locator('dialog[open] ul[aria-label="Places"] button', { hasText: exact }).first();
+  await choice.waitFor({ timeout: 10000 });
+  await choice.click();
+}
 
 console.log("\n=== it writes a row ===");
 await p.fill('dialog[open] input[name=reference]', REF);
 await p.fill('dialog[open] input[name=title]', "Test 2-bed, Marina Gate");
-await p.fill('dialog[open] input[name=community]', "Dubai Marina");
 await p.fill('dialog[open] input[name=bedrooms]', "2");
 // Typed the way a person types it, commas and all.
 await p.fill('dialog[open] input[name=priceAed]', "2,400,000");
+await p.click('dialog[open] button[type=submit]');
+await p.waitForTimeout(600);
+const noPlace = await p.locator('dialog[open] [role="alert"]').first().innerText().catch(()=>"");
+ok("without a location it is refused, and says what to choose", /location/i.test(noPlace)
+   && await p.evaluate(()=>!!document.querySelector("dialog[open]")), JSON.stringify(noPlace.slice(0,80)));
+// An area is offered but not taken: choosing it looks inside it.
+await p.fill('dialog[open] input[placeholder^="Building"]', "marina gate");
+const areaBtn = p.locator('dialog[open] ul[aria-label="Places"] button', { hasText: "Area — look inside" }).first();
+await areaBtn.waitFor({ timeout: 10000 }).catch(()=>{});
+ok("an area is marked as one", await areaBtn.isVisible().catch(()=>false));
+await pick("marina gate 1", "Marina Gate 1");
+ok("choosing the building shows where it is", await p.evaluate(()=>
+  /Dubai Marina > Marina Gate > Marina Gate 1/.test(document.querySelector("dialog[open]")?.innerText ?? "")));
 await p.click('dialog[open] button[type=submit]');
 await p.waitForFunction(()=>!document.querySelector("dialog[open]"),null,{timeout:15000}).catch(()=>{});
 ok("the dialog closes on success", !(await p.evaluate(()=>!!document.querySelector("dialog[open]"))));
@@ -79,12 +104,14 @@ ok("the property appears in the list without a reload", !!row, REF);
  * can find its expected value somewhere else is not checking anything.
  */
 ok("the price survived the unit conversion", /2,400,000/.test(row), JSON.stringify(row.slice(0,90)));
+ok("and the row says exactly where it is", /Dubai Marina › Marina Gate › Marina Gate 1/.test(row), JSON.stringify(row.slice(0,140)));
 
 console.log("\n=== the reference is unique, and says so in English ===");
 await p.getByRole("button",{name:"Add a property"}).first().click();
 await p.waitForTimeout(400);
 await p.fill('dialog[open] input[name=reference]', REF);
 await p.fill('dialog[open] input[name=title]', "A duplicate");
+await pick("marina gate 1", "Marina Gate 1");
 await p.click('dialog[open] button[type=submit]');
 await p.waitForTimeout(2500);
 const alert = await p.locator('dialog[open] [role="alert"]').first().innerText().catch(()=>"");

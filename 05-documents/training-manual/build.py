@@ -22,7 +22,7 @@ MARK = '<img class="mark" src="img/mark_flat.png" alt="">'
 # steps in two columns with the notes underneath.
 TREAT = {
     "setup": {"crop": .42, "wide": True}, "today": {"crop": .52}, "thread": {"crop": .42, "wide": True},
-    "leads": {"crop": .5}, "person": {"crop": .47, "wide": True}, "listings": {"crop": .6},
+    "leads": {"crop": .5}, "person": {"crop": .47, "wide": True}, "listings": {"crop": .46}, "addprop": {"crop": .405},
     "reports": {"crop": .58}, "reports-sources": {"crop": .5}, "public": {"wide": True}, "set-drafts": {"crop": .5}, "compliance": {"w": 108}, "set-assistant": {"crop": .6, "wide": True}, "layout": {"crop": .6}, "phone": {"wide": True},
 }
 CROP = {}

@@ -89,6 +89,8 @@
     "browser:option1": "node --env-file-if-exists=.env scripts/option1.mjs",
     "browser:type": "node --env-file-if-exists=.env scripts/type.mjs",
     "browser:brand": "node --env-file-if-exists=.env scripts/brand.mjs",
+    "locations:import": "esbuild scripts/locations-import.ts --bundle --platform=node --format=esm --outfile=.tmp/locations-import.mjs --external:@prisma/client --log-level=warning && node --env-file-if-exists=.env .tmp/locations-import.mjs",
+    "check:locations": "esbuild scripts/locations.check.ts --bundle --platform=node --format=esm --outfile=.tmp/locations.mjs --external:@prisma/client --log-level=warning && node --env-file-if-exists=.env .tmp/locations.mjs",
     "db:seed": "esbuild prisma/seed.ts --bundle --platform=node --format=esm --outfile=.tmp/seed.mjs --external:@prisma/client --log-level=warning && node --env-file-if-exists=.env .tmp/seed.mjs",
     "check:limits": "node scripts/limits.mjs",
     "check:preflight": "node scripts/preflight.mjs",

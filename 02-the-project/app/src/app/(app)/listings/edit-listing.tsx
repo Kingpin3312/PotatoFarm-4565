@@ -5,6 +5,7 @@ import { api } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { DetailFields, TYPE_OPTIONS } from "./add-property";
 import { filsToAed } from "@/lib/money";
+import { LocationPicker } from "@/components/ui/location-picker";
 
 /**
  * Changing a property that already exists.
@@ -40,6 +41,7 @@ type Listing = {
   title: string;
   community: string | null;
   building: string | null;
+  location: { id: string; path: string } | null;
   bedrooms: number | null;
   bathrooms: number | null;
   areaSqft: number | null;
@@ -112,8 +114,8 @@ export function EditListing({ listing }: { listing: Listing }) {
       // Omitted rather than nulled — see the note above.
       ...(reference ? { reference } : {}),
       ...(str("title") ? { title: str("title")! } : {}),
-      community: str("community"),
-      building: str("building"),
+      // Sent only when it moved: an unchanged place is not an edit.
+      ...(str("locationId") && str("locationId") !== listing.location?.id ? { locationId: str("locationId")! } : {}),
       bedrooms: num("bedrooms"),
       bathrooms: num("bathrooms"),
       areaSqft: num("areaSqft"),
@@ -188,8 +190,7 @@ export function EditListing({ listing }: { listing: Listing }) {
           <div className="grid grid-cols-2 gap-3.5">
             <Field name="reference" label="Reference" required defaultValue={listing.reference} autoFocus />
             <Field name="title" label="Name" required defaultValue={listing.title} />
-            <Field name="community" label="Community" defaultValue={listing.community ?? ""} />
-            <Field name="building" label="Building" defaultValue={listing.building ?? ""} />
+            <LocationPicker name="locationId" initial={listing.location} />
             <Field name="bedrooms" label="Bedrooms" type="number" inputMode="numeric"
                    defaultValue={listing.bedrooms ?? ""} />
             <Field name="bathrooms" label="Bathrooms" type="number" inputMode="numeric"

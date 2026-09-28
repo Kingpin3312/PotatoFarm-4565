@@ -31,7 +31,9 @@ export type Problem = {
  * valid one is a fineable offence for the brokerage.
  */
 export const PORTAL_REQUIREMENTS = {
-  PROPERTY_FINDER: { requiresPermit: true, languages: ["en", "ar"], minPhotos: 4 },
+  // Property Finder files a listing under one node of its location tree,
+  // by its own id: without an exact place it is rejected or misfiled.
+  PROPERTY_FINDER: { requiresPermit: true, languages: ["en", "ar"], minPhotos: 4, location: "PROPERTY_FINDER_ID" },
   BAYUT:           { requiresPermit: true, languages: ["en", "ar"], minPhotos: 4 },
   DUBIZZLE:        { requiresPermit: true, languages: ["en"], minPhotos: 3 },
   WEBSITE_FORM:    { requiresPermit: false, languages: ["en"], minPhotos: 1 },
@@ -42,12 +44,26 @@ export type PortalRequirement =
 
 const DUBAI_PERMIT = /^\d{5,12}$/;
 
+/**
+ * How exact a portal needs the place to be.
+ *
+ * "EXACT" — a node of the location tree, which creation already insists
+ * is the building or sub-community. "PROPERTY_FINDER_ID" — that, and the
+ * node carrying Property Finder's own id, which arrives only with its
+ * location list; an id is never guessed, so until then it blocks and
+ * says why.
+ */
+export type LocationRule = "EXACT" | "PROPERTY_FINDER_ID";
+
 export function validateForPublish(
-  listing: Listing & { descriptions?: Record<string, string> | null },
+  listing: Listing & {
+    descriptions?: Record<string, string> | null;
+    location?: { pfLocationId: number | null } | null;
+  },
   // `readonly string[]`: the caller's rule table is a literal, so its
   // arrays are readonly tuples. This function only reads them, and
   // widening here is better than casting at both call sites.
-  portal: { requiresPermit: boolean; languages: readonly string[]; minPhotos: number },
+  portal: { requiresPermit: boolean; languages: readonly string[]; minPhotos: number; location?: LocationRule },
   photoCount: number
 ): Problem[] {
   const p: Problem[] = [];
@@ -57,7 +73,20 @@ export function validateForPublish(
   if (!listing.title?.trim()) block("title", "Needs a title.");
   if (listing.priceFils == null)
     block("price", "Needs a price. Portals reject listings without one.");
-  if (!listing.community) warn("community", "No community set — this badly affects where it appears in search.");
+  if (portal.location) {
+    if (!listing.locationId) {
+      block("location", "Needs an exact location — the building, or the sub-community for a villa. Edit the listing to choose it.");
+    } else if (portal.location === "PROPERTY_FINDER_ID" && listing.location?.pfLocationId == null) {
+      // Fails closed: a caller that did not load the node is refused
+      // rather than waved through, so a forgotten `include` shows up as
+      // a refusal on screen and not as a misfiled advertisement.
+      block("location", "Property Finder's id for this location is not on file yet. It arrives with Property Finder's location list (npm run locations:import).");
+    } else if (portal.location === "EXACT" && listing.location?.pfLocationId == null) {
+      warn("location", "No Property Finder id for this location yet; the feed carries its names instead.");
+    }
+  } else if (!listing.community) {
+    warn("community", "No community set — this badly affects where it appears in search.");
+  }
 
   /**
    * The permit. Dubai requires a Trakheesi number on every property
