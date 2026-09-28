@@ -47,7 +47,7 @@ const db = new PrismaClient({
   datasources: { db: { url: process.env.DATABASE_URL_UNSCOPED ?? process.env.DATABASE_URL } },
 });
 
-const org = await db.organisation.findFirst({ where: { deletedAt: null }, select: { id: true, name: true } });
+const org = await db.organisation.findFirst({ where: { slug: "seed-marina", deletedAt: null }, select: { id: true, name: true } });
 if (!org) { console.error("no organisation to test against"); process.exit(1); }
 
 /** Exactly the query `run.ts` opens with. Copied, not approximated. */

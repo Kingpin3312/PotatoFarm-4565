@@ -39,7 +39,7 @@ const db = new PrismaClient({
   datasources: { db: { url: process.env.DATABASE_URL_UNSCOPED ?? process.env.DATABASE_URL } },
 });
 
-const home = await db.organisation.findFirst({ where: { deletedAt: null }, select: { id: true, name: true } });
+const home = await db.organisation.findFirst({ where: { slug: "seed-marina", deletedAt: null }, select: { id: true, name: true } });
 if (!home) { console.error("no organisation — run npm run db:seed"); process.exit(1); }
 
 const STAMP = Date.now();

@@ -29,7 +29,7 @@ const db = new PrismaClient({
   datasources: { db: { url: process.env.DATABASE_URL_UNSCOPED ?? process.env.DATABASE_URL } },
 });
 
-const org = await db.organisation.findFirst({ where: { deletedAt: null }, select: { id: true, timezone: true } });
+const org = await db.organisation.findFirst({ where: { slug: "seed-marina", deletedAt: null }, select: { id: true, timezone: true } });
 const user = await db.membership.findFirst({ where: { orgId: org!.id }, select: { userId: true } });
 if (!org || !user) { console.error("no organisation or member to test against"); process.exit(1); }
 const TZ = org.timezone ?? "Asia/Dubai";

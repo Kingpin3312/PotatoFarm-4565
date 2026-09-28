@@ -50,7 +50,7 @@ const ok = (l: string, p: boolean, d = "") => {
 
 async function main() {
   const org = await db.organisation.findFirst({
-    where: { deletedAt: null },
+    where: { slug: "seed-marina", deletedAt: null },
     select: { id: true },
   });
   if (!org) fatal("no organisation — run npm run db:seed");

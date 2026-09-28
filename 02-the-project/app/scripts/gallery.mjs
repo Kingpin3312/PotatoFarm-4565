@@ -64,7 +64,7 @@ function routes() {
 }
 
 const db = new PrismaClient({ datasources: { db: { url: process.env.DATABASE_URL_UNSCOPED } } });
-const org = await db.organisation.findFirst({ where: { deletedAt: null }, select: { id: true, name: true } });
+const org = await db.organisation.findFirst({ where: { slug: "seed-marina", deletedAt: null }, select: { id: true, name: true } });
 if (!org) { console.error("no brokerage in the database — run npm run db:seed"); process.exit(1); }
 
 const [lead, kyc, listing, convo, orgRow, publicListing, vendor] = await Promise.all([

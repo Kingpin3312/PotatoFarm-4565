@@ -52,7 +52,7 @@ function routes() {
 }
 
 const db = new PrismaClient({ datasources:{db:{url:process.env.DATABASE_URL_UNSCOPED}} });
-const org = await db.organisation.findFirst({ where:{deletedAt:null}, select:{id:true} });
+const org = await db.organisation.findFirst({ where:{slug: "seed-marina", deletedAt:null}, select:{id:true} });
 
 /** Real ids, so a dynamic route is exercised rather than skipped. */
 const [lead, kyc, listing, convo, orgSlug, publicListing, vendor, invoice] = await Promise.all([

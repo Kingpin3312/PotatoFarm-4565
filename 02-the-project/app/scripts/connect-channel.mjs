@@ -25,7 +25,7 @@ const NUM = `TESTNUM${Date.now()}`;
 // The channels this check connects stay in the demo brokerage otherwise,
 // and "Test sales number" had accumulated six times on its Channels screen.
 const cleanDb = new PrismaClient({ datasources: { db: { url: process.env.DATABASE_URL_UNSCOPED } } });
-const demoOrg = await cleanDb.organisation.findFirst({ where: { deletedAt: null }, select: { id: true } });
+const demoOrg = await cleanDb.organisation.findFirst({ where: { slug: "seed-marina", deletedAt: null }, select: { id: true } });
 if (demoOrg) await clearCheckDebris(cleanDb, demoOrg.id);
 
 const b=await pw.chromium.launch({executablePath:cp()});

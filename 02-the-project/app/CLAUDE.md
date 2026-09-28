@@ -1110,6 +1110,21 @@ twenty-six ignored it. Fixed one file at a time it cost a CI run each,
 about eleven minutes, finding the identical bug in the next file along.
 **A class of bug fixed one instance at a time is not being fixed.**
 
+**CI's browser job was red for days on one hand-written cookie, and it
+hid what came after.** `check:two-step` sent the session cookie as
+`authjs.session-token` only. A production build (`next start`, which is
+what CI runs) reads `__Secure-authjs.session-token`, so the check saw a
+signed-in session as `null` and crashed — on every push, while passing
+on every laptop running `next dev`. Every step after it had not run in CI
+since. Fixing it exposed the next fault in line: twenty-six checks took
+"the first organisation" as the demo brokerage, and a brokerage left
+behind by a crashed check became first — the lead, the enquiry and the
+feed fetch were all recorded, in the brokerage the check was not
+looking at. Checks now ask for `seed-marina` by name, a crash still
+cleans up, and `crm-audit.py` fails on a check that sends only the
+development cookie name. **Run a new HTTP check against `npm run start`
+at least once**, not only against the dev server.
+
 `scripts/_browser.mjs` is now the only thing that answers "where is
 Chromium", with thirty-one importers. A new browser script imports it
 rather than writing its own, and **an absolute path to anything outside

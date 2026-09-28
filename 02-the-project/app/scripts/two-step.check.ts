@@ -52,7 +52,9 @@ const ctxFor = (orgId: string, userId: string, sid: string, twoStep: string) => 
   ip: "127.0.0.1", userAgent: "two-step-check",
 }) as never;
 
-const cookie = (token: string) => ({ Cookie: `authjs.session-token=${token}` });
+// Both names: `next start` reads the `__Secure-` one (see
+// scripts/lib/session-cookie.mjs), and CI runs the production build.
+const cookie = (token: string) => ({ Cookie: `authjs.session-token=${token}; __Secure-authjs.session-token=${token}` });
 
 async function main() {
   console.log("\nTwo-step sign-in\n");
@@ -173,4 +175,8 @@ async function main() {
   process.exit(bad ? 1 : 0);
 }
 
-main().catch(fatal);
+// A crash still removes what this run created. `fatal` exits at once and
+// cannot wait for an async clean-up, so it is awaited here first; a
+// brokerage left behind becomes "the first organisation" to every check
+// that used to pick one that way.
+main().catch(async (e) => { await cleanup().catch(() => {}); fatal(e); });

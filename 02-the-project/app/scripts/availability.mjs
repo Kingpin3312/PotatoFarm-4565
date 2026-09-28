@@ -26,7 +26,7 @@ let bad = 0;
 const ok = (l, p, d = "") => { console.log(`  ${p ? "✓" : "✗"} ${l}${d ? "  — " + d : ""}`); if (!p) bad++; };
 
 const db = new PrismaClient({ datasources:{db:{url:process.env.DATABASE_URL_UNSCOPED}} });
-const org = await db.organisation.findFirst({ where:{deletedAt:null}, select:{id:true} });
+const org = await db.organisation.findFirst({ where:{slug: "seed-marina", deletedAt:null}, select:{id:true} });
 // Whatever an earlier run left if it died before its clean-up.
 await clearCheckDebris(db, org.id);
 const sess = await db.session.findUnique({

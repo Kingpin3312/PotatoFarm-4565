@@ -125,7 +125,9 @@ async function cleanup() {
   await people.user.deleteMany({ where: { id: { in: users.map((u) => u.id) } } });
 }
 
-const cookie = (t: string) => ({ Cookie: `authjs.session-token=${t}` });
+// Both names: `next start` reads the `__Secure-` one (see
+// scripts/lib/session-cookie.mjs), and CI runs the production build.
+const cookie = (t: string) => ({ Cookie: `authjs.session-token=${t}; __Secure-authjs.session-token=${t}` });
 const location = (r: Response) => r.headers.get("location") ?? "";
 
 async function main() {

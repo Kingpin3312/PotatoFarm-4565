@@ -36,7 +36,7 @@ const tag = randomUUID().slice(0, 8);
 async function main() {
   console.log("\nA lead changing hands leaves a record\n");
 
-  const org = await db.organisation.findFirst({ where: { deletedAt: null }, select: { id: true } });
+  const org = await db.organisation.findFirst({ where: { slug: "seed-marina", deletedAt: null }, select: { id: true } });
   if (!org) { console.error("no organisation"); process.exit(1); }
 
   // A check that cannot reach what it tests must fail, not skip. This

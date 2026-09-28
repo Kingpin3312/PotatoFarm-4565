@@ -49,7 +49,7 @@ const failures=[];
 const ok=(l,p,d="")=>{console.log(`  ${p?"\u2713":"\u2717"} ${l}${d?"  \u2014 "+d:""}`);if(!p){bad++;failures.push(d?`${l}  \u2014 ${d}`:l);}};
 
 const db = new PrismaClient({ datasources:{db:{url:process.env.DATABASE_URL_UNSCOPED}} });
-const org = await db.organisation.findFirst({ where:{deletedAt:null}, select:{id:true} });
+const org = await db.organisation.findFirst({ where:{slug: "seed-marina", deletedAt:null}, select:{id:true} });
 if (!org) { console.error("no organisation to test against"); process.exit(1); }
 
 // A clean slate for this org, so a re-run does not assert against rows

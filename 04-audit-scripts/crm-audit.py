@@ -9,7 +9,10 @@ shows up in review — each file is fine on its own.
 """
 import glob, os, re, sys
 
-ROOT = sys.argv[1] if len(sys.argv) > 1 else "."
+# Absolute, because the module resolver below compares paths it builds
+# from imports against these keys; given "." it failed on imports it
+# resolved correctly from an absolute root.
+ROOT = os.path.abspath(sys.argv[1] if len(sys.argv) > 1 else ".")
 FAILS, WARNS = [], []
 def fail(m): FAILS.append(m)
 def warn(m): WARNS.append(m)
@@ -546,6 +549,32 @@ for _path, _body in src.items():
                  f"confirm it is meant to be data rather than a decision "
                  f"({_os.path.relpath(_path, ROOT)})")
 
+
+# ---------------------------------------------------------------------
+# A check that sends the session cookie under the development name only.
+#
+# `auth/config.ts` sets `useSecureCookies` in production, so `next start`
+# reads `__Secure-authjs.session-token` and ignores `authjs.session-token`.
+# CI runs the production build. `check:two-step` wrote its own cookie with
+# the development name: it passed on every laptop (`next dev`) and failed
+# in CI on every push for as long as it existed, reporting a signed-in
+# session as `null`. `check:email-connect` carried the same line.
+# `scripts/lib/session-cookie.mjs` explains the two names; every check
+# must send both.
+for _sp in glob.glob(os.path.join(ROOT, "scripts/**/*.*s"), recursive=True):
+    if _sp.endswith("session-cookie.mjs"):
+        continue
+    _sb = read(_sp)
+    for _ln, _line in enumerate(_sb.splitlines(), 1):
+        if "authjs.session-token=" in _line and "__Secure-authjs.session-token" not in _line:
+            # The two names may sit on consecutive lines of one string.
+            _next = _sb.splitlines()[_ln] if _ln < len(_sb.splitlines()) else ""
+            if "__Secure-authjs.session-token" in _next:
+                continue
+            fail(f"{os.path.relpath(_sp, ROOT)}:{_ln} sends the session cookie "
+                 f"as authjs.session-token only — a production build reads "
+                 f"__Secure-authjs.session-token; send both "
+                 f"(scripts/lib/session-cookie.mjs)")
 
 if __name__ == "__main__":
     print(f"{len(src)} source files, {len(models)} models, {len(routers)} routers\n")

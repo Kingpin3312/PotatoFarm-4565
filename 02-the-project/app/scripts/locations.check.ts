@@ -186,4 +186,5 @@ main()
     console.log(bad ? `\n${bad} failed\n` : "\nAll passed\n");
     process.exit(bad ? 1 : 0);
   })
-  .catch((e) => fatal(e, () => void cleanup()));
+  // `fatal` exits at once, so the clean-up is awaited before it.
+  .catch(async (e) => { await cleanup().catch(() => {}); fatal(e); });
