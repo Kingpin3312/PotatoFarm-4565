@@ -1,5 +1,10 @@
 # Before you compile
 
+> **Historical.** Written before the code had been compiled, and kept for
+> the reasoning in it. The steps below (applying `rls.sql` by hand, the
+> order of work) are superseded: the migrations now do all of it. To
+> run the product, follow `SETUP.md` (a laptop) or `DEPLOY.md` (live).
+
 I scanned my own work for what will break. This is the honest list, so
 you are not discovering it one error at a time.
 
