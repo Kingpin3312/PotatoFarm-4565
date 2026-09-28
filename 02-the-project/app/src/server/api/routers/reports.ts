@@ -73,7 +73,7 @@ export const reportsRouter = router({
     .input(z.object({ from: z.date(), to: z.date() }))
     .query(async ({ ctx, input }) => {
       const live = { deletedAt: null, archivedAt: null, status: { notIn: ["WON", "LOST"] as ("WON" | "LOST")[] } };
-      const [bySourceAll, bySourceWon, closed, pipeline, commission, cold, members] = await Promise.all([
+      const [bySourceAll, bySourceWon, closed, pipeline, commission, cold, members, other] = await Promise.all([
         ctx.db.lead.groupBy({ by: ["source"], where: { deletedAt: null, createdAt: { gte: input.from, lte: input.to } }, _count: { _all: true } }),
         ctx.db.lead.groupBy({ by: ["source"], where: { deletedAt: null, status: "WON", createdAt: { gte: input.from, lte: input.to } }, _count: { _all: true } }),
         ctx.db.deal.findMany({
@@ -94,6 +94,18 @@ export const reportsRouter = router({
           _count: { _all: true },
         }),
         ctx.db.membership.findMany({ select: { user: { select: { id: true, name: true, email: true } } } }),
+        /**
+         * A person's further pieces of business — the buyer also letting
+         * their villa. Kept beside the leads' figure rather than added into
+         * it: that figure opens the leads list, and an opportunity is not a
+         * lead, so a total the list cannot account for is the "which three?"
+         * this panel exists to answer. Only open ones on a live person.
+         */
+        ctx.db.opportunity.groupBy({
+          by: ["status"],
+          where: { closedAt: null, lead: { deletedAt: null } },
+          _sum: { valueFils: true }, _count: { _all: true },
+        }),
       ]);
 
       const won = new Map(bySourceWon.map((r) => [r.source, r._count._all]));
@@ -119,6 +131,14 @@ export const reportsRouter = router({
         return sum + (v * BigInt(Math.round(w * 1000))) / 1000n;
       }, 0n);
       const unweighted = pipeline.reduce((sum, g) => sum + (g._sum.budgetMaxFils ?? 0n), 0n);
+      const otherBusiness = other.reduce(
+        (acc, g) => {
+          const v = g._sum.valueFils ?? 0n;
+          const w = BigInt(Math.round((STAGE_WEIGHT[g.status] ?? 0) * 1000));
+          return { open: acc.open + g._count._all, fils: acc.fils + v, weightedFils: acc.weightedFils + (v * w) / 1000n };
+        },
+        { open: 0, fils: 0n, weightedFils: 0n },
+      );
 
       const names = new Map(members.map((m) => [m.user.id, m.user.name ?? m.user.email]));
       return {
@@ -127,6 +147,7 @@ export const reportsRouter = router({
         pipeline: {
           weightedFils: weighted, unweightedFils: unweighted,
           byStage: pipeline.map((g) => ({ status: g.status, leads: g._count._all, fils: g._sum.budgetMaxFils ?? 0n, weight: STAGE_WEIGHT[g.status] ?? 0 })),
+          otherBusiness,
         },
         commission: {
           forecastFils: commission.find((c) => c.status === "FORECAST")?._sum.netFils ?? 0n,

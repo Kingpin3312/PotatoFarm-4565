@@ -1355,8 +1355,14 @@ with an empirical floor under it.
   buyer also letting their villa) is an `Opportunity`: its own column on
   the same board, agent, value and close, managed from the person's page.
   `personScope` lets the agent working one *read* the person; changing
-  the lead stays with `leadScope`. Not done: opportunities are not in
-  search, Today or the KPIs yet. `check:opportunities`.
+  the lead stays with `leadScope`. They also reach the three places an
+  agent or manager starts from: **Today** lists an agent's own open ones,
+  longest in their column first; **search** finds the person by what the
+  business is called, theirs to open if they work it, and a colleague is
+  told only that somebody matches; **the KPIs** show them beside the
+  leads' weighted pipeline rather than inside it, because that figure
+  opens the leads list and an opportunity is not a lead.
+  `check:opportunities`.
 
   Building it found the audits blind to new procedure builders:
   `counts.py`, `reachability.py` and `erasure.py` matched

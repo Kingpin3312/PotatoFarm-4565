@@ -187,6 +187,7 @@ export default function Today() {
               onAct={(id) => act.mutate({ id })}
               onDismiss={(id) => dismiss.mutate({ id })}
             />
+            <OtherBusiness items={data.otherBusiness} />
             {/* The agent's own list, straight after the product's. Both
                 are things to do; alerts, below, are things that happened. */}
             <FollowUps />
@@ -516,6 +517,50 @@ function ActionList({ items, onAct, onDismiss }: {
           </li>
         ))}
       </ol>
+  );
+}
+
+/**
+ * The agent's other business: a letting, a sale or a rental they work for
+ * somebody, which sits on the board beside the person's main search.
+ *
+ * Longest in its column first, three at most, and nothing at all when
+ * there is none — most agents have none, and an empty heading is one
+ * more thing scrolled past in a car park. The row opens the person,
+ * where the column is changed and the business is won or lost.
+ */
+function OtherBusiness({
+  items,
+}: {
+  items: { id: string; title: string; person: string; stage: string | null; days: number; valueFils: bigint | null; leadId: string }[];
+}) {
+  if (items.length === 0) return null;
+  return (
+    <section className="mt-10 border-t border-rule pt-6" aria-label="Other business" data-other-business>
+      <h2 className="t-label text-ink-3">Other business · {items.length}</h2>
+      <ul className="mt-2">
+        {items.map((o) => (
+          <li key={o.id} className="border-b border-rule py-4">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
+              <p className="text-control leading-snug text-ink">
+                <Link href={`/blackbook/${o.leadId}`} className="text-ink no-underline hover:underline">
+                  {o.title}
+                </Link>
+              </p>
+              {o.valueFils !== null && o.valueFils > 0n && (
+                <span className="t-label tabular text-ink-3">{aedShort(o.valueFils)}</span>
+              )}
+            </div>
+            <p className="mt-1 max-w-[68ch] text-sm leading-snug text-ink-2">
+              For {o.person}
+              {o.stage && <> · {o.stage}</>}
+              {" · "}
+              {o.days === 0 ? "moved there today" : `${o.days} day${o.days === 1 ? "" : "s"} in that column`}
+            </p>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

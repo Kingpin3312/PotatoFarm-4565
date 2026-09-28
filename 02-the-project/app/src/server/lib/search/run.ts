@@ -97,7 +97,8 @@ const CLOSE = 0.5;
  * enough to act on.
  */
 function redact(why: string[]): string[] {
-  const safe = why.filter((w) => !w.startsWith("name ") && !w.startsWith("remembered"));
+  const safe = why.filter((w) =>
+    !w.startsWith("name ") && !w.startsWith("remembered") && !w.startsWith("other business"));
   return safe.length ? safe : ["matches something in their notes"];
 }
 
@@ -196,6 +197,10 @@ export async function search(args: {
 
     for (const t of q.terms) {
       where.push({ name: like(t) }, { notes: like(t) }, { email: like(t) });
+      // Their other business, by what the agent called it: "the villa
+      // letting in Arabian Ranches" is how a lettings agent remembers a
+      // person sales brought in.
+      where.push({ opportunities: { some: { title: like(t) } } });
     }
     // Stored numbers are E.164, and the key is the national number or a
     // fragment of one, so `contains` finds it however it was typed.
@@ -242,6 +247,7 @@ export async function search(args: {
             where: { active: true },
             select: { communities: true, bedroomsMin: true, budgetMaxFils: true, intent: true },
           },
+          opportunities: { select: { title: true, agentId: true } },
         },
       });
 
@@ -261,6 +267,11 @@ export async function search(args: {
             score += W.note; why.push(`email matches "${t}"`);
           } else if (closeLeads.get(r.id) === t) {
             score += W.close; why.push(`name is close to "${t}"`);
+          } else {
+            // Worth a note, not a name: it is the agent's own words about
+            // the business, the same standing as a line in their notes.
+            const o = r.opportunities.find((x) => hasWord(x.title, t));
+            if (o) { score += W.note; why.push(`other business: ${o.title.slice(0, 80)}`); }
           }
         }
         if (q.phones.some((p) => r.phone.includes(p))) { score += W.phone; why.push("phone number matches"); }
@@ -294,7 +305,11 @@ export async function search(args: {
         if (score <= 0) continue;
         score += (r.score ?? 0) * W.warmth;
 
-        const mine = args.scope.canSeeAll || r.assignedToId === args.scope.viewerId;
+        // Theirs if they may open the person: their lead, or a piece of
+        // their business they are working — `personScope`, the rule the
+        // person page itself applies.
+        const mine = args.scope.canSeeAll || r.assignedToId === args.scope.viewerId
+          || r.opportunities.some((o) => o.agentId === args.scope.viewerId);
         counts.people += 1;
         hits.push({
           kind: "person",

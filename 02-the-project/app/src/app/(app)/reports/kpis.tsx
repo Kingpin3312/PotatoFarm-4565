@@ -41,7 +41,11 @@ export function Kpis() {
 
       <dl className="grid grid-cols-1 min-[640px]:grid-cols-3 gap-6 mt-5">
         <Figure label="Pipeline, weighted by stage" value={aedShort(data.pipeline.weightedFils)}
-          note={`of ${aedShort(data.pipeline.unweightedFils)} in open budgets`} href="/leads" />
+          note={`of ${aedShort(data.pipeline.unweightedFils)} in open budgets`
+            + (data.pipeline.otherBusiness.open
+              ? `, plus ${aedShort(data.pipeline.otherBusiness.weightedFils)} weighted from ${data.pipeline.otherBusiness.open} other piece${data.pipeline.otherBusiness.open === 1 ? "" : "s"} of business on the board`
+              : "")}
+          href="/leads" />
         <Figure label="Commission on its way" value={aedShort(data.commission.forecastFils + data.commission.invoicedFils)}
           note={`${aedShort(data.commission.invoicedFils)} invoiced, the rest forecast`} href="/deals" />
         <Figure label="Enquiry to completion" value={data.timeToClose.medianDays === null ? "—" : `${data.timeToClose.medianDays} days`}

@@ -11,6 +11,9 @@ import { opportunitiesRouter } from "../src/server/api/routers/opportunities";
 import { pipelineRouter } from "../src/server/api/routers/pipeline";
 import { leadsRouter } from "../src/server/api/routers/leads";
 import { blackbookRouter } from "../src/server/api/routers/blackbook";
+import { todayRouter } from "../src/server/api/routers/today";
+import { searchRouter } from "../src/server/api/routers/search";
+import { reportsRouter } from "../src/server/api/routers/reports";
 import { seedStages } from "../src/server/lib/pipeline/defaults";
 import { eraseSubject } from "../src/server/lib/privacy/erase";
 import { exportSubject } from "../src/server/lib/privacy/export";
@@ -71,7 +74,7 @@ async function main() {
   const mine = await S.create({ leadId: buyer.id, kind: "SELL", title: "Selling their studio in JVC", valueAed: 650_000 });
   ok("but can add business of their own", !!mine.id);
   const M = as(opportunitiesRouter, manager.id, "MANAGER");
-  const letting = await M.create({ leadId: buyer.id, kind: "LET", title: "Letting their villa in Arabian Ranches", valueAed: 180_000, agentId: lettings.id });
+  const letting = await M.create({ leadId: buyer.id, kind: "LET", title: "Letting their villa in Arabian Ranches, Gardenia cluster", valueAed: 180_000, agentId: lettings.id });
   ok("a manager gives the letting to the lettings agent", !!letting.id);
   const toViewer = await code(M.create({ leadId: buyer.id, kind: "LET", title: "x", agentId: viewer.id }));
   ok("and not to somebody who cannot work it", toViewer === "BAD_REQUEST", toViewer);
@@ -115,6 +118,39 @@ async function main() {
   ok("a viewer reads them and changes nothing", vList.rows.length === 2 && !vList.canAdd && vList.rows.every((r) => !r.canMove) && vMove === "FORBIDDEN", vMove);
   const rivalSees = await as(opportunitiesRouter, manager.id, "OWNER", rival.id).forLead({ leadId: buyer.id }).then(() => "allowed", (e: { code?: string }) => e.code ?? "error");
   ok("another brokerage cannot reach it", rivalSees === "NOT_FOUND", rivalSees);
+
+  console.log("\n=== Today, search and the KPIs see it ===");
+  const lToday = await as(todayRouter, lettings.id, "AGENT").brief();
+  const onToday = lToday.otherBusiness.find((o) => o.id === letting.id);
+  ok("the letting is on the lettings agent's Today, for the person, in its column",
+     !!onToday && onToday.person === "Priya Nair" && onToday.stage === stage("VIEWING_BOOKED").name && onToday.leadId === buyer.id,
+     onToday ? `${onToday.person} · ${onToday.stage} · ${onToday.days}d` : "not listed");
+  const sToday = await as(todayRouter, sales.id, "AGENT").brief();
+  ok("the sales agent's Today has their own sale and not the letting",
+     sToday.otherBusiness.some((o) => o.id === mine.id) && !sToday.otherBusiness.some((o) => o.id === letting.id),
+     sToday.otherBusiness.map((o) => o.title).join(" | "));
+  const oToday = await as(todayRouter, other.id, "AGENT").brief();
+  ok("a colleague's Today has none of it", oToday.otherBusiness.length === 0, String(oToday.otherBusiness.length));
+
+  const ask = (userId: string, role: string) => as(searchRouter, userId, role).ask({ q: "gardenia" });
+  const lFound = (await ask(lettings.id, "AGENT")).hits.find((h) => h.id === buyer.id);
+  ok("search finds the person by what the business is called",
+     !!lFound && lFound.why.some((w) => w.startsWith("other business: Letting their villa")), JSON.stringify(lFound?.why ?? null));
+  ok("and it is the lettings agent's to open", !!lFound && !lFound.restricted && lFound.href === `/blackbook/${buyer.id}`,
+     `${lFound?.restricted} ${lFound?.href}`);
+  const oFound = (await ask(other.id, "AGENT")).hits.find((h) => h.id === buyer.id);
+  ok("a colleague is told somebody matches, not who or what the business is",
+     !!oFound && oFound.restricted && oFound.title === "Another agent's client" && !oFound.why.some((w) => w.includes("Gardenia")),
+     oFound ? `${oFound.title} · ${oFound.why.join("; ")}` : "not found");
+
+  const now = new Date();
+  const kpis = await as(reportsRouter, manager.id, "MANAGER").kpis({ from: new Date(now.getTime() - 86_400_000), to: now });
+  // Studio 650,000 at New (5%) and letting 180,000 at Viewing booked (35%).
+  ok("the KPIs count other business beside the leads' pipeline",
+     kpis.pipeline.otherBusiness.open === 2 && kpis.pipeline.otherBusiness.fils === 83_000_000n
+       && kpis.pipeline.otherBusiness.weightedFils === 9_550_000n,
+     `${kpis.pipeline.otherBusiness.open} · ${kpis.pipeline.otherBusiness.fils} · ${kpis.pipeline.otherBusiness.weightedFils}`);
+  ok("and leave the leads' own figure as it was", kpis.pipeline.unweightedFils === 300_000_000n, String(kpis.pipeline.unweightedFils));
 
   console.log("\n=== it ends on its own ===");
   await L.close({ id: letting.id, won: true });

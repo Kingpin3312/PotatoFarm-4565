@@ -58,7 +58,7 @@ export const todayRouter = router({
       id: true, action: true, headline: true, reason: true,
       priority: true, valueFils: true, leadId: true, dealId: true,
     } as const;
-    const [people, deals, viewings, waiting, hot, dueFollowUps] = await Promise.all([
+    const [people, deals, viewings, waiting, hot, dueFollowUps, other] = await Promise.all([
       ctx.db.recommendation.findMany({
         where: { agentId: ctx.userId, state: "OPEN", dealId: null },
         orderBy: [{ priority: "desc" }, { valueFils: "desc" }],
@@ -116,6 +116,27 @@ export const todayRouter = router({
       ctx.db.followUp.count({
         where: { agentId: ctx.userId, completedAt: null, dueAt: { lt: end } },
       }),
+
+      /**
+       * Their other business: the letting, the sale, the rental they are
+       * working for somebody whose main search may be a colleague's.
+       *
+       * The overnight sweep scores leads, not these, so without this an
+       * opportunity lived on the board and the person's page and nowhere
+       * an agent starts their day — and a lettings agent handed one by
+       * sales had no way to find it again except by remembering the name.
+       * Longest in its column first, because that is the one slipping.
+       */
+      ctx.db.opportunity.findMany({
+        where: { agentId: ctx.userId, closedAt: null, lead: { deletedAt: null } },
+        orderBy: { stageEnteredAt: "asc" },
+        take: 3,
+        select: {
+          id: true, kind: true, title: true, valueFils: true, stageEnteredAt: true, leadId: true,
+          stage: { select: { name: true } },
+          lead: { select: { name: true, phone: true } },
+        },
+      }),
     ]);
 
     /**
@@ -131,6 +152,12 @@ export const todayRouter = router({
     return {
       actions: [...people, ...deals],
       viewings,
+      otherBusiness: other.map((o) => ({
+        id: o.id, kind: o.kind, title: o.title, valueFils: o.valueFils, leadId: o.leadId,
+        person: o.lead.name ?? o.lead.phone,
+        stage: o.stage?.name ?? null,
+        days: Math.floor((now.getTime() - o.stageEnteredAt.getTime()) / 86_400_000),
+      })),
       counts: {
         hot: hot.length,
         waiting,
