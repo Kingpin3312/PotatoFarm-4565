@@ -3,6 +3,7 @@ import { audit } from "@/server/lib/audit";
 import { aed, aedWhole } from "@/lib/money";
 import { log } from "@/lib/log";
 import { openKycFile } from "@/server/lib/aml/open";
+import { nextDealReference } from "@/server/lib/deals/reference";
 
 /**
  * Offers, and everything said after them.
@@ -161,14 +162,21 @@ export async function accept(args: {
       select: { reference: true, purpose: true, completion: true },
     });
 
+    // Scoped by the transaction's tenant, so these are this brokerage's.
+    const taken = await tx.deal.findMany({
+      where: { reference: { startsWith: listing.reference } },
+      select: { reference: true },
+    });
+
     const deal = await tx.deal.create({
       data: {
         orgId: args.orgId,
         leadId: offer.leadId,
         listingId: offer.listingId,
         // The listing reference, so a deal and a property are findable
-        // by the same string an agent already says on the phone.
-        reference: listing.reference,
+        // by the same string an agent already says on the phone — with a
+        // suffix if the property has had a deal before (deals/reference.ts).
+        reference: nextDealReference(listing.reference, taken.map((d) => d.reference)),
         // DealType is SALE | RENTAL | OFF_PLAN. "LETTING" is the word
         // the UK-English copy uses and is not a value of the enum.
         // Off-plan is its own deal type — an SPA with the developer and

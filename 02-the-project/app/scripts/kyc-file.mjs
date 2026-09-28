@@ -92,7 +92,19 @@ console.log("\n=== an agent can start one early ===");
 
 console.log("\n=== an accepted offer opens one on its own ===");
 {
-  const listing = await db.listing.findFirst({ where: { orgId: org.id, deletedAt: null }, select: { id: true } });
+  const listing = await db.listing.findFirst({ where: { orgId: org.id, deletedAt: null }, select: { id: true, reference: true } });
+  // A property that has had a deal before — the first fell through. The
+  // next deal took the listing's reference as it came, collided with the
+  // first on (orgId, reference), and accepting its offer answered 500.
+  // Made here on purpose so this case is covered on every machine, not
+  // only where an earlier check happened to leave a deal behind.
+  const earlier = await db.deal.findFirst({ where: { orgId: org.id, reference: listing.reference }, select: { id: true } })
+    ? null
+    : await db.deal.create({
+        data: { orgId: org.id, listingId: listing.id, reference: listing.reference, type: "SALE",
+                valueFils: 240000000n, stage: "COLLAPSED", collapsedAt: new Date(), collapseReason: "check" },
+        select: { id: true },
+      });
   const lead = await db.lead.create({
     data: { orgId: org.id, phone: `+9715${Date.now().toString().slice(-8)}`, name: "Offer Test", status: "NEW" },
     select: { id: true },
@@ -118,10 +130,14 @@ console.log("\n=== an accepted offer opens one on its own ===");
 
   const rec = await db.kycRecord.findUnique({ where: { leadId: lead.id }, select: { status: true } });
   ok("accepting it opened the file", !!rec, rec ? rec.status : "none");
-  const deal = await db.deal.findFirst({ where: { leadId: lead.id }, select: { id: true } });
+  const deal = await db.deal.findFirst({ where: { leadId: lead.id }, select: { id: true, reference: true } });
   ok("alongside the deal, from the same transaction", !!deal);
+  ok("a property's second deal gets its own reference, still findable by the first",
+     !!deal && deal.reference !== listing.reference && deal.reference.startsWith(`${listing.reference}-`),
+     deal?.reference ?? "none");
 
   if (deal) await db.deal.deleteMany({ where: { leadId: lead.id } });
+  if (earlier) await db.deal.delete({ where: { id: earlier.id } });
   await db.kycRecord.deleteMany({ where: { leadId: lead.id } });
   await db.offerResponse.deleteMany({ where: { offerId: offer.id } });
   await db.offer.deleteMany({ where: { leadId: lead.id } });
