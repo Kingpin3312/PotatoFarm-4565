@@ -1,5 +1,8 @@
 import { crossTenant } from "@/server/db/client";
 import { validateForPublish, blocking } from "@/server/lib/feeds/validate";
+import { readObject } from "@/server/lib/files/storage";
+import { realPhotos, photoLocation } from "./photos";
+import { photoList, photoPath, propertyPath } from "@/lib/listing-paths";
 
 /**
  * One property, as a stranger may see it.
@@ -53,7 +56,14 @@ export type PublicListing = {
   areaSqft: number | null;
   permitNumber: string | null;
   reraBrokerCard: string | null;
+  /** Addresses of the real photos, cover first, under this page's path. */
   photos: string[];
+  /**
+   * Photos are on file but none is a stored image yet — the placeholders
+   * from before photos could be uploaded. The page offers them on
+   * request rather than drawing broken images.
+   */
+  photosOnRequest: boolean;
   brokerage: string;
   /** E.164, for the WhatsApp link. Null when the brokerage has no channel. */
   whatsapp: string | null;
@@ -84,6 +94,40 @@ export async function publicListing(
   slug: string,
   reference: string,
 ): Promise<PublicListing | null> {
+  return (await loadPublic(slug, reference))?.view ?? null;
+}
+
+/**
+ * One photo of a public property, as a signed URL to redirect to — or
+ * null for every kind of miss, exactly as the page answers.
+ */
+export async function publicPhoto(slug: string, reference: string, attachmentId: string): Promise<string | null> {
+  const found = await loadPublic(slug, reference);
+  if (!found) return null;
+  return photoLocation({ orgId: found.orgId, listingId: found.listingId, descriptions: found.descriptions, attachmentId });
+}
+
+/**
+ * The property and its cover photo's bytes, for the preview card.
+ *
+ * The bytes rather than a URL because the card is drawn server-side and
+ * a signed URL would have to be fetched straight back anyway. A storage
+ * failure is not a missing property: the card is drawn without the
+ * photo, as it was before photos existed, rather than refusing.
+ */
+export async function publicCover(slug: string, reference: string) {
+  const found = await loadPublic(slug, reference);
+  if (!found) return null;
+  let cover: { bytes: Uint8Array; mimeType: string } | null = null;
+  if (found.cover) {
+    cover = await readObject(found.cover.storageRef)
+      .then((bytes) => ({ bytes, mimeType: found.cover!.mimeType }))
+      .catch(() => null);
+  }
+  return { view: found.view, cover };
+}
+
+async function loadPublic(slug: string, reference: string) {
   const org = await crossTenant("global-key").organisation.findUnique({
     where: { slug },
     select: { id: true, name: true, deletedAt: true },
@@ -97,18 +141,20 @@ export async function publicListing(
       priceFils: true, community: true, building: true, bedrooms: true,
       bathrooms: true, areaSqft: true, permitNumber: true,
       permitExpiresAt: true, reraBrokerCard: true, descriptions: true,
-      deletedAt: true, orgId: true, agentId: true,
+      deletedAt: true, orgId: true, agentId: true, id: true,
     },
   });
   if (!row || row.deletedAt || row.status !== "AVAILABLE") return null;
 
-  const d = (row.descriptions ?? {}) as { photos?: string[]; en?: string };
-  const photos = Array.isArray(d.photos) ? d.photos : [];
+  const d = (row.descriptions ?? {}) as { en?: string };
+  const listed = photoList(row.descriptions);
 
   // The same validator the feed and the queue run.
-  if (blocking(validateForPublish(row as never, PUBLIC_REQUIREMENTS, photos.length)).length) {
+  if (blocking(validateForPublish(row as never, PUBLIC_REQUIREMENTS, listed.length)).length) {
     return null;
   }
+  const real = await realPhotos(row.orgId, row.id, row.descriptions);
+  const path = propertyPath(slug, row.reference);
 
   /**
    * The brokerage's own WhatsApp number, so the enquiry lands in the
@@ -132,7 +178,7 @@ export async function publicListing(
       })
     : null;
 
-  return {
+  const view: PublicListing = {
     reference: row.reference,
     title: row.title,
     description: d.en ?? null,
@@ -145,11 +191,13 @@ export async function publicListing(
     areaSqft: row.areaSqft,
     permitNumber: row.permitNumber,
     reraBrokerCard: row.reraBrokerCard,
-    photos,
+    photos: real.map((p) => photoPath(path, p.id)),
+    photosOnRequest: real.length === 0 && listed.length > 0,
     brokerage: org.name,
     whatsapp: channel?.identifier ?? null,
     agent: agent?.user.name ?? null,
   };
+  return { view, orgId: row.orgId, listingId: row.id, descriptions: row.descriptions, cover: real[0] ?? null };
 }
 
 /**
@@ -172,7 +220,5 @@ export function viewingText(l: Pick<PublicListing, "reference" | "title">) {
   return `Hello — I'd like to arrange a private viewing of ${l.reference} (${l.title}).`;
 }
 
-/** Where a property's page lives. One place builds it. */
-export function propertyPath(slug: string, reference: string) {
-  return `/p/${encodeURIComponent(slug)}/${encodeURIComponent(reference)}`;
-}
+/** Where a property's page lives. One place builds it: `lib/listing-paths`. */
+export { propertyPath };

@@ -102,7 +102,7 @@ What is verified today, measured rather than assumed:
   `/api/health` returns `200 {"ok":true}` against a real Postgres.
 - The boot log names every unconfigured service with its consequence —
   six of them in a bare development environment.
-- 427 assertions in 30 files, 61 check suites, 23 audits, all green.
+- 432 assertions in 31 files, 62 check suites, 23 audits, all green.
 
 Type errors on a fresh checkout are no longer expected. If you get one,
 it is new.
@@ -934,8 +934,8 @@ send path read it.
 
 ## Run the tests
 
-    npm test          # 427 assertions, pure functions, no database
-    npm run verify    # tsc, eslint, the tests, 61 check suites, 23 audits
+    npm test          # 432 assertions, pure functions, no database
+    npm run verify    # tsc, eslint, the tests, 62 check suites, 23 audits
 
 **The gate is now green end to end, including the two things that used
 to skip.** `verify` reports what it did not run rather than counting a
@@ -994,7 +994,7 @@ skip as a pass, and for a long time it reported two:
   leaving you to guess.
 
 `npm test` was declared from day one with no test files behind it, so it
-exited 1 and said "No test files found". There are 30 test files now, and
+exited 1 and said "No test files found". There are 31 test files now, and
 they cover the pure logic where being wrong is silent: the fils unit, the
 24-hour window on both sides of the boundary, Dubai sending hours, the
 search parser's plural intents and budget bands, lead scoring, deal
@@ -1370,13 +1370,29 @@ with an empirical floor under it.
   `requireAnyPermission` or `signedInProcedure` was invisible to them —
   the count went *down* when four procedures were added. A new builder
   goes in those patterns in the same commit.
-- **Listing photographs.** A listing's `photos` are file names, not
-  stored images, so the buyer's page offers photography on request
-  rather than showing it. Object storage exists (`lib/files/storage.ts`,
-  S3-compatible) and carries brochures; wiring listing photos through it
-  — upload on the listing, a signed read route for the page, the first
-  photo as the preview card — is the next step for the buyer's page,
-  and needs a bucket (R2, S3) configured first.
+- ~~**Listing photographs.**~~ **Built; a bucket is the owner's.** It was
+  the light switch wired to nothing on the wall a portal looks at:
+  publishing anywhere needs a photo, and `descriptions.photos` had one
+  writer — the seed, with `01.jpg`…`04.jpg` — so every real listing
+  failed the rule for ever and the demo's feed handed portals file names.
+  Now **Photos** on Listings uploads straight to storage (signed PUT, the
+  exact size signed), keeps a file only once its first bytes prove it is
+  the JPEG or PNG it claims (`matchesType`), and stores each as a PHOTO
+  `Attachment` of the listing; the order stays in `descriptions.photos`
+  as attachment ids, first is the cover, and pre-upload placeholders are
+  counted as before and dropped at the first real photo
+  (`lib/listings/photos.ts`). Buyers reach a photo through
+  `/p/<slug>/<ref>/photos/<id>`, which asks the page's own gate and then
+  redirects to a URL signed for ten minutes — the bucket stays private and
+  a withheld property's photos go dark with it. The preview card uses the
+  cover; the feed prints absolute photo addresses. Managers add and remove
+  (`listing:write`, as for editing). `check:listing-photos`.
+
+  **Found on the way: every direct upload was refused in production.**
+  `connect-src` allowed this server and Stripe, and the browser PUTs to
+  storage — brochures in the inbox included. No check had ever uploaded
+  from a browser, so nothing saw it. The policy now names the storage origin (`lib/storage-origin.ts`,
+  edge-safe, held to what `storage.ts` signs by a unit test).
 - **Two-step sign-in is optional.** Owners and admins are asked on
   Settings → Security; nothing makes it compulsory for a brokerage,
   because the day a phone is lost that locks somebody out, and it is the

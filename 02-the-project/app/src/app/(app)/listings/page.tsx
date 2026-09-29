@@ -13,6 +13,7 @@ import { Lease } from "./lease";
 import { WhoWantsIt } from "./who-wants-it";
 import { AddProperty } from "./add-property";
 import { EditListing } from "./edit-listing";
+import { Photos } from "./photos";
 import { CheckCopy } from "./check-copy";
 import { ShareLink } from "./share-link";
 import { download } from "@/lib/download";
@@ -56,6 +57,7 @@ function Listings() {
   // Which row has its owner panel open. One at a time: the panel is a
   // block, and two of them open in a table turns the list into a form.
   const [ownerFor, setOwnerFor] = useState<string | null>(null);
+  const [photosFor, setPhotosFor] = useState<string | null>(null);
 
   /**
    * Filters, applied by the server. The screen asked for twenty-five and
@@ -316,6 +318,13 @@ function Listings() {
 
             <div className="justify-self-end flex gap-2 flex-wrap justify-end max-[820px]:justify-self-start max-[820px]:justify-start">
               <EditListing listing={l} />
+              <button
+                onClick={() => setPhotosFor((o) => (o === l.id ? null : l.id))}
+                aria-expanded={photosFor === l.id}
+                className="min-h-11 px-1.5 text-sm text-ink-2 hover:text-ink hover:underline underline-offset-4 focus-visible:outline-none focus-visible:shadow-[var(--ring)] rounded-sm"
+              >
+                Photos
+              </button>
               <ShareLink listingId={l.id} />
               <CheckCopy listingId={l.id} />
               <WhoWantsIt listingId={l.id} reference={l.reference} />
@@ -341,6 +350,12 @@ function Listings() {
                 {l.vendor ? "Owner" : "No owner"}{l.purpose === "RENT" ? " & lease" : ""}
               </button>
             </div>
+
+            {photosFor === l.id && (
+              <div className="col-span-full">
+                <Photos listingId={l.id} />
+              </div>
+            )}
 
             {ownerFor === l.id && (
               <div className="col-span-full">

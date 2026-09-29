@@ -12,6 +12,11 @@ import type { Prisma } from "@prisma/client";
 import { placesIn, storedVariants } from "@/server/lib/places";
 import { publicListing, propertyPath, PUBLIC_REQUIREMENTS } from "@/server/lib/listings/public";
 import { resolveLocation, listingNames } from "@/server/lib/locations";
+import {
+  PHOTO_LIMIT, PHOTO_MAX_BYTES, PHOTO_TYPES, PHOTO_URL_SECONDS, photoList, photoPrefix, realPhotos,
+} from "@/server/lib/listings/photos";
+import { deleteObject, objectExists, readObjectHead, signGet, signPut, storageConfigured } from "@/server/lib/files/storage";
+import { matchesType } from "@/server/lib/files/signature";
 
 
 /**
@@ -619,6 +624,194 @@ export const listingsRouter = router({
       const photos = ((listing.descriptions ?? {}) as { photos?: string[] }).photos?.length ?? 0;
       const why = blocking(validateForPublish(listing as never, PUBLIC_REQUIREMENTS, photos))[0];
       return { ok: false as const, reason: why?.message ?? "This property cannot be advertised yet." };
+    }),
+
+  /**
+   * A listing's photographs, cover first, for the agent's own screen.
+   *
+   * Each comes with an address signed for a few minutes, because the
+   * bucket is private and an unpublished listing's photos have no public
+   * route yet. `storage` is false where no bucket is configured, so the
+   * screen can say so instead of offering an upload that cannot land.
+   */
+  photos: requirePermission("listing:read")
+    .input(z.object({ listingId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const listing = await ctx.db.listing.findFirst({
+        where: { id: input.listingId, deletedAt: null }, select: { id: true, descriptions: true },
+      });
+      if (!listing) throw new TRPCError({ code: "NOT_FOUND", message: "No such property." });
+      const storage = storageConfigured();
+      const real = await realPhotos(ctx.orgId, listing.id, listing.descriptions);
+      return {
+        storage,
+        limit: PHOTO_LIMIT,
+        canEdit: can(ctx.role, "listing:write"),
+        // Placeholders from before uploads existed: counted by the
+        // publishing rules until a real photo replaces them.
+        placeholders: real.length ? 0 : photoList(listing.descriptions).length,
+        rows: real.map((p) => ({
+          id: p.id, fileName: p.fileName,
+          url: storage ? signGet({ key: p.storageRef, expiresInSeconds: PHOTO_URL_SECONDS }) : null,
+        })),
+      };
+    }),
+
+  /**
+   * Somewhere to put one photo: a signed upload straight to storage.
+   *
+   * Checked before the bytes move, so an agent on hotel wifi is not told
+   * after two minutes that a HEIC was never going to be accepted. The
+   * size is signed exactly, so the ticket cannot carry anything larger.
+   */
+  photoUpload: requirePermission("listing:write")
+    .input(z.object({
+      listingId: z.string(),
+      fileName: z.string().trim().min(1).max(200),
+      mimeType: z.string().max(100),
+      sizeBytes: z.number().int(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const listing = await ctx.db.listing.findFirst({
+        where: { id: input.listingId, deletedAt: null }, select: { id: true, descriptions: true },
+      });
+      if (!listing) throw new TRPCError({ code: "NOT_FOUND", message: "No such property." });
+      if (!storageConfigured()) {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Photo storage is not set up yet, so photos cannot be added. Ask whoever runs your account to connect it." });
+      }
+      if (!(PHOTO_TYPES as readonly string[]).includes(input.mimeType)) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Photos must be JPEG or PNG. Most phones can save a HEIC photo as JPEG." });
+      }
+      if (input.sizeBytes <= 0) throw new TRPCError({ code: "BAD_REQUEST", message: "That file is empty." });
+      if (input.sizeBytes > PHOTO_MAX_BYTES) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: `That photo is ${(input.sizeBytes / 1024 / 1024).toFixed(0)}MB and the limit is ${PHOTO_MAX_BYTES / 1024 / 1024}MB. Export it smaller and try again.` });
+      }
+      if ((await realPhotos(ctx.orgId, listing.id, listing.descriptions)).length >= PHOTO_LIMIT) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: `A property can have ${PHOTO_LIMIT} photos. Remove one to add another.` });
+      }
+      const key = `${photoPrefix(ctx.orgId, listing.id)}${crypto.randomUUID()}`;
+      const uploadUrl = await signPut({ key, mimeType: input.mimeType, sizeBytes: input.sizeBytes, expiresInSeconds: 900 });
+      return { key, uploadUrl };
+    }),
+
+  /**
+   * Kept only once the bytes are there and are what they say they are.
+   *
+   * The key must be under this listing's own prefix — a key from another
+   * listing or brokerage is refused, not attached. The first bytes are
+   * read back and must be a JPEG or PNG of the declared size; anything
+   * else is deleted, never recorded. The photo joins the end of the
+   * order, and placeholders from before uploads existed go.
+   */
+  photoConfirm: requirePermission("listing:write")
+    .input(z.object({
+      listingId: z.string(),
+      key: z.string().max(300),
+      fileName: z.string().trim().min(1).max(200),
+      mimeType: z.string().max(100),
+      sizeBytes: z.number().int().positive(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const listing = await ctx.db.listing.findFirst({
+        where: { id: input.listingId, deletedAt: null }, select: { id: true },
+      });
+      if (!listing) throw new TRPCError({ code: "NOT_FOUND", message: "No such property." });
+      if (!input.key.startsWith(photoPrefix(ctx.orgId, listing.id)) || input.key.includes("..")) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "That upload does not belong to this property." });
+      }
+      if (!(PHOTO_TYPES as readonly string[]).includes(input.mimeType)) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Photos must be JPEG or PNG." });
+      }
+      if (await ctx.db.attachment.findFirst({ where: { storageRef: input.key }, select: { id: true } })) {
+        throw new TRPCError({ code: "CONFLICT", message: "That photo is already on the property." });
+      }
+      if (!(await objectExists(input.key))) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "That upload didn't finish. Try again." });
+      }
+      const { head, size } = await readObjectHead(input.key);
+      if (!matchesType(head, input.mimeType) || (size !== null && size !== input.sizeBytes)) {
+        await deleteObject(input.key).catch(() => {});
+        throw new TRPCError({ code: "BAD_REQUEST", message: "That file isn't the photo it says it is, so it wasn't kept. Save it again as a JPEG or PNG and upload that." });
+      }
+
+      const id = await ctx.db.$transaction(async (tx) => {
+        const row = await tx.listing.findFirstOrThrow({ where: { id: listing.id }, select: { descriptions: true } });
+        const kept = (await realPhotos(ctx.orgId, listing.id, row.descriptions)).map((p) => p.id);
+        if (kept.length >= PHOTO_LIMIT) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: `A property can have ${PHOTO_LIMIT} photos. Remove one to add another.` });
+        }
+        const photo = await tx.attachment.create({
+          data: {
+            orgId: ctx.orgId, listingId: listing.id, kind: "PHOTO",
+            fileName: input.fileName, storageRef: input.key, mimeType: input.mimeType,
+            sizeBytes: input.sizeBytes, uploadedById: ctx.userId,
+          },
+          select: { id: true },
+        });
+        await tx.listing.update({
+          where: { id: listing.id },
+          data: { descriptions: { ...((row.descriptions ?? {}) as object), photos: [...kept, photo.id] } },
+        });
+        await audit(tx as never, ctx.orgId, {
+          actorId: ctx.userId, action: "listing.photo_added", entity: "Listing", entityId: listing.id,
+          after: { photoId: photo.id, count: kept.length + 1 },
+        });
+        return photo.id;
+      });
+      return { id };
+    }),
+
+  /** The cover is the first photo: on the page, in the card, in the feed. */
+  photoCover: requirePermission("listing:write")
+    .input(z.object({ listingId: z.string(), photoId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const listing = await ctx.db.listing.findFirst({
+        where: { id: input.listingId, deletedAt: null }, select: { id: true, descriptions: true },
+      });
+      if (!listing) throw new TRPCError({ code: "NOT_FOUND", message: "No such property." });
+      const ids = (await realPhotos(ctx.orgId, listing.id, listing.descriptions)).map((p) => p.id);
+      if (!ids.includes(input.photoId)) throw new TRPCError({ code: "NOT_FOUND", message: "That photo is no longer on the property." });
+      await ctx.db.listing.update({
+        where: { id: listing.id },
+        data: { descriptions: { ...((listing.descriptions ?? {}) as object), photos: [input.photoId, ...ids.filter((x) => x !== input.photoId)] } },
+      });
+      await audit(ctx.db, ctx.orgId, {
+        actorId: ctx.userId, action: "listing.photo_cover", entity: "Listing", entityId: listing.id, after: { photoId: input.photoId },
+      });
+      return { ok: true };
+    }),
+
+  /**
+   * Off the property, and out of storage.
+   *
+   * The row and the order change together; the object is deleted after,
+   * because a storage hiccup must not leave a photo on the page that the
+   * agent was told was gone. An object left behind costs pennies.
+   */
+  photoRemove: requirePermission("listing:write")
+    .input(z.object({ listingId: z.string(), photoId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const listing = await ctx.db.listing.findFirst({
+        where: { id: input.listingId, deletedAt: null }, select: { id: true, descriptions: true },
+      });
+      if (!listing) throw new TRPCError({ code: "NOT_FOUND", message: "No such property." });
+      const photo = await ctx.db.attachment.findFirst({
+        where: { id: input.photoId, listingId: listing.id, kind: "PHOTO" }, select: { id: true, storageRef: true },
+      });
+      if (!photo) throw new TRPCError({ code: "NOT_FOUND", message: "That photo is no longer on the property." });
+      const ids = (await realPhotos(ctx.orgId, listing.id, listing.descriptions)).map((p) => p.id);
+      await ctx.db.$transaction(async (tx) => {
+        await tx.attachment.delete({ where: { id: photo.id } });
+        await tx.listing.update({
+          where: { id: listing.id },
+          data: { descriptions: { ...((listing.descriptions ?? {}) as object), photos: ids.filter((x) => x !== photo.id) } },
+        });
+        await audit(tx as never, ctx.orgId, {
+          actorId: ctx.userId, action: "listing.photo_removed", entity: "Listing", entityId: listing.id, after: { photoId: photo.id },
+        });
+      });
+      await deleteObject(photo.storageRef).catch(() => {});
+      return { ok: true };
     }),
 
   buyers: requirePermission("listing:read")

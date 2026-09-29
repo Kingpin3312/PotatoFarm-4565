@@ -1,6 +1,7 @@
 import { crossTenant } from "@/server/db/client";
 import { aedPlain } from "@/lib/money";
 import { validateForPublish, blocking } from "@/server/lib/feeds/validate";
+import { photoList, photoPath, propertyPath } from "@/lib/listing-paths";
 
 /**
  * The listing feed — distribution that needs no partner API.
@@ -83,7 +84,8 @@ export type FeedListing = {
  * filtered explicitly below, so the scope is narrower than the reason
  * allows rather than wider.
  */
-export async function feedFor(orgId: string): Promise<FeedListing[]> {
+export async function feedFor(orgId: string, opts: { origin?: string } = {}): Promise<FeedListing[]> {
+  const org = await crossTenant("global-key").organisation.findUnique({ where: { id: orgId }, select: { slug: true } });
   const rows = await crossTenant("global-key").listing.findMany({
     where: {
       orgId,
@@ -100,16 +102,37 @@ export async function feedFor(orgId: string): Promise<FeedListing[]> {
       reference: true, title: true, purpose: true, priceFils: true,
       community: true, building: true, bedrooms: true, bathrooms: true,
       areaSqft: true, permitNumber: true, permitExpiresAt: true,
-      reraBrokerCard: true, descriptions: true, updatedAt: true,
+      reraBrokerCard: true, descriptions: true, updatedAt: true, id: true,
       location: { select: { path: true, pfLocationId: true } },
     },
     orderBy: { updatedAt: "desc" },
     take: 5000,
   });
 
+  /**
+   * Stored photos become addresses a portal can download.
+   *
+   * The feed used to print whatever `descriptions.photos` held, which was
+   * only ever the seed's file names — `<photo>01.jpg</photo>`, nothing a
+   * portal could fetch. A stored photo is now its public route under the
+   * property page, absolute, which answers only while the page does. One
+   * query for the whole brokerage, not one per listing. Anything else in
+   * the list is a placeholder from before uploads existed and is printed
+   * as it always was.
+   */
+  const stored = await crossTenant("global-key").attachment.findMany({
+    where: { orgId, kind: "PHOTO", listingId: { in: rows.map((r) => r.id) } },
+    select: { id: true, listingId: true },
+  });
+  const photoOf = new Set(stored.map((a) => `${a.listingId}:${a.id}`));
+  const address = (listingId: string, reference: string, entry: string) =>
+    org && photoOf.has(`${listingId}:${entry}`)
+      ? `${opts.origin ?? ""}${photoPath(propertyPath(org.slug, reference), entry)}`
+      : entry;
+
   const out: FeedListing[] = [];
   for (const r of rows) {
-    const d = (r.descriptions ?? {}) as { photos?: string[]; en?: string };
+    const d = (r.descriptions ?? {}) as { en?: string };
     const listing: FeedListing = {
       reference: r.reference,
       title: r.title,
@@ -125,7 +148,7 @@ export async function feedFor(orgId: string): Promise<FeedListing[]> {
       permitNumber: r.permitNumber,
       permitExpiresAt: r.permitExpiresAt,
       reraBrokerCard: r.reraBrokerCard,
-      photos: Array.isArray(d.photos) ? d.photos : [],
+      photos: photoList(r.descriptions).map((p) => address(r.id, r.reference, p)),
       updatedAt: r.updatedAt,
     };
     /**

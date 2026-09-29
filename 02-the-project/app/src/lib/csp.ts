@@ -11,6 +11,8 @@
  * differs per line and the next person will need to change exactly one.
  */
 
+import { storageOrigin } from "./storage-origin";
+
 const dev = process.env.NODE_ENV !== "production";
 
 /**
@@ -21,6 +23,10 @@ const dev = process.env.NODE_ENV !== "production";
  *               note on that branch below.
  */
 export function buildCsp(nonce?: string): string {
+  // Where the browser uploads to directly. See storage-origin.ts: without
+  // it every direct upload was refused in production.
+  const storage = storageOrigin();
+
   /**
    * The directive that actually stops cross-site scripting.
    *
@@ -96,7 +102,7 @@ export function buildCsp(nonce?: string): string {
      * `ws:` in development only: hot reload is a websocket back to the
      * dev server, and without it the page loads once and never updates.
      */
-    `connect-src 'self' https://api.stripe.com${dev ? " ws: http://localhost:*" : ""}`,
+    `connect-src 'self' https://api.stripe.com${storage ? ` ${storage}` : ""}${dev ? " ws: http://localhost:*" : ""}`,
 
     // Stripe's card form is an iframe and there is nothing else embedded.
     "frame-src 'self' https://js.stripe.com https://hooks.stripe.com",

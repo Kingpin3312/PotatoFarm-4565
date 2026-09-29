@@ -25,7 +25,7 @@ export const dynamic = "force-dynamic";
  * and hand it over.
  */
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ token: string }> },
 ) {
   const { token } = await params;
@@ -47,7 +47,9 @@ export async function GET(
     return new NextResponse("Not found", { status: 404 });
   }
 
-  const listings = await feedFor(org.id);
+  // Photos as absolute addresses on the host the portal asked, which is
+  // the host it can reach.
+  const listings = await feedFor(org.id, { origin: new URL(req.url).origin });
   const body = toXml(listings, { brokerage: org.name });
 
   /**

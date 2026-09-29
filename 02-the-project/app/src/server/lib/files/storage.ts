@@ -152,6 +152,28 @@ export async function signPut(args: {
   return url;
 }
 
+/**
+ * A presigned GET, for a browser or a portal to fetch one object.
+ *
+ * Short-lived, and only ever issued by a caller that has already decided
+ * the reader may see it — the listing photo route checks the property is
+ * public first. The bucket itself stays private: a URL that expires in
+ * minutes is a loan, a public bucket is a gift of everything in it.
+ */
+export function signGet(args: { key: string; expiresInSeconds: number }): string {
+  const c = need();
+  const { url } = presign({
+    creds: c.creds,
+    method: "GET",
+    scheme: c.scheme,
+    host: c.host,
+    path: `${c.prefix}/${args.key}`,
+    headers: {},
+    expiresInSeconds: args.expiresInSeconds,
+  });
+  return url;
+}
+
 async function request(method: string, key: string, init?: RequestInit) {
   const c = need();
   const path = `${c.prefix}/${key}`;

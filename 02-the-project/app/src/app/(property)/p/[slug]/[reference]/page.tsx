@@ -22,10 +22,10 @@ type Params = { params: Promise<{ slug: string; reference: string }> };
  * Most of the value of this page is consumed before anybody opens it.
  * An agent pastes the link into a chat and WhatsApp renders a preview
  * card from these tags. The card's image is drawn by `opengraph-image`
- * beside this file — the listing's name, facts and price on the
- * brokerage's masthead — because until photographs are stored rather
- * than referenced there is no picture of the property to use, and a
- * link without an image previews as a grey box.
+ * beside this file — the cover photograph when the listing has one, under
+ * the listing's name, facts and price on the brokerage's masthead; the
+ * same card without a photograph when it has none, because a link
+ * without an image previews as a grey box.
  */
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { slug, reference } = await params;
@@ -117,6 +117,32 @@ export default async function PropertyPage({ params }: Params) {
           </ul>
         )}
 
+        {/* The photographs: the cover wide, the rest two abreast.
+            Plain images from this page's own photo route, which checks
+            the property is still public before it hands out a signed
+            address — so a gallery never outlives its page. Lazy past the
+            cover, because a buyer on a phone in a lift pays for every
+            one they never scroll to. */}
+        {l.photos.length > 0 && (
+          <section className="mt-10" aria-label="Photographs" data-photos>
+            {/* Plain images, not next/image: each address redirects to a
+                URL signed for minutes, which the optimiser would cache
+                past its expiry. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={l.photos[0]} alt={`${l.title}, main photograph`}
+                 className="w-full aspect-[3/2] object-cover rounded-md bg-sunk" />
+            {l.photos.length > 1 && (
+              <div className="mt-3 grid grid-cols-2 gap-3">
+                {l.photos.slice(1).map((src, i) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img key={src} src={src} alt={`${l.title}, photograph ${i + 2}`} loading="lazy"
+                       className="w-full aspect-[3/2] object-cover rounded-md bg-sunk" />
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+
         {/* The two things a buyer can do, the first being the one that
             moves them forward. Both open the brokerage's own WhatsApp
             with the reference already in the message, so the assistant
@@ -140,10 +166,9 @@ export default async function PropertyPage({ params }: Params) {
             <p className="mt-4 text-body-lg text-ink-2 leading-relaxed max-w-[60ch] whitespace-pre-line">
               {l.description}
             </p>
-            {/* Photos are references rather than stored images until
-                object storage is wired for listings, so they are
-                offered rather than shown — and never as broken images. */}
-            {l.photos.length > 0 && (
+            {/* Placeholders from before photos could be uploaded are
+                offered rather than shown — never as broken images. */}
+            {l.photosOnRequest && (
               <p className="mt-5 text-sm text-ink-3">Photography and floor plans are sent on request.</p>
             )}
           </section>
