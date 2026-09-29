@@ -8,7 +8,9 @@ import { audit } from "@/server/lib/audit";
 import { openKycFile } from "@/server/lib/aml/open";
 import { screen } from "@/server/lib/aml/screen";
 import { KYC_DOC_MAX_BYTES, KYC_DOC_MIME, KYC_DOC_VIEW_SECONDS, kycPrefix } from "@/server/lib/aml/documents";
-import { deleteObject, objectExists, readObjectHead, signGet, signPut, storageConfigured } from "@/server/lib/files/storage";
+import { deleteObject, objectExists, putObject, readObjectHead, signGet, signPut, storageConfigured } from "@/server/lib/files/storage";
+import { DEMO_TOKEN, downloadMedia, MediaGoneError, MediaTooLargeError } from "@/server/lib/whatsapp";
+import { getChannelCredentials } from "@/server/lib/secrets";
 import { matchesType } from "@/server/lib/files/signature";
 import { personScope } from "@/server/auth/rbac";
 import type { Role } from "@prisma/client";
@@ -389,6 +391,90 @@ export const amlRouter = router({
         return created;
       });
       return { id: doc.id };
+    }),
+
+  /**
+   * A photo or PDF the person sent on WhatsApp, into their file.
+   *
+   * The identity panel's request asks for the passport on WhatsApp, and
+   * until this the answer stopped at "[photo]" in the thread: the media id
+   * was dropped on arrival and nothing could fetch the file. Now the agent
+   * says what it is, and the server takes it from Meta straight into the
+   * file's storage — never through the agent's device, never into the
+   * thread (`collect.ts` rule 4) — with the checks an upload gets: this
+   * person's file, a photo or PDF by its bytes, under the size cap. It
+   * then waits for a compliance approver like any other document; the
+   * agent's word for what it is proves nothing, and `documentVerify` is
+   * where that is decided.
+   *
+   * Keyed on the message, so the same message cannot be filed twice.
+   */
+  documentFromMessage: requirePermission("kyc:write")
+    .input(z.object({
+      messageId: z.string(),
+      type: z.enum(["PASSPORT", "EMIRATES_ID", "GCC_ID", "TRADE_LICENCE"]),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const msg = await ctx.db.message.findFirst({
+        where: { id: input.messageId, direction: "INBOUND", mediaId: { not: null } },
+        select: { id: true, body: true, mediaId: true, sentAt: true, conversation: { select: { leadId: true, channelId: true } } },
+      });
+      if (!msg?.mediaId || !msg.conversation.leadId) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "That message has no file to add." });
+      }
+      const kyc = await ownFile(ctx, msg.conversation.leadId);
+      if (!storageConfigured()) {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Document storage is not set up yet, so documents cannot be added here." });
+      }
+      const key = `${kycPrefix(ctx.orgId, kyc.id)}wa-${msg.id}`;
+      if (await ctx.db.kycDocument.findFirst({ where: { storageRef: key }, select: { id: true } })) {
+        throw new TRPCError({ code: "CONFLICT", message: "That document is already in the file." });
+      }
+
+      const creds = await getChannelCredentials(ctx.orgId, msg.conversation.channelId).catch(() => null);
+      if (!creds) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "This WhatsApp number isn't connected any more, so the file can't be fetched. Reconnect it in Settings → Channels." });
+      if (creds.accessToken === DEMO_TOKEN) {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: "This is the demonstration brokerage: nothing it receives came from WhatsApp, so there is no file to fetch." });
+      }
+
+      let got: { bytes: Uint8Array; mimeType: string };
+      try {
+        got = await downloadMedia({ mediaId: msg.mediaId, accessToken: creds.accessToken, maxBytes: KYC_DOC_MAX_BYTES });
+      } catch (err) {
+        if (err instanceof MediaGoneError || err instanceof MediaTooLargeError) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: err.message });
+        }
+        throw new TRPCError({ code: "BAD_GATEWAY", message: "WhatsApp didn't hand the file over. Try again in a minute." });
+      }
+      if (!(KYC_DOC_MIME as readonly string[]).includes(got.mimeType) || !matchesType(got.bytes.slice(0, 16), got.mimeType)) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Only a photo (JPEG or PNG) or a PDF can go in the file, and this is neither." });
+      }
+
+      await putObject(key, got.bytes, got.mimeType);
+      const ext = got.mimeType === "application/pdf" ? "pdf" : got.mimeType === "image/png" ? "png" : "jpg";
+      const named = /^\[document: (.+?)\]/.exec(msg.body)?.[1];
+      const fileName = named ?? `whatsapp-${msg.sentAt.toISOString().slice(0, 10)}.${ext}`;
+      try {
+        const doc = await ctx.db.$transaction(async (tx) => {
+          const created = await tx.kycDocument.create({
+            data: { orgId: ctx.orgId, kycId: kyc.id, type: input.type, storageRef: key, fileName, collectedVia: "WHATSAPP" },
+            select: { id: true },
+          });
+          if (kyc.status === "NOT_STARTED" || kyc.status === "COLLECTING") {
+            await tx.kycRecord.update({ where: { id: kyc.id }, data: { status: "PENDING_REVIEW" } });
+          }
+          await audit(tx, ctx.orgId, {
+            actorId: ctx.userId, action: "aml.document_added", entity: "KycRecord", entityId: kyc.id,
+            after: { type: input.type, documentId: created.id, via: "WHATSAPP" },
+          });
+          return created;
+        });
+        return { id: doc.id };
+      } catch (err) {
+        // Not left for the weekly sweep: this is somebody's passport.
+        await deleteObject(key).catch(() => {});
+        throw err;
+      }
     }),
 
   /** A file's documents, for whoever approves due diligence. */

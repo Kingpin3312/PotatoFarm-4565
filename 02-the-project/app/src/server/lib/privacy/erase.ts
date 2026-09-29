@@ -149,7 +149,7 @@ export async function eraseSubject(args: {
      */
     const messages = await tx.message.updateMany({
       where: { conversation: { leadId: lead.id } },
-      data: { body: "[erased at the person's request]", mediaUrl: null },
+      data: { body: "[erased at the person's request]", mediaUrl: null, mediaId: null, mediaType: null },
     });
 
     // Free-text answers can contain anything, including things volunteered
@@ -309,7 +309,7 @@ async function eraseOwners(args: { orgId: string; phone: string; requestedBy: st
     messages += await db.$transaction(async (tx) => {
       const convo = await tx.conversation.findUnique({ where: { vendorId: owner.id }, select: { id: true } });
       const m = convo
-        ? await tx.message.updateMany({ where: { conversationId: convo.id }, data: { body: "[erased at the person's request]", mediaUrl: null } })
+        ? await tx.message.updateMany({ where: { conversationId: convo.id }, data: { body: "[erased at the person's request]", mediaUrl: null, mediaId: null, mediaType: null } })
         : { count: 0 };
       await tx.vendor.update({
         where: { id: owner.id },

@@ -71,10 +71,12 @@ async function inbound(
   const from = `+${msg.from}`;
   const profileName = value.contacts?.[0]?.profile?.name as string | undefined;
   const sentAt = new Date(Number(msg.timestamp) * 1000);
+  const media = sentFile(msg);
   const body =
     msg.text?.body ??
     msg.button?.text ??
     msg.interactive?.list_reply?.title ??
+    media?.body ??
     `[${msg.type}]`;
 
   // Checked before anything else. "Stop" has to work on the first
@@ -146,7 +148,7 @@ async function inbound(
       const owner = (await ownersWithNumber(tx, from))[0];
       if (owner) {
         const conversation = await arrived(tx, { vendorId: owner.id }, channel, sentAt);
-        await store(tx, channel.orgId, conversation.id, msg.id, body, sentAt);
+        await store(tx, channel.orgId, conversation.id, msg.id, body, sentAt, media);
         return null;
       }
     }
@@ -221,7 +223,7 @@ async function inbound(
     }
 
     const conversation = await arrived(tx, { leadId: lead.id }, channel, sentAt);
-    const message = await store(tx, channel.orgId, conversation.id, msg.id, body, sentAt);
+    const message = await store(tx, channel.orgId, conversation.id, msg.id, body, sentAt, media);
     return { conversationId: conversation.id, messageId: message.id };
   });
 }
@@ -274,7 +276,34 @@ async function arrived(
   });
 }
 
-async function store(tx: any, orgId: string, conversationId: string, externalId: string, body: string, sentAt: Date): Promise<{ id: string }> {
+/**
+ * A photo or a document, as a reference and a line for the thread.
+ *
+ * It was `[image]` and nothing else: the id Meta sends — the only way to
+ * fetch the file — was dropped on arrival. So the passport the identity
+ * panel's request asks a buyer to send on WhatsApp arrived, showed as
+ * "[image]", and could never reach the file; the agent had to ask again
+ * some other way. The id is kept now, and the file stays with Meta until
+ * somebody files it — `collect.ts` rule 4: the image never lives in the
+ * thread.
+ */
+export function sentFile(msg: any): { body: string; mediaId: string; mediaType: string | null } | null {
+  const part = msg.type === "image" ? msg.image : msg.type === "document" ? msg.document : null;
+  if (!part?.id) return null;
+  const caption = typeof part.caption === "string" && part.caption.trim() ? part.caption.trim() : null;
+  const name = typeof part.filename === "string" && part.filename.trim() ? part.filename.trim().slice(0, 120) : null;
+  const what = msg.type === "image" ? "[photo]" : `[document${name ? `: ${name}` : ""}]`;
+  return {
+    body: caption ? `${what} ${caption}` : what,
+    mediaId: String(part.id).slice(0, 100),
+    mediaType: typeof part.mime_type === "string" ? part.mime_type.split(";")[0].trim().slice(0, 100) : null,
+  };
+}
+
+async function store(
+  tx: any, orgId: string, conversationId: string, externalId: string, body: string, sentAt: Date,
+  media: { mediaId: string; mediaType: string | null } | null = null,
+): Promise<{ id: string }> {
   return tx.message.upsert({
     // The provider id is unique, so a redelivery racing this one updates nothing.
     where: { externalId },
@@ -285,6 +314,7 @@ async function store(tx: any, orgId: string, conversationId: string, externalId:
       // "the other side", and an owner is the other side too.
       author: "LEAD",
       body, status: "DELIVERED", sentAt,
+      ...(media ? { mediaId: media.mediaId, mediaType: media.mediaType } : {}),
     },
     update: {},
     select: { id: true },

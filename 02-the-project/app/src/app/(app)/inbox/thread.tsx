@@ -10,7 +10,7 @@ import { SendFile } from "./send-file";
 import { SendProperty } from "./send-property";
 import { LeadRouting } from "../pipeline/lead-routing";
 import { ContactRow } from "@/components/ui/contact-row";
-import { KycPanel } from "./kyc-panel";
+import { KycPanel, FileFromMessage } from "./kyc-panel";
 import { Button } from "@/components/ui/button";
 
 /**
@@ -58,6 +58,7 @@ export function Thread({ conversationId }: { conversationId: string }) {
                   sentAt: new Date(),
                   failure: null,
                   templateName: null,
+                  file: null,
                 },
               ],
             }
@@ -130,7 +131,11 @@ export function Thread({ conversationId }: { conversationId: string }) {
 
       <div className="flex-1 overflow-y-auto">
         {data.messages.map((m) => (
-          <Message key={m.id} {...m} />
+          <Message key={m.id} {...m}>
+            {/* A photo or PDF they sent, which can go into their
+                identity file from here — see `FileFromMessage`. */}
+            {m.file && data.lead && <FileFromMessage leadId={data.lead.id} messageId={m.id} file={m.file} />}
+          </Message>
         ))}
 
         {/* The due diligence file, at the foot of the conversation.

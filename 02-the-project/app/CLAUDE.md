@@ -102,7 +102,7 @@ What is verified today, measured rather than assumed:
   `/api/health` returns `200 {"ok":true}` against a real Postgres.
 - The boot log names every unconfigured service with its consequence —
   six of them in a bare development environment.
-- 432 assertions in 31 files, 64 check suites, 23 audits, all green.
+- 432 assertions in 31 files, 65 check suites, 23 audits, all green.
 
 Type errors on a fresh checkout are no longer expected. If you get one,
 it is new.
@@ -935,7 +935,7 @@ send path read it.
 ## Run the tests
 
     npm test          # 432 assertions, pure functions, no database
-    npm run verify    # tsc, eslint, the tests, 64 check suites, 23 audits
+    npm run verify    # tsc, eslint, the tests, 65 check suites, 23 audits
 
 **The gate is now green end to end, including the two things that used
 to skip.** `verify` reports what it did not run rather than counting a
@@ -1405,8 +1405,22 @@ with an empirical floor under it.
   (`kyc:approve`) opens it through a two-minute link — **every opening is
   audited** — and marks it checked. Agents never see the image.
   `receiveDocument` was removed rather than left as the obvious thing to
-  call; taking a document straight from the WhatsApp message still needs
-  the inbound media download. `aml/documents.ts`, `check:kyc-documents`.
+  call. `aml/documents.ts`, `check:kyc-documents`.
+
+  **A passport sent on WhatsApp reaches the file.** The panel's own
+  request asks the buyer to send it on WhatsApp, and the answer stopped
+  at "[image]": ingest dropped the id Meta sends, the only handle on the
+  file. Inbound photos and PDFs now keep `Message.mediaId` / `mediaType`
+  (a reference only — nothing is copied on arrival), the thread offers
+  "Add this photo to their identity file", and `aml.documentFromMessage`
+  fetches it from Meta **straight into the file's storage**, never
+  through the agent's device, with the upload's checks: a person the
+  agent can open, an open file, bytes that prove the type, the 15MB cap
+  whatever Meta declares, once per message. **The channel token goes
+  only to Meta's media hosts** — the download address arrives in a
+  response body, so it is checked, and redirects are refused. A file Meta
+  no longer holds says "ask them to send it again". The browser never
+  sees Meta's id; erasure clears it. `check:whatsapp-documents`.
 
   **Uploads never confirmed are swept weekly** (`storage.orphans`,
   `files/sweep.ts`). For a brochure that is rent; for an identity

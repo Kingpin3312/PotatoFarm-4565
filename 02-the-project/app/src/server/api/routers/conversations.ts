@@ -309,11 +309,35 @@ export const conversationsRouter = router({
             select: {
               id: true, body: true, direction: true, author: true,
               status: true, sentAt: true, failure: true, templateName: true,
+              mediaId: true, mediaType: true,
             },
           },
         },
       });
       if (!c) throw new TRPCError({ code: "NOT_FOUND" });
+
+      /**
+       * Which messages carry a file somebody sent, and whether it is in
+       * the identity file yet — so the thread can offer to file it
+       * (`aml.documentFromMessage`). Meta's id itself stays on the
+       * server: it is a handle on the person's document.
+       */
+      const withFile = c.messages.filter((m) => m.direction === "INBOUND" && m.mediaId);
+      const kyc = c.lead && withFile.length
+        ? await ctx.db.kycRecord.findUnique({ where: { leadId: c.lead.id }, select: { id: true } })
+        : null;
+      const filed = new Set(kyc
+        ? (await ctx.db.kycDocument.findMany({
+            where: { kycId: kyc.id, storageRef: { in: withFile.map((m) => `kyc/${ctx.orgId}/${kyc.id}/wa-${m.id}`) } },
+            select: { storageRef: true },
+          })).map((d) => d.storageRef.slice(d.storageRef.lastIndexOf("/wa-") + 4))
+        : []);
+      const messages = c.messages.map(({ mediaId, mediaType, ...m }) => ({
+        ...m,
+        file: m.direction === "INBOUND" && mediaId
+          ? { kind: mediaType?.startsWith("image/") ? "photo" as const : "document" as const, filed: filed.has(m.id) }
+          : null,
+      }));
 
       // Reading it clears the badge. Done here rather than on the client so
       // it cannot drift between web and mobile.
@@ -324,7 +348,7 @@ export const conversationsRouter = router({
 
       return {
         ...c, party: partyOf(c), draft: c.drafts[0] ?? null,
-        messages: c.messages.reverse(), window: messagingWindow(c.lastInboundAt),
+        messages: messages.reverse(), window: messagingWindow(c.lastInboundAt),
       };
     }),
 

@@ -508,6 +508,13 @@ model Message {
 
   body         String
   mediaUrl     String?
+  /// Meta's id for a photo or PDF the other side sent, and its type as
+  /// Meta reported it. A reference only: the file is fetched from Meta
+  /// when somebody files it (`aml.documentFromMessage`), never copied on
+  /// arrival. Meta keeps inbound media for a limited time, after which
+  /// the id fetches nothing.
+  mediaId      String?
+  mediaType    String?
   templateName String?
 
   /// Meta's message id. Unique so a redelivered webhook cannot double-write.

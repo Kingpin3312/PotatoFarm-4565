@@ -65,11 +65,14 @@ export const ASSISTANT_MAY_VERIFY = false;
  *
  * ## How a document gets in today
  *
- * The agent adds it to the file from the identity panel
- * (`aml.documentUpload` → `aml.documentConfirm`, rules in
- * `aml/documents.ts`). Taking it straight from the WhatsApp message is
- * not built: it needs the inbound media downloaded from Meta with the
- * channel's token, which nothing here does yet.
+ * Two ways, both ending in the same place. The agent adds it from the
+ * identity panel (`aml.documentUpload` → `aml.documentConfirm`, rules in
+ * `aml/documents.ts`), or — when the buyer sent it on WhatsApp, as the
+ * request above asks — files it from the message itself
+ * (`aml.documentFromMessage`): the server fetches it from Meta with the
+ * channel's token straight into the file's storage, with the same
+ * checks. Inbound messages keep only Meta's id (`Message.mediaId`); the
+ * file is never copied anywhere just because it was sent.
  *
  * `receiveDocument` used to stand where that would go. Nothing called it,
  * and it stored nothing — its "secure storage" returned a random key and

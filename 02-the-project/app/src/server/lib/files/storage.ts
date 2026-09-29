@@ -197,6 +197,19 @@ export async function objectExists(key: string): Promise<boolean> {
   return true;
 }
 
+/**
+ * Bytes the server already holds, written straight in.
+ *
+ * Every other write is a browser PUT to a signed ticket; this is for a
+ * file that reaches the server from somewhere else — a document fetched
+ * from Meta — and would otherwise have to be handed to the browser to
+ * upload back, passing through the agent's device on the way.
+ */
+export async function putObject(key: string, bytes: Uint8Array, mimeType: string): Promise<void> {
+  const res = await request("PUT", key, { body: bytes as unknown as BodyInit, headers: { "content-type": mimeType } });
+  if (!res.ok) throw new Error(`Storage PUT ${key}: ${res.status}`);
+}
+
 /** The bytes, for forwarding to Meta's media endpoint. */
 export async function readObject(key: string): Promise<Uint8Array> {
   const res = await request("GET", key);

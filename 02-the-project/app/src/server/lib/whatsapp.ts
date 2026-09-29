@@ -135,6 +135,74 @@ export async function markReadTyping(args: { phoneNumberId: string; accessToken:
   }
 }
 
+/**
+ * A file somebody sent, fetched from Meta.
+ *
+ * Two requests: the media id gives a short-lived address, and the address
+ * gives the bytes. Both carry the channel's access token, so the second
+ * goes only to Meta's own media hosts — the address comes back in a
+ * response body, and a token sent wherever a body says is a token sent to
+ * whoever can influence that body. Redirects are refused for the same
+ * reason. Read to a cap, never trusting a declared size.
+ *
+ * `MediaGoneError` when Meta no longer has it: inbound media is kept for
+ * a limited time, and "ask them to send it again" is the only useful
+ * thing to tell an agent then.
+ */
+export class MediaGoneError extends Error {
+  constructor() {
+    super("WhatsApp no longer has this file. Ask them to send it again.");
+    this.name = "MediaGoneError";
+  }
+}
+export class MediaTooLargeError extends Error {
+  constructor(maxBytes: number) {
+    super(`That file is over ${Math.round(maxBytes / 1024 / 1024)}MB, so it wasn't taken.`);
+    this.name = "MediaTooLargeError";
+  }
+}
+
+const MEDIA_HOSTS = /(^|\.)(fbsbx\.com|facebook\.com|fbcdn\.net|whatsapp\.net)$/i;
+
+function mediaAddressAllowed(address: string): boolean {
+  let url: URL;
+  try { url = new URL(address); } catch { return false; }
+  // A check points Graph at a loopback stand-in; its media comes from the
+  // same place and nowhere else.
+  if (process.env.WHATSAPP_GRAPH_BASE) return url.origin === new URL(graph()).origin;
+  return url.protocol === "https:" && MEDIA_HOSTS.test(url.hostname);
+}
+
+export async function downloadMedia(args: { mediaId: string; accessToken: string; maxBytes: number }): Promise<{ bytes: Uint8Array; mimeType: string }> {
+  const auth = { Authorization: `Bearer ${args.accessToken}` };
+  const meta = await fetch(`${graph()}/${encodeURIComponent(args.mediaId)}`, {
+    headers: auth, redirect: "error", signal: AbortSignal.timeout(10_000),
+  });
+  if (meta.status === 400 || meta.status === 404) throw new MediaGoneError();
+  if (!meta.ok) throw new WhatsAppError("Could not look up the file", undefined, undefined, meta.status);
+  const info = (await meta.json()) as { url?: string; mime_type?: string; file_size?: number };
+  if (!info.url || !mediaAddressAllowed(info.url)) throw new WhatsAppError("WhatsApp gave an unexpected address for the file");
+  if (typeof info.file_size === "number" && info.file_size > args.maxBytes) throw new MediaTooLargeError(args.maxBytes);
+
+  const res = await fetch(info.url, { headers: auth, redirect: "error", signal: AbortSignal.timeout(30_000) });
+  if (res.status === 404 || res.status === 410) throw new MediaGoneError();
+  if (!res.ok || !res.body) throw new WhatsAppError("Could not download the file", undefined, undefined, res.status);
+  const parts: Uint8Array[] = [];
+  let total = 0;
+  const reader = res.body.getReader();
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > args.maxBytes) { await reader.cancel().catch(() => {}); throw new MediaTooLargeError(args.maxBytes); }
+    parts.push(value);
+  }
+  const bytes = new Uint8Array(total);
+  let at = 0;
+  for (const p of parts) { bytes.set(p, at); at += p.byteLength; }
+  return { bytes, mimeType: (info.mime_type ?? res.headers.get("content-type") ?? "").split(";")[0]!.trim() };
+}
+
 export class WhatsAppError extends Error {
   constructor(
     message: string,

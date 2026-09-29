@@ -210,6 +210,61 @@ function AddDocument({ leadId, suggested }: { leadId: string; suggested: string 
 }
 
 /**
+ * A photo or PDF they sent on WhatsApp, into their identity file.
+ *
+ * The panel's request asks for the passport on WhatsApp, and until this
+ * the reply stopped at "[photo]": the file itself was never kept, so the
+ * agent had to ask again some other way. The server fetches it from
+ * WhatsApp straight into the file — the agent says what it is, never
+ * sees it here, and the compliance officer checks it like any other.
+ *
+ * Silent while the file is held with compliance, the panel's own rule
+ * for that state, and where storage is not set up (the panel says so).
+ */
+export function FileFromMessage({
+  leadId, messageId, file,
+}: { leadId: string; messageId: string; file: { kind: "photo" | "document"; filed: boolean } }) {
+  const utils = api.useUtils();
+  const { data } = api.aml.fileStatus.useQuery({ leadId });
+  const [type, setType] = useState<string>(data?.exists ? (data.outstanding[0] ?? "PASSPORT") : "PASSPORT");
+  const add = api.aml.documentFromMessage.useMutation({
+    onSuccess: () => {
+      void utils.aml.fileStatus.invalidate({ leadId });
+      void utils.conversations.thread.invalidate();
+    },
+  });
+
+  if (!data) return null;
+  const what = file.kind === "photo" ? "photo" : "document";
+  if (data.exists && (data.status === "WITH_COMPLIANCE" || !data.storage)) return null;
+
+  return (
+    <div className="mt-3" data-file-from-message={messageId}>
+      {file.filed || add.isSuccess ? (
+        <p className="t-label text-ink-3">In their identity file · your compliance officer checks it</p>
+      ) : !data.exists ? (
+        <p className="text-sm text-ink-3 max-w-[52ch] leading-snug">
+          If this {what} is an identity document, start their identity file below and add it from here.
+        </p>
+      ) : (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm text-ink-2">Add this {what} to their identity file as</span>
+          <select value={type} onChange={(e) => setType(e.target.value)} aria-label="Which document it is"
+            className="min-h-11 rounded-md border border-rule bg-raised px-3 text-control text-ink">
+            {Object.entries(LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          </select>
+          <Button size="sm" variant="secondary" loading={add.isPending}
+            onClick={() => add.mutate({ messageId, type: type as "PASSPORT" | "EMIRATES_ID" | "GCC_ID" | "TRADE_LICENCE" })}>
+            Add to file
+          </Button>
+        </div>
+      )}
+      {add.error && <p role="alert" className="mt-2 text-sm text-danger max-w-[52ch]">{add.error.message}</p>}
+    </div>
+  );
+}
+
+/**
  * Who the person actually is, which the file could not record.
  *
  * `aml.updateFile` writes every field below — legal name, nationality,
