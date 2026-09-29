@@ -106,8 +106,8 @@ token, which the web app cannot do. Treat it as a design sketch.
 
 ## 4. What is built
 
-**82 database models · 68 enums · 38 API routers · 222 procedures ·
-53 screens · 29 scheduled jobs · 23 audit scripts · 62 check suites.**
+**82 database models · 68 enums · 38 API routers · 227 procedures ·
+53 screens · 29 scheduled jobs · 23 audit scripts · 63 check suites.**
 
 **Five procedures have no screen, and every one of them deliberately:**
 `aml.checkRear`, `aml.visibilityPolicy`, `onboarding.previewImport`,
@@ -430,7 +430,7 @@ Ask — an agent can see what they asked for earlier and what came back.
   parser, lead scoring, deal risk, the assistant's guardrails and the
   interface's Arabic — the
   pure logic where being wrong is expensive and silent. Everything
-  stateful is still covered only by the 62 check suites and the
+  stateful is still covered only by the 63 check suites and the
   28 browser checks, which is not the same thing as a test suite. What is
   left untested in `assistant/` is everything that needs a model:
   `run.ts` and `prompt.ts` are exercised only through `check:autonomy`

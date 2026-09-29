@@ -132,6 +132,15 @@ export function KycPanel({ leadId }: { leadId: string }) {
               )}
             </>
           )}
+          {data.storage ? (
+            <AddDocument leadId={leadId} suggested={data.outstanding[0] ?? "PASSPORT"} />
+          ) : (
+            <p className="mt-4 text-sm text-ink-3 max-w-[44ch] leading-snug">
+              Documents can&rsquo;t be added here until storage is set up. Record the details below,
+              and keep the copy the way you do today.
+            </p>
+          )}
+
           {data.unverified > 0 && (
             <p className="text-sm text-ink-2 mt-3 max-w-[44ch] leading-snug">
               {data.unverified} uploaded but not yet checked. Your compliance officer does
@@ -146,6 +155,59 @@ export function KycPanel({ leadId }: { leadId: string }) {
   );
 }
 
+
+/**
+ * Putting the document in the file.
+ *
+ * The panel asked for a passport and an Emirates ID and nothing could
+ * ever record either, so every file said "Waiting on both documents" for
+ * ever. The agent saves what the buyer sent — or photographs what was
+ * handed over — and adds it here. It goes straight to storage, is kept
+ * only if it really is a photo or a PDF, and waits for the compliance
+ * officer to check it; the agent never sees it again from here.
+ */
+function AddDocument({ leadId, suggested }: { leadId: string; suggested: string }) {
+  const utils = api.useUtils();
+  const upload = api.aml.documentUpload.useMutation();
+  const confirm = api.aml.documentConfirm.useMutation();
+  const [type, setType] = useState(suggested);
+  const [state, setState] = useState<{ busy?: boolean; said?: string; failed?: string }>({});
+
+  async function add(file: File | undefined) {
+    if (!file) return;
+    setState({ busy: true });
+    try {
+      const t = type as "PASSPORT" | "EMIRATES_ID" | "GCC_ID" | "TRADE_LICENCE";
+      const ticket = await upload.mutateAsync({ leadId, type: t, fileName: file.name, mimeType: file.type, sizeBytes: file.size });
+      const put = await fetch(ticket.uploadUrl, { method: "PUT", headers: { "content-type": file.type }, body: file });
+      if (!put.ok) throw new Error("The upload was refused. Try again.");
+      await confirm.mutateAsync({ leadId, key: ticket.key, type: t, fileName: file.name, mimeType: file.type, sizeBytes: file.size });
+      setState({ said: `${LABEL[t]} added. It's with your compliance officer to check.` });
+      void utils.aml.fileStatus.invalidate({ leadId });
+    } catch (e) {
+      setState({ failed: e instanceof Error ? e.message : "That could not be added." });
+    }
+  }
+
+  return (
+    <div className="mt-4" data-kyc-add>
+      <span className="t-label text-ink-3 mb-1 block">Add a document they&rsquo;ve sent</span>
+      <div className="flex flex-wrap items-center gap-2">
+        <select value={type} onChange={(e) => setType(e.target.value)} aria-label="Which document"
+          className="min-h-11 rounded-md border border-rule bg-raised px-3 text-control text-ink">
+          {Object.entries(LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+        </select>
+        <label className={cn("btn-inline min-h-11 inline-flex items-center cursor-pointer", state.busy && "opacity-50 pointer-events-none")}>
+          {state.busy ? "Adding…" : "Choose file"}
+          <input type="file" accept="image/jpeg,image/png,application/pdf" className="sr-only"
+                 disabled={state.busy} onChange={(e) => { void add(e.target.files?.[0]); e.target.value = ""; }} />
+        </label>
+      </div>
+      {state.said && <p role="status" className="mt-2 text-sm text-ink-2">{state.said}</p>}
+      {state.failed && <p role="alert" className="mt-2 text-sm text-danger max-w-[44ch]">{state.failed}</p>}
+    </div>
+  );
+}
 
 /**
  * Who the person actually is, which the file could not record.

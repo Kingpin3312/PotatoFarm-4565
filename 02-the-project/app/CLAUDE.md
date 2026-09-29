@@ -102,7 +102,7 @@ What is verified today, measured rather than assumed:
   `/api/health` returns `200 {"ok":true}` against a real Postgres.
 - The boot log names every unconfigured service with its consequence —
   six of them in a bare development environment.
-- 432 assertions in 31 files, 62 check suites, 23 audits, all green.
+- 432 assertions in 31 files, 63 check suites, 23 audits, all green.
 
 Type errors on a fresh checkout are no longer expected. If you get one,
 it is new.
@@ -935,7 +935,7 @@ send path read it.
 ## Run the tests
 
     npm test          # 432 assertions, pure functions, no database
-    npm run verify    # tsc, eslint, the tests, 62 check suites, 23 audits
+    npm run verify    # tsc, eslint, the tests, 63 check suites, 23 audits
 
 **The gate is now green end to end, including the two things that used
 to skip.** `verify` reports what it did not run rather than counting a
@@ -1393,6 +1393,26 @@ with an empirical floor under it.
   storage — brochures in the inbox included. No check had ever uploaded
   from a browser, so nothing saw it. The policy now names the storage origin (`lib/storage-origin.ts`,
   edge-safe, held to what `storage.ts` signs by a unit test).
+- ~~**Identity documents in a due diligence file.**~~ **Built.** Every
+  open file told its agent "Waiting on both documents" and nothing could
+  put one in. The only writer, `receiveDocument`, had no caller and stored
+  nothing — its "secure storage" returned a random key under a comment
+  describing a fetch and a write — and `verifiedAt` had no writer, so the
+  panel's "your compliance officer checks it" was a step with no button.
+  Now the agent adds a photo or PDF from the identity panel (only for a
+  person they can open), it is kept only if its bytes prove the type, and
+  the file moves to PENDING_REVIEW and no further; the compliance officer
+  (`kyc:approve`) opens it through a two-minute link — **every opening is
+  audited** — and marks it checked. Agents never see the image.
+  `receiveDocument` was removed rather than left as the obvious thing to
+  call; taking a document straight from the WhatsApp message still needs
+  the inbound media download. `aml/documents.ts`, `check:kyc-documents`.
+
+  **Found on the way:** the officer's file page told them "No matches.
+  Record and proceed." for a screening that had **ERRORed** — guidance was
+  re-derived from the row's (empty) matches through `interpret()`, the
+  exact fabricated CLEAR `screen.ts` refuses to write. An ERROR now says
+  nothing was checked.
 - **Two-step sign-in is optional.** Owners and admins are asked on
   Settings → Security; nothing makes it compulsory for a brokerage,
   because the day a phone is lost that locks somebody out, and it is the

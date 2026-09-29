@@ -151,6 +151,8 @@ export default function Screening({ params }: { params: Promise<{ kycId: string 
         ))}
       </div>
 
+      <Documents kycId={kycId} />
+
       {/* The rating, which nothing could produce.
 
           `risk.tsx` is a finished form over `aml.assessRisk` and no
@@ -317,6 +319,72 @@ function RiskForm({ kycId, subject }: {
     </div>
   );
 }
+
+/**
+ * The identity documents in the file, and checking them.
+ *
+ * Nothing could put a document in a file, and nothing could mark one
+ * checked — `verifiedAt` had no writer — so "your compliance officer
+ * checks it" on the agent's panel described a step with no button. This
+ * is the button. Opening a document gives a link that lives two minutes
+ * and writes a row to the audit log each time, because who looked at
+ * whose passport is the first question after a leak.
+ */
+function Documents({ kycId }: { kycId: string }) {
+  const { data, refetch } = api.aml.documents.useQuery({ kycId });
+  const view = api.aml.documentView.useMutation({
+    onSuccess: (r) => { window.open(r.url, "_blank", "noopener,noreferrer"); },
+  });
+  const verify = api.aml.documentVerify.useMutation({ onSuccess: () => void refetch() });
+  if (!data) return null;
+
+  return (
+    <section className="mb-10" aria-labelledby="docs-heading" data-kyc-documents>
+      <h2 id="docs-heading" className="font-sans font-medium text-sub text-ink mb-3">Identity documents</h2>
+      {data.rows.length === 0 ? (
+        <p className="text-ui text-ink-2 max-w-[52ch] leading-snug">
+          None in the file yet. The agent adds what the buyer sends from the identity panel in
+          their conversation.
+        </p>
+      ) : (
+        <div className="border-t border-rule-strong">
+          {data.rows.map((d) => (
+            <div key={d.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 py-3 border-b border-rule">
+              <span className="text-ui text-ink">{DOC_LABEL[d.type] ?? sentence(String(d.type))}</span>
+              <span className="font-mono text-label text-ink-3">
+                {new Date(d.createdAt).toLocaleDateString("en-GB")}
+              </span>
+              <span className={d.verifiedAt ? "t-label text-success" : "t-label text-ink-3"}>
+                {d.verifiedAt ? `Checked ${new Date(d.verifiedAt).toLocaleDateString("en-GB")}` : "Not checked"}
+              </span>
+              <span className="ms-auto flex gap-2">
+                {data.storage && (
+                  <button className="btn-inline min-h-11" disabled={view.isPending}
+                    onClick={() => view.mutate({ documentId: d.id })}>
+                    Open
+                  </button>
+                )}
+                {!d.verifiedAt && (
+                  <Button size="sm" variant="secondary" loading={verify.isPending && verify.variables?.documentId === d.id}
+                    onClick={() => verify.mutate({ documentId: d.id })}>
+                    Mark as checked
+                  </Button>
+                )}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+      {(view.error || verify.error) && (
+        <p role="alert" className="mt-2 text-sm text-danger">{(view.error ?? verify.error)?.message}</p>
+      )}
+    </section>
+  );
+}
+
+const DOC_LABEL: Record<string, string> = {
+  PASSPORT: "Passport", EMIRATES_ID: "Emirates ID", GCC_ID: "GCC ID", TRADE_LICENCE: "Trade licence",
+};
 
 /**
  * What the officer is told, for every state the file can be in.

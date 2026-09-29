@@ -7,6 +7,29 @@ import { requestMessage } from "@/server/lib/aml/collect";
 import { audit } from "@/server/lib/audit";
 import { openKycFile } from "@/server/lib/aml/open";
 import { screen } from "@/server/lib/aml/screen";
+import { KYC_DOC_MAX_BYTES, KYC_DOC_MIME, KYC_DOC_VIEW_SECONDS, kycPrefix } from "@/server/lib/aml/documents";
+import { deleteObject, objectExists, readObjectHead, signGet, signPut, storageConfigured } from "@/server/lib/files/storage";
+import { matchesType } from "@/server/lib/files/signature";
+import { personScope } from "@/server/auth/rbac";
+import type { Role } from "@prisma/client";
+
+/**
+ * The open file of a person the caller can open, or NOT_FOUND.
+ *
+ * `personScope`, the person page's own rule: an agent's own client, or
+ * one whose other business they work; everybody for a role that reads the
+ * whole book. One answer for "no such person", "not yours" and "no file".
+ */
+async function ownFile(ctx: { db: any; role: Role; userId: string }, leadId: string) {
+  const lead = await ctx.db.lead.findFirst({
+    where: { id: leadId, deletedAt: null, ...personScope(ctx.role, ctx.userId) }, select: { id: true },
+  });
+  const kyc = lead
+    ? await ctx.db.kycRecord.findUnique({ where: { leadId }, select: { id: true, status: true } })
+    : null;
+  if (!kyc) throw new TRPCError({ code: "NOT_FOUND", message: "No due diligence file is open for this person." });
+  return kyc as { id: string; status: string };
+}
 
 export const amlRouter = router({
   /**
@@ -55,6 +78,8 @@ export const amlRouter = router({
         message: onHold ? AGENT_VISIBLE_STATE.message : null,
         outstanding,
         unverified: kyc.documents.filter((d) => !d.verifiedAt).length,
+        /** Whether a document can be added here at all. */
+        storage: storageConfigured(),
         /**
          * Returned even while the file is held with compliance, because
          * the agent is still told to carry on as normal — but the panel
@@ -274,6 +299,154 @@ export const amlRouter = router({
   requestWording: requirePermission("kyc:write")
     .input(z.object({ docType: z.enum(["PASSPORT", "EMIRATES_ID", "TRADE_LICENCE"]) }))
     .query(({ ctx, input }) => ({ body: requestMessage(ctx.orgName, input.docType) })),
+
+  /**
+   * Somewhere to put one identity document: a signed upload straight to
+   * storage, under this file's own prefix. Rules in `aml/documents.ts`.
+   *
+   * Only for a person the agent can open — their own client, or one whose
+   * other business they work — not any lead in the brokerage. A passport
+   * is the last thing an agent should be able to attach to a colleague's
+   * client by typing an id.
+   */
+  documentUpload: requirePermission("kyc:write")
+    .input(z.object({
+      leadId: z.string(),
+      type: z.enum(["PASSPORT", "EMIRATES_ID", "GCC_ID", "TRADE_LICENCE"]),
+      fileName: z.string().trim().min(1).max(200),
+      mimeType: z.string().max(100),
+      sizeBytes: z.number().int(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const kyc = await ownFile(ctx, input.leadId);
+      if (!storageConfigured()) {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Document storage is not set up yet, so documents cannot be added here. Record the document's details below and keep the copy the way you do today." });
+      }
+      if (!(KYC_DOC_MIME as readonly string[]).includes(input.mimeType)) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "A photo (JPEG or PNG) or a PDF, please." });
+      }
+      if (input.sizeBytes <= 0) throw new TRPCError({ code: "BAD_REQUEST", message: "That file is empty." });
+      if (input.sizeBytes > KYC_DOC_MAX_BYTES) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: `That file is over ${KYC_DOC_MAX_BYTES / 1024 / 1024}MB. A phone photo of the page is plenty.` });
+      }
+      const key = `${kycPrefix(ctx.orgId, kyc.id)}${crypto.randomUUID()}`;
+      const uploadUrl = await signPut({ key, mimeType: input.mimeType, sizeBytes: input.sizeBytes, expiresInSeconds: 900 });
+      return { key, uploadUrl };
+    }),
+
+  /**
+   * Into the file once the bytes are there and are what they claim.
+   *
+   * The file moves to PENDING_REVIEW, as a document arriving always
+   * should, and never further: verified is somebody else's decision. The
+   * audit row names the type, never the file name or anything read off
+   * the document.
+   */
+  documentConfirm: requirePermission("kyc:write")
+    .input(z.object({
+      leadId: z.string(),
+      key: z.string().max(300),
+      type: z.enum(["PASSPORT", "EMIRATES_ID", "GCC_ID", "TRADE_LICENCE"]),
+      fileName: z.string().trim().min(1).max(200),
+      mimeType: z.string().max(100),
+      sizeBytes: z.number().int().positive(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const kyc = await ownFile(ctx, input.leadId);
+      if (!input.key.startsWith(kycPrefix(ctx.orgId, kyc.id)) || input.key.includes("..")) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "That upload does not belong to this file." });
+      }
+      if (!(KYC_DOC_MIME as readonly string[]).includes(input.mimeType)) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "A photo (JPEG or PNG) or a PDF, please." });
+      }
+      if (await ctx.db.kycDocument.findFirst({ where: { storageRef: input.key }, select: { id: true } })) {
+        throw new TRPCError({ code: "CONFLICT", message: "That document is already in the file." });
+      }
+      if (!(await objectExists(input.key))) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "That upload didn't finish. Try again." });
+      }
+      const { head, size } = await readObjectHead(input.key);
+      if (!matchesType(head, input.mimeType) || (size !== null && size !== input.sizeBytes)) {
+        await deleteObject(input.key).catch(() => {});
+        throw new TRPCError({ code: "BAD_REQUEST", message: "That file isn't the photo or PDF it says it is, so it wasn't kept. Save it again and upload that." });
+      }
+
+      const doc = await ctx.db.$transaction(async (tx) => {
+        const created = await tx.kycDocument.create({
+          data: {
+            orgId: ctx.orgId, kycId: kyc.id, type: input.type, storageRef: input.key,
+            fileName: input.fileName, collectedVia: "UPLOAD",
+          },
+          select: { id: true },
+        });
+        if (kyc.status === "NOT_STARTED" || kyc.status === "COLLECTING") {
+          await tx.kycRecord.update({ where: { id: kyc.id }, data: { status: "PENDING_REVIEW" } });
+        }
+        await audit(tx, ctx.orgId, {
+          actorId: ctx.userId, action: "aml.document_added", entity: "KycRecord", entityId: kyc.id,
+          after: { type: input.type, documentId: created.id },
+        });
+        return created;
+      });
+      return { id: doc.id };
+    }),
+
+  /** A file's documents, for whoever approves due diligence. */
+  documents: requirePermission("kyc:approve")
+    .input(z.object({ kycId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const rows = await ctx.db.kycDocument.findMany({
+        where: { kycId: input.kycId },
+        orderBy: { createdAt: "asc" },
+        select: { id: true, type: true, fileName: true, collectedVia: true, createdAt: true, verifiedAt: true, verifiedById: true },
+      });
+      return { storage: storageConfigured(), rows };
+    }),
+
+  /**
+   * One document, opened: a link that lives two minutes, and a row in the
+   * audit log saying who opened whose, every time.
+   */
+  documentView: requirePermission("kyc:approve")
+    .input(z.object({ documentId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const doc = await ctx.db.kycDocument.findFirst({
+        where: { id: input.documentId }, select: { id: true, kycId: true, storageRef: true, type: true },
+      });
+      if (!doc) throw new TRPCError({ code: "NOT_FOUND", message: "That document is no longer in the file." });
+      if (!storageConfigured()) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Document storage is not set up." });
+      await audit(ctx.db, ctx.orgId, {
+        actorId: ctx.userId, action: "aml.document_viewed", entity: "KycRecord", entityId: doc.kycId,
+        after: { documentId: doc.id, type: doc.type },
+      });
+      return { url: signGet({ key: doc.storageRef, expiresInSeconds: KYC_DOC_VIEW_SECONDS }) };
+    }),
+
+  /**
+   * Checked by a person with the authority to approve due diligence.
+   *
+   * Nothing is ever verified automatically — `collect.ts` rule 3 — and
+   * nothing could be verified at all until this: `verifiedAt` had no
+   * writer. Once only; the first verifier is the one on the record.
+   */
+  documentVerify: requirePermission("kyc:approve")
+    .input(z.object({ documentId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const doc = await ctx.db.kycDocument.findFirst({
+        where: { id: input.documentId }, select: { id: true, kycId: true, type: true, verifiedAt: true },
+      });
+      if (!doc) throw new TRPCError({ code: "NOT_FOUND", message: "That document is no longer in the file." });
+      if (doc.verifiedAt) return { verifiedAt: doc.verifiedAt };
+      const verifiedAt = new Date();
+      await ctx.db.$transaction(async (tx) => {
+        await tx.kycDocument.update({ where: { id: doc.id }, data: { verifiedAt, verifiedById: ctx.userId } });
+        await audit(tx, ctx.orgId, {
+          actorId: ctx.userId, action: "aml.document_verified", entity: "KycRecord", entityId: doc.kycId,
+          after: { documentId: doc.id, type: doc.type },
+        });
+      });
+      return { verifiedAt };
+    }),
 
   assessRisk: requirePermission("kyc:approve")
     .input(z.object({
@@ -535,9 +708,21 @@ export const amlRouter = router({
         : null;
 
       return {
+        /**
+         * An ERROR is never read through `interpret()`.
+         *
+         * Guidance used to be re-derived from each row's matches, and an
+         * ERROR has none — so a check that never ran was shown to the
+         * officer as "No matches. Record and proceed.", under a heading
+         * saying the check did not complete, on the screen where the
+         * decision goes on the permanent record. The fabricated CLEAR
+         * `screen.ts` refuses to write, re-created on the way out.
+         */
         screenings: rows.map((r) => ({
           ...r,
-          guidance: interpret((r.matches as never) ?? []).guidance,
+          guidance: r.result === "ERROR"
+            ? "The check did not run, so nothing has been checked. Run it again before proceeding."
+            : interpret((r.matches as never) ?? []).guidance,
         })),
         subject: kyc && {
           legalName: kyc.legalName,

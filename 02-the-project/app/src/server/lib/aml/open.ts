@@ -5,8 +5,8 @@ import type { Prisma } from "@prisma/client";
  *
  * **Nothing in this product ever created a `KycRecord`.** The whole AML
  * module reads one: `fileStatus` returns `{ exists: false }`,
- * `receiveDocument` refuses an identity document because there is "no
- * open file", and `assessRisk` calls `update` on a row that cannot be
+ * a document had nowhere to go because there was "no open file", and
+ * `assessRisk` calls `update` on a row that cannot be
  * there. Every screen, every guard and every tipping-off rule sat on top
  * of a table with no way in.
  *
