@@ -111,7 +111,7 @@ sec("thread", "day", "A conversation, and the assistant's replies", ["agent", "m
      "To write your own, type in <b>Write a reply…</b> and press <b>Send</b>. <b>Attach</b> sends a brochure, floor plan or document. <b>Send a property</b> puts a property's page into your reply.",
      "<b>I've got this</b> silences the assistant on this conversation only, for a delicate negotiation. <b>Hand back</b> gives it back.",
      "<b>Call</b> and <b>WhatsApp</b> at the top open your phone's dialler or WhatsApp with the number ready."],
-    ["Below the thread: <b>Identity</b> shows whether a compliance file is needed (one opens by itself when an offer is accepted), and <b>How this came to you</b> shows why the lead was routed to you. If it should have gone to somebody else, say so there; it goes to a manager with the routing decision attached.",
+    ["Below the thread: <b>Identity</b> says whether a compliance file is needed and takes the passport or Emirates ID they give you; one sent on WhatsApp has <b>Add to file</b> beneath it. Only the compliance officer sees it. <b>How this came to you</b> shows why the lead reached you; if it should not have, say so there and a manager sees it.",
      "What you do with each draft (sent as written, edited, discarded) is recorded. It is how your owner decides how much to trust the assistant."])
 
 sec("leads", "day", "Leads", ["agent", "manager"],
@@ -220,12 +220,11 @@ sec("me", "day", "My figures, availability and alerts", ["agent"],
 sec("listings", "deals", "Listings", ["agent", "manager"],
     [("listings", "Listings: permits about to expire, portal rejections, filters and every property.")],
     "Every property on the book, with its price, portals and Trakheesi permit. The two panels at the top are the ones that cost money when missed: permits expiring inside 14 days, and listings a portal has rejected.",
-    ["Filter by status, sale or rent, area, type, ready or off-plan, bedrooms, price and agent.",
-     "Each row says exactly where the property is, and the days left on its permit. An expired Trakheesi permit means the listing is pulled and you are advertising illegally until someone notices.",
+    ["Filter by status, sale or rent, area, type, ready or off-plan, bedrooms, price and agent. <b>Export</b> downloads the list.",
+     "Each row shows where the property is and the days left on its permit. An expired Trakheesi permit means you are advertising illegally.",
      "A property added before locations were required says <b>No exact location</b> in red. Press <b>Edit</b> and choose it.",
-     "<b>Edit</b> changes the details. <b>Check wording</b> checks the advert for claims that break the rules. <b>Who wants it</b> lists buyers whose search matches. <b>Publish</b> queues it for the portals. <b>Owner</b> sets who owns it and which agent looks after it. <b>Share link</b> gives you the property's own page to send (see <i>The page a buyer sees</i>).",
-     "<b>Export</b> downloads the list."],
-    ["A listing will not publish without a valid permit, and Property Finder will not take one without an exact location."])
+     "<b>Edit</b> changes the details. <b>Photos</b> adds and orders its photographs; the first is the cover. <b>Check wording</b> checks the advert for claims that break the rules. <b>Who wants it</b> lists matching buyers. <b>Publish</b> queues it for the portals. <b>Owner</b> sets the owner and the agent looking after it. <b>Share link</b> gives you its own page to send."],
+    ["A listing will not publish without a photo and a valid permit, and Property Finder will not take one without an exact location."])
 
 sec("addprop", "deals", "Adding a property", ["manager"],
     [("x-add-property", "Add a property: where it is, chosen from the location list, then the details a buyer asks about first.")],
@@ -362,11 +361,11 @@ sec("compliance", "manage", "Compliance (for the compliance officer)", ["mlro"],
     "Every UAE brokerage that concludes a sale is a DNFBP, with anti-money-laundering duties. This screen belongs to the compliance officer (MLRO). Owners and admins cannot open it, by law: telling a client a report has been filed is itself an offence.",
     ["<b>Waiting on a decision</b>: files that need you. <b>Not checked</b> means no sanctions or PEP list was consulted: the file is unscreened.",
      "Open a file. Run the screening, set the risk rating, and enter the transaction value.",
-     "Record your decision: no filing, or STR, SAR, REAR, CNMR or FFR. Write why, in at least a sentence. This is the part an inspector reads.",
-     "A decision not to report still needs a reason.",
-     "Press <b>Record the decision</b>. Your name and the time are recorded permanently; the log cannot be edited or deleted."],
+     "<b>Identity documents</b>: <b>Open</b> shows one for two minutes, and each opening is recorded; then <b>Mark as checked</b>.",
+     "Record your decision: no filing, or STR, SAR, REAR, CNMR or FFR. Write why, even for no filing. This is the part an inspector reads.",
+     "Press <b>Record the decision</b>. Your name and the time are recorded, and cannot be edited or deleted."],
     ["Nothing is ever auto-cleared. A possible match is always a person's decision.",
-     "Records are kept for five years, even if the sale never completed. An erasure request waits for that to expire."])
+     "Records are kept for five years, even if the sale fell through. An erasure request waits."])
 
 # ----------------------------------------------------------------- settings
 sec("set-general", "settings", "Settings: the assistant's brake, calendar and listing feed", ["owner", "manager"],
@@ -508,7 +507,8 @@ TROUBLE = [
     ("The assistant did not reply to someone.", "Check the top bar for <b>Assistant stopped</b>, the conversation for <b>I've got this</b> or <b>Handover</b>, and whether the buyer wrote STOP. Past qualification, once an agent has written, or during working hours when it is set to <b>Outside working hours</b>, it drafts rather than sends."),
     ("A lead went to the wrong agent.", "Open the conversation and use <b>This should have gone to someone else</b>. It reaches a manager with the routing decision attached."),
     ("My sign-in link does not arrive.", "Look in Junk or Other. The link lasts ten minutes; request another if it has expired."),
-    ("A listing is not on the portals.", "Check its Trakheesi permit on Listings. Without a valid one it is held back. Check Rejected by a portal at the top."),
+    ("A listing is not on the portals.", "Check it has a photo (<b>Photos</b> on Listings) and a valid Trakheesi permit. Without both it is held back. Check Rejected by a portal at the top."),
+    ("Add to file says WhatsApp no longer has it.", "WhatsApp keeps what a buyer sends for a limited time. Ask them to send it again."),
     ("The Channels screen says a channel can't reply.", "Its WhatsApp access token is missing or has expired. Reconnect it with the token from Meta."),
     ("I can't open Compliance.", "By design. Only the compliance officer can, because telling a client a report has been filed is an offence."),
     ("I think a figure is wrong.", "Every screen says where its number comes from. Commission is dated by when money arrived; the pipeline is weighted by stage. Ask your manager, or email hello@potatofarm.io."),
