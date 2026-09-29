@@ -157,30 +157,8 @@ export async function confirmUpload(args: {
 }
 
 /**
- * Orphans.
- *
- * An agent who starts an upload and closes the tab leaves an object with
- * no row. It would be swept weekly rather than daily, because the window
- * between upload and confirm can legitimately be several minutes on bad
- * signal and deleting somebody's brochure mid-upload is worse than
- * paying for a week of storage.
- *
- * **Not implemented and not scheduled**, which is the honest state.
- * `storage.ts` no longer blocks it — that is real now — but this needs
- * `ListObjectsV2` paged over the bucket and cross-checked against
- * Attachment, and nothing registers it in `jobs/index.ts`, so writing
- * the body would produce a correct function nothing calls. It is the
- * shape this codebase keeps finding: a complete module with nothing that
- * starts it.
- *
- * The cost of leaving it is storage rent on abandoned uploads, which at
- * pilot scale is pennies. Add it to `jobs/index.ts` and `vercel.json`
- * together, or not at all.
+ * Orphans — an upload started and never confirmed — are swept weekly by
+ * `storage.orphans` (`files/sweep.ts`), which checks every table that
+ * holds a storage reference before deleting anything.
  */
-export async function sweepOrphans() {
-  return {
-    removed: 0,
-    note: "not implemented — needs ListObjectsV2 and a job registration, see the comment",
-  };
-}
 

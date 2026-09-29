@@ -196,6 +196,8 @@ export function authHeaders(args: {
   path: string;
   body?: Uint8Array;
   extraHeaders?: Record<string, string>;
+  /** Signed as sent; the caller builds the URL with `canonicalQuery`. */
+  query?: Record<string, string>;
   now?: Date;
 }): Record<string, string> {
   const { amzDate, dateStamp } = stamps(args.now ?? new Date());
@@ -212,7 +214,7 @@ export function authHeaders(args: {
     creds: args.creds,
     method: args.method,
     path: args.path,
-    query: {},
+    query: args.query ?? {},
     headers,
     payloadHash,
     amzDate,
@@ -225,6 +227,15 @@ export function authHeaders(args: {
       `AWS4-HMAC-SHA256 Credential=${args.creds.accessKeyId}/${scope}, ` +
       `SignedHeaders=${signedHeaders}, Signature=${signature}`,
   };
+}
+
+/**
+ * A query string encoded exactly as it is signed. A URL built any other
+ * way — `URLSearchParams` writes a space as `+` — is a request whose
+ * signature does not match, which S3 reports as a bad secret.
+ */
+export function canonicalQuery(query: Record<string, string>): string {
+  return Object.keys(query).sort().map((k) => `${uriEncode(k)}=${uriEncode(query[k] ?? "")}`).join("&");
 }
 
 /** Exposed for the check script, which asserts against AWS's own vector. */

@@ -57,6 +57,7 @@
     "check:migration": "esbuild scripts/migration.check.ts --bundle --platform=node --format=esm --outfile=.tmp/mig.mjs --external:@prisma/client --log-level=warning && node --env-file-if-exists=.env .tmp/mig.mjs",
     "check:quiet": "esbuild scripts/quiet.check.ts --bundle --platform=node --format=esm --outfile=.tmp/quiet.mjs --external:@prisma/client --log-level=warning && node --env-file-if-exists=.env .tmp/quiet.mjs",
     "check:sigv4": "esbuild scripts/sigv4.check.ts --bundle --platform=node --format=esm --outfile=.tmp/sigv4.mjs --log-level=warning && node .tmp/sigv4.mjs",
+    "check:storage-orphans": "esbuild scripts/storage-orphans.check.ts --bundle --platform=node --format=esm --outfile=.tmp/storage-orphans.mjs --external:@prisma/client --log-level=warning && node --env-file-if-exists=.env .tmp/storage-orphans.mjs",
     "check:storage": "esbuild scripts/storage.check.ts --bundle --platform=node --format=esm --outfile=.tmp/storage.mjs --external:@prisma/client --log-level=warning && node .tmp/storage.mjs",
     "check:tenancy": "esbuild scripts/tenant-isolation.check.ts --bundle --platform=node --format=esm --outfile=.tmp/tenancy.mjs --external:@prisma/client --log-level=warning && node --env-file-if-exists=.env .tmp/tenancy.mjs",
     "test": "vitest run",

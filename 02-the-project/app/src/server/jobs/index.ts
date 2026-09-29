@@ -4,6 +4,7 @@ import { releaseHeld } from "@/server/lib/notify/digest";
 import { sendDueReminders, expireHolds } from "@/server/lib/reminders";
 import { checkChannelSilence } from "@/server/lib/portals/health";
 import { retentionSweep } from "@/server/lib/privacy/erase";
+import { sweepOrphans } from "@/server/lib/files/sweep";
 import { expireGrants } from "@/server/lib/support/access";
 import { sweepOverdue } from "@/server/lib/billing/dunning";
 import { generateInvoice } from "@/server/lib/billing/invoice";
@@ -967,6 +968,14 @@ export const JOBS = {
 
   /** Rate-limit hits older than two days. Daily. */
   "ratelimit.sweep": () => run("ratelimit.sweep", async () => sweepRateLimits()),
+
+  /**
+   * Uploads nothing kept, removed. Weekly: a day's grace protects an
+   * upload in progress, and the cost of waiting is storage rent — except
+   * for an identity document, which is why it runs at all.
+   * `files/sweep.ts` says what it may and may not touch.
+   */
+  "storage.orphans": () => run("storage.orphans", async () => sweepOrphans()),
 
   /** Erasure of long-deleted records. Daily. */
   "privacy.retention": () => run("privacy.retention", async () =>

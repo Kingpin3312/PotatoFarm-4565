@@ -107,7 +107,7 @@ token, which the web app cannot do. Treat it as a design sketch.
 ## 4. What is built
 
 **82 database models · 68 enums · 38 API routers · 227 procedures ·
-53 screens · 29 scheduled jobs · 23 audit scripts · 63 check suites.**
+53 screens · 30 scheduled jobs · 23 audit scripts · 64 check suites.**
 
 **Five procedures have no screen, and every one of them deliberately:**
 `aml.checkRear`, `aml.visibilityPolicy`, `onboarding.previewImport`,
@@ -379,7 +379,7 @@ your name on them:
    one-time link to a work email, so **email delivery is the only way
    into the product**. An unverified sender puts every sign-in link in a
    junk folder and the failure looks like the application being broken.
-3. **Vercel Pro, about $20/month.** 29 cron jobs and `maxDuration = 300`
+3. **Vercel Pro, about $20/month.** 30 cron jobs and `maxDuration = 300`
    both require it; Hobby allows 2 crons once a day at 60 seconds.
 4. Anthropic, WhatsApp Business, Meta and Stripe credentials, as and when
    each feature is wanted. The application boots without them and says in
@@ -430,7 +430,7 @@ Ask — an agent can see what they asked for earlier and what came back.
   parser, lead scoring, deal risk, the assistant's guardrails and the
   interface's Arabic — the
   pure logic where being wrong is expensive and silent. Everything
-  stateful is still covered only by the 63 check suites and the
+  stateful is still covered only by the 64 check suites and the
   28 browser checks, which is not the same thing as a test suite. What is
   left untested in `assistant/` is everything that needs a model:
   `run.ts` and `prompt.ts` are exercised only through `check:autonomy`
@@ -862,7 +862,7 @@ and refusing to boot over it would be worse than saying so.
 
 ## 12. Deployment
 
-**The application → Vercel.** `app/vercel.json` defines **29 cron jobs**
+**The application → Vercel.** `app/vercel.json` defines **30 cron jobs**
 matching those in `src/server/jobs/index.ts`; a check enforces that they
 stay in step. `prisma generate` is in the build script — without it,
 Vercel's cached `node_modules` gives you a stale client and a guaranteed

@@ -50,6 +50,9 @@ const EXPECTED_EVERY_MINUTES: Record<string, number> = {
   "tenancy.renewals": 24 * 60,
   "intelligence.sweep": 24 * 60,
   "privacy.retention": 24 * 60,
+  // Weekly. Silent when it stops: abandoned uploads simply accumulate,
+  // identity documents among them.
+  "storage.orphans": 7 * 24 * 60,
   "listings.permit-expiry": 24 * 60,
   "documents.expiry": 24 * 60,
   // Daily. Worth stating why it is here rather than only in the cron

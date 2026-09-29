@@ -102,7 +102,7 @@ What is verified today, measured rather than assumed:
   `/api/health` returns `200 {"ok":true}` against a real Postgres.
 - The boot log names every unconfigured service with its consequence —
   six of them in a bare development environment.
-- 432 assertions in 31 files, 63 check suites, 23 audits, all green.
+- 432 assertions in 31 files, 64 check suites, 23 audits, all green.
 
 Type errors on a fresh checkout are no longer expected. If you get one,
 it is new.
@@ -935,7 +935,7 @@ send path read it.
 ## Run the tests
 
     npm test          # 432 assertions, pure functions, no database
-    npm run verify    # tsc, eslint, the tests, 63 check suites, 23 audits
+    npm run verify    # tsc, eslint, the tests, 64 check suites, 23 audits
 
 **The gate is now green end to end, including the two things that used
 to skip.** `verify` reports what it did not run rather than counting a
@@ -1407,6 +1407,15 @@ with an empirical floor under it.
   `receiveDocument` was removed rather than left as the obvious thing to
   call; taking a document straight from the WhatsApp message still needs
   the inbound media download. `aml/documents.ts`, `check:kyc-documents`.
+
+  **Uploads never confirmed are swept weekly** (`storage.orphans`,
+  `files/sweep.ts`). For a brochure that is rent; for an identity
+  document it is a copy of a passport no file, subject access request or
+  erasure can find. It touches only the three upload key shapes, only
+  after a day, and only when **no** table holding a storage reference
+  names the key — a compliance `Document` can point at an inbox upload,
+  and checking attachments alone would delete a broker card the law
+  keeps for five years. `check:storage-orphans`.
 
   **Found on the way:** the officer's file page told them "No matches.
   Record and proceed." for a screening that had **ERRORed** — guidance was

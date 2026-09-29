@@ -1,4 +1,4 @@
-import { authHeaders, presign, type Creds } from "./sigv4";
+import { authHeaders, canonicalQuery, presign, type Creds } from "./sigv4";
 
 /**
  * Object storage.
@@ -221,6 +221,38 @@ export async function readObjectHead(key: string, bytes = 16): Promise<{ head: U
   // which would call every real upload the wrong size.
   const total = res.status === 206 ? Number(res.headers.get("content-range")?.split("/")[1]) : all.length;
   return { head: all.slice(0, bytes), size: Number.isFinite(total) && total > 0 ? total : null };
+}
+
+/**
+ * One page of the bucket under a prefix (ListObjectsV2), for the orphan
+ * sweep. A thousand at a time, with the token for the next page.
+ */
+export async function listObjects(prefix: string, token?: string): Promise<{
+  objects: { key: string; lastModified: Date; size: number }[];
+  next: string | null;
+}> {
+  const c = need();
+  const path = c.prefix || "/";
+  const query: Record<string, string> = {
+    "list-type": "2", prefix, "max-keys": "1000", ...(token ? { "continuation-token": token } : {}),
+  };
+  const res = await fetch(`${c.scheme}://${c.host}${path}?${canonicalQuery(query)}`, {
+    headers: authHeaders({ creds: c.creds, method: "GET", host: c.host, path, query }),
+    signal: AbortSignal.timeout(30_000),
+  });
+  if (!res.ok) throw new Error(`Storage LIST ${prefix}: ${res.status}`);
+  const xml = await res.text();
+  const text = (s: string, tag: string) => {
+    const m = new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`).exec(s);
+    return m ? m[1]!.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, "&") : null;
+  };
+  const objects = [...xml.matchAll(/<Contents>([\s\S]*?)<\/Contents>/g)].map((m) => ({
+    key: text(m[1]!, "Key") ?? "",
+    lastModified: new Date(text(m[1]!, "LastModified") ?? 0),
+    size: Number(text(m[1]!, "Size") ?? 0),
+  })).filter((o) => o.key);
+  const truncated = text(xml, "IsTruncated") === "true";
+  return { objects, next: truncated ? text(xml, "NextContinuationToken") : null };
 }
 
 /** Called when an attachment is deleted, so the object goes too. */
