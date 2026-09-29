@@ -13,7 +13,7 @@ The gate is green: `tsc` clean, 432 unit assertions, 65 check suites, 23
 audit scripts, all browser suites, and a production build that succeeds.
 CI runs the lot on every push.
 
-**What is left is four accounts and a phone call.** They are listed
+**What is left is accounts, agreements and a phone call — no code the pilot needs.** They are listed
 under *Still needed from the business* at the end of this file, and
 `PREFLIGHT_ENV=1 npm run check:preflight` names whichever one is
 missing. Run that first; it answers "where are we" in one command.
@@ -277,10 +277,35 @@ real and names the one that is missing:
 2. **Somewhere for alerts to arrive** — a Slack webhook or PagerDuty.
 3. **A dead-man's-switch monitor** — Healthchecks.io or Better Stack,
    free tier.
-4. **Vercel Pro.** 25 crons and a 300-second function both exceed Hobby,
+4. **Vercel Pro.** 30 crons and a 300-second function both exceed Hobby,
    and deploying to Hobby does not fail loudly: the crons simply never
    run, which for a product built on nightly sweeps is the quietest
    possible outage.
+
+**Added since — these block publishing and due diligence, and need
+the business rather than code:**
+
+5. **A storage bucket** (Cloudflare R2 or AWS S3, the four `S3_*`
+   settings in `.env.example`). Every route to a buyer or a portal
+   requires a listing photo, and every due diligence file needs a
+   passport and an Emirates ID; all three are uploads. `check:preflight`
+   names it when it is missing.
+6. **Signed legal terms, a privacy policy and a data processing
+   agreement**, from counsel. The last thing between the code and a
+   paid pilot.
+7. **WhatsApp Business verification** for the pilot brokerage's number,
+   and a real phone to send a passport photo from and file it out of the
+   thread — the one step of that path no check can take.
+8. **App registrations with Google and Microsoft** for the mailbox
+   connection. The code is built and tested against stand-ins.
+9. **A screening provider.** Without one every screening records ERROR,
+   honestly, and the compliance officer is told nothing was checked.
+10. **Portal partner agreements.** The feed works; Property Finder's
+    location IDs arrive with the agreement.
+
+Not built, and larger than an afternoon: **two-way calendar sync**. The
+diary publishes a feed a phone can subscribe to; nothing reads an
+agent's own calendar back.
 
 Also outstanding, and cheap: **a Stripe test key**, so
 `npm run check:billing` can exercise the one step it currently skips.

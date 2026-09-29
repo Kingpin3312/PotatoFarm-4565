@@ -127,6 +127,7 @@ if (process.env.PREFLIGHT_ENV !== "1") {
   skip("dead-man's switch", "set PREFLIGHT_ENV=1 to check a real environment");
   skip("connection pooler", "set PREFLIGHT_ENV=1 to check a real environment");
   skip("secrets",           "set PREFLIGHT_ENV=1 to check a real environment");
+  skip("file storage",      "set PREFLIGHT_ENV=1 to check a real environment");
 } else {
   const env = (k) => (process.env[k] ?? "").trim();
 
@@ -139,7 +140,7 @@ if (process.env.PREFLIGHT_ENV !== "1") {
   /**
    * The pooler, and why a bare connection string fails here.
    *
-   * Serverless invocations plus 25 crons each open their own connection,
+   * Serverless invocations plus 30 crons each open their own connection,
    * and `forOrg()` opens a transaction per query on top. Postgres runs
    * out of connections long before it runs out of capacity. The load
    * check measured the shape of it: the slowest first call is
@@ -172,6 +173,18 @@ if (process.env.PREFLIGHT_ENV !== "1") {
      env("AUTH_SECRET") ? "" : "NextAuth refuses to start in production without it");
 
   /**
+   * A bucket, because two things a pilot does on its first day need one:
+   * publishing a listing (every route to a buyer or a portal requires a
+   * photo) and completing a due diligence file (a passport and an
+   * Emirates ID). Without it both screens say so politely and nothing
+   * can be published or approved — which a demo survives and a pilot
+   * does not.
+   */
+  const s3 = ["S3_BUCKET", "S3_ENDPOINT", "S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY"].filter((k) => !env(k));
+  ok("file storage is configured", s3.length === 0,
+     s3.length ? `${s3.join(", ")} unset — no listing can be published and no identity file completed` : "");
+
+  /**
    * Development values are the ones that reach production, because they
    * are the ones already typed into something.
    */
@@ -192,7 +205,7 @@ const longest = maxDurations.length ? Math.max(...maxDurations) : 0;
 
 /**
  * Vercel's Hobby plan allows two cron jobs at daily granularity and caps
- * a function at 60 seconds. This project has twenty-five crons, several
+ * a function at 60 seconds. This project has thirty crons, several
  * hourly, and a 300-second sweep. Deploying to Hobby does not fail
  * loudly — the crons simply do not run, which for a product built
  * around nightly sweeps is the quietest possible outage.

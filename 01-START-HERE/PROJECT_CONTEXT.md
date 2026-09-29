@@ -419,9 +419,14 @@ Ask — an agent can see what they asked for earlier and what came back.
 - **A secrets provider.** `readSecret(ref)` resolves `SECRET_<ref>` from
   the environment and that is the whole implementation. Fine for a pilot
   with one brokerage; not fine for ten.
-- **Vendor-side conversations.** `Conversation.vendorId` exists in the
-  schema and 17 call sites still read `conversation.lead`. Owner
-  conversations are therefore half-wired.
+- ~~**Vendor-side conversations.**~~ **Built.** An owner who writes to
+  the brokerage's number lands on their own thread, the inbox and the
+  owner's page show it, and the assistant never speaks in it
+  (`check:owner-conversations`).
+- **Two-way calendar sync.** The diary publishes a feed a phone can
+  subscribe to (`calendar/ics.ts`); nothing reads an agent's own Google
+  or Outlook calendar back, so a clash with a private appointment is
+  found by the agent, not the product.
 - **Voice recipes** `BOOK_VIEWING` and `COMPARABLES` return a follow-up
   question rather than completing in one step. Deliberate, but the second
   step is not wired to the booking screen.

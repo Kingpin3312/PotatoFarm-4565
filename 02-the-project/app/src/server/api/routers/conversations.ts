@@ -1,4 +1,5 @@
 import { requestUpload, confirmUpload } from "@/server/lib/files/upload";
+import { kycPrefix } from "@/server/lib/aml/documents";
 import { sendFile, libraryFor } from "@/server/lib/files/send";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
@@ -328,7 +329,7 @@ export const conversationsRouter = router({
         : null;
       const filed = new Set(kyc
         ? (await ctx.db.kycDocument.findMany({
-            where: { kycId: kyc.id, storageRef: { in: withFile.map((m) => `kyc/${ctx.orgId}/${kyc.id}/wa-${m.id}`) } },
+            where: { kycId: kyc.id, storageRef: { in: withFile.map((m) => `${kycPrefix(ctx.orgId, kyc.id)}wa-${m.id}`) } },
             select: { storageRef: true },
           })).map((d) => d.storageRef.slice(d.storageRef.lastIndexOf("/wa-") + 4))
         : []);
