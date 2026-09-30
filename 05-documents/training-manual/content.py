@@ -437,8 +437,10 @@ sec("set-email", "settings", "Email", ["agent", "manager"],
     [("set-email", "Email: connect your Gmail or Outlook mailbox.")],
     "Connect your mailbox so mail with your clients appears on their page beside WhatsApp. Only mail with somebody already on the book is kept, and only who it was with, when, the subject and a line of it. Never the whole message, and nothing else from your inbox.",
     ["Press <b>Connect Google</b> or <b>Connect Microsoft</b>.",
-     "Sign in to your mailbox and allow read-only access.",
-     "Your mailbox appears under <b>Connected</b>. Disconnect it here at any time."])
+     "Sign in to your mailbox and allow read-only access, including your calendar's free and busy times.",
+     "Your mailbox appears under <b>Connected</b>. Disconnect it here at any time."],
+    ["Your calendar is read for when you are busy, so a viewing is never offered on top of your own appointments. Only the times: never what the appointment is, or who with.",
+     "If it says your calendar isn't shared yet, press <b>Connect again</b> and allow calendar access."])
 
 sec("set-import", "settings", "Import your history", ["owner"],
     [("set-import", "Import: bring your history across from your current system.")],
