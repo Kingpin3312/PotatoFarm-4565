@@ -70,13 +70,13 @@ export function PublishCheck({
 
   return (
     <>
-      <Button size="sm" onClick={() => { dialog.current?.showModal(); dialog.current?.focus(); }}>Publish</Button>
+      <button type="button" className="min-h-11 px-1.5 text-sm text-ink-2 hover:text-ink hover:underline underline-offset-4 focus-visible:outline-none focus-visible:shadow-[var(--ring)] rounded-sm" onClick={() => { dialog.current?.showModal(); dialog.current?.focus(); }}>Publish</button>
 
       <dialog
         ref={dialog}
         aria-labelledby="publish-title"
         tabIndex={-1}
-        className="border border-ink rounded-[3px] p-0 max-w-[520px] w-[calc(100%-40px)] bg-raised text-ink-2 backdrop:bg-ink/50"
+        className="border border-rule-strong rounded-[3px] p-0 max-w-[520px] w-[calc(100%-40px)] bg-raised text-ink-2 backdrop:bg-scrim/50"
       >
         <div className="p-6">
           <h2 className="font-sans font-semibold text-h3 text-ink mb-1.5">Publish {reference}</h2>
@@ -86,7 +86,7 @@ export function PublishCheck({
 
           {isLoading && <p className="text-sm text-ink-3 py-4">Checking…</p>}
 
-          <div className="border-t border-ink">
+          <div className="border-t border-rule-strong">
             {data?.map((c) => (
               <div key={c.channelId} className="py-3.5 border-b border-rule">
                 <div className="flex items-center gap-2.5">

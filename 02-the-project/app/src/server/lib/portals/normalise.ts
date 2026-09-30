@@ -2,34 +2,9 @@
  * Turning what portals send into something the pipeline can rely on.
  */
 
-/**
- * Phone normalisation, UAE-first.
- *
- * Portals send the same number half a dozen ways: `0501234567`,
- * `971501234567`, `+971 50 123 4567`, `00971501234567`. Store them as
- * they arrive and the same person becomes four leads, the deduplication
- * does nothing, and an agent phones somebody who was called an hour ago.
- *
- * Returns null rather than guessing when the input is not a number we can
- * be confident about — a wrong normalisation is worse than none, because
- * it silently merges two different people into one lead.
- */
-export function normalisePhone(input: string | undefined, defaultCountry = "971"): string | null {
-  if (!input) return null;
-
-  let d = input.replace(/[^\d+]/g, "");
-  if (d.startsWith("00")) d = "+" + d.slice(2);
-  if (!d.startsWith("+")) {
-    // Local UAE format: 0501234567 -> +971501234567
-    if (d.startsWith("0")) d = `+${defaultCountry}${d.slice(1)}`;
-    else if (d.startsWith(defaultCountry)) d = `+${d}`;
-    else if (d.length === 9) d = `+${defaultCountry}${d}`;
-    else return null;
-  }
-
-  // E.164: plus, country code not starting zero, 8 to 15 digits total.
-  return /^\+[1-9]\d{7,14}$/.test(d) ? d : null;
-}
+/** Phone normalisation lives in `@/lib/phone`, shared with search and
+ *  the forms; re-exported so existing importers keep working. */
+export { normalisePhone } from "@/lib/phone";
 
 /**
  * Portals often hand out a masked proxy number that forwards to the lead

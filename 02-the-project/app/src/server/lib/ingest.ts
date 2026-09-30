@@ -4,6 +4,9 @@ import { forOrg } from "@/server/db/client";
 import { Prisma } from "@prisma/client";
 import { entryStageId } from "@/server/lib/pipeline/defaults";
 import { assignmentFor } from "@/server/lib/routing/apply";
+import { normalisePhone } from "@/server/lib/portals/normalise";
+import { reply } from "@/server/assistant/run";
+import { detectLanguage } from "@/server/lib/language";
 
 /**
  * Inbound WhatsApp.
@@ -38,20 +41,42 @@ export async function ingest(payload: any) {
 
       const db = forOrg(channel.orgId);
 
-      for (const msg of value.messages ?? []) await inbound(db, channel, msg, value);
+      for (const msg of value.messages ?? []) {
+        const fresh = await inbound(db, channel, msg, value);
+        /**
+         * A reply: sent by the assistant while the buyer is being
+         * qualified at a brokerage that has switched that on, drafted for
+         * a person otherwise — `reply` in `assistant/run.ts` decides.
+         *
+         * After the message is stored and committed, never inside that
+         * transaction: the model takes seconds, and a failure here must
+         * not lose the buyer's message. Only for a buyer's new message —
+         * not a redelivery, not an owner. The assistant itself decides the
+         * rest (kill switch, handover, mute, the window) in `prepare`.
+         */
+        if (fresh) {
+          await reply(channel.orgId, fresh.conversationId, fresh.messageId, msg.id).catch((err) =>
+            log.error("[whatsapp] could not reply", { orgId: channel.orgId }, { reason: String(err).slice(0, 200) }));
+        }
+      }
       for (const st of value.statuses ?? []) await status(db, st);
     }
   }
 }
 
-async function inbound(db: any, channel: { id: string; orgId: string }, msg: any, value: any) {
+/** The buyer's conversation and the message, when this was a new message from a buyer. */
+async function inbound(
+  db: any, channel: { id: string; orgId: string }, msg: any, value: any,
+): Promise<{ conversationId: string; messageId: string } | null> {
   const from = `+${msg.from}`;
   const profileName = value.contacts?.[0]?.profile?.name as string | undefined;
   const sentAt = new Date(Number(msg.timestamp) * 1000);
+  const media = sentFile(msg);
   const body =
     msg.text?.body ??
     msg.button?.text ??
     msg.interactive?.list_reply?.title ??
+    media?.body ??
     `[${msg.type}]`;
 
   // Checked before anything else. "Stop" has to work on the first
@@ -63,9 +88,26 @@ async function inbound(db: any, channel: { id: string; orgId: string }, msg: any
       where: { orgId: channel.orgId, phone: from },
       data: { optedOutOfOutreach: true, optedOutAt: new Date() },
     });
+    // An owner's scheduled messages are the weekly report. "Stop" from
+    // them turns it off, the same instruction in the only form it has.
+    const owners = await ownersWithNumber(db, from);
+    if (owners.length) {
+      await db.vendor.updateMany({ where: { id: { in: owners.map((o) => o.id) } }, data: { reportsOff: true } });
+    }
   }
 
-  await db.$transaction(async (tx: Prisma.TransactionClient) => {
+  return db.$transaction(async (tx: Prisma.TransactionClient) => {
+    /**
+     * A redelivery changes nothing.
+     *
+     * The file opens by promising that "a duplicate is a no-op", and the
+     * message row was — but the conversation update beside it ran again
+     * each time: another unread on the badge for a message already read,
+     * and the reply clock moved to whatever the old message said.
+     */
+    const seen = await tx.message.findUnique({ where: { externalId: msg.id }, select: { id: true } });
+    if (seen) return null;
+
     // The lead is identified by phone. Upsert rather than create, because
     // a returning enquirer is the same person, not a new one.
     // Placed on the board at the moment it is created. Without this the
@@ -92,6 +134,25 @@ async function inbound(db: any, channel: { id: string; orgId: string }, msg: any
       where: { orgId_phone: { orgId: channel.orgId, phone: from } },
       select: { id: true, assignedToId: true },
     });
+
+    /**
+     * Not a buyer we know — perhaps an owner.
+     *
+     * Every number that was not a lead became one, so an owner replying
+     * to their agent about their own flat was filed as a new enquiry,
+     * handed to the routing rotation, and qualified as a buyer. A known
+     * buyer still wins: somebody who enquired first is in that thread
+     * already, and moving them would split one conversation into two.
+     */
+    if (!known) {
+      const owner = (await ownersWithNumber(tx, from))[0];
+      if (owner) {
+        const conversation = await arrived(tx, { vendorId: owner.id }, channel, sentAt);
+        await store(tx, channel.orgId, conversation.id, msg.id, body, sentAt, media);
+        return null;
+      }
+    }
+
     const assignment = known
       ? null
       : await assignmentFor(tx, { orgId: channel.orgId, source: "WHATSAPP_AD" });
@@ -102,6 +163,9 @@ async function inbound(db: any, channel: { id: string; orgId: string }, msg: any
         orgId: channel.orgId,
         phone: from,
         name: profileName,
+        // The language they wrote their first message in, so the reply
+        // is in it too. See `lib/language.ts`.
+        language: detectLanguage(body) ?? "en",
         status: "NEW",
         source: "WHATSAPP_AD",
         ...(stageId ? { stageId } : {}),
@@ -158,38 +222,102 @@ async function inbound(db: any, channel: { id: string; orgId: string }, msg: any
       });
     }
 
-    const conversation = await tx.conversation.upsert({
-      where: { leadId: lead.id },
-      create: {
-        orgId: channel.orgId,
-        leadId: lead.id,
-        channelId: channel.id,
-        lastInboundAt: sentAt,
-        unreadCount: 1,
-      },
-      update: {
-        // Only move the clock forward — a redelivered old message must not
-        // reopen a window that has actually closed.
-        lastInboundAt: sentAt,
-        unreadCount: { increment: 1 },
-      },
-    });
+    const conversation = await arrived(tx, { leadId: lead.id }, channel, sentAt);
+    const message = await store(tx, channel.orgId, conversation.id, msg.id, body, sentAt, media);
+    return { conversationId: conversation.id, messageId: message.id };
+  });
+}
 
-    await tx.message.upsert({
-      // The provider id is unique, so a redelivery updates nothing.
-      where: { externalId: msg.id },
-      create: {
-        orgId: channel.orgId,
-        conversationId: conversation.id,
-        externalId: msg.id,
-        direction: "INBOUND",
-        author: "LEAD",
-        body,
-        status: "DELIVERED",
-        sentAt,
-      },
-      update: {},
+/**
+ * The owners whose number this is. Owners' numbers are typed by agents —
+ * "050 123 4567" — so they are compared once normalised, never as typed.
+ * The one with a thread already comes first, then the most recent.
+ */
+async function ownersWithNumber(db: any, from: string): Promise<{ id: string }[]> {
+  const rows: { id: string; phone: string | null; updatedAt: Date; conversation: { id: string } | null }[] =
+    await db.vendor.findMany({
+      where: { phone: { not: null } },
+      select: { id: true, phone: true, updatedAt: true, conversation: { select: { id: true } } },
+      take: 5000,
     });
+  return rows
+    .filter((v) => normalisePhone(v.phone ?? undefined) === from)
+    .sort((a, b) => Number(!!b.conversation) - Number(!!a.conversation) || b.updatedAt.getTime() - a.updatedAt.getTime());
+}
+
+/**
+ * The party's thread, with the message counted on it.
+ *
+ * The reply clock only moves forward — the comment here always said so
+ * and the code set it to whatever arrived. Meta delivers out of order,
+ * and an older message landing second would have closed a window that
+ * was open.
+ */
+async function arrived(
+  tx: any,
+  party: { leadId: string } | { vendorId: string },
+  channel: { id: string; orgId: string },
+  sentAt: Date,
+): Promise<{ id: string }> {
+  const existing = await tx.conversation.findUnique({ where: party, select: { id: true, lastInboundAt: true } });
+  if (!existing) {
+    return tx.conversation.create({
+      data: { orgId: channel.orgId, ...party, channelId: channel.id, lastInboundAt: sentAt, unreadCount: 1 },
+      select: { id: true },
+    });
+  }
+  return tx.conversation.update({
+    where: { id: existing.id },
+    data: {
+      unreadCount: { increment: 1 },
+      ...(!existing.lastInboundAt || sentAt > existing.lastInboundAt ? { lastInboundAt: sentAt } : {}),
+    },
+    select: { id: true },
+  });
+}
+
+/**
+ * A photo or a document, as a reference and a line for the thread.
+ *
+ * It was `[image]` and nothing else: the id Meta sends — the only way to
+ * fetch the file — was dropped on arrival. So the passport the identity
+ * panel's request asks a buyer to send on WhatsApp arrived, showed as
+ * "[image]", and could never reach the file; the agent had to ask again
+ * some other way. The id is kept now, and the file stays with Meta until
+ * somebody files it — `collect.ts` rule 4: the image never lives in the
+ * thread.
+ */
+export function sentFile(msg: any): { body: string; mediaId: string; mediaType: string | null } | null {
+  const part = msg.type === "image" ? msg.image : msg.type === "document" ? msg.document : null;
+  if (!part?.id) return null;
+  const caption = typeof part.caption === "string" && part.caption.trim() ? part.caption.trim() : null;
+  const name = typeof part.filename === "string" && part.filename.trim() ? part.filename.trim().slice(0, 120) : null;
+  const what = msg.type === "image" ? "[photo]" : `[document${name ? `: ${name}` : ""}]`;
+  return {
+    body: caption ? `${what} ${caption}` : what,
+    mediaId: String(part.id).slice(0, 100),
+    mediaType: typeof part.mime_type === "string" ? part.mime_type.split(";")[0].trim().slice(0, 100) : null,
+  };
+}
+
+async function store(
+  tx: any, orgId: string, conversationId: string, externalId: string, body: string, sentAt: Date,
+  media: { mediaId: string; mediaType: string | null } | null = null,
+): Promise<{ id: string }> {
+  return tx.message.upsert({
+    // The provider id is unique, so a redelivery racing this one updates nothing.
+    where: { externalId },
+    create: {
+      orgId, conversationId, externalId,
+      direction: "INBOUND",
+      // The party, whoever they are. `LEAD` is the enum's name for
+      // "the other side", and an owner is the other side too.
+      author: "LEAD",
+      body, status: "DELIVERED", sentAt,
+      ...(media ? { mediaId: media.mediaId, mediaType: media.mediaType } : {}),
+    },
+    update: {},
+    select: { id: true },
   });
 }
 

@@ -15,8 +15,12 @@ import { Button } from "@/components/ui/button";
  * halts the whole brokerage. Two names, two scopes, and the audit
  * asserts both are checked before any model call.
  */
-export function ThreadControls({ conversationId, muted, windowOpen, handover }: {
+export function ThreadControls({ conversationId, muted, windowOpen, handover, owner = false, neverWrote = false }: {
   conversationId: string; muted: boolean; windowOpen: boolean; handover: boolean;
+  /** An owner's thread: the assistant never speaks here, so there is nothing to mute or hand back. */
+  owner?: boolean;
+  /** Nobody has written to this number yet — an owner's thread opened from their page. */
+  neverWrote?: boolean;
 }) {
   const mute = api.conversations.mute.useMutation();
   const takeover = api.conversations.takeover.useMutation();
@@ -26,12 +30,14 @@ export function ThreadControls({ conversationId, muted, windowOpen, handover }: 
   return (
     <div className="flex gap-2 flex-wrap items-center">
       {/* "quiet", not "ghost" — see button.tsx for the variants that exist. */}
-      <Button variant={muted ? "primary" : "quiet"} loading={mute.isPending}
-        onClick={() => mute.mutate({ conversationId, muted: !muted })}>
-        {muted ? "Assistant is off here" : "I've got this"}
-      </Button>
+      {!owner && (
+        <Button variant={muted ? "primary" : "quiet"} loading={mute.isPending}
+          onClick={() => mute.mutate({ conversationId, muted: !muted })}>
+          {muted ? "Assistant is off here" : "I've got this"}
+        </Button>
+      )}
 
-      {handover && (
+      {handover && !owner && (
         <Button variant="secondary" loading={takeover.isPending}
           onClick={() => takeover.mutate({ conversationId, on: false,
                                            reason: "Agent finished, handing back" })}>
@@ -56,7 +62,9 @@ export function ThreadControls({ conversationId, muted, windowOpen, handover }: 
                viewport. */
             <div className="border border-rule border-s-2 border-s-danger-deep bg-sunk rounded-xl p-4">
               <p className="text-sm text-ink-2">
-                <strong className="text-ink font-semibold">Quiet for more than 24 hours.</strong>{" "}
+                <strong className="text-ink font-semibold">
+                  {neverWrote ? "They haven’t written to this number yet." : "Quiet for more than 24 hours."}
+                </strong>{" "}
                 WhatsApp only allows an approved template until they reply. This isn&rsquo;t us
                 — it&rsquo;s Meta&rsquo;s rule for every business on the platform.
               </p>
@@ -71,7 +79,9 @@ export function ThreadControls({ conversationId, muted, windowOpen, handover }: 
                 Approved templates
               </span>
               <div className="flex gap-2 flex-wrap">
-                {["viewing_reminder", "new_listing_match", "checking_in"].map((t) => (
+                {/* A viewing reminder or a property match means nothing to
+                    somebody selling their own home. */}
+                {(owner ? ["checking_in"] : ["viewing_reminder", "new_listing_match", "checking_in"]).map((t) => (
                   <button key={t} className="btn-inline"
                     onClick={() => sendTemplate.mutate({ conversationId, template: t, variables: [] })}>
                     {t.replace(/_/g, " ")}

@@ -1,3 +1,4 @@
+import type React from "react";
 import { cn } from "@/lib/cn";
 import { whenExact } from "@/lib/when";
 import type { Author, Direction, MessageStatus } from "@prisma/client";
@@ -22,7 +23,7 @@ const LABEL: Record<Author, string> = {
 };
 
 export function Message({
-  author, direction, body, sentAt, status, failure,
+  author, direction, body, sentAt, status, failure, children,
 }: {
   author: Author;
   direction: Direction;
@@ -30,6 +31,8 @@ export function Message({
   sentAt: Date;
   status: MessageStatus;
   failure?: string | null;
+  /** Something to do with this message — filing a document it carried. */
+  children?: React.ReactNode;
 }) {
   const outbound = direction === "OUTBOUND";
 
@@ -64,6 +67,7 @@ export function Message({
             the guessing. */}
         {failure && <span className="text-danger"> · {failure}</span>}
       </div>
+      {children}
     </article>
   );
 }

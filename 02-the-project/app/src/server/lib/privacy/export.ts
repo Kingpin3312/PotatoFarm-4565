@@ -1,4 +1,5 @@
 import { forOrg } from "@/server/db/client";
+import { normalisePhone } from "@/server/lib/portals/normalise";
 
 /**
  * Data export.
@@ -69,7 +70,7 @@ export async function* exportTenant(orgId: string) {
   yield* table("conversations", (c) =>
     db.conversation.findMany({
       take: 500, ...(c && { cursor: { id: c }, skip: 1 }), orderBy: { id: "asc" },
-      include: { messages: { orderBy: { sentAt: "asc" } } },
+      include: { messages: { orderBy: [{ sentAt: "asc" }, { id: "asc" }] } },
     })
   );
 
@@ -120,12 +121,41 @@ export async function exportSubject(orgId: string, phone: string) {
       answers: { include: { question: { select: { prompt: true } } } },
       enquiries: { include: { listing: { select: { reference: true, title: true } } } },
       viewings: { include: { listing: { select: { reference: true, title: true } } } },
-      conversation: { include: { messages: { orderBy: { sentAt: "asc" } } } },
+      conversation: { include: { messages: { orderBy: [{ sentAt: "asc" }, { id: "asc" }] } } },
       assignedTo: { select: { name: true } },
+      opportunities: { select: { kind: true, title: true, status: true, createdAt: true, closedAt: true } },
     },
   });
 
-  if (!lead) return null;
+  const owners = await ownersFor(db, phone);
+  if (!lead && !owners.length) return null;
+  if (!lead) {
+    // One shape either way, so whoever reads the file — or a check —
+    // finds each section in the same place, empty where it does not apply.
+    return {
+      generatedAt: new Date().toISOString(),
+      aboutYou: {
+        name: owners[0]!.name as string | null, phone, email: owners[0]!.email,
+        language: null as string | null, firstContact: owners[0]!.createdAt, source: null as string | null,
+      },
+      whatYouToldUs: [] as { question: string; answer: string; recorded: Date }[],
+      propertiesYouAskedAbout: [] as { property: string; reference: string | undefined; when: Date }[],
+      viewings: [] as { property: string | undefined; when: Date; outcome: string }[],
+      messages: [] as { from: string; text: string; when: Date }[],
+      handledBy: null as string | null,
+      otherBusiness: [] as { what: string; kind: string; status: string; opened: Date; closed: Date | null }[],
+      asPropertyOwner: owners.map(asOwner),
+    };
+  }
+
+  // What they told us about each viewing. Not a relation on `Lead`, so
+  // read separately — and easy to leave out of a subject access request
+  // for exactly that reason.
+  const feedback = await db.viewingFeedback.findMany({
+    where: { leadId: lead.id, answeredAt: { not: null } },
+    select: { viewingId: true, verdict: true, reasons: true, comment: true, answeredAt: true },
+  });
+  const said = new Map(feedback.map((f) => [f.viewingId, f]));
 
   return {
     generatedAt: new Date().toISOString(),
@@ -144,11 +174,60 @@ export async function exportSubject(orgId: string, phone: string) {
     })),
     viewings: lead.viewings.map((v) => ({
       property: v.listing?.title, when: v.scheduledAt, outcome: v.status,
+      ...(said.has(v.id) && {
+        whatYouThought: {
+          verdict: said.get(v.id)!.verdict, reasons: said.get(v.id)!.reasons,
+          inYourWords: said.get(v.id)!.comment, recorded: said.get(v.id)!.answeredAt,
+        },
+      }),
     })),
     messages: lead.conversation?.messages.map((m) => ({
       from: m.author === "LEAD" ? "you" : m.author === "ASSISTANT" ? "our assistant" : "our team",
       text: m.body, when: m.sentAt,
     })) ?? [],
     handledBy: lead.assignedTo?.name ?? null,
+    // What else they are doing with us: selling, letting, renting.
+    otherBusiness: lead.opportunities.map((o) => ({
+      what: o.title, kind: o.kind, status: o.status, opened: o.createdAt, closed: o.closedAt,
+    })),
+    // Somebody buying one flat can be selling another.
+    asPropertyOwner: owners.map(asOwner),
+  };
+}
+
+/**
+ * The same number as a property owner.
+ *
+ * Owners have had a thread with the brokerage since
+ * `20260929090000_owner_conversations`, and this file was built from a
+ * buyer's record alone, so an owner asking what we hold was told
+ * "nothing" while their messages sat in the inbox. Matched by normalised
+ * number, because an owner's is typed by an agent.
+ *
+ * Their properties by reference and title, and their own thread. Not the
+ * offers on those properties: those are other people's data.
+ */
+async function ownersFor(db: ReturnType<typeof forOrg>, phone: string) {
+  const want = normalisePhone(phone) ?? phone;
+  const rows = await db.vendor.findMany({
+    where: { phone: { not: null } },
+    select: {
+      id: true, name: true, email: true, phone: true, prefers: true, reportDay: true, reportsOff: true, createdAt: true,
+      listings: { select: { reference: true, title: true, status: true } },
+      conversation: { select: { messages: { orderBy: { sentAt: "asc" }, select: { author: true, body: true, sentAt: true } } } },
+    },
+  });
+  return rows.filter((v) => normalisePhone(v.phone ?? undefined) === want);
+}
+
+function asOwner(o: Awaited<ReturnType<typeof ownersFor>>[number]) {
+  return {
+    name: o.name, email: o.email, since: o.createdAt,
+    howYouAskedToHearFromUs: o.prefers,
+    weeklyReport: o.reportsOff ? "off" : o.reportDay ? `day ${o.reportDay} of the week` : "none",
+    propertiesYouAskedUsToHandle: o.listings.map((l) => ({ reference: l.reference, property: l.title, status: l.status })),
+    messages: o.conversation?.messages.map((m) => ({
+      from: m.author === "LEAD" ? "you" : "our team", text: m.body, when: m.sentAt,
+    })) ?? [],
   };
 }

@@ -274,7 +274,7 @@ export function CommandPalette() {
       aria-label={t("palette.open")}
       onClick={(e) => { if (e.target === dialog.current) close(); }}
       className={cn(
-        "backdrop:bg-ink/25 bg-transparent p-0 m-0 max-w-none max-h-none w-full h-full",
+        "backdrop:bg-scrim/25 bg-transparent p-0 m-0 max-w-none max-h-none w-full h-full",
       )}
     >
       {/* Placed high rather than centred: the list grows downwards and a
@@ -296,6 +296,15 @@ export function CommandPalette() {
             autoComplete="off"
             className="w-full min-h-14 px-4 text-sub bg-transparent border-0 border-b border-rule outline-none text-ink placeholder:text-ink-3"
           />
+
+          {/* What the search understood, as the Find screen says it. A
+              phone number read as a budget, or a place it did not know,
+              is visible here rather than being a mystery result. */}
+          {q.trim().length >= 3 && (data?.reading?.length ?? 0) > 0 && (
+            <p className="px-4 pt-2 t-label text-ink-3" data-reading>
+              {t("palette.readAs")}: {data!.reading.join(" · ")}
+            </p>
+          )}
 
           {/* The count, announced. Results change with no navigation, so
               without this a screen reader user types and hears nothing. */}

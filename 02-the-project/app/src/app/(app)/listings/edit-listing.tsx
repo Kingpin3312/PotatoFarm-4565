@@ -3,6 +3,9 @@
 import { useRef, useState } from "react";
 import { api } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
+import { DetailFields, TYPE_OPTIONS } from "./add-property";
+import { filsToAed } from "@/lib/money";
+import { LocationPicker } from "@/components/ui/location-picker";
 
 /**
  * Changing a property that already exists.
@@ -38,6 +41,7 @@ type Listing = {
   title: string;
   community: string | null;
   building: string | null;
+  location: { id: string; path: string } | null;
   bedrooms: number | null;
   bathrooms: number | null;
   areaSqft: number | null;
@@ -50,6 +54,17 @@ type Listing = {
   permitNumber: string | null;
   permitExpiresAt: Date | string | null;
   reraBrokerCard: string | null;
+  propertyType?: string | null;
+  completion?: string;
+  handoverAt?: Date | string | null;
+  developer?: string | null;
+  project?: string | null;
+  paymentPlan?: string | null;
+  unitNumber?: string | null;
+  furnishing?: string | null;
+  rentCheques?: number | null;
+  depositFils?: bigint | null;
+  serviceChargeFils?: bigint | null;
 };
 
 export function EditListing({ listing }: { listing: Listing }) {
@@ -99,8 +114,8 @@ export function EditListing({ listing }: { listing: Listing }) {
       // Omitted rather than nulled — see the note above.
       ...(reference ? { reference } : {}),
       ...(str("title") ? { title: str("title")! } : {}),
-      community: str("community"),
-      building: str("building"),
+      // Sent only when it moved: an unchanged place is not an edit.
+      ...(str("locationId") && str("locationId") !== listing.location?.id ? { locationId: str("locationId")! } : {}),
       bedrooms: num("bedrooms"),
       bathrooms: num("bathrooms"),
       areaSqft: num("areaSqft"),
@@ -113,6 +128,17 @@ export function EditListing({ listing }: { listing: Listing }) {
         ? new Date(`${expiry}T12:00:00.000Z`).toISOString()
         : null,
       reraBrokerCard: str("reraBrokerCard"),
+      propertyType: str("propertyType") as "APARTMENT" | null,
+      completion: (str("completion") ?? "READY") as "READY" | "OFF_PLAN",
+      handoverAt: str("handoverAt") ? new Date(`${str("handoverAt")}T12:00:00.000Z`).toISOString() : null,
+      developer: str("developer"),
+      project: str("project"),
+      paymentPlan: str("paymentPlan"),
+      unitNumber: str("unitNumber"),
+      furnishing: str("furnishing") as "FURNISHED" | null,
+      rentCheques: num("rentCheques"),
+      depositAed: num("depositAed"),
+      serviceChargeAed: num("serviceChargeAed"),
     });
   }
 
@@ -136,13 +162,13 @@ export function EditListing({ listing }: { listing: Listing }) {
 
   return (
     <>
-      <Button size="sm" variant="secondary" onClick={open}>Edit</Button>
+      <button type="button" className="min-h-11 px-1.5 text-sm text-ink-2 hover:text-ink hover:underline underline-offset-4 focus-visible:outline-none focus-visible:shadow-[var(--ring)] rounded-sm" onClick={open}>Edit</button>
 
       <dialog
         ref={dialog}
         aria-labelledby={`edit-listing-title-${listing.id}`}
         tabIndex={-1}
-        className="border border-ink rounded-[3px] p-0 max-w-[560px] w-[calc(100%-40px)] bg-raised text-ink-2 backdrop:bg-ink/50"
+        className="border border-rule-strong rounded-[3px] p-0 max-w-[560px] w-[calc(100%-40px)] bg-raised text-ink-2 backdrop:bg-scrim/50"
       >
         <form onSubmit={submit} className="p-6">
           <h2
@@ -164,8 +190,7 @@ export function EditListing({ listing }: { listing: Listing }) {
           <div className="grid grid-cols-2 gap-3.5">
             <Field name="reference" label="Reference" required defaultValue={listing.reference} autoFocus />
             <Field name="title" label="Name" required defaultValue={listing.title} />
-            <Field name="community" label="Community" defaultValue={listing.community ?? ""} />
-            <Field name="building" label="Building" defaultValue={listing.building ?? ""} />
+            <LocationPicker name="locationId" initial={listing.location} />
             <Field name="bedrooms" label="Bedrooms" type="number" inputMode="numeric"
                    defaultValue={listing.bedrooms ?? ""} />
             <Field name="bathrooms" label="Bathrooms" type="number" inputMode="numeric"
@@ -174,6 +199,9 @@ export function EditListing({ listing }: { listing: Listing }) {
                    defaultValue={listing.areaSqft ?? ""} />
             <Field name="priceAed" label="Price (AED)" inputMode="decimal" defaultValue={priceAed} />
 
+            <Select name="propertyType" label="Type" defaultValue={listing.propertyType ?? ""} options={TYPE_OPTIONS} />
+            <Select name="completion" label="Ready or off-plan" defaultValue={listing.completion ?? "READY"}
+                    options={[["READY", "Ready"], ["OFF_PLAN", "Off-plan"]]} />
             <Select name="purpose" label="Purpose" defaultValue={listing.purpose}
                     options={[["SALE", "For sale"], ["RENT", "To let"]]} />
             {/*
@@ -211,6 +239,14 @@ export function EditListing({ listing }: { listing: Listing }) {
                      defaultValue={listing.reraBrokerCard ?? ""} />
             </div>
           </div>
+
+          <DetailFields d={{
+            developer: listing.developer, project: listing.project, unitNumber: listing.unitNumber,
+            handoverAt: listing.handoverAt ? new Date(listing.handoverAt).toISOString() : null,
+            paymentPlan: listing.paymentPlan, furnishing: listing.furnishing, rentCheques: listing.rentCheques,
+            depositAed: listing.depositFils ? filsToAed(listing.depositFils) : null,
+            serviceChargeAed: listing.serviceChargeFils ? filsToAed(listing.serviceChargeFils) : null,
+          }} />
 
           <div className="flex gap-2.5 mt-7">
             <Button type="button" variant="secondary" onClick={() => dialog.current?.close()}>

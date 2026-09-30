@@ -42,7 +42,7 @@ export function TeamCapacity() {
             "every community. Routing is already applying that."}
       </p>
 
-      <div className="border-t border-ink mt-5">
+      <div className="border-t border-rule-strong mt-5">
         {data.map((a) => (
           <div key={a.userId} className="py-4 border-b border-rule">
             <div className="flex items-baseline gap-3 flex-wrap">

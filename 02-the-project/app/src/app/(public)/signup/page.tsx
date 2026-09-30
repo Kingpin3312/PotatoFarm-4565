@@ -77,7 +77,10 @@ export default function Signup() {
           ) : terms?.seatPrice && (
             <p className="text-ui text-ink-2 mt-2 tabular">
               {terms.seatPrice.usd} per agent after the trial &mdash;{" "}
-              <span className="text-ink-3">{terms.seatPrice.aed}, invoiced in dirhams</span>
+              <span className="text-ink-3">
+                {terms.seatPrice.aed}, invoiced in dirhams
+                {terms.vatRate ? `, plus ${terms.vatRate} VAT` : ", with no VAT added"}
+              </span>
             </p>
           )}
         </div>

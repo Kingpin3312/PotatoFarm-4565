@@ -78,6 +78,32 @@ export const RULES: Record<NotificationKind, {
   ASSISTANT_STOPPED: { urgency: "normal", afterMinutes: 0, escalateAfterMinutes: [], why: "So nobody assumes the silence is a fault." },
 
   /**
+   * A buyer wrote and the assistant's reply is ready for a person to send.
+   * Urgent, and at once: a draft that sits unread is a reply in minutes
+   * or hours, which is the thing drafting exists to prevent. Escalated to
+   * a manager if nobody has sent or discarded it in a quarter of an hour.
+   */
+  REPLY_READY: {
+    urgency: "urgent",
+    afterMinutes: 0,
+    escalateAfterMinutes: [15, 45],
+    why: "A buyer is waiting and a reply is written.",
+  },
+
+  /**
+   * An owner wrote and nobody has answered. Not urgent the way a buyer
+   * mid-conversation is — but "my agent never gets back to me" is the
+   * most common complaint owners make, and it ends instructions. Half an
+   * hour to the agent who looks after their property, then a manager.
+   */
+  OWNER_WAITING: {
+    urgency: "normal",
+    afterMinutes: 30,
+    escalateAfterMinutes: [240],
+    why: "A property owner is waiting for a reply.",
+  },
+
+  /**
    * A follow-up the agent set for themselves, usually from a voice note.
    *
    * No escalation ladder and no urgency. This is somebody's own note to

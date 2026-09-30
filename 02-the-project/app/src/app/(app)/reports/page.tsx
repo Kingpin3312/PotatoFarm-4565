@@ -4,7 +4,8 @@ import { useState } from "react";
 import { api } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { QueryError } from "@/components/ui/query-state";
-import { Bars, Funnel } from "@/components/ui/chart";
+import { Bars, Donut } from "@/components/ui/chart";
+import { Kpis } from "./kpis";
 
 /**
  * The baseline, and the proof.
@@ -107,18 +108,33 @@ export default function Reports() {
       <h2 className="font-sans font-semibold text-body-lg text-ink mt-12 mb-3">
         Where they come from
       </h2>
-      {/* Counts in a column are compared by reading; a length is
-          compared by looking. The reply time stays a number, because
-          "which is slowest" is not a question about size. */}
-      <Funnel
+      {/* Every enquiry arrives through exactly one source, so this is a
+          whole and the ring shows each source's share of it. The reply
+          time stays a number in its own column, because "which is
+          slowest" is not a question about size and reply times do not
+          add up to anything. Past three sources the ring folds the rest;
+          the list keeps every one. */}
+      <Donut
         caption="Enquiries by channel"
-        rows={(byChannel?.channels ?? []).map((c) => ({
+        slices={(byChannel?.channels ?? []).map((c) => ({
           label: c.label,
           value: c.count,
           note: fmt(c.medianMins),
         }))}
+        centre={(byChannel?.channels ?? []).reduce((n, c) => n + c.count, 0).toLocaleString()}
+        centreLabel="enquiries"
+        noteLabel="First reply"
+        one={(c) => (
+          <>
+            Every enquiry in this period came through <span className="text-ink font-medium">{c.label}</span> —{" "}
+            {c.value.toLocaleString()} of them, with a typical first reply of {c.note}. Connect a portal
+            or a website form and this shows how the work splits between them.
+          </>
+        )}
         empty="No enquiries have arrived through a connected channel yet."
       />
+
+      <Kpis />
     </div>
   );
 }

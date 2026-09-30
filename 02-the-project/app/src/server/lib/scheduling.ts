@@ -48,7 +48,8 @@ export async function availableSlots(args: {
 }): Promise<Availability> {
   const duration = args.durationMins ?? SLOT_MINUTES;
 
-  const [org, hours, booked] = await Promise.all([
+  const windowEnd = new Date(args.from.getTime() + args.days * 86_400_000);
+  const [org, hours, booked, busy] = await Promise.all([
     crossTenant("sweep").organisation.findUnique({ where: { id: args.orgId }, select: { timezone: true } }),
     crossTenant("sweep").workingHours.findMany({ where: { orgId: args.orgId } }),
     crossTenant("sweep").viewing.findMany({
@@ -58,7 +59,7 @@ export async function availableSlots(args: {
         status: { in: ["SCHEDULED", "CONFIRMED"] },
         scheduledAt: {
           gte: args.from,
-          lte: new Date(args.from.getTime() + args.days * 86_400_000),
+          lte: windowEnd,
         },
       },
       select: {
@@ -66,6 +67,17 @@ export async function availableSlots(args: {
         listing: { select: { community: true } },
       },
       orderBy: { scheduledAt: "asc" },
+    }),
+    /**
+     * The agent's own calendar, as last read (`email/sync.ts`). Without
+     * it a viewing could be offered — and confirmed by a buyer — on top
+     * of the agent's dentist, because the diary only ever published
+     * outwards. Where the appointment is is not known, so it carries the
+     * across-town buffer either side.
+     */
+    crossTenant("sweep").calendarBusy.findMany({
+      where: { orgId: args.orgId, agentId: args.agentId, endsAt: { gt: args.from }, startsAt: { lt: windowEnd } },
+      select: { startsAt: true, endsAt: true },
     }),
   ]);
 
@@ -110,7 +122,11 @@ export async function availableSlots(args: {
         return start.getTime() < bEnd + pad && end.getTime() + pad > bStart;
       });
 
-      if (!clash) slots.push({ start, end });
+      const pad = ACROSS_TOWN_BUFFER * 60_000;
+      const ownCalendar = busy.some((b) =>
+        start.getTime() < b.endsAt.getTime() + pad && end.getTime() + pad > b.startsAt.getTime());
+
+      if (!clash && !ownCalendar) slots.push({ start, end });
     }
   }
 

@@ -40,7 +40,26 @@ function severityFor(check: Check, scope: "platform" | "tenant"): Severity {
   // fixable now.
   if (scope === "platform") return "PAGE";
 
-  if (check.state !== "broken") return "LOG";
+  /**
+   * Degraded: recorded quietly, except where quiet is the failure.
+   *
+   * Most degraded states are ordinary facts about a customer's account
+   * — the assistant not switched on, no subscription on a demo
+   * brokerage — and delivering those would page somebody daily about
+   * nothing, which is how the real alarm gets muted.
+   *
+   * The two exceptions are the silences. A portal feed that has stopped
+   * delivering enquiries, or a portal that has stopped collecting the
+   * listing feed, is a churn event in progress: nothing errors, leads
+   * or listings simply stop, and the brokerage finds out a fortnight
+   * later by wondering why the market went quiet. Somebody has to be
+   * told, in the morning — an engineer cannot fix either one, because
+   * both usually end with the customer being handed a URL.
+   */
+  if (check.state !== "broken") {
+    if (check.key.startsWith("portal") || check.key === "listing-feed") return "TICKET";
+    return "LOG";
+  }
 
   switch (true) {
     // Needs the customer. Nobody rings a brokerage at midnight.
@@ -102,7 +121,31 @@ export async function evaluate() {
     });
   } else {
     for (const t of tenants) {
-      for (const c of t.checks.filter((c) => c.state === "broken")) {
+      /**
+       * Degraded as well as broken, and this filter is why the portal
+       * silence alarm never alarmed.
+       *
+       * `portals/health.ts` opens by calling itself the most important
+       * file in the portal integration, and `portalCheck` reports a
+       * silent feed as **degraded** — as it should, since the rest of
+       * the customer's system is working. This loop read `=== "broken"`,
+       * so every degraded check in the product was computed every five
+       * minutes and discarded. Nothing anywhere consumed one: no screen
+       * reads `tenantHealth`, and this was its only other reader.
+       *
+       * The tell was in `severityFor` below, which opens with
+       * `if (check.state !== "broken") return "LOG"` — a branch that
+       * could never execute, because nothing but a broken check ever
+       * reached it. **A branch nothing can run is the same shape as a
+       * module nothing calls**, and it was sitting directly underneath
+       * the line that made it unreachable.
+       *
+       * Noise is the risk, and severity is the answer rather than this
+       * filter: a degraded check becomes a recorded, deduplicated,
+       * self-closing alert, and only the ones worth a person's morning
+       * are delivered. `notify()` drops LOG before it reaches anybody.
+       */
+      for (const c of t.checks.filter((c) => c.state === "broken" || c.state === "degraded")) {
         found.push({
           key: `tenant:${t.orgId}:${c.key}`,
           orgId: t.orgId,
@@ -118,14 +161,34 @@ export async function evaluate() {
     }
   }
 
-  for (const j of jobs.filter((j) => j.state === "overdue")) {
+  /**
+   * Both failure states, not just the one.
+   *
+   * This filtered on `"overdue"`, which `jobsHealth()` only produces
+   * for a job that has succeeded before and then stopped. A job that
+   * has **never** succeeded reported `"never run"` and was silently
+   * dropped here — so the alerting could complain about a cron that
+   * broke, and never about one that never worked.
+   */
+  for (const j of jobs.filter((j) => j.state === "overdue" || (j.state === "never run" && j.overdueBy !== null))) {
+    const never = j.state === "never run";
     found.push({
       key: `jobs:${j.job}`,
       // A stopped cron is fixable now and everything downstream of it is
       // silently not happening.
-      severity: "PAGE",
-      title: `Job ${j.job} has stopped running`,
-      detail: `${j.overdueBy} minutes past when it should have run.`,
+      //
+      // A job that has never run once is a TICKET rather than a PAGE:
+      // the likeliest cause is a deployment or configuration that was
+      // never finished, which is a morning job, and paging on it would
+      // wake somebody for every weekly job on a new install.
+      severity: never ? "TICKET" : "PAGE",
+      title: never
+        ? `Job ${j.job} has never run`
+        : `Job ${j.job} has stopped running`,
+      detail: never
+        ? `No successful run in the ${j.overdueBy} minutes this deployment has existed. `
+          + `If every job reports this, check CRON_SECRET.`
+        : `${j.overdueBy} minutes past when it should have run.`,
       runbook: RUNBOOKS.jobs,
     });
   }

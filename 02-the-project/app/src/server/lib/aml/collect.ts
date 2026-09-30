@@ -1,6 +1,3 @@
-import { forOrg } from "@/server/db/client";
-import { log } from "@/lib/log";
-
 /**
  * Collecting due diligence documents over WhatsApp.
  *
@@ -65,47 +62,25 @@ export const ASSISTANT_MAY_VERIFY = false;
  * log is a passport in every backup and export of that conversation. It
  * goes to object storage with restricted access, and the message body
  * records only that a document was received.
+ *
+ * ## How a document gets in today
+ *
+ * Two ways, both ending in the same place. The agent adds it from the
+ * identity panel (`aml.documentUpload` → `aml.documentConfirm`, rules in
+ * `aml/documents.ts`), or — when the buyer sent it on WhatsApp, as the
+ * request above asks — files it from the message itself
+ * (`aml.documentFromMessage`): the server fetches it from Meta with the
+ * channel's token straight into the file's storage, with the same
+ * checks. Inbound messages keep only Meta's id (`Message.mediaId`); the
+ * file is never copied anywhere just because it was sent.
+ *
+ * `receiveDocument` used to stand where that would go. Nothing called it,
+ * and it stored nothing — its "secure storage" returned a random key and
+ * wrote no bytes, under a comment describing the fetch and the write.
+ * Wired up, it would have filled compliance files with pointers to
+ * passports that were never kept. It was removed rather than left as the
+ * obvious thing to call.
  */
-export async function receiveDocument(args: {
-  orgId: string;
-  leadId: string;
-  mediaUrl: string;
-  declaredType: "PASSPORT" | "EMIRATES_ID" | "TRADE_LICENCE";
-}) {
-  const db = forOrg(args.orgId);
-
-  const kyc = await db.kycRecord.findUnique({
-    where: { leadId: args.leadId },
-    select: { id: true, status: true },
-  });
-  if (!kyc) {
-    // No file open means nobody asked for this. Do not quietly accept an
-    // identity document nobody has a basis to hold.
-    log.warn("identity document arrived with no open KYC file", { orgId: args.orgId });
-    return { stored: false, reason: "no_open_file" as const };
-  }
-
-  const storageRef = await putInSecureStorage(args.mediaUrl, args.orgId);
-
-  const doc = await db.kycDocument.create({
-    data: {
-      orgId: args.orgId,
-      kycId: kyc.id,
-      type: args.declaredType,
-      storageRef,
-      fileName: `${args.declaredType.toLowerCase()}-${Date.now()}`,
-      collectedVia: "WHATSAPP",
-      // verifiedAt deliberately null. A human sets it.
-    },
-  });
-
-  await db.kycRecord.update({
-    where: { id: kyc.id },
-    data: { status: "PENDING_REVIEW" },
-  });
-
-  return { stored: true, documentId: doc.id, needsHumanVerification: true };
-}
 
 /**
  * 5. **A blurry passport is worse than none.**
@@ -152,11 +127,4 @@ export function qualityMessage(issues: QualityIssue[]) {
     `Thanks — ${why}. Could you send it once more, flat on a surface ` +
     `with the whole page in frame? Sorry to ask twice.`
   );
-}
-
-async function putInSecureStorage(mediaUrl: string, orgId: string): Promise<string> {
-  // Fetch from WhatsApp with the channel token, write to object storage
-  // under a per-tenant prefix with a short-lived signed-read policy.
-  // Never public, never predictable.
-  return `kyc/${orgId}/${crypto.randomUUID()}`;
 }

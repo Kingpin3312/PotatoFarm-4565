@@ -1,11 +1,17 @@
+import { randomBytes } from "node:crypto";
 import { PrismaClient, type LeadSource, type LeadStatus, type Role } from "@prisma/client";
-import { seedStages, DEFAULT_STAGES } from "../src/server/lib/pipeline/defaults";
+// @ts-expect-error — a plain .mjs helper shared with the checks.
+import { clearCheckDebris } from "../scripts/lib/demo-debris.mjs";
+import { ensurePath, pathsOf, SEPARATOR } from "../src/server/lib/locations";
+import { STARTING_TREE } from "../src/server/lib/locations/tree";
+import { entryStageId, seedStages, DEFAULT_STAGES } from "../src/server/lib/pipeline/defaults";
 import { seedHours } from "../src/server/lib/hours/defaults";
 import { seedQualification } from "../src/server/lib/assistant/qualification";
 import { seedRoutingRule } from "../src/server/lib/routing/apply";
 import { openKycFile } from "../src/server/lib/aml/open";
 import { accept } from "../src/server/lib/offers/negotiate";
 import { sweepIntelligence } from "../src/server/lib/intelligence/sweep";
+import { generateInvoice } from "../src/server/lib/billing/invoice";
 
 /**
  * A development brokerage, from nothing — or the one already there.
@@ -201,16 +207,46 @@ const LEADS: {
 async function main() {
   const org = await db.organisation.upsert({
     where: { slug: SLUG },
-    update: {},
-    create: { name: "Marina Bay Properties", slug: SLUG, timezone: "Asia/Dubai" },
+    // A demonstration brokerage: its sends are recorded and never
+    // delivered, and Inbox offers "Try a live enquiry". Set here and
+    // nowhere in the app — see `demo.enquiry`.
+    update: { demo: true },
+    create: { name: "Marina Bay Properties", slug: SLUG, timezone: "Asia/Dubai", demo: true },
   });
+
+  /**
+   * Who signs in to a deployed demo.
+   *
+   * Locally the browser checks sign in with the session tokens above. A
+   * deployed demo is signed into the real way — an emailed link — and
+   * nobody can receive mail at omar@marinabay.ae. So the presenter's own
+   * address can be given to a demo person: `DEMO_OWNER_EMAIL` makes the
+   * presenter Omar, the owner, with everything the demo has assigned to
+   * him; `DEMO_AGENT_EMAIL` Lena, for the phone; `DEMO_MLRO_EMAIL` the
+   * compliance officer, the one person who can open Compliance.
+   * (`you+mlro@…` works on most mail providers.) Unset, nothing changes.
+   */
+  const presenter: Partial<Record<Role, string | undefined>> = {
+    OWNER: process.env.DEMO_OWNER_EMAIL?.trim().toLowerCase(),
+    AGENT: process.env.DEMO_AGENT_EMAIL?.trim().toLowerCase(),
+    COMPLIANCE_OFFICER: process.env.DEMO_MLRO_EMAIL?.trim().toLowerCase(),
+  };
 
   const byEmail = new Map<string, string>();
   for (const p of PEOPLE) {
+    const signIn = presenter[p.role];
+    if (signIn) {
+      // The demo person keeps their name and everything assigned to them;
+      // only the address that receives the sign-in link changes.
+      const taken = await db.user.findUnique({ where: { email: signIn }, select: { id: true } });
+      const was = await db.user.findUnique({ where: { email: p.email }, select: { id: true } });
+      if (was && !taken) await db.user.update({ where: { id: was.id }, data: { email: signIn } });
+    }
+    const email = signIn ?? p.email;
     const user = await db.user.upsert({
-      where: { email: p.email },
+      where: { email },
       update: { name: p.name },
-      create: { email: p.email, name: p.name, emailVerified: new Date() },
+      create: { email, name: p.name, emailVerified: new Date() },
     });
     byEmail.set(p.email, user.id);
     await db.membership.upsert({
@@ -264,6 +300,7 @@ async function main() {
     await seedRoutingRule(tx, org.id);
     await seedQualification(tx, org.id);
   });
+  await seedBilling(org.id);
 
   const rows = await db.pipelineStage.findMany({
     where: { orgId: org.id }, select: { id: true, name: true },
@@ -295,6 +332,30 @@ async function main() {
     create: {
       orgId: org.id, type: "WHATSAPP", label: "Main sales number",
       identifier: BROKERAGE_WHATSAPP, active: true,
+    },
+  });
+
+  /**
+   * The brokerage's website form, beside its number.
+   *
+   * The fixture has buyers whose source is the website, and every one of
+   * them had their first enquiry filed against the WhatsApp number — so
+   * Reports said every enquiry came through one number while the same
+   * buyers' own records said otherwise. A website enquiry arrives through
+   * the form (`portals/website-form.ts`) and the conversation then
+   * carries on over WhatsApp, which is what these now record.
+   *
+   * No `lastSyncAt`: the silence alarm only watches a channel that has
+   * reported a delivery time, and a seeded one has not, so this cannot
+   * put a "nothing for 90 hours" warning in front of a prospect.
+   */
+  const webForm = await db.channel.upsert({
+    where: { orgId_type_identifier: { orgId: org.id, type: "WEBSITE_FORM", identifier: "main-site-form" } },
+    update: { active: true },
+    create: {
+      orgId: org.id, type: "WEBSITE_FORM", label: "Website enquiry form",
+      identifier: "main-site-form", active: true,
+      webhookToken: randomBytes(24).toString("base64url"),
     },
   });
 
@@ -441,12 +502,36 @@ async function main() {
     });
   }
 
+  await seedRequirements(org.id);
+
+  /**
+   * How long each card has sat in its column, re-stated every run.
+   *
+   * `stageEnteredAt` was written once and then aged with the calendar,
+   * like `lastInboundAt` did before the block below — so a week after
+   * seeding every open card on the board read "Untouched 30 days", the
+   * warning was on every card, and a warning on every card is a warning
+   * on none (the audit's D8, which looked like a threshold bug and was a
+   * fixture that had aged). A spread around the stages' limits instead:
+   * most recent, about a third genuinely overdue.
+   */
+  {
+    const open = await db.lead.findMany({
+      where: { orgId: org.id, deletedAt: null, status: { notIn: ["WON", "LOST"] }, name: { in: LEADS.map((l) => l.name) } },
+      orderBy: { createdAt: "asc" }, select: { id: true },
+    });
+    const spreadDays = [0, 1, 1, 2, 3, 1, 4, 6, 2, 9];
+    for (const [i, l] of open.entries()) {
+      await db.lead.update({ where: { id: l.id }, data: { stageEnteredAt: daysAgo(spreadDays[i % spreadDays.length]!) } });
+    }
+  }
+
   const spread = await db.lead.findMany({
     where: { orgId: org.id, deletedAt: null },
     orderBy: { createdAt: "asc" },
     select: {
-      id: true, name: true, status: true, phone: true, budgetMaxFils: true,
-      conversation: { select: { id: true } },
+      id: true, name: true, status: true, phone: true, budgetMaxFils: true, source: true,
+      conversation: { select: { id: true, channelId: true } },
     },
   });
   for (const [i, l] of spread.entries()) {
@@ -513,12 +598,26 @@ async function main() {
         variant
       );
     await db.message.deleteMany({ where: { conversationId: l.conversation.id } });
-    const end = daysAgo(age).getTime();
+    /**
+     * On a real clock, and mostly in the evening.
+     *
+     * Every thread used to end at the same minute of the day — whatever
+     * minute the seed ran — so a prospect looking at the inbox saw
+     * forty-two conversations all stamped 19:14, which reads as a
+     * fixture. Each lead now has its own time of day, stable per phone
+     * number, weighted to the hours the pitch is about: enquiries land
+     * after the team has gone home. The assistant answers in about half
+     * a minute; an agent takes minutes; a buyer comes back in a few.
+     */
+    const HOURS = [21, 22, 23, 20, 9, 13, 19, 0, 8, 17, 22, 18, 21, 11];
+    const end = atDubai(age, HOURS[variant % HOURS.length]!, (variant * 7) % 60).getTime();
+    const gapBefore = (who: string) => (who === "bot" ? 35_000 : who === "agent" ? 9 * 60_000 : 3 * 60_000);
+    const times: number[] = [];
+    for (let k = turns.length - 1, t = end; k >= 0; k--) { times[k] = t; t -= gapBefore(turns[k]![0]); }
     await db.message.createMany({
       data: turns.map(([who, body]: Turn, k: number) => {
         const inbound = who === "them";
-        // Four minutes apart, ending on the conversation's own clock.
-        const sentAt = new Date(end - (turns.length - 1 - k) * 4 * 60_000);
+        const sentAt = new Date(times[k]!);
         return {
           orgId: org.id,
           conversationId: l.conversation!.id,
@@ -533,6 +632,28 @@ async function main() {
         };
       }),
     });
+
+    /**
+     * The enquiry that started it, at the first message.
+     *
+     * The response-time report is built from enquiries — when one came
+     * in, and when the first reply went out — and the demo brokerage had
+     * none of its own, so the chart a brokerage owner most needs to see
+     * said "no replies recorded yet". Upserted on a stable id, so a
+     * reseed moves it with the thread rather than adding another.
+     */
+    const firstThem = turns.findIndex(([w]: Turn) => w === "them");
+    if (firstThem >= 0) {
+      const externalId = `seed-enquiry-${l.id}`;
+      const at = new Date(times[firstThem]!);
+      // Where it arrived, which is not always where the talking happens.
+      const channelId = l.source === "WEBSITE" ? webForm.id : l.conversation.channelId;
+      await db.enquiry.upsert({
+        where: { orgId_externalId: { orgId: org.id, externalId } },
+        create: { orgId: org.id, leadId: l.id, channelId, externalId, message: turns[firstThem]![1], createdAt: at },
+        update: { createdAt: at, message: turns[firstThem]![1], channelId },
+      });
+    }
 
     /**
      * The badge, **derived** from the transcript rather than declared
@@ -554,13 +675,13 @@ async function main() {
      */
     const outbound = [...turns].reverse().findIndex(([w]) => w !== "them");
     const unread = outbound === -1 ? turns.length : outbound;
+    const lastThem = turns.map(([w]: Turn) => w).lastIndexOf("them");
+    const lastUs = turns.length - 1 - (outbound === -1 ? turns.length : outbound);
     await db.conversation.update({
       where: { id: l.conversation.id },
       data: {
-        lastInboundAt: daysAgo(age),
-        lastOutboundAt: outbound === -1
-          ? null
-          : new Date(end - outbound * 4 * 60_000),
+        lastInboundAt: lastThem >= 0 ? new Date(times[lastThem]!) : new Date(end),
+        lastOutboundAt: outbound === -1 ? null : new Date(times[lastUs]!),
         unreadCount: unread,
       },
     });
@@ -712,6 +833,20 @@ async function main() {
    * than true-on-the-second-run.
    */
   await listings(org.id);
+
+  /**
+   * Who looks after each property.
+   *
+   * `Listing.agentId` arrived after these rows, so every demo listing
+   * read "Nobody yet" and the weekly owner report fell back to guessing.
+   * Given to the brokerage's owner — and only where nobody has been
+   * given one, so an agent chosen on the Owner panel is not undone by
+   * the next seed.
+   */
+  const bookHolder = byEmail.get("omar@marinabay.ae");
+  if (bookHolder) {
+    await db.listing.updateMany({ where: { orgId: org.id, agentId: null }, data: { agentId: bookHolder } });
+  }
 
   const owner2 = byEmail.get("omar@marinabay.ae");
   const allListings = await db.listing.findMany({
@@ -899,6 +1034,20 @@ async function main() {
   await commissions(org.id);
   await blackbook(org.id, owner, agent);
   await register(org.id, owner, agent);
+  await tidyCheckDebris(org.id);
+  await seedLocations(org.id);
+  await seedOpportunities(org.id, agent);
+  await seedDrafts(org.id);
+  await seedProfiles(org.id);
+  await seedWeek(org.id);
+  // The demo shows what the owner chose: replies sent by the assistant
+  // while a new buyer is qualified. A real brokerage turns this on in
+  // Settings → Assistant; it is off by default.
+  await db.assistantSettings.upsert({
+    where: { orgId: org.id },
+    create: { orgId: org.id, enabled: true, autoReply: true },
+    update: { autoReply: true },
+  });
 
   /**
    * The nightly intelligence sweep, run once so the front door has
@@ -932,6 +1081,93 @@ async function main() {
   await sweepIntelligence();
 
   await report(org.id, org.name, existing === 0);
+}
+
+/**
+ * The subscription every signed-up brokerage has — and this one did not.
+ *
+ * Signup writes a `Subscription` and the first seat in the same
+ * transaction as the organisation, so a brokerage without one is a
+ * brokerage no signup could produce: its billing screen said "No
+ * subscription on this brokerage" in every demo, and the invoice page
+ * could never be opened by anything, including the screen sweep.
+ *
+ * One paid month behind it, invoiced by `generateInvoice` itself rather
+ * than by writing an `Invoice` row — the same discipline as `accept()`
+ * above — so the number comes from the real series and the arithmetic
+ * from the real seat ledger: one seat per member, from fifty days ago.
+ * Idempotent: an existing subscription is left exactly as it is.
+ */
+/**
+ * What each demo buyer is looking for.
+ *
+ * The demo brokerage had forty-two buyers and **no requirements at all**,
+ * because nothing but voice intake ever wrote one — so matching offered
+ * nobody anything and "buyers in Dubai Marina" found no one, which in a
+ * demo reads as a product that does not work. Derived from each buyer's
+ * budget so the areas and sizes are ones those budgets actually buy, and
+ * drawn from the communities the seeded listings are in, so matches
+ * exist to be found.
+ *
+ * Only for fixture buyers with a budget and no requirement yet: a
+ * requirement somebody entered by hand is never touched.
+ */
+async function seedRequirements(orgId: string) {
+  const areas = (aed: number, i: number): string[] =>
+    aed >= 10_000_000 ? [["Palm Jumeirah"], ["Emirates Hills"], ["Palm Jumeirah", "Dubai Hills"]][i % 3]!
+    : aed >= 4_000_000 ? [["Dubai Hills"], ["Dubai Marina"], ["Arabian Ranches"]][i % 3]!
+    : aed >= 2_000_000 ? [["Dubai Marina", "JBR"], ["Business Bay"], ["Dubai Marina"]][i % 3]!
+    : [["JVC"], ["Town Square"], ["JVC", "Dubai South"]][i % 3]!;
+  const beds = (aed: number) => (aed < 1_500_000 ? 1 : aed < 3_000_000 ? 2 : aed < 6_000_000 ? 3 : 4);
+  const people = await db.lead.findMany({
+    where: { orgId, deletedAt: null, name: { in: LEADS.map((l) => l.name) }, requirements: { none: {} } },
+    select: { id: true, name: true },
+  });
+  let made = 0;
+  for (const p of people) {
+    const i = LEADS.findIndex((l) => l.name === p.name);
+    const l = LEADS[i];
+    if (!l?.budgetMax) continue;
+    const intent = i % 3 === 1 ? "BUY_TO_INVEST" : "BUY_TO_LIVE";
+    await db.requirement.create({
+      data: {
+        orgId, leadId: p.id, purpose: "SALE", intent,
+        budgetMinFils: BigInt(Math.round(l.budgetMax * 0.8)) * 100n,
+        budgetMaxFils: BigInt(l.budgetMax) * 100n,
+        bedroomsMin: beds(l.budgetMax),
+        communities: areas(l.budgetMax, i),
+        source: "AGENT", confirmedAt: daysAgo(3),
+        expiresAt: new Date(Date.now() + 120 * 86_400_000),
+      },
+    });
+    made++;
+  }
+  if (made) console.log(`  requirements: ${made} buyers now say what they are looking for`);
+}
+
+async function seedBilling(orgId: string) {
+  if (await db.subscription.findUnique({ where: { orgId }, select: { id: true } })) return;
+  const members = await db.membership.findMany({ where: { orgId }, select: { userId: true } });
+  // Twenty days into the current month, so the billing screen shows a
+  // month in progress rather than one ending as the demo starts.
+  const start = daysAgo(50);
+  const paidTo = daysAgo(20);
+  const sub = await db.subscription.create({
+    data: {
+      orgId, plan: "standard", status: "ACTIVE",
+      seatPriceFils: BigInt(process.env.SEAT_PRICE_FILS ?? "25708"),
+      currentFrom: start, currentTo: paidTo,
+      billingAddress: "Office 1204, Marina Plaza\nDubai Marina, Dubai",
+    },
+  });
+  await db.seatEvent.createMany({
+    data: members.map((m) => ({ orgId, subId: sub.id, userId: m.userId, change: 1, at: start, reason: "signup" })),
+  });
+  await generateInvoice(sub.id, start, paidTo);
+  // Rolled on, as `billing.invoices` does once an invoice exists.
+  await db.subscription.update({
+    where: { id: sub.id }, data: { currentFrom: paidTo, currentTo: new Date(paidTo.getTime() + 30 * 86_400_000) },
+  });
 }
 
 /**
@@ -1151,6 +1387,47 @@ async function listings(orgId: string) {
         descriptions: { en, photos: PHOTOS },
       },
     });
+  }
+
+  /**
+   * What each one is, read off its own title, and one off-plan project.
+   *
+   * Added with the type and completion fields: a demo where every
+   * listing says nothing about either shows the filters doing nothing.
+   * Only where the listing has not been given a type, so nothing typed
+   * by hand is overwritten.
+   */
+  const kind = (t: string) =>
+    /villa/i.test(t) ? "VILLA" as const : /townhouse/i.test(t) ? "TOWNHOUSE" as const
+    : /penthouse/i.test(t) ? "PENTHOUSE" as const : "APARTMENT" as const;
+  for (const r of rows) {
+    await db.listing.updateMany({
+      where: { orgId, reference: r.reference, propertyType: null },
+      data: { propertyType: kind(r.title), ...(r.purpose === "RENT" ? { rentCheques: 4, furnishing: "UNFURNISHED" as const } : {}) },
+    });
+  }
+  await db.listing.updateMany({
+    where: { orgId, reference: "CT-515", developer: null },
+    data: {
+      completion: "OFF_PLAN", developer: "Emaar", project: "Creek Rise", paymentPlan: "80/20",
+      unitNumber: "1204", handoverAt: new Date(Date.UTC(new Date().getUTCFullYear() + 1, 5, 30)),
+    },
+  });
+  /**
+   * The rental that is let, with its lease ending inside the renewal
+   * window — so the renewal task is on somebody's list in the demo, the
+   * same way AR-303's permit is inside its warning window on purpose.
+   */
+  const let_ = await db.listing.findFirst({ where: { orgId, reference: "MG-513" }, select: { id: true, agentId: true } });
+  if (let_ && (await db.tenancy.count({ where: { listingId: let_.id } })) === 0) {
+    await db.tenancy.create({
+      data: {
+        orgId, listingId: let_.id, tenantName: "Anna Kowalski", agentId: let_.agentId,
+        startsAt: daysAgo(270), endsAt: new Date(Date.now() + 95 * 86_400_000),
+        rentFils: 185_000n * 100n, cheques: 4, depositFils: 9_250n * 100n, ejariNumber: "0120240009187",
+      },
+    });
+    await db.listing.update({ where: { id: let_.id }, data: { status: "LET" } });
   }
 }
 
@@ -1530,6 +1807,226 @@ async function blackbook(orgId: string, owner: string, agent: string) {
  * requiring a scan to record an expiry is how the alarm stays silent
  * until somebody finds a photocopier.
  */
+/**
+ * What the browser checks left behind, removed on every seed.
+ *
+ * The browser checks have to act in this brokerage — they sign in as its
+ * people — and a run that crashed before its own clean-up left a
+ * throwaway agent here receiving real round-robin leads, or a "Test
+ * 2-bed" in the stock (the second audit's N12). Each check now clears up
+ * after itself and before itself; this catches whatever a crash still
+ * leaves, so "reseed before a demo" always gives a clean demo.
+ */
+/**
+ * One buyer with a second piece of business, so the demo shows a person
+ * in two columns: David Chen is buying, and letting his villa through the
+ * lettings side (the audit's B5).
+ */
+async function seedOpportunities(orgId: string, lettingsAgent: string) {
+  const david = await db.lead.findFirst({ where: { orgId, name: "David Chen", deletedAt: null }, select: { id: true } });
+  if (!david) return;
+  const title = "Their villa in Arabian Ranches";
+  // The same lookup the router uses, so it lands on a column this
+  // brokerage actually has (it has no "Qualified" one).
+  const stageId = await entryStageId(db as never, orgId, "QUALIFYING");
+  const existing = await db.opportunity.findFirst({ where: { orgId, leadId: david.id, kind: "LET" }, select: { id: true } });
+  if (existing) {
+    await db.opportunity.update({ where: { id: existing.id }, data: { title, status: "QUALIFYING", stageId } });
+    return;
+  }
+  await db.opportunity.create({
+    data: {
+      orgId, leadId: david.id, kind: "LET", title, status: "QUALIFYING", stageId,
+      agentId: lettingsAgent, valueFils: 18_000_000n, stageEnteredAt: daysAgo(2),
+    },
+  });
+}
+
+/**
+ * The setup checklist, as a brokerage a few weeks in would have it.
+ *
+ * It had no rows, so Setup said "0 of 9" on a brokerage with forty
+ * leads and three deals. Written only where nothing is there, so a
+ * change made in a rehearsal survives a reseed. Portals and the baseline
+ * are left to do: the first waits on agreements, the second is a choice
+ * the owner makes on the Reports screen.
+ */
+async function seedWeek(orgId: string) {
+  for (const key of ["company", "whatsapp", "team", "hours", "listings", "questions", "assistant"]) {
+    await db.onboardingStep.upsert({
+      where: { orgId_key: { orgId, key } },
+      create: { orgId, key, state: "DONE", doneAt: new Date() },
+      update: {},
+    });
+  }
+}
+
+/**
+ * What an agent writes on a person's page: what they want, when, how
+ * they pay, and an address.
+ *
+ * No demo lead had any of it, so every person page — the screen a
+ * prospect is shown more than any other — opened on five dashes under
+ * the name. Filled only where empty, so an edit made during a rehearsal
+ * survives a reseed, and derived from the search already recorded for
+ * them so the page never contradicts itself. Addresses are on
+ * example.com: a demo must never hold an address that reaches somebody.
+ * A few visas renew soon, which is what the visa-renewal follow-up is
+ * for; those dates move with the reseed so they never fall behind.
+ */
+async function seedProfiles(orgId: string) {
+  const leads = await db.lead.findMany({
+    where: { orgId, deletedAt: null },
+    orderBy: { createdAt: "asc" },
+    select: {
+      id: true, name: true, email: true, intent: true, timeframe: true, financing: true,
+      visaExpiresAt: true, budgetMaxFils: true,
+      requirements: { where: { active: true }, select: { intent: true, purpose: true }, take: 1 },
+    },
+  });
+  const WHEN = ["Within 3 months", "Next month", "This year", "Within a month", "Just looking for now"];
+  const day = 86_400_000;
+  let n = 0;
+  for (const [i, l] of leads.entries()) {
+    const req = l.requirements[0];
+    const intent = l.intent ?? req?.intent ?? (req?.purpose === "RENT" ? "RENT"
+      : l.budgetMaxFils !== null && l.budgetMaxFils < 50_000_000n ? "RENT" : i % 3 === 0 ? "BUY_TO_INVEST" : "BUY_TO_LIVE");
+    const words = (l.name ?? "").normalize("NFKD").replace(/[^A-Za-z ]/g, "").trim().toLowerCase().split(/\s+/).filter(Boolean);
+    const email = l.email ?? (words.length >= 2 ? `${words[0]}.${words.at(-1)}@example.com` : null);
+    const visaDue = i % 9 === 4 && (!l.visaExpiresAt || l.visaExpiresAt < new Date());
+    await db.lead.update({
+      where: { id: l.id },
+      data: {
+        intent,
+        timeframe: l.timeframe ?? WHEN[i % WHEN.length],
+        // How a renter pays is cheques, not this question.
+        financing: l.financing ?? (intent === "RENT" ? null : i % 2 ? "CASH" : "MORTGAGE"),
+        email,
+        ...(visaDue ? { visaExpiresAt: new Date(Date.now() + (40 + (i % 5) * 9) * day) } : {}),
+      },
+    });
+    n++;
+  }
+  return n;
+}
+
+/**
+ * Replies the assistant has drafted, waiting for a person to send.
+ *
+ * The product's headline — a reply written the moment a buyer writes —
+ * had no trace in the demo inbox: not one draft, so the panel an agent
+ * sends from never appeared. Three threads where the buyer spoke last
+ * with an ordinary question get the draft the assistant would write,
+ * and nothing it would not: no invented service charge or pet rule, only
+ * what the listing says and an offer to find the rest. The two
+ * negotiations (James, Stefan) get none — the assistant hands those to a
+ * person, and the Handover tab shows it.
+ *
+ * And a short history — sent as written, edited, thrown away — so the
+ * "sent as written" figure on Settings is a number rather than a dash.
+ * Marked `promptVersion: "demo-seed"`, and replaced on every run.
+ */
+async function seedDrafts(orgId: string) {
+  const OPEN: Record<string, string> = {
+    "Sarah Al Mansoori":
+      "Of course — your husband is welcome to join on video, and Omar will send the link on Saturday morning. " +
+      "The price quoted doesn't include the service charge, which is paid to the building each year; " +
+      "Omar will bring the exact figure from the owner's statement so you have it in writing.",
+    "Emma Lindqvist":
+      "Sorry for the wait, Emma — still here. Pet rules are set building by building, so I'll check them for the " +
+      "high-floor 2-beds in the Marina around 3.2 and send you only the ones that allow pets. " +
+      "Would this week suit to see them?",
+    "David Chen":
+      "JVC is the closest community to that budget, though there's nothing on our books to buy under 300k there today. " +
+      "Would renting work for you in the meantime, or shall I message you as soon as something comes up?",
+  };
+  const convos = await db.conversation.findMany({
+    where: { orgId, lead: { orgId, deletedAt: null } },
+    select: { id: true, lead: { select: { name: true } } },
+  });
+  const ids = convos.map((c) => c.id);
+  await db.replyDraft.deleteMany({ where: { orgId, conversationId: { in: ids }, promptVersion: "demo-seed" } });
+
+  for (const c of convos) {
+    const body = OPEN[c.lead?.name ?? ""];
+    if (!body) continue;
+    const last = await db.message.findFirst({
+      where: { conversationId: c.id, direction: "INBOUND" },
+      orderBy: [{ sentAt: "desc" }, { id: "desc" }], select: { id: true, sentAt: true },
+    });
+    if (!last) continue;
+    await db.replyDraft.create({
+      data: {
+        orgId, conversationId: c.id, inboundMessageId: last.id, body, state: "OPEN",
+        model: "assistant", promptVersion: "demo-seed", createdAt: new Date(last.sentAt.getTime() + 6_000),
+      },
+    });
+  }
+
+  // History: the assistant's earlier replies, as the drafts they were.
+  const past = await db.message.findMany({
+    where: { orgId, conversationId: { in: ids }, author: "ASSISTANT", sentAt: { gte: daysAgo(28) } },
+    orderBy: { sentAt: "desc" }, take: 14, select: { id: true, conversationId: true, body: true, sentAt: true },
+  });
+  const fate = (k: number) => (k % 7 === 3 ? "EDITED" : k % 7 === 6 ? "DISCARDED" : "SENT") as "SENT" | "EDITED" | "DISCARDED";
+  await db.replyDraft.createMany({
+    data: past.map((m, k) => ({
+      orgId, conversationId: m.conversationId, body: m.body, state: fate(k),
+      model: "assistant", promptVersion: "demo-seed",
+      messageId: fate(k) === "DISCARDED" ? null : m.id,
+      createdAt: new Date(m.sentAt.getTime() - 20_000), resolvedAt: m.sentAt,
+    })),
+  });
+}
+
+/**
+ * The location tree, and each demo listing's place in it.
+ *
+ * The tree is shared (no orgId) and names only — Property Finder's ids
+ * arrive with its location list. Each listing is matched by the names
+ * it already carries: its building under its community, or failing
+ * that its community, and only an exact node (one with nothing beneath
+ * it) is written, because that is the rule a new listing is held to.
+ */
+async function seedLocations(orgId: string) {
+  for (const names of pathsOf(STARTING_TREE)) await ensurePath(db, names);
+  const listings = await db.listing.findMany({
+    where: { orgId, deletedAt: null, locationId: null },
+    select: { id: true, community: true, building: true },
+  });
+  let placed = 0;
+  for (const l of listings) {
+    if (!l.community || !l.building) continue;
+    const node = await db.location.findFirst({
+      where: { name: l.building, path: { contains: `${SEPARATOR}${l.community}${SEPARATOR}` }, children: { none: {} } },
+      select: { id: true },
+    });
+    if (!node) continue;
+    await db.listing.update({ where: { id: l.id }, data: { locationId: node.id } });
+    placed++;
+  }
+  if (placed) console.log(`  locations — ${placed} listings placed on the tree`);
+}
+
+async function tidyCheckDebris(orgId: string) {
+  // Channels, enquiries and leads the HTTP checks leave when they die early.
+  await clearCheckDebris(db, orgId);
+  const stray = await db.membership.findMany({
+    where: { orgId, user: { email: { endsWith: "@example.invalid" } } },
+    select: { userId: true },
+  });
+  const ids = stray.map((m) => m.userId);
+  if (ids.length) {
+    await db.lead.updateMany({ where: { orgId, assignedToId: { in: ids } }, data: { assignedToId: null, assignedAt: null } });
+    await db.leadOwnership.deleteMany({ where: { orgId, userId: { in: ids } } });
+    await db.membership.deleteMany({ where: { orgId, userId: { in: ids } } });
+  }
+  await db.listing.updateMany({
+    where: { orgId, reference: { startsWith: "TEST-" }, deletedAt: null },
+    data: { deletedAt: new Date() },
+  });
+}
+
 async function register(orgId: string, owner: string, agent: string) {
 
   const inDays = (n: number) => new Date(Date.now() + n * 86_400_000);
@@ -1730,9 +2227,28 @@ async function offers(orgId: string) {
     // what identifies an offer in a fixture that never edits one.
     const already = await db.offer.findFirst({
       where: { orgId, listingId, leadId, amountFils: BigInt(r.aed) * 100n },
-      select: { id: true },
+      select: { id: true, status: true },
     });
-    if (already) continue;
+    if (already) {
+      /**
+       * The clock restarts; the amount never changes.
+       *
+       * Deadlines are hours from when the offer was first seeded, so a
+       * day later every one had lapsed and the Offers screen of the first
+       * client demo read "No live offers — 2 have just expired". The
+       * story is put back: deadline and status as the fixture has them —
+       * except on a property where an offer was accepted, because that
+       * one became a deal and the rest were turned down for a reason.
+       */
+      const sold = await db.offer.count({ where: { orgId, listingId, status: "ACCEPTED" } });
+      if (r.hoursLeft !== null && !sold) {
+        await db.offer.update({
+          where: { id: already.id },
+          data: { expiresAt: hours(r.hoursLeft), status: r.status, decidedAt: null },
+        });
+      }
+      continue;
+    }
     const offer = await db.offer.create({
       data: {
         orgId, listingId, leadId,
@@ -2063,6 +2579,16 @@ function threadFor(
 
 function daysAgo(n: number) {
   return new Date(Date.now() - n * 86_400_000);
+}
+
+/** `n` days ago at this hour and minute in Dubai, never in the future. */
+function atDubai(n: number, hour: number, minute: number) {
+  const DUBAI = 4 * 3_600_000;
+  const local = new Date(Date.now() - n * 86_400_000 + DUBAI);
+  local.setUTCHours(hour, minute, 0, 0);
+  let at = local.getTime() - DUBAI;
+  if (at > Date.now() - 60_000) at -= 86_400_000;
+  return new Date(at);
 }
 
 main()

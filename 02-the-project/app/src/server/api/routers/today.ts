@@ -1,6 +1,9 @@
 import { z } from "zod";
+import { mineOnly } from "@/server/lib/conversations/party";
 import { router, requirePermission } from "../trpc";
 import { audit } from "@/server/lib/audit";
+import { leadScope } from "@/server/auth/rbac";
+import { dayWindow } from "@/lib/day";
 
 /**
  * What should I do today.
@@ -43,15 +46,30 @@ export const todayRouter = router({
     const tz = org?.timezone ?? "Asia/Dubai";
     const { start, end } = dayWindow(now, tz);
 
-    const [actions, viewings, waiting, hot, dueFollowUps] = await Promise.all([
+    /**
+     * People and deals are fetched apart, then shown apart.
+     *
+     * One list of the top five by priority meant deal warnings — scored
+     * highest, because money and a date are committed — could fill it,
+     * and a buyer who wrote in this morning was not on the screen at all
+     * (the audit's D6). Up to five people, then up to three deals.
+     */
+    const pick = {
+      id: true, action: true, headline: true, reason: true,
+      priority: true, valueFils: true, leadId: true, dealId: true,
+    } as const;
+    const [people, deals, viewings, waiting, hot, dueFollowUps, other] = await Promise.all([
       ctx.db.recommendation.findMany({
-        where: { agentId: ctx.userId, state: "OPEN" },
+        where: { agentId: ctx.userId, state: "OPEN", dealId: null },
         orderBy: [{ priority: "desc" }, { valueFils: "desc" }],
         take: 5,
-        select: {
-          id: true, action: true, headline: true, reason: true,
-          priority: true, valueFils: true, leadId: true,
-        },
+        select: pick,
+      }),
+      ctx.db.recommendation.findMany({
+        where: { agentId: ctx.userId, state: "OPEN", dealId: { not: null } },
+        orderBy: [{ priority: "desc" }, { valueFils: "desc" }],
+        take: 3,
+        select: pick,
       }),
 
       ctx.db.viewing.findMany({
@@ -70,8 +88,10 @@ export const todayRouter = router({
 
       // Somebody has written to us and nobody has answered. The one
       // number in this product with a clock on it.
+      // Owners of the properties they look after count too: the same
+      // "mine" the inbox filters by, so the number here is the number there.
       ctx.db.conversation.count({
-        where: { unreadCount: { gt: 0 }, lead: { assignedToId: ctx.userId } },
+        where: { unreadCount: { gt: 0 }, ...mineOnly(ctx.userId) },
       }),
 
       /**
@@ -96,6 +116,27 @@ export const todayRouter = router({
       ctx.db.followUp.count({
         where: { agentId: ctx.userId, completedAt: null, dueAt: { lt: end } },
       }),
+
+      /**
+       * Their other business: the letting, the sale, the rental they are
+       * working for somebody whose main search may be a colleague's.
+       *
+       * The overnight sweep scores leads, not these, so without this an
+       * opportunity lived on the board and the person's page and nowhere
+       * an agent starts their day — and a lettings agent handed one by
+       * sales had no way to find it again except by remembering the name.
+       * Longest in its column first, because that is the one slipping.
+       */
+      ctx.db.opportunity.findMany({
+        where: { agentId: ctx.userId, closedAt: null, lead: { deletedAt: null } },
+        orderBy: { stageEnteredAt: "asc" },
+        take: 3,
+        select: {
+          id: true, kind: true, title: true, valueFils: true, stageEnteredAt: true, leadId: true,
+          stage: { select: { name: true } },
+          lead: { select: { name: true, phone: true } },
+        },
+      }),
     ]);
 
     /**
@@ -109,8 +150,14 @@ export const todayRouter = router({
     const pipelineFils = hot.reduce((sum, l) => sum + (l.budgetMaxFils ?? 0n), 0n);
 
     return {
-      actions,
+      actions: [...people, ...deals],
       viewings,
+      otherBusiness: other.map((o) => ({
+        id: o.id, kind: o.kind, title: o.title, valueFils: o.valueFils, leadId: o.leadId,
+        person: o.lead.name ?? o.lead.phone,
+        stage: o.stage?.name ?? null,
+        days: Math.floor((now.getTime() - o.stageEnteredAt.getTime()) / 86_400_000),
+      })),
       counts: {
         hot: hot.length,
         waiting,
@@ -129,6 +176,80 @@ export const todayRouter = router({
       partOfDay: partOfDay(now, tz),
     };
   }),
+
+  /**
+   * The agent's follow-ups: what they asked to be reminded of, and what
+   * the product has put on their list.
+   *
+   * ## Why this exists
+   *
+   * `FollowUp` had writers — a voice note ("remind me to call Priya
+   * tomorrow"), the overnight sweep on Autopilot — a count on this
+   * screen, a reminder push, and a line in the calendar feed. **It had no
+   * list and nothing could complete one.** The brief said "3 follow-ups
+   * due", the number only ever went up, and the reminder's link went to
+   * the blackbook, which does not show follow-ups. An agent could set a
+   * reminder and never see it again or clear it.
+   *
+   * Exactly the set `brief` counts — open, theirs, due before the end of
+   * their day — so the number in the sentence and the length of the list
+   * cannot disagree. That disagreement is the bug `Summary`'s own comment
+   * records from the last time two halves of this screen counted
+   * different things.
+   */
+  followUps: requirePermission("lead:read:own").query(async ({ ctx }) => {
+    const org = await ctx.db.organisation.findUnique({
+      where: { id: ctx.orgId },
+      select: { timezone: true },
+    });
+    const { end } = dayWindow(new Date(), org?.timezone ?? "Asia/Dubai");
+
+    const rows = await ctx.db.followUp.findMany({
+      where: { agentId: ctx.userId, completedAt: null, dueAt: { lt: end } },
+      orderBy: { dueAt: "asc" },
+      take: 50,
+      select: { id: true, title: true, body: true, dueAt: true, leadId: true, viewingId: true },
+    });
+
+    /**
+     * Names through the caller's own lead scope. `FollowUp.leadId` is a
+     * bare column, and a follow-up can outlive the lead being theirs —
+     * reassigned to a colleague, or deleted. The reminder is still
+     * theirs to clear; the other agent's client is not theirs to open.
+     */
+    const ids = [...new Set(rows.map((r) => r.leadId).filter((x): x is string => !!x))];
+    const leads = ids.length
+      ? await ctx.db.lead.findMany({
+          where: { id: { in: ids }, deletedAt: null, ...leadScope(ctx.role, ctx.userId) },
+          select: { id: true, name: true, phone: true },
+        })
+      : [];
+    const byId = new Map(leads.map((l) => [l.id, l]));
+
+    return rows.map((r) => {
+      const lead = r.leadId ? byId.get(r.leadId) : undefined;
+      return {
+        id: r.id, title: r.title, body: r.body, dueAt: r.dueAt,
+        lead: lead ? { id: lead.id, name: lead.name ?? lead.phone } : null,
+        /** A viewing whose buyer's answer can be recorded here. */
+        viewingId: r.viewingId,
+      };
+    });
+  }),
+
+  /**
+   * Done. Theirs only: one agent completing another's reminder is not a
+   * thing that should be possible, for the same reason as `dismiss`.
+   */
+  completeFollowUp: requirePermission("lead:read:own")
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const { count } = await ctx.db.followUp.updateMany({
+        where: { id: input.id, agentId: ctx.userId, completedAt: null },
+        data: { completedAt: new Date() },
+      });
+      return { done: count === 1 };
+    }),
 
   /**
    * Not now.
@@ -217,36 +338,8 @@ function partOfDay(now: Date, timeZone: string): "morning" | "afternoon" | "even
 }
 
 /**
- * Midnight to midnight, where the agent is.
- *
- * Derived from the formatted local date rather than from an offset,
- * for the same reason as the greeting: the UAE has no daylight saving
- * but a brokerage run from London does, and +4 is wrong twice a year.
- *
- * The arithmetic reads oddly and is the standard trick — format `now`
- * in the target zone, ask what that same wall-clock reading is in UTC,
- * and the difference is the offset in force *on that date*.
+ * Moved to `lib/day.ts`, because billing needs it too and a billing
+ * module importing a router is the wrong way round. Re-exported so the
+ * existing imports keep working.
  */
-export function dayWindow(now: Date, timeZone: string): { start: Date; end: Date } {
-  let offsetMs: number;
-  try {
-    const parts = new Intl.DateTimeFormat("en-GB", {
-      timeZone, year: "numeric", month: "2-digit", day: "2-digit",
-      hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
-    }).formatToParts(now);
-    const get = (t: string) => Number(parts.find((p) => p.type === t)?.value ?? 0);
-    const asUtc = Date.UTC(get("year"), get("month") - 1, get("day"),
-                           get("hour") % 24, get("minute"), get("second"));
-    offsetMs = asUtc - Math.floor(now.getTime() / 1000) * 1000;
-  } catch {
-    offsetMs = 0;
-  }
-
-  // Local midnight, expressed as the UTC instant it corresponds to.
-  const local = new Date(now.getTime() + offsetMs);
-  const localMidnight = Date.UTC(
-    local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate()
-  );
-  const start = new Date(localMidnight - offsetMs);
-  return { start, end: new Date(start.getTime() + 86_400_000) };
-}
+export { dayWindow };

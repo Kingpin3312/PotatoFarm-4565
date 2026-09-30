@@ -86,7 +86,8 @@ export function ViewingCard({
   const past = new Date(viewing.scheduledAt).getTime() < Date.now();
 
   return (
-    <article className="border-b border-rule py-4">
+    // An anchor, so a notification about this viewing lands on it.
+    <article id={`viewing-${viewing.id}`} className="border-b border-rule py-4 scroll-mt-6">
       <div className="flex items-baseline gap-3">
         <span className="font-mono text-ui font-medium text-ink tabular">
           {time(viewing.scheduledAt)}

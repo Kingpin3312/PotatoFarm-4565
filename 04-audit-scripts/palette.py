@@ -1,6 +1,13 @@
 #!/usr/bin/env python3
 """
-Palette audit — is there one orange, or several?
+Palette audit — is there one accent, or several?
+
+**Now neon pink `#FF1493` on grey `#292C32`.** The rule widened with the
+change: the brief is two colours and "no purple, blue, orange, green,
+gold, or other competing accent", so any saturated colour at all — not
+only a warm one — must be the pink, the logo's own artwork, or a named
+exception below. The history that follows is about the orange era and
+is kept because the failures it records are the ones this still guards.
 
 Every other check in this suite was green while the brand carried three
 different oranges at once, and it took an outside branding team to say
@@ -54,7 +61,7 @@ ROOT = sys.argv[1] if len(sys.argv) > 1 else "."
 # instruction is kept and the conflict is recorded in `tokens.css`
 # rather than resolved here — a palette audit measures, it does not
 # overrule a brand decision.
-ACCENT = "#FF5A00"
+ACCENT = "#FF1493"
 
 # Deliberately not a hue tolerance any more.
 #
@@ -67,13 +74,14 @@ ACCENT = "#FF5A00"
 #
 # The direction is one colour, so the rule is equality.
 EXCEPTIONS = {
-    # The shadow tint, written as `rgb(43 30 23 / .06)` and friends. It
-    # is warm on purpose — a neutral grey shadow under a warm palette
-    # reads as dirt — and it only ever ships at 5-18% opacity, so it is a
-    # shadow rather than a colour anybody sees. Hue 21.0 against the
-    # accent's 21.2: tuned to it, not competing with it. It becomes
-    # visible to this check only now that rgb() notation is read.
-    "#2B1E17",
+    # The soft pink: the accent mixed 14% into the grey, for selected rows
+    # and machine-written text. A derivation of the one accent, declared
+    # as `--accent-soft`, not a second colour.
+    "#472940",
+    # The wordmark navy in the logo files themselves, which keep it on
+    # their own light grounds (and in the email, which is white). On
+    # every product surface the word reverses to ink on the grey.
+    "#12202E",
 }
 
 # ---- the mark's own palette, read out of the file that defines it ----
@@ -277,18 +285,26 @@ def hls(hx):
     return h * 360, l * 100, s * 100
 
 
-def warm_enough(h, l, s):
-    """Would a person call this 'the orange'?"""
+def chromatic(h, l, s):
+    """Would a person see this as a colour rather than a grey?
+
+    Any hue: the direction forbids every competing accent, not only a
+    second orange. The grey family derived from #292C32 sits under 11%
+    saturation and is never caught.
+    """
     # Hue is meaningless below this saturation — greys and near-greys.
     if s < 25:
         return False
-    # And unstable at the ends of lightness: #FFF1E8 is a tint nobody
-    # reads as a hue, #0A0705 is black with a rumour of warmth in it.
+    # And unstable at the ends of lightness: a near-white tint nobody
+    # reads as a hue, a near-black with a rumour of colour in it.
     if l < 12 or l > 90:
         return False
-    # Warm half of the wheel only. Navy, greens and the rest are not
-    # competing to be the brand orange.
-    return h <= 60 or h >= 350
+    return True
+
+
+def warm_enough(h, l, s):
+    """The mark's test: is this pixel part of an orange potato?"""
+    return chromatic(h, l, s) and (h <= 60 or h >= 350)
 
 
 ACC_H, _, _ = hls(ACCENT)
@@ -318,7 +334,7 @@ for base in LIVE:
         text = strip_comments(text)
         for hx in colours_in(text):
             h, l, s = hls(hx)
-            if not warm_enough(h, l, s):
+            if not chromatic(h, l, s):
                 continue
             if hx in EXCEPTIONS or hx in MARK:
                 continue
@@ -330,7 +346,7 @@ for base in LIVE:
                 seen[hx]["bad"] = True
 
 print("Palette audit\n")
-print(f"  the one orange: {ACCENT}")
+print(f"  the one accent: {ACCENT}")
 print("  the rule:       exact equality, not a hue family\n")
 
 ok = sorted((k, v) for k, v in seen.items() if not v.get("bad"))
@@ -426,10 +442,38 @@ WARM_SHARE = 0.02
 # wordmark navy is declared in `mark.py` too, and including it stretched
 # the ceiling to 214 degrees, which is a window wide enough to pass a
 # green potato. `warm_enough` is the same filter the source scan uses.
-_warm = [hls(c)[0] for c in (MARK | EXCEPTIONS | {ACCENT})
-         if warm_enough(*hls(c))]
+_warm = [hls(c)[0] for c in MARK if warm_enough(*hls(c))]
 HUE_LO = (min(_warm) if _warm else ACC_H) - HUE_SLACK
 HUE_HI = (max(_warm) if _warm else ACC_H) + HUE_SLACK
+# What a rendered asset may contain now that there are two brand hues.
+#
+# The potato (its span above) and the pink — and every blend between
+# them, because an image anti-aliases: where the pink `.io` or a pink
+# stripe meets the orange mark or the grey ground, the edge pixels land
+# at hues in between (321°, 354°, 2°). So the allowed band runs from a
+# little below the pink, round through red, to the top of the mark's
+# span. Plus the logo files' navy wordmark on white, and its edges.
+# A blue, green or purple image still fails, which is what this is for.
+BLEND_SLACK = 12.0
+_EXC_H = [hls(c)[0] for c in EXCEPTIONS if chromatic(*hls(c))]
+
+
+def _like(px, data, j, tol=8):
+    """Is the pixel at j (if any) the same colour, give or take a gradient step?"""
+    if j >= len(data):
+        return False
+    q = data[j]
+    return q[3] >= OPAQUE_ENOUGH and all(abs(px[k] - q[k]) <= tol for k in range(3))
+
+
+def brand_hue(h):
+    if HUE_LO <= h <= HUE_HI:
+        return True                                   # the potato
+    if h >= ACC_H - BLEND_SLACK or h <= HUE_LO:
+        return True                                   # the pink, and pink-to-orange
+    return any(min(abs(h - e), 360 - abs(h - e)) <= BLEND_SLACK for e in _EXC_H)
+
+
 raster_fails = []
 try:
     from PIL import Image
@@ -460,15 +504,25 @@ else:
                 # window collapses to the accent alone, which fails loudly
                 # rather than passing quietly.
                 warm, outside, opaque, worst = 0, 0, 0, None
-                for px in im.getdata():
+                data = list(im.getdata())
+                W = im.width
+                for i, px in enumerate(data):
                     if px[3] < OPAQUE_ENOUGH:
                         continue          # a shadow fringe is not a colour
                     opaque += 1
                     h, l, sat = hls("#%02X%02X%02X" % px[:3])
-                    if not warm_enough(h, l, sat):
+                    if not chromatic(h, l, sat):
                         continue
                     warm += 1
-                    if HUE_LO <= h <= HUE_HI:
+                    # Judged only where the colour is an area. Text is
+                    # anti-aliased with coloured sub-pixel fringes — about
+                    # 5,000 blue and violet pixels around the grey and pink
+                    # type on one share card — and a fringe is an edge,
+                    # not a colour anybody sees. The mark's gradient steps
+                    # a few levels per pixel, so it still counts.
+                    if not (_like(px, data, i + 1) and _like(px, data, i + W)):
+                        continue
+                    if brand_hue(h):
                         continue
                     outside += 1
                     off = min(abs(h - HUE_LO), abs(h - HUE_HI))
@@ -525,7 +579,7 @@ for rel in ARCHIVES:
             continue
         for hx in colours_in(text):
             h, l, s = hls(hx)
-            if not warm_enough(h, l, s) or hx in EXCEPTIONS or hx in MARK or hx == ACCENT:
+            if not chromatic(h, l, s) or hx in EXCEPTIONS or hx in MARK or hx == ACCENT:
                 continue
             seen_in_zip.setdefault(hx, set()).add(info.filename)
     for hx, files in sorted(seen_in_zip.items()):
@@ -553,10 +607,10 @@ if raster_fails:
     fails += raster_fails
 
 if fails:
-    print(f"\n  {len(fails)} orange(s) outside the brand:\n")
+    print(f"\n  {len(fails)} colour(s) outside the brand:\n")
     for f in fails:
         print(f"    x {f}")
-    print(f"\n  One orange: {ACCENT}. Not a shade of it, not a hue near it.")
+    print(f"\n  One accent: {ACCENT}. Not a shade of it, not a hue near it.")
     print("  If a darker value is genuinely needed — an error that must not")
     print("  look like a link — the answer is a different colour, not")
     print("  another orange.\n")

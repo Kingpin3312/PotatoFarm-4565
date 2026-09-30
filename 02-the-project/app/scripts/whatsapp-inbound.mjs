@@ -34,7 +34,7 @@ const db = new PrismaClient({
   datasources: { db: { url: process.env.DATABASE_URL_UNSCOPED ?? process.env.DATABASE_URL } },
 });
 
-const org = await db.organisation.findFirst({ where: { deletedAt: null }, select: { id: true, name: true } });
+const org = await db.organisation.findFirst({ where: { slug: "seed-marina", deletedAt: null }, select: { id: true, name: true } });
 const NUMBER_ID = `INBOUND-TEST-${Date.now()}`;
 /**
  * Two forms of the same number, deliberately.

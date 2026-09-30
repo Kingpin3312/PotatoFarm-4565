@@ -20,5 +20,9 @@ import type { DefaultSession } from "next-auth";
 declare module "next-auth" {
   interface Session {
     user: { id: string } & DefaultSession["user"];
+    /** This sign-in's row id (never its token). */
+    sid: string | null;
+    /** The second factor for this sign-in; see `auth/config.ts`. */
+    twoStep: "off" | "needed" | "done";
   }
 }

@@ -15,7 +15,8 @@ how the previous one came to describe folders that did not exist.
 **PotatoFarm.io** — a WhatsApp-native lead qualification CRM for UAE
 real estate brokerages.
 
-- **Price:** $70 per agent per month (AED 257 + 5% VAT), 60 pooled
+- **Price:** $70 per agent per month (AED 257; no VAT — PotatoFarm is
+  not VAT-registered), 60 pooled
   conversations per agent, 35 fils per conversation beyond that
 - **Owner:** Christopher Simon, COO of EDM Holdings, Dubai
 - **Core promise:** an enquiry is answered in ~90 seconds, day or night,
@@ -105,8 +106,8 @@ token, which the web app cannot do. Treat it as a design sketch.
 
 ## 4. What is built
 
-**75 database models · 62 enums · 27 API routers · 155 procedures ·
-44 screens · 28 scheduled jobs · 22 audit scripts · 34 check suites.**
+**83 database models · 68 enums · 38 API routers · 228 procedures ·
+53 screens · 30 scheduled jobs · 23 audit scripts · 66 check suites.**
 
 **Five procedures have no screen, and every one of them deliberately:**
 `aml.checkRear`, `aml.visibilityPolicy`, `onboarding.previewImport`,
@@ -148,13 +149,16 @@ chart; spoken requests ("Ask").
 ### What has been proved, not assumed
 
 - `npx tsc --noEmit` exits 0. It began at **352 errors**.
-- `npm run build` succeeds. Every route compiles: 38 pages and 11 API
-  routes. **None of the 38 is prerendered, and that is deliberate** —
+- `npm run build` succeeds. Every route compiles — 61 in the last
+  build, pages and API routes together. **None is prerendered, and that
+  is deliberate** —
   the nonce in `script-src` requires per-request rendering. See the
   security note in section 13. It costs little here: every page is
   behind sign-in and fetches through tRPC on the client, so what used to
   be prerendered was an empty shell.
-- Seven migrations exist and apply cleanly to an empty database.
+- All 30 migrations apply cleanly to an empty database — last checked
+  by creating one and running `migrate deploy` against it, not by
+  trusting the development database, which only ever sees the newest.
 - **Row-level security was tested with two brokerages in one database.**
   The second cannot see the first's leads. This is the whole security
   promise of the product and it is the one thing worth re-testing after
@@ -162,7 +166,7 @@ chart; spoken requests ("Ask").
 - Sign-in works end to end from a cold browser.
 - The website's demo form and its four guide forms were submitted in
   Chromium, at 1280px and on an iPhone 13, against a real database.
-- All 22 audit scripts exit 0.
+- All 23 audit scripts exit 0.
 - **Object storage works against any S3-compatible provider** — AWS, R2,
   B2, Spaces, MinIO — with request signing done in-repo rather than by an
   SDK. Verified against the signature AWS publishes in its own
@@ -181,7 +185,7 @@ chart; spoken requests ("Ask").
 npm run verify
 ```
 
-That is `tsc --noEmit`, then the 252 unit tests, then the check suites,
+That is `tsc --noEmit`, then the unit tests, then the check suites,
 then every audit script — one run, and it reports every failure rather
 than stopping at the first. It exists because the alternative was a
 long ritual in a particular order, and the thing about a long ritual is
@@ -250,7 +254,7 @@ thing it checks and confirming it fails.
 ### The unit tests
 
 ```bash
-npm test                    # 285 assertions, no database, ~3 seconds
+npm test                    # 432 assertions, no database, ~3 seconds
 ```
 
 `package.json` declared `"test": "vitest run"` from the beginning with no
@@ -258,7 +262,7 @@ test files and no config behind it, so the command exited 1 and said "No
 test files found" — a command claiming to run tests that could not, which
 is the same shape as a button that does not do what it says.
 
-Seven files, and the selection is not "whatever was easy to test". Every
+31 test files, and the selection is not "whatever was easy to test". Every
 case is a bug that actually happened here or a rule whose failure would
 be silent:
 
@@ -272,6 +276,19 @@ be silent:
 | `server/lib/deals/risk.test.ts` | Blockers, silence thresholds, one action or none |
 | `server/assistant/guardrails.test.ts` | What reaches a customer, and what is refused |
 | `server/lib/calendar/ics.test.ts` | The feed a phone subscribes to — folding, escaping, UIDs |
+| `server/assistant/extract.test.ts` | What a subject access request discloses of the qualification answers — ranges not midpoints, nothing invented, confidence keyed as the model keys it |
+| `server/assistant/pricing.test.ts` | What a model turn costs, and an unknown model charged at the dearest rate |
+| `server/lib/aml/screen.test.ts` | No provider records ERROR, never CLEAR |
+| `server/lib/portals/publish.test.ts` | Which listings are re-sent, and which never are |
+| `server/lib/routing/apply.test.ts` | First matching rule in priority order, and every condition must match |
+| `server/jobs/period.test.ts` | Billing months — 31 January clamps to February's last day |
+| `lib/i18n/i18n.test.ts` | Right-to-left follows the locale; Arabic keeps Western digits |
+| `lib/sentence.test.ts` | Enums as sentences, not title case |
+| `server/lib/plans/run.test.ts` | Every nurture step ends with a person doing something, each waits its own delay, a resume is not undone by the reply that paused it, and a step that would do nothing is refused |
+| `lib/log.test.ts` | Nothing personal reaches a log — in the message and context as well as the extras |
+| `server/lib/plans/timeframe.test.ts` | "In six months" is later; "within six months" is now; anything unreadable suggests nothing |
+| `server/lib/billing/number.test.ts` | One invoice series for the supplier, in issue order; no VAT without PotatoFarm's fifteen-digit TRN, and 5% with one |
+| `server/lib/billing/vat-threshold.test.ts` | When VAT registration stops being optional (AED 375,000 over twelve months, or the next thirty days), and one warning per step up |
 
 **They were checked against deliberate breakage, not just run.** Setting
 a new lead's recency back to zero, moving the silence threshold from 7
@@ -362,7 +379,7 @@ your name on them:
    one-time link to a work email, so **email delivery is the only way
    into the product**. An unverified sender puts every sign-in link in a
    junk folder and the failure looks like the application being broken.
-3. **Vercel Pro, about $20/month.** 28 cron jobs and `maxDuration = 300`
+3. **Vercel Pro, about $20/month.** 30 cron jobs and `maxDuration = 300`
    both require it; Hobby allows 2 crons once a day at 60 seconds.
 4. Anthropic, WhatsApp Business, Meta and Stripe credentials, as and when
    each feature is wanted. The application boots without them and says in
@@ -402,22 +419,31 @@ Ask — an agent can see what they asked for earlier and what came back.
 - **A secrets provider.** `readSecret(ref)` resolves `SECRET_<ref>` from
   the environment and that is the whole implementation. Fine for a pilot
   with one brokerage; not fine for ten.
-- **Vendor-side conversations.** `Conversation.vendorId` exists in the
-  schema and 17 call sites still read `conversation.lead`. Owner
-  conversations are therefore half-wired.
+- ~~**Vendor-side conversations.**~~ **Built.** An owner who writes to
+  the brokerage's number lands on their own thread, the inbox and the
+  owner's page show it, and the assistant never speaks in it
+  (`check:owner-conversations`).
+- ~~**Two-way calendar sync.**~~ **Built.** The diary publishes a feed a
+  phone subscribes to (`calendar/ics.ts`), and the mailbox connection now
+  reads the agent's own Google or Outlook calendar back — busy times only
+  — so a viewing is never offered on top of a private appointment
+  (`check:calendar-busy`).
 - **Voice recipes** `BOOK_VIEWING` and `COMPARABLES` return a follow-up
   question rather than completing in one step. Deliberate, but the second
   step is not wired to the booking screen.
-**Unit tests cover fifteen modules, not the codebase.** 285 assertions
+**Unit tests cover the pure logic, not the codebase.** 432 assertions in 31 files,
   across money, the 24-hour window, Dubai sending hours, the search
   parser, lead scoring, deal risk, the assistant's guardrails and the
   interface's Arabic — the
   pure logic where being wrong is expensive and silent. Everything
-  stateful is still covered only by the twenty-four check suites and the
-  eighteen browser checks, which is not the same thing as a test suite. What is
+  stateful is still covered only by the 66 check suites and the
+  28 browser checks, which is not the same thing as a test suite. What is
   left untested in `assistant/` is everything that needs a model:
-  `run.ts`, `prompt.ts` and `extract.ts` are exercised only through
-  `check:autonomy` and by replaying real transcripts.
+  `run.ts` and `prompt.ts` are exercised only through `check:autonomy`
+  and by replaying real transcripts. `extract.ts`'s mapping to answers
+  is unit-tested, and `check:qualification` writes them through the
+  tenant client and reads them back out of a subject access export;
+  what the model itself extracts is still untested.
 - **The Expo app.** See section 3.
 
 ---
@@ -591,51 +617,37 @@ vendor to send to. **Ask of anything new: what writes the first row?**
 
 ## 8. Design — colours
 
-Ground `#F4F3F0`. Panel `#EBEAE6`.
+**Neon pink `#FF1493` on grey `#292C32`.** Every other shade is derived
+from the grey; there is no second accent anywhere.
 
 **`app/src/styles/tokens.css` is the only source of truth**, imported by
 `globals.css`. The palette is declared in four places — that file, the
 website's `assets/site.css`, and inline in each of the two reference
-pages in `03-brand/design-system/` — and **`consistency.py` now compares
-all four hex by hex** and fails on any drift. That check did not exist
-until a fourth, stale copy turned up in `03-brand/design-system/` with a
-visibly different orange (`#FF6E00`) in the folder a designer opens
-first. Nothing imported it, so nothing caught it. It is deleted.
+pages in `03-brand/design-system/` — and **`consistency.py` compares all
+four hex by hex** and fails on any drift. `03-brand/repalette.py` moves
+all of them at once, token by token, along with the native theme, the
+manifests, the email button and the logo lockups' `.io`.
+`03-brand/logo/PALETTE.md` carries the reasoning.
 
-`PALETTE-V4.md` carries the *reasoning* — why the ground is warm, why
-there are two oranges — and its hexes are historical. It says so at the
-top.
-
-| Use | Hex | Contrast on ground |
+| Use | Hex | Contrast on the grey |
 |---|---|---|
-| **Headings, tabs, links, accents, `.io`** | `#FF6B35` | 2.56:1 — see below |
-| **Button fills** | `#FF6B35` | label stays ink at 6.14:1 |
-| Body | `#4A4A4A` | 8.34:1 |
-| Captions, small orange type | `#A84015` | 5.55:1 |
-| Muted | `#6B6B6B` | 5.86:1 |
-| Ink — button labels, figures, tables | `#1A1A1A` | 16.94:1 |
-| **Wordmark — "PotatoFarm", and nothing else** | `#12202E` | 14.88:1 |
-| Rim / border on every orange fill | `#CC4E1D` | 3.73:1 on panel |
-| Logo eyes | `#3B2416` | — |
+| **Ground** — the dominant surface | `#292C32` | — |
+| Panels and inputs / cards and modals | `#2F3238` / `#33373E` | — |
+| Navigation band (darker) | `#25282D` / `#1F2126` | — |
+| **Accent** — buttons, active nav, selected, links, focus, `.io` | `#FF1493` | 3.85:1 |
+| Label on a pink fill | `#FFFFFF` | 3.64:1 on the pink |
+| Ink — headings, body, figures, the wordmark | `#F3F4F6` | 12.72:1 |
+| Secondary body | `#C9CCD2` | 8.70:1 |
+| Muted | `#A0A5AE` | 5.66:1 |
+| Rule / control boundary | `#3D4148` / `#7D828C` | 1.36:1 / 3.63:1 |
+| Soft pink — selected rows, machine-written text | `#472940` | ink on it 11.50:1 |
 
-### Two colours in the interface, three in the brand
-
-**The product is `#FF6B35` and black.** Every heading, every tab, every
-link, every accent and the `.io` take the orange; everything else is
-ink. There is no third hue in the interface — the green and the red are
-gone.
-
-**The brand has one more, and it is confined to the logo.** The supplied
-artwork sets "PotatoFarm" in a deep navy rather than the neutral ink
-beside it — sampled at `#0E1822` off the flat interior of the thick
-strokes, with blue leading red by eleven points, which is a decision and
-not compression noise. It ships as `--brand-navy: #12202E`.
-
-It dresses the wordmark and nothing else. Repainting `--ink` navy would
-have recoloured every heading, table and caption in the product because
-a logo arrived, and moved thirty measured contrast ratios at once. On
-the dark band it remaps to the light type exactly as `--ink` does, since
-navy on charcoal is 1.3:1.
+The trade, stated once: the pink clears the 3:1 a fill, border, icon or
+focus ring needs and is under the 4.5:1 small text needs, so pink links
+keep their underline, and white button labels are semibold. The potato
+logo keeps its own lit orange artwork — a recolour of the interface is
+not a redesign of the logo — and `palette.py` allows that orange only
+in the mark.
 
 ### Rebuilding the brand
 
@@ -650,39 +662,6 @@ the app header and the website nav stayed on neutral ink. `build.mjs`
 shells out to it, so the bitmaps always draw what the markup has just
 been given. `03-brand/logo/README.md` says which file is for what, and
 why eighteen of them are referenced by no code and should stay.
-
-Two things this document used to say are now false, and are corrected
-rather than left to send somebody looking for a bug: headings are not
-`#1A1A1A`, and colour does not carry state.
-
-The honest accounting, because it is a real trade and not a free one:
-
-```
-#FF6B35 on the ground   2.56:1   fails AA for text (needs 4.5)
-#FF6B35 on the panel    2.36:1   fails
-#FF6B35 on charcoal     5.18:1   passes comfortably
-#1A1A1A on #FF6B35      6.14:1   passes — why buttons keep ink labels
-#FFFFFF on #FF6B35      2.84:1   fails — never put white on it
-```
-
-Three mitigations, all in place and all checked:
-
-1. **A label on an orange fill stays ink** (`--on-accent`), never white.
-2. **Every orange fill carries `--accent-edge`**, so the shape is defined
-   by its border on either surface rather than by the colour.
-3. **Small orange type is `--accent-deep` `#A84015` at 5.55:1.** Captions
-   and inline links do not take the brand orange. A 40px heading nobody
-   reads word by word is a different thing from a caption.
-
-`contrast.py` handles the headings with an allow-list that **pins the
-measured value**: headings, `.brand .tld` and `.display` are permitted at
-2.56:1 and **fail if the ratio drops below it**. It is an exception for a
-known figure, not a switch that turns the check off — proved by setting
-the orange to `#FF9977` and watching all three fail at 1.88:1.
-
-Never merge `--accent` and `--accent-deep`. They are the same instruction
-applied honestly: what was asked for is orange, and what was not asked
-for stays readable.
 
 ### Removing the state colours was the risky half
 
@@ -779,8 +758,8 @@ Full spec: `03-brand/logo/SPEC.md`.
 
 ## 10. Database, API, auth, integrations
 
-**Database:** PostgreSQL via Prisma. `app/prisma/schema.prisma`, 75
-models. Six migrations in `app/prisma/migrations/`. **`rls.sql` is
+**Database:** PostgreSQL via Prisma. `app/prisma/schema.prisma`, 83
+models. 42 migrations in `app/prisma/migrations/`. **`rls.sql` is
 appended to the init migration** — it is not a file somebody has to
 remember to run, because the tenant boundary is not something to leave to
 memory.
@@ -889,7 +868,7 @@ and refusing to boot over it would be worse than saying so.
 
 ## 12. Deployment
 
-**The application → Vercel.** `app/vercel.json` defines **28 cron jobs**
+**The application → Vercel.** `app/vercel.json` defines **30 cron jobs**
 matching those in `src/server/jobs/index.ts`; a check enforces that they
 stay in step. `prisma generate` is in the build script — without it,
 Vercel's cached `node_modules` gives you a stale client and a guaranteed

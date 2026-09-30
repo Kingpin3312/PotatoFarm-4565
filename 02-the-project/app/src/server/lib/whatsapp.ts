@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { endpoint } from "@/server/lib/loopback";
 // The bytes to forward to Meta. See storage.ts — the three functions the
 // file feature depends on had no implementation at all.
 import { readObject } from "./files/storage";
@@ -14,7 +15,8 @@ import { readObject } from "./files/storage";
  * team keeps working a pipeline that has gone silent.
  */
 
-const GRAPH = "https://graph.facebook.com/v21.0";
+/** Meta's Graph, or a loopback stand-in in a check — see `loopback.ts`. */
+const graph = () => endpoint("WHATSAPP_GRAPH_BASE", "https://graph.facebook.com/v21.0");
 const WINDOW_MS = 24 * 60 * 60 * 1000;
 
 export type WindowState = { open: boolean; closesAt: Date | null; hoursLeft: number | null };
@@ -75,8 +77,20 @@ export async function sendTemplate(args: Omit<SendArgs, "body"> & {
   });
 }
 
+/**
+ * The credential a demonstration brokerage gets instead of a token.
+ *
+ * Produced only by `getChannelCredentials`, only for an organisation with
+ * `demo` set. Every send that carries it is recorded as sent and goes
+ * nowhere — the first client demo would otherwise have ended on its most
+ * important button with "No stored credential for this channel".
+ */
+export const DEMO_TOKEN = "demo:recorded-not-delivered";
+const demoId = () => `demo.${Date.now().toString(36)}.${Math.random().toString(36).slice(2, 8)}`;
+
 async function post(phoneNumberId: string, accessToken: string, payload: unknown) {
-  const res = await fetch(`${GRAPH}/${phoneNumberId}/messages`, {
+  if (accessToken === DEMO_TOKEN) return { externalId: demoId() };
+  const res = await fetch(`${graph()}/${phoneNumberId}/messages`, {
     method: "POST",
     headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -91,6 +105,102 @@ async function post(phoneNumberId: string, accessToken: string, payload: unknown
     throw new WhatsAppError(err.message ?? "Send failed", err.code, err.error_subcode, res.status);
   }
   return { externalId: data.messages?.[0]?.id as string | undefined };
+}
+
+/**
+ * "Read", and "typing…" on the buyer's screen, for a reply about to be
+ * sent automatically.
+ *
+ * A reply that lands one second after the question reads as a machine;
+ * the two blue ticks and a few seconds of typing are what a person
+ * replying looks like. Meta shows the indicator until the reply arrives
+ * or 25 seconds pass. Best effort: a failure here must never cost the
+ * buyer their reply, so it is swallowed and the send goes ahead.
+ */
+export async function markReadTyping(args: { phoneNumberId: string; accessToken: string; messageId: string }) {
+  if (args.accessToken === DEMO_TOKEN) return false;
+  try {
+    const res = await fetch(`${graph()}/${args.phoneNumberId}/messages`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${args.accessToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messaging_product: "whatsapp", status: "read", message_id: args.messageId,
+        typing_indicator: { type: "text" },
+      }),
+      signal: AbortSignal.timeout(5_000),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * A file somebody sent, fetched from Meta.
+ *
+ * Two requests: the media id gives a short-lived address, and the address
+ * gives the bytes. Both carry the channel's access token, so the second
+ * goes only to Meta's own media hosts — the address comes back in a
+ * response body, and a token sent wherever a body says is a token sent to
+ * whoever can influence that body. Redirects are refused for the same
+ * reason. Read to a cap, never trusting a declared size.
+ *
+ * `MediaGoneError` when Meta no longer has it: inbound media is kept for
+ * a limited time, and "ask them to send it again" is the only useful
+ * thing to tell an agent then.
+ */
+export class MediaGoneError extends Error {
+  constructor() {
+    super("WhatsApp no longer has this file. Ask them to send it again.");
+    this.name = "MediaGoneError";
+  }
+}
+export class MediaTooLargeError extends Error {
+  constructor(maxBytes: number) {
+    super(`That file is over ${Math.round(maxBytes / 1024 / 1024)}MB, so it wasn't taken.`);
+    this.name = "MediaTooLargeError";
+  }
+}
+
+const MEDIA_HOSTS = /(^|\.)(fbsbx\.com|facebook\.com|fbcdn\.net|whatsapp\.net)$/i;
+
+function mediaAddressAllowed(address: string): boolean {
+  let url: URL;
+  try { url = new URL(address); } catch { return false; }
+  // A check points Graph at a loopback stand-in; its media comes from the
+  // same place and nowhere else.
+  if (process.env.WHATSAPP_GRAPH_BASE) return url.origin === new URL(graph()).origin;
+  return url.protocol === "https:" && MEDIA_HOSTS.test(url.hostname);
+}
+
+export async function downloadMedia(args: { mediaId: string; accessToken: string; maxBytes: number }): Promise<{ bytes: Uint8Array; mimeType: string }> {
+  const auth = { Authorization: `Bearer ${args.accessToken}` };
+  const meta = await fetch(`${graph()}/${encodeURIComponent(args.mediaId)}`, {
+    headers: auth, redirect: "error", signal: AbortSignal.timeout(10_000),
+  });
+  if (meta.status === 400 || meta.status === 404) throw new MediaGoneError();
+  if (!meta.ok) throw new WhatsAppError("Could not look up the file", undefined, undefined, meta.status);
+  const info = (await meta.json()) as { url?: string; mime_type?: string; file_size?: number };
+  if (!info.url || !mediaAddressAllowed(info.url)) throw new WhatsAppError("WhatsApp gave an unexpected address for the file");
+  if (typeof info.file_size === "number" && info.file_size > args.maxBytes) throw new MediaTooLargeError(args.maxBytes);
+
+  const res = await fetch(info.url, { headers: auth, redirect: "error", signal: AbortSignal.timeout(30_000) });
+  if (res.status === 404 || res.status === 410) throw new MediaGoneError();
+  if (!res.ok || !res.body) throw new WhatsAppError("Could not download the file", undefined, undefined, res.status);
+  const parts: Uint8Array[] = [];
+  let total = 0;
+  const reader = res.body.getReader();
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > args.maxBytes) { await reader.cancel().catch(() => {}); throw new MediaTooLargeError(args.maxBytes); }
+    parts.push(value);
+  }
+  const bytes = new Uint8Array(total);
+  let at = 0;
+  for (const p of parts) { bytes.set(p, at); at += p.byteLength; }
+  return { bytes, mimeType: (info.mime_type ?? res.headers.get("content-type") ?? "").split(";")[0]!.trim() };
 }
 
 export class WhatsAppError extends Error {
@@ -153,6 +263,7 @@ export async function sendDocument(args: {
   mimeType: string;
   caption?: string;
 }): Promise<{ externalId: string }> {
+  if (args.accessToken === DEMO_TOKEN) return { externalId: demoId() };
   const bytes = await readObject(args.storageRef);
 
   // Step one: upload to Meta, get a media id.
@@ -166,7 +277,7 @@ export async function sendDocument(args: {
   const blob = new Blob([new Uint8Array(bytes).buffer as ArrayBuffer], { type: args.mimeType });
   form.append("file", blob, args.fileName);
 
-  const up = await fetch(`https://graph.facebook.com/v21.0/${args.phoneNumberId}/media`, {
+  const up = await fetch(`${graph()}/${args.phoneNumberId}/media`, {
     method: "POST",
     headers: { Authorization: `Bearer ${args.accessToken}` },
     body: form,
@@ -179,7 +290,7 @@ export async function sendDocument(args: {
 
   // Step two: send it.
   const isImage = args.mimeType.startsWith("image/");
-  const res = await fetch(`https://graph.facebook.com/v21.0/${args.phoneNumberId}/messages`, {
+  const res = await fetch(`${graph()}/${args.phoneNumberId}/messages`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${args.accessToken}`,

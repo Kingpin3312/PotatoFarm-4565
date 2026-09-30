@@ -44,6 +44,8 @@ export const assistantRouter = router({
 
     return {
       enabled: settings?.enabled ?? false,
+      autoReply: settings?.autoReply ?? false,
+      autoReplyOutOfHours: settings?.autoReplyOutOfHours ?? false,
       pausedReason: settings?.pausedReason ?? null,
       pausedAt: settings?.pausedAt ?? null,
       pausedBy,
@@ -232,7 +234,74 @@ export const assistantRouter = router({
       return after;
     }),
 
+  /**
+   * The owner's switch for replies the assistant sends by itself while a
+   * buyer is being qualified (`assistant/run.ts` → `reply`). Its own
+   * mutation, like `resume`, so turning it on or off always leaves an
+   * audit entry saying who did it and when.
+   */
+  /**
+   * Off, on outside working hours only, or on.
+   *
+   * `outOfHours` means nothing while `on` is false and is stored false
+   * then, so turning it back on later starts from "always" or "out of
+   * hours" as the owner chooses it at that moment, not from a choice
+   * made months ago and forgotten.
+   */
+  setAutoReply: requirePermission("channel:write")
+    .input(z.object({ on: z.boolean(), outOfHours: z.boolean().optional() }))
+    .mutation(async ({ ctx, input }) => {
+      const outOfHours = input.on && (input.outOfHours ?? false);
+      const before = await crossTenant("user-scoped").assistantSettings.findUnique({ where: { orgId: ctx.orgId } });
+      const after = await crossTenant("user-scoped").assistantSettings.upsert({
+        where: { orgId: ctx.orgId },
+        create: { orgId: ctx.orgId, enabled: false, autoReply: input.on, autoReplyOutOfHours: outOfHours },
+        update: { autoReply: input.on, autoReplyOutOfHours: outOfHours },
+      });
+      await crossTenant("user-scoped").$transaction(async (tx) => {
+        await audit(tx, ctx.orgId, {
+          actorId: ctx.userId,
+          action: !input.on ? "assistant.auto_reply_off"
+            : outOfHours ? "assistant.auto_reply_out_of_hours" : "assistant.auto_reply_on",
+          entity: "AssistantSettings",
+          entityId: ctx.orgId,
+          before: { autoReply: before?.autoReply ?? false, autoReplyOutOfHours: before?.autoReplyOutOfHours ?? false },
+          after: { autoReply: after.autoReply, autoReplyOutOfHours: after.autoReplyOutOfHours },
+        });
+      });
+      return { autoReply: after.autoReply, autoReplyOutOfHours: after.autoReplyOutOfHours };
+    }),
+
   /** Recent handovers, so a brokerage can see why it is stepping in. */
+  /**
+   * What agents did with the assistant's drafts — the evidence for ever
+   * letting it send by itself.
+   *
+   * The brokerage's owner chose drafts over automatic replies until the
+   * drafts have earned it. This is how they will know: of the replies
+   * the assistant wrote in the last thirty days, how many went out as
+   * written, how many were changed first, how many were thrown away, and
+   * how many were overtaken — the buyer wrote again, or the agent replied
+   * in their own words. A brokerage sending nine in ten as written is one
+   * whose drafts are ready; one editing half of them is not.
+   */
+  draftStats: orgProcedure.query(async ({ ctx }) => {
+    const since = new Date(Date.now() - 30 * 86_400_000);
+    const rows = await ctx.db.replyDraft.groupBy({
+      by: ["state"], where: { createdAt: { gte: since } }, _count: { _all: true },
+    });
+    const n = (state: string) => rows.find((r) => r.state === state)?._count._all ?? 0;
+    const asWritten = n("SENT"), edited = n("EDITED"), discarded = n("DISCARDED"), overtaken = n("STALE"), waiting = n("OPEN");
+    // Of the drafts a person decided about. Waiting and overtaken ones
+    // say nothing about whether the draft was good.
+    const decided = asWritten + edited + discarded;
+    return {
+      asWritten, edited, discarded, overtaken, waiting,
+      sentAsWrittenPct: decided ? Math.round((asWritten / decided) * 100) : null,
+      decided,
+    };
+  }),
+
   handovers: orgProcedure
     .input(z.object({ days: z.number().min(1).max(90).default(7) }))
     .query(async ({ ctx, input }) => {

@@ -99,7 +99,7 @@ for (const url of ["/sign-in", "/sign-in/check-your-email", "/sign-in/error", "/
      l.found ? (l.markPresent ? "" : "wordmark but no potato") : "no wordmark");
 }
 
-console.log("\n=== the wordmark is the artwork's navy, not neutral ink ===");
+console.log("\n=== the wordmark takes --brand-navy, the .io the accent ===");
 {
   // Resolved through the browser so the comparison is rgb-to-rgb and
   // whitespace in the custom property cannot make a match miss.
@@ -115,8 +115,8 @@ console.log("\n=== the wordmark is the artwork's navy, not neutral ink ===");
 }
 for (const url of ["/today", "/sign-in"]) {
   const l = await lockup(url);
-  ok(`${url} wordmark is navy`, l.wordColour === NAVY, l.wordColour ?? "—");
-  ok(`${url} .io is orange`, l.tldColour === ORANGE, l.tldColour ?? "—");
+  ok(`${url} wordmark is --brand-navy (ink on the grey)`, l.wordColour === NAVY, l.wordColour ?? "—");
+  ok(`${url} .io is the accent pink`, l.tldColour === ORANGE, l.tldColour ?? "—");
 }
 
 console.log("\n=== one word, not two boxes ===");
@@ -169,5 +169,5 @@ console.log("\n=== the manifest points at icons that exist ===");
 }
 
 await b.close();
-console.log(bad ? "\n" + bad + " FAILED:\n  - " + failures.join("\n  - ") + "\n" : "\none lockup, one navy, one potato — on every surface.\n");
+console.log(bad ? "\n" + bad + " FAILED:\n  - " + failures.join("\n  - ") + "\n" : "\none lockup, one wordmark colour, one potato — on every surface.\n");
 process.exit(bad ? 1 : 0);

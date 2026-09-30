@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { opportunityScope } from "./opportunities";
 import { Prisma } from "@prisma/client";
 import { TRPCError } from "@trpc/server";
 import { router, orgProcedure, requirePermission } from "../trpc";
@@ -72,11 +73,23 @@ export const pipelineRouter = router({
         orderBy: { position: "asc" },
       });
 
-      const [counts, values] = await Promise.all([
+      /**
+       * A person's further pieces of business ride on the same board,
+       * each in its own column (the audit's B5). Counted and valued with
+       * the leads, so a column's total is the business in it, not the
+       * people.
+       */
+      const oppScope: Prisma.OpportunityWhereInput = {
+        lead: { deletedAt: null },
+        ...opportunityScope(ctx.role, ctx.userId),
+        ...(input.assignedTo && { agentId: input.assignedTo }),
+      };
+      const [counts, values, oppCounts] = await Promise.all([
         ctx.db.lead.groupBy({ by: ["stageId"], where: scope, _count: { _all: true } }),
         // Weighted pipeline value per column. The number an owner actually
         // opens the board to see.
         ctx.db.lead.groupBy({ by: ["stageId"], where: scope, _sum: { budgetMaxFils: true } }),
+        ctx.db.opportunity.groupBy({ by: ["stageId"], where: oppScope, _count: { _all: true }, _sum: { valueFils: true } }),
       ]);
 
       const columns = await Promise.all(
@@ -97,15 +110,32 @@ export const pipelineRouter = router({
             ? new Date(Date.now() - stage.staleAfterDays * 86_400_000)
             : null;
 
+          const opportunities = await ctx.db.opportunity.findMany({
+            where: { ...oppScope, stageId: stage.id },
+            take: input.perColumn,
+            orderBy: [{ stageEnteredAt: "desc" }, { id: "desc" }],
+            select: {
+              id: true, kind: true, title: true, valueFils: true, stageEnteredAt: true, leadId: true,
+              lead: { select: { name: true, phone: true } },
+            },
+          });
+          const opp = oppCounts.find((c) => c.stageId === stage.id);
+          const leadValue = values.find((v) => v.stageId === stage.id)?._sum.budgetMaxFils ?? null;
+          const oppValue = opp?._sum.valueFils ?? null;
+
           return {
             stage,
-            total: counts.find((c) => c.stageId === stage.id)?._count._all ?? 0,
-            value: values.find((v) => v.stageId === stage.id)?._sum.budgetMaxFils ?? null,
+            total: (counts.find((c) => c.stageId === stage.id)?._count._all ?? 0) + (opp?._count._all ?? 0),
+            value: leadValue === null && oppValue === null ? null : (leadValue ?? 0n) + (oppValue ?? 0n),
             leads: leads.map((l) => ({
               ...l,
               // Computed here so every client agrees on what "going cold"
               // means, rather than each one inventing its own threshold.
               stale: staleBefore ? l.stageEnteredAt < staleBefore : false,
+            })),
+            opportunities: opportunities.map((o) => ({
+              ...o,
+              stale: staleBefore ? o.stageEnteredAt < staleBefore : false,
             })),
           };
         })
@@ -200,121 +230,6 @@ export const pipelineRouter = router({
         }
 
         return updated;
-      })
-    ),
-
-  /**
-   * Bulk assign, for a manager clearing a backlog — and for putting a
-   * lead back.
-   *
-   * `agentId` is nullable, and that is the capability rather than a
-   * loosened type. A manager could move a lead from one agent to
-   * another and could not take it off somebody: the only procedure
-   * accepting null was `leads.assign`, which no screen called. "I am
-   * taking this off Lena while she is away, put it back in the pool" had
-   * no way to be expressed, so it was done by assigning the lead to
-   * whoever was nearest — which is not the same thing and leaves the
-   * wrong name on the record.
-   *
-   * The shared pool is a real state in this product. `assignmentFor`
-   * returns null for it deliberately, the leads screen has a "Nobody's"
-   * filter for it, and `QUALIFIED_UNCLAIMED` notifies on it. Everything
-   * downstream was ready for a lead nothing owned; the only missing
-   * piece was a way to say so.
-   */
-  bulkAssign: requirePermission("lead:assign")
-    .input(z.object({
-      leadIds: z.array(z.string()).min(1).max(200),
-      agentId: z.string().nullable(),
-    }))
-    .mutation(async ({ ctx, input }) =>
-      ctx.db.$transaction(async (tx) => {
-        if (input.agentId) {
-          const member = await tx.membership.findUnique({
-            where: { orgId_userId: { orgId: ctx.orgId, userId: input.agentId } },
-          });
-          if (!member) throw new TRPCError({ code: "BAD_REQUEST", message: "That agent isn't in your team." });
-        }
-
-        /**
-         * Read the current owners before overwriting them.
-         *
-         * `updateMany` returns a count and nothing else, so the previous
-         * owner of each lead is gone the moment it runs — and the
-         * previous owner is exactly what an ownership row has to record.
-         * A bulk move that says two hundred leads changed hands without
-         * saying whose they were is the version of this feature that
-         * causes the argument rather than settling it.
-         */
-        const beforeRows = await tx.lead.findMany({
-          where: { id: { in: input.leadIds }, deletedAt: null },
-          select: { id: true, assignedToId: true },
-        });
-
-        const { count } = await tx.lead.updateMany({
-          where: { id: { in: input.leadIds }, deletedAt: null },
-          // `assignedAt` goes back to null with the owner. A lead in the
-          // pool that still carries the date somebody was given it reads
-          // as owned to every "how long has this been sitting with them"
-          // question, including the stale-lead sweep.
-          data: {
-            assignedToId: input.agentId,
-            assignedAt: input.agentId ? new Date() : null,
-          },
-        });
-
-        /**
-         * An ownership row per lead, even though the audit entry is one.
-         *
-         * The audit log is the manager's record of an action — one line,
-         * readable. `LeadOwnership` is the *lead's* history, and it is
-         * read per lead when somebody asks why a particular client is
-         * not theirs any more. Two hundred audit lines would be
-         * unreadable; two hundred ownership rows are one row each on two
-         * hundred separate screens.
-         */
-        const moved = beforeRows.filter((l) => l.assignedToId !== input.agentId);
-        if (moved.length) {
-          await tx.leadOwnership.updateMany({
-            where: { orgId: ctx.orgId, leadId: { in: moved.map((l) => l.id) }, endedAt: null },
-            data: { endedAt: new Date() },
-          });
-          /**
-           * Returning to the pool closes the old row and opens none.
-           *
-           * An ownership row records who holds a lead. Nobody holding it
-           * is the absence of one, not a row with a null owner — which
-           * would read as "assigned to nobody" in every query that joins
-           * on `userId` and would put a phantom owner in the history.
-           * The closed `endedAt` is the record that it happened, and the
-           * audit entry below says who did it.
-           */
-          const agentId = input.agentId;
-          if (agentId) {
-            await tx.leadOwnership.createMany({
-              data: moved.map((l) => ({
-                orgId: ctx.orgId,
-                leadId: l.id,
-                userId: agentId,
-                fromUserId: l.assignedToId,
-                reason: l.assignedToId ? ("REASSIGNED" as const) : ("MANUAL" as const),
-                actorId: ctx.userId,
-              })),
-            });
-          }
-        }
-
-        // One audit entry for the action, not two hundred. A log nobody
-        // can read is a log nobody reads.
-        await audit(tx, ctx.orgId, {
-          actorId: ctx.userId,
-          action: input.agentId ? "lead.bulk_assign" : "lead.bulk_unassign",
-          entity: "Lead",
-          entityId: `${count} leads`,
-          after: { agentId: input.agentId, count },
-        });
-
-        return { count };
       })
     ),
 

@@ -1,3 +1,5 @@
+import { samePlace } from "@/server/lib/places";
+
 /**
  * Matching a buyer's stated requirements against inventory.
  *
@@ -16,6 +18,10 @@ export type Requirement = {
   bedrooms: number | null;
   communities: string[];
   intent: "BUY_TO_LIVE" | "BUY_TO_INVEST" | "RENT" | null;
+  /** Types that will do; empty or absent is any. */
+  propertyTypes?: string[];
+  /** Ready or off-plan; null or absent is either. */
+  completion?: "READY" | "OFF_PLAN" | null;
 };
 
 export type Candidate = {
@@ -27,6 +33,8 @@ export type Candidate = {
   community: string | null;
   purpose: "SALE" | "RENT";
   listedAt: Date;
+  propertyType?: string | null;
+  completion?: "READY" | "OFF_PLAN" | null;
 };
 
 export type Match = {
@@ -43,6 +51,15 @@ function disqualified(r: Requirement, c: Candidate): string | null {
   const wantsRent = r.intent === "RENT";
   if (wantsRent && c.purpose !== "RENT") return "wrong purpose";
   if (!wantsRent && r.intent && c.purpose !== "SALE") return "wrong purpose";
+
+  // A villa buyer is not sent an apartment, and somebody who needs to
+  // move in this year is not sent a building still being poured. Unknown
+  // on the listing's side is not a mismatch: an older listing without a
+  // type is left to the other rules rather than hidden from every buyer.
+  if (r.propertyTypes?.length && c.propertyType && !r.propertyTypes.includes(c.propertyType)) return "wrong type";
+  if (r.completion && c.completion && r.completion !== c.completion) {
+    return r.completion === "READY" ? "not ready yet" : "not off-plan";
+  }
 
   // Bedrooms: one fewer is never right, one more sometimes is.
   if (r.bedrooms != null && c.bedrooms != null && c.bedrooms < r.bedrooms) return "too few bedrooms";
@@ -88,7 +105,7 @@ export function score(r: Requirement, c: Candidate): Match | null {
 
   possible += 2;
   if (r.communities.length && c.community) {
-    if (r.communities.some((x) => x.toLowerCase() === c.community!.toLowerCase())) {
+    if (r.communities.some((x) => samePlace(x, c.community!))) {
       points += 2;
       reasons.push(c.community);
     }
@@ -114,10 +131,14 @@ export function score(r: Requirement, c: Candidate): Match | null {
 export const SEND_THRESHOLD = 0.75;
 
 export function best(r: Requirement, candidates: Candidate[]): Match | null {
-  const scored = candidates
-    .map((c) => score(r, c))
-    .filter((m): m is Match => m !== null && m.score >= SEND_THRESHOLD)
-    .sort((a, b) => b.score - a.score);
-
-  return scored[0] ?? null;
+  // One pass, keeping the first of the highest — what a stable sort
+  // descending then `[0]` returned, without building and sorting an
+  // array per requirement. The nightly sweep calls this for every live
+  // requirement against the whole book.
+  let top: Match | null = null;
+  for (const c of candidates) {
+    const m = score(r, c);
+    if (m && m.score >= SEND_THRESHOLD && (!top || m.score > top.score)) top = m;
+  }
+  return top;
 }

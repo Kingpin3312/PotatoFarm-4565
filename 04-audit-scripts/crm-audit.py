@@ -9,7 +9,10 @@ shows up in review — each file is fine on its own.
 """
 import glob, os, re, sys
 
-ROOT = sys.argv[1] if len(sys.argv) > 1 else "."
+# Absolute, because the module resolver below compares paths it builds
+# from imports against these keys; given "." it failed on imports it
+# resolved correctly from an absolute root.
+ROOT = os.path.abspath(sys.argv[1] if len(sys.argv) > 1 else ".")
 FAILS, WARNS = [], []
 def fail(m): FAILS.append(m)
 def warn(m): WARNS.append(m)
@@ -45,6 +48,9 @@ defined = set(re.findall(r'"([a-z]+:[a-z:]+)"', rbac.split("export type Permissi
 # use — and a warning that is wrong seven times is one nobody reads the
 # eighth time.
 used = set(re.findall(r'requirePermission\("([^"]+)"\)', allsrc))
+# `requireAnyPermission("a", "b")` gates on any one of several.
+for args in re.findall(r'requireAnyPermission\(([^)]*)\)', allsrc):
+    used |= set(re.findall(r'"([a-z]+:[a-z:]+)"', args))
 used |= set(re.findall(r'can\(\s*[\w.]+\s*,\s*"([^"]+)"', allsrc))
 # `leadScope()` is the read:own / read:all split expressed as a Prisma
 # filter rather than a gate.
@@ -228,6 +234,23 @@ for p2, s2 in src.items():
         line2 = s2[:m2.start()].count("\n") + 1
         fail(f"{os.path.basename(p2)}:{line2}: bare rootDb — use crossTenant(reason) "
              f"so the RLS bypass is declared, not assumed")
+
+
+# 7c-2. No work handed to a `waitUntil` the request does not have.
+#
+# `(req as { waitUntil? }).waitUntil` is undefined on a Next.js request,
+# so the work it was meant to keep alive is registered with nothing and
+# a serverless function freezes as soon as it responds. Three routes
+# carried it — the demo form and both inbound webhooks — and every check
+# passed, because a dev server never freezes. Use `after()` from
+# next/server.
+for p2, s2 in src.items():
+    for m2 in re.finditer(r'as\s+unknown\s+as\s*\{\s*waitUntil|\(\s*req\s+as\s*\{\s*waitUntil', s2):
+        line2 = s2[:m2.start()].count("\n") + 1
+        text2 = s2.split("\n")[line2 - 1].lstrip()
+        if text2.startswith(("*", "//", "/*")): continue   # a comment quoting it
+        fail(f"{os.path.basename(p2)}:{line2}: work handed to req.waitUntil, which a "
+             f"Next.js request does not have — use after() from next/server")
 
 
 # 7d. An imported name that the target file does not export.
@@ -526,6 +549,32 @@ for _path, _body in src.items():
                  f"confirm it is meant to be data rather than a decision "
                  f"({_os.path.relpath(_path, ROOT)})")
 
+
+# ---------------------------------------------------------------------
+# A check that sends the session cookie under the development name only.
+#
+# `auth/config.ts` sets `useSecureCookies` in production, so `next start`
+# reads `__Secure-authjs.session-token` and ignores `authjs.session-token`.
+# CI runs the production build. `check:two-step` wrote its own cookie with
+# the development name: it passed on every laptop (`next dev`) and failed
+# in CI on every push for as long as it existed, reporting a signed-in
+# session as `null`. `check:email-connect` carried the same line.
+# `scripts/lib/session-cookie.mjs` explains the two names; every check
+# must send both.
+for _sp in glob.glob(os.path.join(ROOT, "scripts/**/*.*s"), recursive=True):
+    if _sp.endswith("session-cookie.mjs"):
+        continue
+    _sb = read(_sp)
+    for _ln, _line in enumerate(_sb.splitlines(), 1):
+        if "authjs.session-token=" in _line and "__Secure-authjs.session-token" not in _line:
+            # The two names may sit on consecutive lines of one string.
+            _next = _sb.splitlines()[_ln] if _ln < len(_sb.splitlines()) else ""
+            if "__Secure-authjs.session-token" in _next:
+                continue
+            fail(f"{os.path.relpath(_sp, ROOT)}:{_ln} sends the session cookie "
+                 f"as authjs.session-token only — a production build reads "
+                 f"__Secure-authjs.session-token; send both "
+                 f"(scripts/lib/session-cookie.mjs)")
 
 if __name__ == "__main__":
     print(f"{len(src)} source files, {len(models)} models, {len(routers)} routers\n")

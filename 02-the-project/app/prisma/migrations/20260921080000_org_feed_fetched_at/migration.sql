@@ -1,0 +1,20 @@
+-- When a portal last actually fetched the listing feed.
+--
+-- `feedTokenAt` records when the URL was issued, which says nothing
+-- about whether anybody is using it. The route serving the feed wrote
+-- neither: it logged a line and returned XML, under a comment claiming
+-- that `portals/health.ts` "alarms on silence from a feed". It could
+-- not — health sweeps Channel, a feed is not a channel, and nothing in
+-- the database changed when a portal fetched. A portal that quietly
+-- stopped pulling listings was detected by nobody.
+--
+-- Nullable, and null is the normal state today: no portal agreement is
+-- signed, so nobody has the URL. The sweep starts watching a brokerage
+-- only once this has been set at least once.
+--
+-- Written by hand rather than by `prisma migrate dev`, deliberately.
+-- That command generated eight unrequested DROP INDEX statements the
+-- last time it was used here, because the search indexes are created by
+-- raw SQL it cannot see and reads as drift. One ALTER TABLE does not
+-- need a generator.
+ALTER TABLE "Organisation" ADD COLUMN "feedFetchedAt" TIMESTAMP(3);

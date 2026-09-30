@@ -1,4 +1,5 @@
 import { crossTenant } from "@/server/db/client";
+import { DEMO_TOKEN } from "@/server/lib/whatsapp";
 import { fetchSecret } from "./vault";
 
 /**
@@ -24,9 +25,24 @@ export async function getChannelCredentials(orgId: string, channelId: string): P
 
   const channel = await crossTenant("global-key").channel.findFirst({
     where: { id: channelId, orgId, active: true },
-    select: { identifier: true, secretRef: true },
+    select: { identifier: true, secretRef: true, type: true, org: { select: { demo: true } } },
   });
-  if (!channel?.secretRef) throw new Error("This WhatsApp number isn't connected.");
+  // A demonstration brokerage never talks to Meta, token or not.
+  if (channel?.org.demo) return { phoneNumberId: channel.identifier, accessToken: DEMO_TOKEN };
+  /**
+   * Every channel type reaches this, so the message cannot name one.
+   *
+   * It read "This WhatsApp number isn't connected." and surfaced on a
+   * Facebook Page that had been connected perfectly — sending whoever
+   * read the log looking at WhatsApp while Meta lead ads were the thing
+   * failing. The type is in the row; say it.
+   */
+  if (!channel?.secretRef) {
+    throw new Error(
+      `No stored credential for this ${channel?.type === "META_LEAD_ADS" ? "Facebook Page" : "channel"}. ` +
+      "Reconnect it in Settings → Channels.",
+    );
+  }
 
   const accessToken = await readSecret(channel.secretRef);
   const value = { phoneNumberId: channel.identifier, accessToken };
@@ -66,7 +82,7 @@ export async function readSecret(ref: string): Promise<string> {
   );
 }
 
-export { writeSecret, forgetSecret, vaultReady, NOT_CONFIGURED } from "./vault";
+export { writeSecret, forgetSecret, vaultReady, vaultProblem, NOT_CONFIGURED } from "./vault";
 
 /** Called when a channel is disconnected or rotated. */
 export function invalidate(orgId: string, channelId: string) {

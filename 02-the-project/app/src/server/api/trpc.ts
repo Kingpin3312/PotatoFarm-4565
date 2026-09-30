@@ -8,8 +8,18 @@ import type { Context } from "./context";
 const t = initTRPC.context<Context>().create({
   transformer: superjson,
   errorFormatter({ shape, error }) {
+    /**
+     * A validation failure's message is the serialised issue list —
+     * `[{"validation":"regex",…}]` — and every form shows `error.message`,
+     * so a person typing a number with spaces was shown JSON. The first
+     * issue's own sentence goes in the message instead; the full detail
+     * stays in `data.zod` for forms that place messages per field.
+     */
+    const zod = error.cause instanceof ZodError ? error.cause : null;
+    const first = zod?.issues[0];
     return {
       ...shape,
+      message: first ? readable(first) : shape.message,
       data: {
         ...shape.data,
         // Field errors go back individually so the client can put each
@@ -19,6 +29,23 @@ const t = initTRPC.context<Context>().create({
     };
   },
 });
+
+/** "Email: Invalid email" reads as a form label, not a stack trace. */
+function readable(issue: import("zod").ZodIssue): string {
+  const field = issue.path.filter((p) => typeof p === "string").at(-1);
+  const name = typeof field === "string"
+    ? field.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/^./, (c) => c.toUpperCase())
+    : null;
+  if (issue.code === "too_big" && "maximum" in issue) {
+    return `${name ?? "That"} is too long — ${String(issue.maximum)} characters at most.`;
+  }
+  if (issue.code === "too_small" && "minimum" in issue && issue.minimum === 1) {
+    return `${name ?? "That"} is required.`;
+  }
+  return name && !issue.message.toLowerCase().includes(name.toLowerCase())
+    ? `${name}: ${issue.message}`
+    : issue.message;
+}
 
 export const router = t.router;
 export const publicProcedure = t.procedure;
@@ -30,6 +57,12 @@ export const publicProcedure = t.procedure;
  */
 export const orgProcedure = t.procedure.use(({ ctx, next }) => {
   if (!ctx.session?.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+  // Somebody with two-step sign-in on, whose link has signed this device
+  // in but who has not typed a code yet, reaches nothing. The one thing
+  // they can call is `security.verify`, on `signedInProcedure` below.
+  if (ctx.session.twoStep === "needed") {
+    throw new TRPCError({ code: "UNAUTHORIZED", message: "Enter the code from your authenticator app to finish signing in." });
+  }
   if (!ctx.membership) throw new TRPCError({ code: "FORBIDDEN", message: "No access to this brokerage." });
 
   return next({
@@ -43,6 +76,33 @@ export const orgProcedure = t.procedure.use(({ ctx, next }) => {
     },
   });
 });
+
+/**
+ * Signed in, before the second step and before any brokerage.
+ *
+ * For finishing sign-in and nothing else: no database handle is given,
+ * so a procedure here can only reach what it opens itself, as
+ * `crossTenant("pre-tenant")`, about the caller.
+ */
+export const signedInProcedure = t.procedure.use(({ ctx, next }) => {
+  if (!ctx.session?.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+  return next({ ctx: { ...ctx, userId: ctx.session.user.id, sid: ctx.session.sid } });
+});
+
+/**
+ * Any one of several permissions. For reads a role may hold either way —
+ * a person's page is open to an agent for their own people
+ * (`lead:read:own`) and to a viewer or compliance officer for everyone
+ * (`lead:read:all`). The row scope inside the procedure still decides
+ * *which* people; this only decides whether the door exists.
+ */
+export const requireAnyPermission = (...permissions: Permission[]) =>
+  orgProcedure.use(({ ctx, next }) => {
+    if (!permissions.some((p) => can(ctx.role, p))) {
+      throw new TRPCError({ code: "FORBIDDEN", message: `Your role does not allow ${permissions.join(" or ")}.` });
+    }
+    return next({ ctx });
+  });
 
 /** Declarative permission gate. `.use(require("lead:assign"))` */
 export const requirePermission = (permission: Permission) =>

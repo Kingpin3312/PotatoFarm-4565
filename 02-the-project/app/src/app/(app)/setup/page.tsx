@@ -45,7 +45,7 @@ export default function Setup() {
         )}
       </header>
 
-      <div className="border-t border-ink">
+      <div className="border-t border-rule-strong">
         {steps.map((s, i) => (
           <div key={s.key} className={cn("py-4 border-b border-rule",
             !s.done && s.key === next?.key && "border-s-[3px] border-s-accent ps-4 -ms-4")}>

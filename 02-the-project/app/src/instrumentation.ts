@@ -38,10 +38,43 @@ export async function register() {
   check("RESEND_API_KEY", "no sign-in link is delivered, so nobody can get in");
   check("ANTHROPIC_API_KEY", "the assistant hands every conversation to a person");
   check("WHATSAPP_APP_SECRET", "inbound WhatsApp webhooks are all rejected as unsigned");
+  // Missing from this list, which is the mechanism built to announce
+  // exactly this — so the one unconfigured secret that used to verify
+  // *nothing* was also the one the boot log never mentioned.
+  check("META_APP_SECRET", "inbound Meta lead webhooks are all rejected as unsigned");
   check("STRIPE_SECRET_KEY", "no card can be taken and no invoice settled");
   check("CRON_SECRET", "every scheduled job refuses to run");
   check("SEAT_PRICE_FILS", "sign-up refuses to create a subscription");
+  /**
+   * Not in the missing list: unset is the honest state of a business
+   * that is not VAT-registered, and invoices go out without VAT. Set
+   * but malformed is a fault — every invoice is refused until it is
+   * fixed, because a typo would be printed on each one.
+   */
+  const trn = process.env.SUPPLIER_TRN?.replace(/\s/g, "");
+  if (trn && !/^\d{15}$/.test(trn)) {
+    missing.push("SUPPLIER_TRN — set, but not a fifteen-digit TRN; no invoice is issued until it is corrected or removed");
+  }
+  // Registered, a tax invoice must carry the supplier's address too
+  // (Article 59). Unregistered, an invoice without one is still lawful.
+  if (trn && !process.env.SUPPLIER_ADDRESS?.trim()) {
+    missing.push("SUPPLIER_ADDRESS — registered for VAT but no address; tax invoices go out without the registered address the FTA requires");
+  }
   check("S3_BUCKET", "no file can be uploaded — no brochure, no floor plan, no KYC document");
+  check("SECRETS_KEY", "no WhatsApp number or Facebook Page can be connected — there is nowhere safe to keep its token");
+  /**
+   * Present is not the same as usable. A key that decodes to anything
+   * but 32 bytes passes the line above and refuses every token — and
+   * was then reported to the person connecting a number as "not set".
+   * Checked here by length only; the value is never printed.
+   */
+  const rawKey = process.env.SECRETS_KEY?.trim();
+  if (rawKey && Buffer.from(rawKey, "base64").length !== 32) {
+    missing.push(
+      `SECRETS_KEY — set, but decodes to ${Buffer.from(rawKey, "base64").length} bytes rather than 32; ` +
+      `no token can be stored until it is replaced (openssl rand -base64 32)`,
+    );
+  }
   check("TRANSCRIBE_API_KEY", "the Speak button does nothing on any iPhone");
 
   /**

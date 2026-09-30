@@ -2,9 +2,10 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { Prisma } from "@prisma/client";
 import { randomBytes } from "node:crypto";
+import { adapters } from "@/server/lib/portals";
 import { router, requirePermission } from "../trpc";
 import { audit } from "@/server/lib/audit";
-import { readSecret, invalidate, writeSecret, vaultReady, NOT_CONFIGURED }
+import { readSecret, invalidate, writeSecret, vaultProblem }
   from "@/server/lib/secrets";
 
 /**
@@ -64,6 +65,55 @@ const TYPES = [
  * signature.
  */
 const TOKENED = new Set(["PROPERTY_FINDER", "BAYUT", "DUBIZZLE", "WEBSITE_FORM"]);
+
+/** What a person calls each one, for a message a person reads. */
+const LABEL: Partial<Record<(typeof TYPES)[number], string>> = {
+  WHATSAPP: "WhatsApp",
+  META_LEAD_ADS: "Meta lead ads",
+  PROPERTY_FINDER: "Property Finder",
+  BAYUT: "Bayut",
+  DUBIZZLE: "Dubizzle",
+  WEBSITE_FORM: "Your website form",
+};
+
+/**
+ * Types that hold a credential of their own, and the prefix its
+ * reference is named with.
+ *
+ * Module scope, next to `TOKENED`, because this exact fact was stated
+ * in two places that disagreed and that is the whole bug. `connect`
+ * decided which channels get a `secretRef`; `list` separately decided
+ * which channels are worth asking "can this actually send". One said
+ * WhatsApp and Meta, the other said WhatsApp — so a Facebook Page
+ * whose token had stopped resolving was a state no screen in the
+ * product could show, and Meta is the channel where that means leads
+ * lost rather than a message that fails loudly.
+ *
+ * One declaration, every reader. `check:channel-surfaces` fails the
+ * build if a new channel type is added without an entry here.
+ */
+export const CREDENTIALLED: Partial<Record<(typeof TYPES)[number], string>> = {
+  WHATSAPP: "wa",        // to send
+  META_LEAD_ADS: "meta", // to fetch the lead back
+};
+
+/**
+ * Types that deliberately hold no credential of their own.
+ *
+ * Stated rather than left implicit, and `04-audit-scripts/channels.py`
+ * fails the build on a channel type that appears in neither list. The
+ * portals push to a per-channel URL guarded by `webhookToken` — we
+ * never call them, so there is nothing to authenticate as and no token
+ * to store.
+ *
+ * The point is not the contents. It is that adding a seventh channel
+ * type forces somebody to answer the question, instead of inheriting
+ * the answer from whichever branch they happened to copy. Meta was
+ * added by copying a branch that said WhatsApp.
+ */
+export const NO_CREDENTIAL: readonly (typeof TYPES)[number][] = [
+  "PROPERTY_FINDER", "BAYUT", "DUBIZZLE", "WEBSITE_FORM",
+];
 
 export const channelsRouter = router({
   health: requirePermission("channel:read").query(async ({ ctx }) => {
@@ -138,7 +188,16 @@ export const channelsRouter = router({
        * find out. Resolved here so the screen can say so while nobody
        * is waiting.
        */
-      canSend: c.type === "WHATSAPP" ? await resolves(c.secretRef) : null,
+      /**
+       * Asked of every channel that holds a credential, not just
+       * WhatsApp. A Facebook Page reads a brokerage's leads with this
+       * token and those leads cannot be replayed, so it is the one
+       * this question matters most about — and it was the one not
+       * being asked.
+       */
+      canSend: CREDENTIALLED[c.type as (typeof TYPES)[number]]
+        ? await resolves(c.secretRef)
+        : null,
     })));
   }),
 
@@ -179,13 +238,62 @@ export const channelsRouter = router({
     }))
     .mutation(async ({ ctx, input }) => {
       /**
+       * Refused if nothing can deliver to it.
+       *
+       * A `TOKENED` channel is given a per-channel webhook URL on
+       * `/api/webhooks/portals/[portal]`, and that route resolves the
+       * portal segment against `adapters`. A type with no adapter there
+       * answers **404 "Unknown portal."** to every delivery, for ever.
+       *
+       * It was doing exactly that for `WEBSITE_FORM`: a brokerage could
+       * connect their own enquiry form, the settings screen printed
+       * them a URL, and nothing could ever post to it. The adapter is
+       * written now, and this guard exists so the next type added to
+       * `TYPES` without one is refused with a sentence instead of
+       * issuing a dead URL.
+       *
+       * Refusing is the honest behaviour and it matches what this
+       * codebase already does elsewhere: `queue.ts` marks an
+       * unpublishable listing FAILED rather than PENDING, because a
+       * word that means "on its way" is the most expensive kind of
+       * wrong. A connected channel that silently receives nothing is
+       * the same lie in a different place.
+       */
+      if (TOKENED.has(input.type) && !adapters[input.type]) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message:
+            `${LABEL[input.type] ?? input.type} cannot receive enquiries yet — it needs a ` +
+            "partner agreement and the delivery format that comes with it. Connecting " +
+            "it now would give you a webhook address that accepts nothing, so it is " +
+            "refused rather than left looking connected.",
+        });
+      }
+
+      /**
        * A readable, unguessable reference. It is a *name*, not a secret
        * — it appears on screen and in an environment variable — so the
        * randomness is only to stop two brokerages generating the same
        * one, not to resist an attacker.
+       *
+       * **Which types get one, and the bug that made this a set.**
+       *
+       * This read `input.type === "WHATSAPP"`, and `TOKENED` above is a
+       * different axis entirely — it is about per-channel webhook URLs,
+       * not about credentials. So a Facebook Page was accepted with an
+       * access token, given no reference, and the token was written
+       * nowhere: the `writeSecret` call below is guarded on `secretRef`.
+       *
+       * Meta lead ads is the one channel that cannot survive that. Its
+       * webhook carries only an id and the answers must be fetched back
+       * with the Page token, so with no token **every lead was lost at
+       * the credential lookup** — logged, 200 returned to Meta, and gone
+       * permanently, because the fetch has a retention window. The
+       * screen meanwhile reported the token stored. `check:meta-inbound`
+       * found this on its first run.
        */
-      const secretRef =
-        input.type === "WHATSAPP" ? `wa_${randomBytes(6).toString("hex")}` : undefined;
+      const refPrefix = CREDENTIALLED[input.type];
+      const secretRef = refPrefix ? `${refPrefix}_${randomBytes(6).toString("hex")}` : undefined;
 
       /**
        * Refused up front rather than after the row exists.
@@ -194,8 +302,11 @@ export const channelsRouter = router({
        * leave a connected-looking number that cannot send, which is the
        * state this whole change exists to remove.
        */
-      if (input.accessToken && !vaultReady()) {
-        throw new TRPCError({ code: "PRECONDITION_FAILED", message: NOT_CONFIGURED });
+      const vaultFault = input.accessToken ? vaultProblem() : null;
+      if (vaultFault) {
+        // The actual fault — absent, or present and malformed — rather
+        // than "not set" for both.
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: vaultFault });
       }
 
       try {
@@ -236,13 +347,23 @@ export const channelsRouter = router({
           // account reference and there is no reason for it to sit in an
           // audit row that a wider group can read.
           after: { type: channel.type, label: channel.label,
-                   // Whether, never what.
-                   tokenStored: Boolean(input.accessToken) },
+                   // Whether, never what — and whether it was *stored*,
+                   // not whether one was offered. Those differed for
+                   // every channel type that had no `secretRef`.
+                   tokenStored: Boolean(input.accessToken && secretRef) },
         });
 
-        // Whether, never what. The screen needs to know if it should
-        // still be asking for a token; it must never be handed one.
-        return { ...channel, tokenStored: Boolean(input.accessToken) };
+        /**
+         * Whether, never what. The screen needs to know if it should
+         * still be asking for a token; it must never be handed one.
+         *
+         * `&& secretRef` because this reported a stored token whenever
+         * one was *supplied*. On a channel type with no reference the
+         * token went nowhere and the screen said it was connected —
+         * which is the difference between "not set up yet" and "set up
+         * and quietly broken".
+         */
+        return { ...channel, tokenStored: Boolean(input.accessToken && secretRef) };
       } catch (e) {
         if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
           const target = (e.meta?.target as string[] | string | undefined) ?? "";
@@ -293,7 +414,27 @@ export const channelsRouter = router({
       try {
         await ctx.db.channel.update({
           where: { id: input.id },
-          data: { active: input.active },
+          data: {
+            active: input.active,
+            /**
+             * Reconnecting closes the incident that asked for it.
+             *
+             * `lastError` carries the runbook — for Meta it reads
+             * "leads are arriving and cannot be collected... reconnect
+             * in Settings → Channels". Doing exactly that left the
+             * message in place, so the screen went on reporting lost
+             * leads about a channel that had just been fixed, and
+             * `health/alert.ts`, which sweeps this column, went on
+             * raising it. **An alarm nothing can close is one somebody
+             * switches off** — and then the next real one is missed.
+             *
+             * Only on the way back on. Switching a channel off is not
+             * a statement that the last error was resolved, and
+             * clearing it there would erase the reason somebody is
+             * reading the row.
+             */
+            ...(input.active ? { lastError: null } : {}),
+          },
         });
       } catch (e) {
         if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {

@@ -7,7 +7,7 @@ until you know why they are that way.
 ## What this is
 
 A WhatsApp-first CRM for UAE real estate brokerages. An assistant answers
-property enquiries within seconds, qualifies the lead, books a viewing,
+property enquiries within seconds, qualifies the lead, lines up a viewing,
 and hands to a human at the right moment.
 
 Next.js App Router · tRPC · Prisma · Postgres · Expo for mobile.
@@ -94,7 +94,7 @@ What is verified today, measured rather than assumed:
 
 - `npm run build` exits 0 with no warnings — the production build, not a
   dev server.
-- 56 routes, **every one of them `ƒ` (dynamic) and none prerendered**,
+- 72 routes, **every one of them `ƒ` (dynamic) and none prerendered**,
   which is the `force-dynamic`/CSP-nonce invariant below holding rather
   than having quietly drifted. A static route in that list is the tell
   that somebody removed the line.
@@ -102,7 +102,7 @@ What is verified today, measured rather than assumed:
   `/api/health` returns `200 {"ok":true}` against a real Postgres.
 - The boot log names every unconfigured service with its consequence —
   six of them in a bare development environment.
-- 296 assertions in 15 files, 34 check suites, 22 audits, all green.
+- 432 assertions in 31 files, 66 check suites, 23 audits, all green.
 
 Type errors on a fresh checkout are no longer expected. If you get one,
 it is new.
@@ -124,6 +124,17 @@ blank page with a perfect-looking security header — sixteen scripts
 refused, fifteen characters rendered, no hydration. If you want the
 static pages back, put `'unsafe-inline'` back in `src/lib/csp.ts` in the
 same commit.
+
+**Webhooks answer first and keep working with `after()`.** The WhatsApp
+and portal webhooks acknowledge in milliseconds, because Meta retries
+anything slow, and do the ingest — and now the assistant's reply, with
+its human pause — afterwards. That work is registered with `after()`
+from next/server, which on Vercel holds the function open until it is
+done, and each route sets `maxDuration = 60`. It used to be handed to
+`(req as { waitUntil? }).waitUntil`, which a Next.js request does not
+have: on a serverless host the function froze on responding, and a
+buyer's message could be half-recorded and never answered. A dev server
+never freezes, so every check passed. `crm-audit.py` fails on the cast.
 
 **The kill switch is not cached.** `assistant/controls.ts` does one
 database read per assistant turn on purpose. A five-minute cache means
@@ -160,6 +171,26 @@ pooler in front of Postgres, which `check:preflight` enforces. If
 somebody proposes optimising this again, ask them for the measurement
 first.
 
+**`forOrg(orgId).$transaction(async (tx) => …)` is taken over in
+`client.ts`, and must stay that way.** It was not a transaction: the
+query hook wraps every statement in its own batch to set the scope, and
+it did that for statements issued through `tx` too, so each committed
+on its own connection. Measured — an update followed by a throw stayed
+written. Thirty-one call sites asked for all-or-nothing and got
+each-statement-alone: the WhatsApp and portal ingest, erasure, offers,
+the assistant's handover, and every mutation that writes a row with its
+audit entry. Scoping was correct throughout; atomicity was not.
+
+`forOrg` now opens a real transaction on the scoped role and sets the
+scope as its first statement, on that transaction's own connection.
+Still transaction-local, so the next request inherits nothing, and
+nothing outside an explicit transaction changed. `check:tenancy` proves
+rollback, isolation inside a transaction, and that the scope ends with
+it. **One rule follows:** inside a real Postgres transaction, an error
+that is caught and ignored aborts everything after it, so never catch a
+database error inside one and carry on — use an upsert, or do it
+outside.
+
 **`ms-`, `ps-`, `border-s-` and `text-start` are not typos for `ml-`,
 `pl-`, `border-l-` and `text-left`.** They are the logical spellings and
 they follow the `dir` the root layout sets from the resolved locale.
@@ -176,6 +207,62 @@ against and pulls the joins of a **connected** script into each other.
 And `formattingLocale()` returns `ar-AE-u-nu-latn` to pin Western
 digits — the comment there records that `ar-AE` already defaults that
 way and `ar-EG` does not, so it is a guarantee, not a fix.
+
+**`prisma migrate dev` will silently drop the search indexes.** Eight of
+them — the trigram indexes behind search and the composite index behind
+the pipeline board — are created by raw SQL in
+`20260810090000_search_indexes`. Prisma cannot see them in
+`schema.prisma`, so it reads them as drift: adding one nullable column
+to `Enquiry` generated a migration with **eight `DROP INDEX` statements
+above the `ALTER TABLE`**, and applied them locally before anybody
+looked at the file.
+
+Nothing fails. Search falls from an index scan to a sequential scan on
+every query, on a table `check:load` sizes at 5,000 leads, and the only
+symptom is that the product feels slow — which is indistinguishable from
+it being busy. `04-audit-scripts/migrations.py` exists for exactly this
+and caught it on the next run.
+
+So: after `prisma migrate dev`, **read the generated SQL before
+committing it**. Delete any `DropIndex` you did not ask for, and
+re-apply the ones already lost by running the original migration file
+against the database. The audit compares every `CREATE INDEX` in the
+migration history against every `DROP`, so it catches this whoever
+causes it.
+
+**The same is true of fifty foreign keys.** Every tenant table's key to
+`Organisation` is raw SQL in `20261004090000_org_foreign_keys`, added
+`NOT VALID` so it takes no lock on a live table — and Prisma cannot see
+it, so `prisma migrate diff` proposes dropping all fifty (measured when
+they were added). A dropped key fails nothing; orphans simply start
+accumulating again, as they had been: the dev database held 697 rows
+naming brokerages that no longer exist, left by test clean-ups.
+`migrations.py` now fails on a dropped constraint as it does on a
+dropped index, and `check:tenancy` requires the key on every `orgId`
+table. Six of them are `RESTRICT` rather than `CASCADE` — invoices, KYC
+files and documents, screenings, beneficial owners and compliance
+reports — because the law keeps those for five years and a hard delete
+of a brokerage must not take them with it.
+
+**Editing an applied migration breaks the local checksum, and Prisma's
+remedy is a reset.** The corollary of the entry above: strip the
+unwanted `DropIndex` statements and the next `prisma migrate dev` says
+"We need to reset the public schema… all data will be lost", because
+the file no longer matches the checksum recorded in `_prisma_migrations`
+when it was applied.
+
+**Do not reset.** Production has never seen that migration, so it will
+apply the corrected file and record the right checksum; only the local
+database's bookkeeping is stale. Recompute and update that one row:
+
+    sha256sum prisma/migrations/<name>/migration.sql
+    psql "$DB" -c "UPDATE _prisma_migrations SET checksum='<new>' \
+                   WHERE migration_name='<name>';"
+
+Better still, for a one-column change, **write the migration by hand**
+and apply it with `migrate deploy`. A single `ALTER TABLE` does not
+need a generator, and the generator is what produced the eight
+unrequested drops.
 
 **The audit log has `REVOKE UPDATE, DELETE`.** Erasure scrubs rows rather
 than deleting them. `privacy/README.md` explains how both can be true.
@@ -196,6 +283,22 @@ having nowhere to put a token at all — which meant connecting a
 brokerage's WhatsApp number required setting an environment variable and
 redeploying, per brokerage, per channel. `readSecret` is still the only
 reader, and swapping in Vault or Secrets Manager touches that one file.
+
+**The session callback returns a named shape, never the row.** Auth.js
+hands `callbacks.session` the whole `Session` row spread into `session`,
+and returning it as it came put the **session token** — the value the
+cookie is `httpOnly` to keep from scripts — in `/api/auth/session` for
+any script on the page, beside the user's row (which now includes the
+sealed two-step key). `auth/config.ts` lists what leaves; add a field
+there on purpose or not at all. `check:two-step` fails if the token or
+the row comes back.
+
+**Two-step sign-in is enforced in two places, and both are needed.**
+`orgProcedure` refuses a session whose `twoStep` is `"needed"` (the
+data), and `(app)/layout.tsx` redirects it to `/sign-in/two-step` (so
+the person is told why). `security.verify` is on `signedInProcedure`,
+the one door open before the code. A new procedure put on
+`signedInProcedure` is reachable with the email link alone — don't.
 
 **Never use `rootDb` directly. Use `crossTenant(reason)`.** `rootDb`
 bypasses row-level security. A review found 131 unscoped uses and every
@@ -231,6 +334,70 @@ were five formatters and two assumed AED. `Lead.budgetMax` and
 first thing to join them would have shown a buyer a property at a
 hundred times their budget.
 
+**Invoice numbers are one series for PotatoFarm, not one per
+brokerage.** The sequence the UAE VAT regulation asks for belongs to the
+issuer — one company, one TRN — and a gap in it reads as a supply left
+off the return. They were per brokerage, on the reasoning that each
+customer's run should be unbroken, which is the wrong party. The series
+is a counter row bumped inside the invoice's own transaction; a Postgres
+`SEQUENCE` would look tidier and leaves a hole on every rollback.
+
+**No `SUPPLIER_TRN` means no VAT, not no invoice.** PotatoFarm is not
+VAT-registered, and charging VAT unregistered is an offence, so an
+unset TRN is the correct production state and invoices go out at 0%,
+saying why. It used to refuse every invoice instead, which with no
+registration meant nobody could be billed. Do not put a placeholder TRN
+in any environment that issues real invoices: it switches 5% on.
+`billing.vat-threshold` emails when turnover nears the AED 375,000 line
+where registering becomes compulsory. Each invoice also keeps both
+parties' names and addresses as they were when issued, and the printable
+document reads "Tax invoice" only when it carries a TRN.
+`billing/README.md` has all of it.
+
+**The property page a buyer opens leads with the brokerage and is
+signed by us.** `(property)/p/[slug]/[reference]` is the brokerage's
+advertisement, sent by its agent to its client: the masthead is the
+brokerage's name and the agent is named, and "Powered by" with the
+PotatoFarm.io lockup signs the foot of the page and the preview card —
+the owner's decision, after a version that left us off entirely. It keeps the agreed palette below — it was
+briefly drawn without the pink, on the reasoning that the pink is our
+brand, and that was a change to the owner's decision made without
+asking; it was put back. Colour is the owner's call. It sits in its own route group so the
+`(public)` layout's lockup cannot reach it. Its WhatsApp preview card is
+drawn by `opengraph-image.tsx` beside it, and a withheld property's card
+is byte-for-byte the card of one that never existed —
+`check:public-listing` compares them. Agents reach it from **Share link**
+on Listings and **Send a property** in the composer (`listings.share`,
+which calls `publicListing` exactly as a stranger's browser does, so the
+button cannot offer a link the page then refuses).
+
+**Every new listing has an exact place, and the tree is not the
+brokerage's.** `Location` is shared reference data — no `orgId`, no RLS —
+and `potato_app` can only read it (`REVOKE` in
+`20261012090000_location_tree`); the seed and `npm run
+locations:import` write it as the owning role. `listings.create`
+requires a leaf node and derives `community` and `building` from it, so
+search, matching and the buyer's page keep reading the columns they
+always read. **Property Finder's ids are never typed in, seeded or
+guessed**: a wrong one files the property in somebody else's building
+and the portal accepts it silently. They come only from Property
+Finder's own list through the import, and until a place has one,
+publishing there is refused — failing closed, so a caller that forgets
+to load the node is refused rather than waved through. Listings made
+before the tree say "No exact location" in red. `check:locations`, and
+`portals/README.md`.
+
+**The palette is neon pink `#FF1493` on grey `#292C32`, set by the
+owner, and it is a recolour rather than a redesign.** Every token kept
+its name and job; the values changed in `tokens.css` and its three
+mirrors, which `03-brand/repalette.py` sets by token name (a hex map
+cannot tell the ground's white from a button label's white). Every
+other shade is derived from the grey, there is no second accent, and
+`palette.py` fails on any saturated colour that is not the pink, the
+logo's own artwork or a named exception. The potato keeps its orange —
+a logo is not a colour scheme. Dialogs dim with `--scrim`, never with
+`ink`, because ink is near-white now and would lighten the page.
+
 **Card ordering is a Postgres NUMERIC, not a string key.** The clever
 base-62 version was written first, tested, and was wrong.
 `lib/ordering.md` has the account.
@@ -250,10 +417,23 @@ missing that no audit had looked for.
 
 **A conversation is with a party, and a party is a buyer or an owner.**
 `Conversation.leadId` used to be required and unique, so half of an
-agent's talking happened outside the system. `rls.sql` carries a check
-constraint enforcing exactly one of `leadId` / `vendorId` — Prisma
-cannot express it and a conversation belonging to nobody is invisible in
-every list and impossible to reach.
+agent's talking happened outside the system. **This paragraph described
+that as done for months while it was not** — there was no `vendorId`
+column, and the constraint it named sat in `rls.sql` unapplied. It is
+done now: `leadId` and `vendorId` are both optional, the database holds
+exactly one (`Conversation_one_party`, migration
+`20260929090000_owner_conversations`), and **every reader asks
+`lib/conversations/party.ts`** who the thread is with and who may open it.
+Filtering conversations by `lead: { … }` silently hides every owner's
+thread — from managers too, since a relation filter on a null relation is
+false — so use `conversationScope`, not `leadScope`.
+
+An owner writing to the brokerage's number lands on their own thread,
+matched by their normalised number, rather than becoming a new buyer
+handed to the rotation. The assistant never replies there (`respond()`
+returns `owner_conversation`); the agent who looks after their property
+is told if nobody answers in half an hour (`OWNER_WAITING`). "Stop" from
+an owner turns their weekly report off. `check:owner-conversations`.
 
 **The reply window applies to owners too.** Meta's rule is about the
 number on the other end, not about how we filed them. Owners go quiet for
@@ -277,7 +457,7 @@ not want.
 
 ## The shape that keeps recurring
 
-Twelve times a complete, tested, documented module has turned out to have
+Twenty-two times a complete, tested, documented module has turned out to have
 nothing that starts it — and the sixth is the product itself:
 
 1. **Billing** could invoice a customer no code path could create.
@@ -384,6 +564,262 @@ nothing that starts it — and the sixth is the product itself:
    because listings silently never appearing looks exactly like a quiet
    market.
 
+13. **The Meta lead ads credential**, and this is the shape inverted —
+   everything ran, and the one row it needed was never written.
+   `channels.connect` accepts a Facebook Page with an access token,
+   `fetchLead` reads that token back to collect the answers, the
+   webhook route is mounted and the ingest is correct. In between,
+   `secretRef` was generated by `input.type === "WHATSAPP"`, so a
+   connected Page got no reference at all and the `writeSecret` below
+   it — guarded on exactly that — stored nothing. **Every Meta lead
+   would have failed at the credential lookup**, and Meta's webhook
+   carries only an id fetched back inside a retention window, so those
+   leads are not queued or retried. They are gone.
+
+   Two things kept it invisible, and both are on this page already. The
+   procedure returned `tokenStored: true` whenever a token was
+   *supplied* rather than stored, so the settings screen showed a
+   connected Page — **the screen was positive evidence for the thing
+   that had not happened**, the sanctions-screening failure again.
+   And `channels.list` computes `canSend` for `WHATSAPP` only, so
+   nothing in the product would ever have contradicted it.
+
+   Found by writing `check:meta-inbound`, on its first run, against
+   code that had been reviewed and shipped. The suite connects the Page
+   through the **real procedure** rather than inserting a row, which is
+   the only reason it could see this: a fixture that writes its own
+   `secretRef` proves the ingest works and skips the half that was
+   broken. **A check that sets up its own preconditions cannot test how
+   they are created.**
+
+14. **The website form**, and it is the cheapest one to have prevented
+   and the most expensive to have shipped. `channels.connect` accepted
+   `WEBSITE_FORM`, issued a `webhookToken`, and the settings screen
+   printed the brokerage a webhook URL. `adapters` in `portals/index.ts`
+   held **one entry, `PROPERTY_FINDER`**, and the portal route resolves
+   its segment against that map — so every enquiry posted to the URL on
+   screen came back **404 "Unknown portal."**, for ever.
+
+   Every other gap in this list had an excuse outside the codebase: the
+   portals need a partner agreement, screening needs a vendor contract,
+   Meta lead ads needs a Facebook Page. **This one needed nobody's
+   permission.** It is the brokerage's own site posting to a URL we
+   issue, in a format we define. Nothing was blocking it and it was
+   missing anyway.
+
+   What made it urgent rather than merely wrong: a brokerage with no
+   portal agreement and no Facebook Page has exactly one inbound
+   channel, and it was this one. The product could not receive a lead
+   at all, and the settings screen showed a connected channel while it
+   could not.
+
+   Found by asking a question none of the thirty-five check suites at the time
+   had asked: **what posts to this route?** Nothing did. `check:website-form`
+   does now, and `channels.py` fails the build on any channel type a
+   brokerage can connect with nothing able to deliver to it. `connect`
+   refuses such a type outright — Bayut and Dubizzle today — because a
+   connected channel that silently receives nothing is the same lie
+   `queue.ts` refuses to tell when it marks an unpublishable listing
+   FAILED rather than PENDING.
+
+15. **The listing feed, and the alarm that was never wired to
+   anything.** Found by asking of every HTTP route what had ever
+   exercised it. Four had nothing; this was the one that mattered,
+   because `/api/feed/<token>/listings.xml` is **the only way a
+   brokerage's properties reach a portal today** — no publishing
+   integration exists, each needs a partner agreement, and a feed needs
+   none.
+
+   The route served the XML and wrote **nothing**, beneath a comment
+   stating that "`portals/health.ts` alarms on silence from a feed;
+   this is the line that gives it something to measure". Health sweeps
+   `Channel`, a feed is not a channel, and a `log.info` is not a
+   measurement. A portal that quietly stopped collecting was detected
+   by nobody: stale prices, withdrawn properties still advertised, and
+   it reads as a quiet market.
+
+   **And the bigger half.** Writing the sweep exposed that
+   `evaluate()` filtered `c.state === "broken"`, while every silence
+   check reports **degraded** — correctly, since the rest of the
+   customer's system is working. So *nothing in the product consumed a
+   degraded check at all*: no screen reads `tenantHealth`, and the
+   alert sweep was its only other reader. The portal silence alarm,
+   which its own file calls the most important thing in the
+   integration, had been computing an answer every five minutes and
+   discarding it.
+
+   The tell was sitting directly underneath the line that caused it.
+   `severityFor` opens `if (check.state !== "broken") return "LOG"` —
+   **a branch that could never execute**, because the filter above it
+   guaranteed nothing but a broken check arrived. A branch nothing can
+   run is the same shape as a module nothing calls, and it is worth
+   grepping for on purpose.
+
+   Fixed by severity rather than by widening the filter alone: degraded
+   checks now reach the sweep, most are recorded at LOG and delivered
+   to nobody, and the two silences — a feed not delivering, a portal
+   not collecting — are TICKET, because both are churn in progress and
+   both end with somebody handing the customer a URL.
+
+16. **Four jobs that recorded contact nobody made.** Each had careful
+   rules for *whether* to message somebody — the fortnight cap, the
+   opt-out, sending hours, the reply window — and a comment saying the
+   message went "through the normal outbound path". There was no path.
+   What they did instead was write the record of having sent it:
+
+   - `matching.new-listings` stamped `Lead.lastOutreachAt` and counted
+     the buyer as `messaged`. The Buyers screen reads that stamp, so an
+     agent was told a buyer had been **"messaged 3 days ago"** by a
+     message that never existed — and held off. A `return` inside its
+     loop also ended the whole brokerage at the first buyer who failed
+     a gate.
+   - `feedback.ask` stamped `askedAt` on every viewing. Nothing writes an
+     answer either, so the weekly vendor report is composed from
+     feedback that was never collected.
+   - the visa sweep stamped `visaNudgedAt`, which kept the lead out of
+     the sweep for ninety days. Nothing can record a visa date, so it
+     had also never found anybody.
+   - `plans.advance` took every nurture step and logged it, and timed
+     each next step by the *current* step's delay.
+
+   **The fix was not a sender.** `intelligence/autonomy.ts` caps every
+   message to a client at CONFIRM — a person presses send, at every
+   mode — and the settings screen promises owners that. Building the
+   obvious fix would have broken the product's own rule. The first was
+   retired, because `intelligence.sweep` already puts matches on the
+   agent's list as SEND_PROPERTY needing their yes; the other three now
+   put a task on the responsible agent's list with a draft, and stamp or
+   advance only in the same transaction. `check:agent-tasks` runs the
+   real jobs and asserts nobody is recorded as contacted.
+
+   The tell is a counter named for a verb — `sent`, `messaged`, `asked`,
+   `nudged` — incremented in a block that calls nothing that delivers.
+   Grep for the counter and read what precedes it.
+
+   **And the list those tasks land on did not exist.** `FollowUp` had
+   writers (voice notes, the sweep on Autopilot), a count on Today and
+   a reminder push — and no list and no way to complete one, so "3
+   follow-ups due" only ever went up and the reminder linked to a screen
+   that does not show them. Today lists them now, with Done. **What
+   closes it?** had no answer for the agent's own reminders.
+
+17. **The seat ledger.** Every invoice is computed from seat-days, and
+   `signup` wrote the first event under a comment saying "every agent
+   invited later adds an event". `recordSeatChange` existed to do it and
+   **nothing called it**, so accepting an invitation and removing a
+   member both left the ledger alone. Every brokerage was billed for one
+   seat, and — because the conversation allowance is per seat — would
+   have been charged a one-person firm's overage on every conversation
+   past it. Wrong in both directions on one bill, beneath a team screen
+   promising "adding someone starts their seat today".
+
+   Removal had the same shape in miniature: it unassigned leads and left
+   upcoming viewings, follow-ups, recommendations and the ownership
+   history pointing at somebody who could no longer sign in, with
+   `OwnershipReason.AGENT_LEFT` declared and never written — one tap, no
+   confirmation. It now asks who takes the book, and moves it in one
+   transaction with the seat.
+
+   Seats are written inside each transaction that changes the team, and
+   `billing.reconcile` compares the ledger with the team every night and
+   corrects and reports any difference per person — so a fourth way of
+   joining that forgets the ledger is found in a day rather than never.
+   `check:team-changes` drives all of it through the real procedures.
+
+18. **Commission that could never be received.** `CommissionStatus`
+   had four values and nothing set it past FORECAST; `CommissionSplit.paidAt`
+   was read by three screens and written by none. "Owed to you" is
+   received-and-unpaid, and the revenue report dates everything it
+   earned by `receivedAt` — so every agent was owed nothing and every
+   brokerage had earned nothing, on two screens whose own comments warn
+   that zero "reads as 'we earned nothing', which is the reassuring
+   direction to be wrong in". An INVOICED fee also fell into none of the
+   agent's figures, so it would have vanished the moment it was billed.
+
+   `commission.setStatus` and `markPaid` now move money along, behind a
+   `commission:settle` permission held by owners and admins — a sales
+   manager reads the book and does not pay people. `check:commission-lifecycle`
+   drives a fee from forecast to paid and reads each screen's own query
+   back at every step.
+
+19. **The owner's weekly report**, written every Monday to a table and
+   never read or sent. `vendorsDueToday()` — reports off, offers only,
+   which day — had no caller, so every owner's instructions were
+   ignored; the default report day is Thursday and the job ran on
+   Mondays; and a listing with no viewings was skipped beneath a module
+   saying that is exactly when an owner most needs to hear from us. It
+   now runs daily, takes the owners due, and puts each report on an
+   agent's list in the channel the owner chose.
+
+   Proving it found the worst bug of the batch, in the apparatus: the
+   **job runner's lock leaked**. A session-level advisory lock was taken
+   on one pooled connection and released on another, so after any run
+   that opened more than one connection, every later run of that job in
+   the process was skipped as "already running". A test asserting "run
+   twice, nothing duplicated" passed *because the second run never
+   happened*. The lock is a lease row now (`check:job-runner`), and the
+   assertion also checks the second run was not skipped. **A check that
+   passes because its action was refused has tested the refusal.**
+
+20. **Nurture plans.** `plans.advance` ran every morning with rules for
+   replies, opt-outs and closed files, and its unit tests passed — and
+   nothing could create a plan or put anybody on one, so it had only
+   ever run inside a check that inserted its own rows. Building the way
+   in found two faults the inserted rows could never have shown: "carry
+   on" after a reply did nothing, because the same reply paused the plan
+   again on the next sweep; and a removed person's plan stayed due and
+   was re-read every run for ever. **A job tested only on rows it did not
+   have to earn is tested on the cases its author imagined.**
+
+21. **The assistant's reply.** `respond()` screens the enquiry, asks the
+   model, checks every figure against the listing and sends — and
+   **nothing calls it**. No webhook, job or route: the WhatsApp ingest
+   stores the message and stops. So the product's one-line promise, "an
+   assistant answers property enquiries within seconds", has never
+   executed anywhere, including in a check, because its model and
+   WhatsApp addresses were fixed and no stand-in could reach them. Item 6
+   above fixed the profile it needed and did not notice it had no caller.
+
+   Running it for the first time found its billing inverted: the
+   paragraph saying a conversation is charged "after the message
+   actually left" sat, twice, on the two paths where nothing was sent —
+   the model failing and the draft being blocked — and the one path
+   where a reply did leave recorded nothing. Fixed and proven in
+   `check:owner-conversations`, against loopback stand-ins
+   (`lib/loopback.ts`).
+
+   **Wired as drafts, then — by the owner's decision of 27 September
+   2026 — as automatic replies while qualifying.** `reply()` decides: at
+   a brokerage that has switched on "Replies while qualifying"
+   (`AssistantSettings.autoReply`, off by default, owner's switch on
+   Settings → Assistant, audited), a buyer who is NEW or QUALIFYING and
+   whose thread no agent has written in gets `respond()` — unless the
+   owner chose "Outside working hours" (`autoReplyOutOfHours`) and the
+   brokerage is open by its own `WorkingHours`, when it drafts; no hours
+   set counts as open (`lib/hours/open.ts`) — read receipt,
+   "typing…", a pause of a few seconds (`humanPause`), then the reply.
+   Everyone else gets `draftReply` and a person sends it. The prompt
+   (p4) writes like an agent texting — one question at a time, their
+   language, no form-letter phrases — and **still never claims to be a
+   person**; that line is not a style choice, it is what keeps the
+   brokerage honest with its clients. `check:auto-reply`. Building it found
+   the per-conversation mute had never been read: `isMuted` was imported
+   into the assistant and not called, so "I've got this" silenced
+   nothing. `check:reply-drafts`, and `assistant/README.md`.
+
+22. **Buyer requirements.** Matching, "who wants this property" and
+   search all read `Requirement`, and only voice intake ever wrote one —
+   a brokerage whose buyers arrived by WhatsApp, a portal or the door had
+   none, so every one of those features answered "nobody", which reads as
+   a quiet market. Found by the audit typing "buyers in dubai marina".
+   Two faults behind it: the assistant's extractor prompt **named none of
+   the fields `extraction` parses**, so the keys were whatever the model
+   guessed; and the matcher compared areas by exact text, so "Dubai
+   Hills" never met a listing filed under "Dubai Hills Estate". Agents
+   now record them on the person page, the assistant keeps its own one
+   current until an agent saves theirs (**the agent's word wins**), and
+   areas are compared as places (`samePlace`). `check:requirements`.
+
 **The same shape, one layer up: fifteen finished components no screen
 imported.** `architecture.py` grew a `KNOWN_UNMOUNTED` ratchet and it
 started at nine, went to fifteen when the resolver was fixed, and is
@@ -455,6 +891,36 @@ working rather than whether servers are up.
 **If you add a module, ask what its silent failure looks like and who
 finds out.**
 
+## A demonstration brokerage
+
+`Organisation.demo` marks the seeded brokerage (Marina Bay) as one that
+is shown to prospects. It is set by the seed and by nothing in the app.
+Three things follow from it, and `check:demo-mode` proves each one and
+proves a real brokerage is untouched:
+
+- **Its sends go nowhere.** `getChannelCredentials` hands it
+  `DEMO_TOKEN`, and `whatsapp.ts` records any send carrying that token as
+  sent (`demo.*` external id) without calling Meta. The first demo would
+  otherwise have ended on "Send as written" with "No stored credential".
+- **Inbox offers "Try a live enquiry"** (`demo.enquiry`): a realistic
+  buyer's message, or one typed in the room, built as Meta's webhook
+  payload and handed to the real `ingest` — routing, lead, board, and
+  the assistant's reply (sent by itself: the seed turns on automatic
+  replies while qualifying for the demo brokerage).
+  Refused (FORBIDDEN) for any brokerage without the flag.
+- **Every screen says "Demo"** in the header.
+- **It has a website form beside its number.** The buyers whose source
+  is the website had their first enquiry filed under the WhatsApp number,
+  so Reports said everything came through one number while those buyers'
+  own records disagreed. The seed files them under "Website enquiry form"
+  now; it sets no `lastSyncAt`, so the silence alarm cannot fire on it.
+
+Rehearsal enquiries (phones `+9715000xxxxx`) and check debris are cleared
+by `scripts/lib/demo-debris.mjs`, which the seed runs — so reseeding the
+morning of a demo gives a clean one. A deployed demo is signed into with
+`DEMO_OWNER_EMAIL` / `DEMO_AGENT_EMAIL` / `DEMO_MLRO_EMAIL` (see
+`.env.example` and DEPLOY.md). Never seed production.
+
 ## The 24-hour window
 
 Meta only allows free-form WhatsApp messages within 24 hours of the
@@ -468,8 +934,8 @@ send path read it.
 
 ## Run the tests
 
-    npm test          # 296 assertions, pure functions, no database
-    npm run verify    # tsc, the tests, 34 check suites, 22 audits
+    npm test          # 432 assertions, pure functions, no database
+    npm run verify    # tsc, eslint, the tests, 66 check suites, 23 audits
 
 **The gate is now green end to end, including the two things that used
 to skip.** `verify` reports what it did not run rather than counting a
@@ -483,14 +949,52 @@ skip as a pass, and for a long time it reported two:
   process, so that is connection setup rather than the query, which is
   the measurement behind "a pooler in front of Postgres is not
   optional". Run it with `npm run verify --load`; it takes minutes.
+
+  **At 25,000 leads (`SCALE=5`)** every screen is still inside budget —
+  lists, filters, deep cursors, counts and the manager KPIs all under
+  25ms warm, search at 110–150ms — and it found the one thing that was
+  not: **the nightly sweep never finished.** It compares every live
+  requirement with every listing, and `samePlace` rebuilt and re-sorted
+  the whole alias table on each of those 150 million calls. Built once
+  and remembered per text now; the sweep takes 55s for the database.
+  A job nobody waits for is still a job that has to end before morning.
 - **`check:whatsapp-inbound` needs `WHATSAPP_APP_SECRET`.** Any value
   works locally — it is the HMAC key the check signs its own fake
   webhook with. Without it the one end-to-end proof that an inbound
   message becomes a lead, a conversation, a stage and a 24-hour window
   simply did not run.
+- **`check:voice-note` needs `TRANSCRIBE_API_KEY` and
+  `TRANSCRIBE_BASE_URL`, and the reason is worse than a skip.**
+  `/api/voice` checks `transcriptionConfigured()` **before** the rate
+  limit and before every piece of validation, so with no provider the
+  only two answers the route can give are 401 and 501. The size caps,
+  the mis-tap guard, the format allowlist, the AiAction record and the
+  confidence threshold are not merely untested without a provider —
+  they are **unreachable**, and had never executed on any machine.
+  Any key works and `TRANSCRIBE_BASE_URL` points at the suite's own
+  stand-in on 4321, the same arrangement as `META_GRAPH_BASE`.
+
+  The assertion that most needed it: **iOS Safari records `audio/mp4`
+  while everything else records `audio/webm`**, and the provider infers
+  the container from the filename. `note.webm` on an mp4 body is a 400
+  that reads like a corrupt recording — the route's own comment calls
+  it "exactly the bug that would have made this work everywhere except
+  the phone it was built for". The only way to see it is to have the
+  stand-in report the filename it was handed.
+
+- **`check:meta-inbound` needs three, and the third is the unusual
+  one.** `META_APP_SECRET` and `META_VERIFY_TOKEN` work like the line
+  above — any value, both ends agree. `META_GRAPH_BASE` is different:
+  the Meta webhook carries only a `leadgen_id` and the answers have to
+  be fetched back over HTTP, so the check stands a loopback Graph up on
+  port 4319 and **the application** has to be started pointed at it.
+  Put it in `.env` and both see it. Run against a server talking to the
+  real Graph, the check reports no lead — which reads exactly like the
+  ingest being broken, so it says which of the two it is rather than
+  leaving you to guess.
 
 `npm test` was declared from day one with no test files behind it, so it
-exited 1 and said "No test files found". There are fifteen files now, and
+exited 1 and said "No test files found". There are 31 test files now, and
 they cover the pure logic where being wrong is silent: the fils unit, the
 24-hour window on both sides of the boundary, Dubai sending hours, the
 search parser's plural intents and budget bands, lead scoring, deal
@@ -517,8 +1021,8 @@ tenant isolation cannot be proved against a mock.
 
 ## Run the audits
 
-There are **twenty-two**, in `04-audit-scripts/` at the repository
-root. All twenty-two are green and all of them belong in CI. Twenty-one
+There are **twenty-three**, in `04-audit-scripts/` at the repository
+root. All twenty-three are green and all of them belong in CI. Twenty-two
 are Python; `reveal.mjs` needs a browser, which is why `run-all.sh`
 dispatches on the extension rather than assuming an interpreter.
 
@@ -606,11 +1110,54 @@ twenty-six ignored it. Fixed one file at a time it cost a CI run each,
 about eleven minutes, finding the identical bug in the next file along.
 **A class of bug fixed one instance at a time is not being fixed.**
 
+**CI's browser job was red for days on one hand-written cookie, and it
+hid what came after.** `check:two-step` sent the session cookie as
+`authjs.session-token` only. A production build (`next start`, which is
+what CI runs) reads `__Secure-authjs.session-token`, so the check saw a
+signed-in session as `null` and crashed — on every push, while passing
+on every laptop running `next dev`. Every step after it had not run in CI
+since. Fixing it exposed the next fault in line: twenty-six checks took
+"the first organisation" as the demo brokerage, and a brokerage left
+behind by a crashed check became first — the lead, the enquiry and the
+feed fetch were all recorded, in the brokerage the check was not
+looking at. Checks now ask for `seed-marina` by name, a crash still
+cleans up, and `crm-audit.py` fails on a check that sends only the
+development cookie name. **Run a new HTTP check against `npm run start`
+at least once**, not only against the dev server.
+
 `scripts/_browser.mjs` is now the only thing that answers "where is
 Chromium", with thirty-one importers. A new browser script imports it
 rather than writing its own, and **an absolute path to anything outside
 the repository is the smell** — derive the root from `import.meta.url`,
 not from where the author happened to be standing.
+
+**A test can be wrong about which line it protects, and pass.** The
+calendar feed is the one route in this product where row-level security
+is deliberately off — a calendar client cannot hold a session, so the
+tenant boundary is a hand-written `where: { orgId, agentId, ... }`
+rather than the database. `check:calendar-feed` was written with two
+isolation assertions, one per half of that clause, each with its own
+counter-example: a colleague in the same brokerage, and a rival
+brokerage.
+
+Deleting `agentId` was caught. **Deleting `orgId` failed nothing.**
+Every fixture user belonged to exactly one brokerage, so filtering by
+`agentId` alone already excluded the rival — the assertion named after
+`orgId` passed with `orgId` gone, and would have gone on passing for
+ever.
+
+The case that clause actually guards is one person consulting for two
+brokerages, which the schema allows (`@@unique([orgId, userId])` is per
+membership) and which `org.switch` exists in anticipation of. Their
+token belongs to **one** membership; without `orgId` it serves both
+firms' diaries in one file, which their phone then syncs to Google.
+That fixture is in the suite now and it goes red.
+
+The general rule, and it is sharper than "prove it red": **proving a
+suite red is not enough — prove the specific assertion red by breaking
+the specific line it names.** A suite that goes red for the wrong
+reason is a suite with an untested assertion in it, and that assertion
+is guarding whatever nobody has thought about yet.
 
 **A check pinned to specific values goes quiet exactly when those values
 are superseded.** Two in the palette work, found the same afternoon.
@@ -683,7 +1230,7 @@ with an empirical floor under it.
 ## What is not built
 
 - ~~Most React screens.~~ **Out of date and left here as a warning.**
-  There are 44, every one of them opens in a browser, and
+  There are 53, every one of them opens in a browser, and
   `browser:screens` fails the build if one stops rendering or starts a
   refetch loop. This line survived the screens being built, which is the
   same drift the audit scripts exist to catch — in the file that warns
@@ -738,17 +1285,197 @@ with an empirical floor under it.
   tell a brokerage their property is live when it is not. Both competitors
   lead on portal distribution, so this is the commercial step that decides
   whether the product competes.
+- ~~**Editing a lead.**~~ **Built.** `leads.detail` and `leads.update`
+  behind the person page, which until then never said who the person
+  was. The phone number stays fixed (it is the WhatsApp identity), the
+  audit entry names fields rather than values, a new visa date re-arms
+  the renewal prompt, and "they asked not to be messaged" can be
+  recorded by an agent rather than only by the buyer typing STOP.
+  `check:lead-editing`. Left struck through, as the entries below are,
+  so it is not built twice.
+- ~~**Who looks after a listing.**~~ **Built.** `Listing.agentId`,
+  defaulting to whoever adds the listing, set from the Owner panel,
+  handed on when an agent is removed, and the first choice for the
+  owner's weekly report — the old guess is now only for listings nobody
+  has been given. The same panel picks owners by name: it used to ask
+  for an internal "Owner ID" nobody has seen, and `vendors.attach` and
+  `listings.update` accepted another brokerage's owner, because a
+  foreign key is checked without row-level security. `check:listing-agent`.
+- ~~**Recording viewing feedback.**~~ **Built.** `viewings.feedback`,
+  from the "Ask … what they thought" task on Today (which now carries its
+  viewing, and closes when the answer is saved) or from "They came" on
+  the viewing card, where "not asked yet" is the default. Same four
+  answers and reasons the buyer is offered in `collect.ts`, so the two
+  count together. Until then the owner's report told every owner "nobody
+  has come back yet" — and the outcome form told agents that its free-text
+  note "is what goes in the owner's weekly report", which nothing read.
+  The buyer's words stay with the agent, reach a subject access request,
+  and are removed by erasure; the owner gets counts. Every viewing
+  mutation is now scoped to the agent's own viewings and buyers — any
+  agent could mark a colleague's viewing a no-show, which also moved
+  that colleague's lead back a stage. `check:viewing-feedback`.
+- ~~**Creating a nurture plan.**~~ **Built.** A manager writes plans
+  under Settings → Nurture plans (the six-touch buyer plan is one tap
+  away as a starting point); an agent puts their own person on one from
+  the person's page, where it also says what comes next, and carries on
+  or stops it. One plan at a time per person; nobody opted out, closed
+  or without an agent; a retired plan takes nobody new; a plan is not
+  edited under the people part-way through it. Two faults in the job
+  surfaced on the way: a resumed plan paused itself again on the next
+  sweep, because the reply that paused it was still "after it started"
+  (`PlanSubscription.resumedAt`), and a removed person's plan stayed
+  due and was re-read every run for ever. `check:nurture-plans`.
+  Somebody who says "in about six months" is now **suggested** for a
+  plan on Today (`START_PLAN`), never put on one: the agent chooses the
+  plan, and doing so closes the suggestion. `plans/timeframe.ts` reads
+  the phrase conservatively — "within six months" is somebody buying
+  now and reads as zero, and anything it cannot read suggests nothing.
+  Still not built: which step loses people.
+- ~~**The assistant replying by itself.**~~ **Built, for qualification
+  only** (item 21): the owner's choice on Settings → Assistant — off
+  (the default), outside working hours only, or always (the demo
+  brokerage). Past qualification, and in any
+  thread an agent has written in, every reply is still a draft.
+- ~~**Erasure and data export for owners.**~~ **Built**, with two faults
+  found on the way that were not about owners at all. Erasure left every
+  name that later work had written — follow-up titles, alerts, private
+  notes, client facts, voice transcripts, email subjects — and now clears
+  them (`scrubParty`). And the privacy screen's "Build the file" built
+  the file and handed it to nobody: no download, and "nothing held" was
+  never shown. A deferred erasure also came back worded "Erased. 0
+  messages…". `privacy/README.md`; `check:owner-conversations`.
+- **Sending proactive messages without a person.** Deliberately. Every
+  job that decides somebody is worth contacting hands a draft to their
+  agent. If a brokerage ever wants automatic sending, it is a change to
+  the floor in `autonomy.ts` and the promise on the settings screen,
+  made on purpose — not a sender added to a job.
+- ~~**One person, several opportunities.**~~ **Built, additively.** The
+  lead stays the person's main business — every screen, report and job
+  that reads `Lead.status` is unchanged — and each further piece (the
+  buyer also letting their villa) is an `Opportunity`: its own column on
+  the same board, agent, value and close, managed from the person's page.
+  `personScope` lets the agent working one *read* the person; changing
+  the lead stays with `leadScope`. They also reach the three places an
+  agent or manager starts from: **Today** lists an agent's own open ones,
+  longest in their column first; **search** finds the person by what the
+  business is called, theirs to open if they work it, and a colleague is
+  told only that somebody matches; **the KPIs** show them beside the
+  leads' weighted pipeline rather than inside it, because that figure
+  opens the leads list and an opportunity is not a lead.
+  `check:opportunities`.
+
+  Building it found the audits blind to new procedure builders:
+  `counts.py`, `reachability.py` and `erasure.py` matched
+  `requirePermission|orgProcedure|publicProcedure` only, so everything on
+  `requireAnyPermission` or `signedInProcedure` was invisible to them —
+  the count went *down* when four procedures were added. A new builder
+  goes in those patterns in the same commit.
+- ~~**Listing photographs.**~~ **Built; a bucket is the owner's.** It was
+  the light switch wired to nothing on the wall a portal looks at:
+  publishing anywhere needs a photo, and `descriptions.photos` had one
+  writer — the seed, with `01.jpg`…`04.jpg` — so every real listing
+  failed the rule for ever and the demo's feed handed portals file names.
+  Now **Photos** on Listings uploads straight to storage (signed PUT, the
+  exact size signed), keeps a file only once its first bytes prove it is
+  the JPEG or PNG it claims (`matchesType`), and stores each as a PHOTO
+  `Attachment` of the listing; the order stays in `descriptions.photos`
+  as attachment ids, first is the cover, and pre-upload placeholders are
+  counted as before and dropped at the first real photo
+  (`lib/listings/photos.ts`). Buyers reach a photo through
+  `/p/<slug>/<ref>/photos/<id>`, which asks the page's own gate and then
+  redirects to a URL signed for ten minutes — the bucket stays private and
+  a withheld property's photos go dark with it. The preview card uses the
+  cover; the feed prints absolute photo addresses. Managers add and remove
+  (`listing:write`, as for editing). `check:listing-photos`.
+
+  **Found on the way: every direct upload was refused in production.**
+  `connect-src` allowed this server and Stripe, and the browser PUTs to
+  storage — brochures in the inbox included. No check had ever uploaded
+  from a browser, so nothing saw it. The policy now names the storage origin (`lib/storage-origin.ts`,
+  edge-safe, held to what `storage.ts` signs by a unit test).
+- ~~**Identity documents in a due diligence file.**~~ **Built.** Every
+  open file told its agent "Waiting on both documents" and nothing could
+  put one in. The only writer, `receiveDocument`, had no caller and stored
+  nothing — its "secure storage" returned a random key under a comment
+  describing a fetch and a write — and `verifiedAt` had no writer, so the
+  panel's "your compliance officer checks it" was a step with no button.
+  Now the agent adds a photo or PDF from the identity panel (only for a
+  person they can open), it is kept only if its bytes prove the type, and
+  the file moves to PENDING_REVIEW and no further; the compliance officer
+  (`kyc:approve`) opens it through a two-minute link — **every opening is
+  audited** — and marks it checked. Agents never see the image.
+  `receiveDocument` was removed rather than left as the obvious thing to
+  call. `aml/documents.ts`, `check:kyc-documents`.
+
+  **A passport sent on WhatsApp reaches the file.** The panel's own
+  request asks the buyer to send it on WhatsApp, and the answer stopped
+  at "[image]": ingest dropped the id Meta sends, the only handle on the
+  file. Inbound photos and PDFs now keep `Message.mediaId` / `mediaType`
+  (a reference only — nothing is copied on arrival), the thread offers
+  "Add this photo to their identity file", and `aml.documentFromMessage`
+  fetches it from Meta **straight into the file's storage**, never
+  through the agent's device, with the upload's checks: a person the
+  agent can open, an open file, bytes that prove the type, the 15MB cap
+  whatever Meta declares, once per message. **The channel token goes
+  only to Meta's media hosts** — the download address arrives in a
+  response body, so it is checked, and redirects are refused. A file Meta
+  no longer holds says "ask them to send it again". The browser never
+  sees Meta's id; erasure clears it. `check:whatsapp-documents`.
+
+  **Uploads never confirmed are swept weekly** (`storage.orphans`,
+  `files/sweep.ts`). For a brochure that is rent; for an identity
+  document it is a copy of a passport no file, subject access request or
+  erasure can find. It touches only the three upload key shapes, only
+  after a day, and only when **no** table holding a storage reference
+  names the key — a compliance `Document` can point at an inbox upload,
+  and checking attachments alone would delete a broker card the law
+  keeps for five years. `check:storage-orphans`.
+
+  **Found on the way:** the officer's file page told them "No matches.
+  Record and proceed." for a screening that had **ERRORed** — guidance was
+  re-derived from the row's (empty) matches through `interpret()`, the
+  exact fabricated CLEAR `screen.ts` refuses to write. An ERROR now says
+  nothing was checked.
+- **Two-step sign-in is optional.** Owners and admins are asked on
+  Settings → Security; nothing makes it compulsory for a brokerage,
+  because the day a phone is lost that locks somebody out, and it is the
+  brokerage's decision to make.
 - goAML submission, image quality checks. Nothing produces a
   `QualityIssue`; `collect.ts` says so at the definition.
 - Migration source adapters.
-- **Connecting a mailbox.** `email/sync.ts` is written and
-  `EmailAccount` has never had a row, because there is no OAuth flow
-  against Google or Microsoft — that needs an app registration with
-  each, which cannot be obtained from inside this repository. Tokens
-  now have somewhere to go (`lib/secrets/vault.ts`); the handshake that
-  produces one does not exist. The Gmail half of `normalise` is also
-  unwritten and **throws** rather than returning zero messages, because
-  a mailbox that syncs nothing is indistinguishable from a quiet one.
+- ~~**Connecting a mailbox.**~~ **Built; the app registrations are the
+  owner's.** Settings → Email runs the OAuth handshake with Google or
+  Microsoft (read-mail and calendar free/busy scopes only), seals the
+  tokens, refreshes them, and `email.sync` reads Gmail (history +
+  metadata) and Outlook (`$delta`).
+  What a brokerage needs is a client id, secret and registered callback
+  per provider (`.env.example`); without them the screen says the
+  provider is not set up. `check:email-connect` drives it all against
+  loopback stand-ins.
+
+  **The calendar is read back, busy times only.** The diary published
+  viewings *to* an agent's phone and nothing read the other way, so a
+  viewing could be offered to a buyer — and confirmed — on top of the
+  agent's own appointment. Each sync now reads the next 21 days of the
+  agent's primary calendar (Google `freeBusy`, which returns nothing but
+  times; Microsoft `calendarView` selecting start, end, `showAs` and
+  `isCancelled`) into `CalendarBusy`, replacing the last read, and
+  `availableSlots` keeps an across-town buffer either side. Free,
+  working-elsewhere and cancelled time does not block. A mailbox
+  connected before the scope was asked for records `calendarError`,
+  blocks nothing, and Settings → Email offers to connect again;
+  disconnecting forgets the busy times. Microsoft's paging is followed
+  only on its own address, as the mail cursor is. `check:calendar-busy`.
+
+  Proving it red found the same shape as a swallowed database error: the
+  per-message `catch` read "already have it" and swallowed *everything*,
+  so a sync that crashed on each message looked like one with nothing
+  new. It rethrows anything but a duplicate now.
+
+  **And a trap when proving a route handler red:** after putting the
+  file back, the dev server can keep serving the broken build — twice now
+  (the session callback, the OAuth callback). Restart it before trusting
+  the green run that follows.
 - ~~An external heartbeat — the alerting cannot report its own absence.~~
   **Built.** `health/deliver.ts` has `heartbeat()` and `alert.ts` calls
   it on a successful evaluation, so silence at the far end is the alarm.

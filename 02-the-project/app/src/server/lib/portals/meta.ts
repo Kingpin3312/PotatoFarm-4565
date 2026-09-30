@@ -1,4 +1,5 @@
 import type { RawEnquiry } from "./types";
+import { endpoint } from "@/server/lib/loopback";
 import { log } from "@/lib/log";
 import crypto from "node:crypto";
 
@@ -25,10 +26,30 @@ import crypto from "node:crypto";
  * log. **The token failing is the failure**, and it is silent — which is
  * the exact shape this whole product is built to catch.
  */
+/**
+ * Where the lead is fetched back from.
+ *
+ * Graph, always, unless `META_GRAPH_BASE` names a **loopback** address —
+ * and that exception exists for exactly one reason: without it this
+ * function cannot be tested at all. Meta sends an id and nothing else,
+ * so the one assertion worth having — *an inbound lead ad becomes a lead
+ * on the board* — cannot be made without somewhere to fetch from. The
+ * WhatsApp webhook carries its message inline and needs no equivalent.
+ *
+ * The loopback restriction is the whole guard. `pageToken` reads a
+ * brokerage's leads, so an override free to name any host would be an
+ * exfiltration primitive wearing a configuration flag. Refusing rather
+ * than falling back to Graph is deliberate: a misconfigured override
+ * silently talking to Facebook would hide the mistake.
+ */
+function graphBase(): string {
+  return endpoint("META_GRAPH_BASE", "https://graph.facebook.com/v21.0");
+}
+
 export async function fetchLead(leadgenId: string, pageToken: string): Promise<RawEnquiry | null> {
   try {
     const res = await fetch(
-      `https://graph.facebook.com/v21.0/${leadgenId}?fields=created_time,field_data,ad_id,campaign_name,form_name,platform`,
+      `${graphBase()}/${leadgenId}?fields=created_time,field_data,ad_id,campaign_name,form_name,platform`,
       { headers: { Authorization: `Bearer ${pageToken}` }, signal: AbortSignal.timeout(12_000) }
     );
 
@@ -149,8 +170,30 @@ const humanise = (k: string) =>
  */
 export function verifySignature(rawBody: string, header: string | null): boolean {
   if (!header?.startsWith("sha256=")) return false;
+  /**
+   * Refused outright when the secret is absent, because `?? ""` was
+   * fail-open.
+   *
+   * An empty string is a perfectly valid HMAC key. With
+   * `META_APP_SECRET` unset this function did not fail — it computed
+   * `HMAC-SHA256(key="", body)` and returned **true** for anyone who
+   * did the same. The check was present, ran on every delivery, and
+   * enforced nothing, which is worse than having no check at all: a
+   * reviewer reading this route sees a signature verified and
+   * concludes the door is locked. CLAUDE.md records that exact shape
+   * about the rate limit nothing invoked.
+   *
+   * Its two siblings both fail closed — the WhatsApp route throws on
+   * an absent key, and the Stripe route refuses and says so. This one
+   * took neither shape.
+   */
+  const secret = process.env.META_APP_SECRET;
+  if (!secret) {
+    log.warn("[meta] META_APP_SECRET is unset — every lead webhook is refused as unsigned", {});
+    return false;
+  }
   const expected = crypto
-    .createHmac("sha256", process.env.META_APP_SECRET ?? "")
+    .createHmac("sha256", secret)
     .update(rawBody, "utf8")
     .digest("hex");
   const given = header.slice(7);

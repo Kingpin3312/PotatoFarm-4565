@@ -1,15 +1,22 @@
 import { log, report } from "@/lib/log";
+import { detectLanguage, languageName } from "@/server/lib/language";
+import { endpoint } from "@/server/lib/loopback";
 import { aedToFils } from "@/lib/money";
-import { forOrg } from "@/server/db/client";
+import { crossTenant, forOrg } from "@/server/db/client";
 import { audit } from "@/server/lib/audit";
-import { messagingWindow, sendText } from "@/server/lib/whatsapp";
+import { markReadTyping, messagingWindow, sendText } from "@/server/lib/whatsapp";
 import { recordAnswered } from "@/server/lib/billing/conversations";
 import { getChannelCredentials } from "@/server/lib/secrets";
 import { buildSystemPrompt, PROMPT_VERSION, type GenerationTrace } from "./prompt";
 import { screenInbound, screenOutbound } from "./guardrails";
-import { extraction, sane, needsConfirmation } from "./extract";
+import { extraction, sane, needsConfirmation, EXTRACTION_SHAPE } from "./extract";
+import { requirementFromExtraction } from "@/server/lib/requirements/save";
+import { storeAnswers } from "./answers";
 import { HANDOVER_TRIGGERS, type HandoverReason } from "./policy";
 import { gate, isMuted, record } from "./controls";
+import { dispatch } from "@/server/lib/notify/dispatch";
+import { isOptOut } from "@/server/lib/matching/outreach";
+import { isOpen } from "@/server/lib/hours/open";
 
 /**
  * The current Sonnet tier, and it was a generation behind.
@@ -45,12 +52,16 @@ const MODEL = process.env.ASSISTANT_MODEL ?? "claude-sonnet-5";
 const THINKING = { type: "disabled" } as const;
 
 /**
- * One turn of the assistant.
+ * One turn of the assistant, up to the point of sending: the controls,
+ * the window, the screening, the model and the check of what it wrote.
  *
  * Ordered so that the cheap, certain checks happen before the expensive,
- * uncertain one. Most handovers never reach the model at all.
+ * uncertain one. Most handovers never reach the model at all. Every
+ * refusal and handover happens here, so the two ways of using a reply —
+ * sending it, or leaving it for a person — cannot disagree about when
+ * there is one.
  */
-export async function respond(orgId: string, conversationId: string) {
+async function prepare(orgId: string, conversationId: string) {
   const db = forOrg(orgId);
   const started = Date.now();
 
@@ -62,9 +73,9 @@ export async function respond(orgId: string, conversationId: string) {
     // leaving the lead unanswered. An overspend is a billing conversation;
     // an ignored buyer is a lost one.
     if (control.reason === "budget_exhausted") {
-      return handover(db, orgId, conversationId, "low_confidence", control.detail);
+      return { kind: "stopped" as const, result: await handover(db, orgId, conversationId, "low_confidence", control.detail) };
     }
-    return { sent: false, reason: `blocked:${control.reason}` };
+    return { kind: "stopped" as const, result: { sent: false, reason: `blocked:${control.reason}` } };
   }
 
   const convo = await db.conversation.findUnique({
@@ -73,8 +84,9 @@ export async function respond(orgId: string, conversationId: string) {
       id: true, channelId: true, humanHandover: true, lastInboundAt: true,
       lead: {
         select: {
-          id: true, phone: true, name: true, language: true, budgetMaxFils: true,
+          id: true, phone: true, name: true, language: true, budgetMaxFils: true, status: true,
           assignedTo: { select: { name: true } },
+          assignedToId: true,
           enquiries: {
             take: 1, orderBy: { createdAt: "desc" },
             select: { listing: true },
@@ -82,41 +94,83 @@ export async function respond(orgId: string, conversationId: string) {
         },
       },
       messages: {
-        take: 20, orderBy: { sentAt: "desc" },
+        // `id` breaks ties. WhatsApp stamps whole seconds, so "Hi" and
+        // "STOP" sent together share a `sentAt`, and without a tiebreak
+        // Postgres may hand back "Hi" as the latest — and a reply is
+        // drafted to somebody who has just said stop. A cuid starts with
+        // its creation time, so it orders in arrival order.
+        take: 20, orderBy: [{ sentAt: "desc" }, { id: "desc" }],
         select: { body: true, direction: true, author: true },
       },
       org: { select: { name: true } },
     },
   });
-  if (!convo) return { sent: false, reason: "no_conversation" };
+  if (!convo) return { kind: "stopped" as const, result: { sent: false, reason: "no_conversation" } };
+
+  /**
+   * Never to an owner.
+   *
+   * The assistant qualifies buyers: its questions, its facts block and
+   * its guardrails are all written for somebody asking about a property.
+   * An owner writing about their own home — the price, an offer, the
+   * keys — is talking to their agent, and a qualifying question in reply
+   * is how a brokerage loses an instruction. No handover is raised
+   * either: nothing was being handled by the assistant to hand over.
+   */
+  if (!convo.lead) return { kind: "stopped" as const, result: { sent: false, reason: "owner_conversation" } };
+  const lead = convo.lead;
 
   // 1. A human already has it. The assistant does not "assist" alongside
   //    them — it is silent until released.
-  if (convo.humanHandover) return { sent: false, reason: "handover_active" };
+  if (convo.humanHandover) return { kind: "stopped" as const, result: { sent: false, reason: "handover_active" } };
+
+  /**
+   * An agent said "I've got this" on this thread.
+   *
+   * `isMuted` was imported here and never called, while the schema said
+   * this was read "before every model call" — so the per-conversation
+   * mute, the button an agent presses in a delicate negotiation, changed
+   * nothing at all. Uncached, like the kill switch, for the same reason.
+   */
+  if (await isMuted(convo.id)) return { kind: "stopped" as const, result: { sent: false, reason: "muted" } };
 
   // 2. Outside Meta's 24-hour window nothing free-form sends. Attempting
   //    it produces an accepted request and an undelivered message, which
   //    is the worst possible outcome.
   if (!messagingWindow(convo.lastInboundAt).open) {
-    return { sent: false, reason: "window_closed" };
+    return { kind: "stopped" as const, result: { sent: false, reason: "window_closed" } };
   }
 
   const history = convo.messages.slice().reverse();
   const lastInbound = history.filter((m) => m.direction === "INBOUND").at(-1);
-  if (!lastInbound) return { sent: false, reason: "nothing_to_reply_to" };
+  if (!lastInbound) return { kind: "stopped" as const, result: { sent: false, reason: "nothing_to_reply_to" } };
 
   // 3. Cheap screening. Injection, complaints, negotiation, regulated
   //    questions and explicit requests never reach the model.
+  /**
+   * "Stop" gets no reply, and neither does somebody whose file is closed.
+   *
+   * The ingest records an opt-out before this runs; a cheerful "thanks
+   * for getting in touch — buying or renting?" in answer to STOP is the
+   * message that turns an opt-out into a complaint. A buyer who has
+   * bought, or been lost, is their agent's to answer: the assistant's
+   * whole script is qualifying somebody who has not.
+   */
+  if (isOptOut(lastInbound.body)) return { kind: "stopped" as const, result: { sent: false, reason: "opted_out" } };
+  if (lead.status === "WON" || lead.status === "LOST") {
+    return { kind: "stopped" as const, result: { sent: false, reason: "closed_file" } };
+  }
+
   const screened = screenInbound(lastInbound.body);
-  if (screened) return handover(db, orgId, convo.id, screened);
+  if (screened) return { kind: "stopped" as const, result: await handover(db, orgId, convo.id, screened) };
 
   const profile = await db.qualificationProfile.findFirst({
     where: { active: true },
     include: { questions: { orderBy: { order: "asc" } } },
   });
-  if (!profile) return handover(db, orgId, convo.id, "low_confidence");
+  if (!profile) return { kind: "stopped" as const, result: await handover(db, orgId, convo.id, "low_confidence") };
 
-  const listing = convo.lead.enquiries[0]?.listing ?? null;
+  const listing = lead.enquiries[0]?.listing ?? null;
 
   /**
    * The price, in dirhams, as a plain digit string.
@@ -152,7 +206,7 @@ export async function respond(orgId: string, conversationId: string) {
 
   const system = buildSystemPrompt({
     brokerage: convo.org.name,
-    agentName: convo.lead.assignedTo?.name ?? null,
+    agentName: lead.assignedTo?.name ?? null,
     questions: profile.questions.map((q) => ({ key: q.key, prompt: q.prompt, required: q.required })),
     // Built explicitly rather than passed through as `any`. The cast was
     // hiding the fact that the row and the prompt's Listing type disagree
@@ -168,7 +222,11 @@ export async function respond(orgId: string, conversationId: string) {
       purpose: listing.purpose as "SALE" | "RENT",
       status: listing.status,
     },
-    language: convo.lead.language ?? "en",
+    // The language of the message being answered, not only the one on
+    // the lead: a buyer who opened in English and switches to Arabic is
+    // answered in Arabic. "Arabic", not "ar" — the prompt said
+    // `Reply in en` to everybody.
+    language: languageName(detectLanguage(lastInbound.body) ?? lead.language),
     tone: profile.tone,
   });
 
@@ -193,25 +251,12 @@ export async function respond(orgId: string, conversationId: string) {
   } catch (err) {
     // A model outage must not leave a lead unanswered and unowned.
     report(err, { orgId }, { conversationId: convo.id, stage: "generation" });
-    /**
-     * The billable event.
-     *
-     * Recorded here and nowhere else — after the message actually left,
-     * not when the model was called. A reply that failed to send is a
-     * reply the brokerage did not get, and charging for it would be
-     * charging for our own failure.
-     *
-     * Deduplicated by a unique constraint on (conversation, day), so a
-     * buyer messaging six times in an afternoon is one charge.
-     */
-    await recordAnswered({ orgId, conversationId: convo.id });
-
     await record({
       orgId, conversationId: convo.id, purpose: "reply", model: MODEL,
       promptVersion: PROMPT_VERSION, inputTokens: 0, outputTokens: 0,
       latencyMs: Date.now() - started, outcome: "error",
     });
-    return handover(db, orgId, convo.id, "low_confidence");
+    return { kind: "stopped" as const, result: await handover(db, orgId, convo.id, "low_confidence") };
   }
 
   // 6. Screen what came back. A failed check is a handover, never a
@@ -222,38 +267,120 @@ export async function respond(orgId: string, conversationId: string) {
     log.warn(`[assistant] draft rejected: ${checked.reason}`);
     // A blocked draft still cost money. Recording only successes gives a
     // ledger that under-reports exactly when something is going wrong.
-    /**
-     * The billable event.
-     *
-     * Recorded here and nowhere else — after the message actually left,
-     * not when the model was called. A reply that failed to send is a
-     * reply the brokerage did not get, and charging for it would be
-     * charging for our own failure.
-     *
-     * Deduplicated by a unique constraint on (conversation, day), so a
-     * buyer messaging six times in an afternoon is one charge.
-     */
-    await recordAnswered({ orgId, conversationId: convo.id });
-
     await record({
       orgId, conversationId: convo.id, purpose: "reply", model: MODEL,
       promptVersion: PROMPT_VERSION,
       inputTokens: trace.inputTokens ?? 0, outputTokens: trace.outputTokens ?? 0,
       latencyMs: trace.latencyMs, outcome: "blocked",
     });
-    return handover(db, orgId, convo.id, checked.handover, checked.reason);
+    return { kind: "stopped" as const, result: await handover(db, orgId, convo.id, checked.handover, checked.reason) };
   }
+
+  return {
+    kind: "ready" as const,
+    db, started, trace, history,
+    convo: { id: convo.id, channelId: convo.channelId },
+    lead,
+    profileId: profile.id,
+    text: checked.text,
+  };
+}
+
+
+/**
+ * What happens when a buyer writes: a reply sent, or a reply drafted.
+ *
+ * The owner's decision (27 September 2026): the assistant replies by
+ * itself while a buyer is being qualified — humanised, in their language,
+ * one question at a time — and a person takes it from there. So it sends
+ * only when all of these hold, and drafts for the agent otherwise:
+ *
+ * - the brokerage has turned on "Reply automatically while qualifying"
+ *   (`AssistantSettings.autoReply`, off by default) — and, if the owner
+ *   chose "outside working hours" (`autoReplyOutOfHours`), the brokerage
+ *   is closed right now by its own `WorkingHours`;
+ * - the lead is still being qualified — NEW or QUALIFYING. Once they are
+ *   qualified, viewing, negotiating or closed, every word is an agent's;
+ * - no agent has written in the thread. The moment a person replies in
+ *   their own words, the conversation is theirs and the assistant goes
+ *   back to drafting.
+ *
+ * Every other stop — the kill switch, the budget, a handover, "I've got
+ * this", the 24-hour window, STOP, the guardrails — is in `prepare`, and
+ * applies to both paths identically.
+ */
+export async function reply(orgId: string, conversationId: string, inboundMessageId?: string, inboundExternalId?: string) {
+  if (await sendsItself(orgId, conversationId)) {
+    return respond(orgId, conversationId, inboundExternalId);
+  }
+  return draftReply(orgId, conversationId, inboundMessageId);
+}
+
+async function sendsItself(orgId: string, conversationId: string) {
+  const settings = await crossTenant("sweep").assistantSettings.findUnique({
+    where: { orgId }, select: { autoReply: true, autoReplyOutOfHours: true },
+  });
+  if (!settings?.autoReply) return false;
+  // Out of hours only: while somebody is in, a person sends.
+  if (settings.autoReplyOutOfHours && (await isOpen(orgId))) return false;
+  const convo = await forOrg(orgId).conversation.findUnique({
+    where: { id: conversationId },
+    select: {
+      lead: { select: { status: true } },
+      _count: { select: { messages: { where: { author: "AGENT" } } } },
+    },
+  });
+  if (!convo?.lead) return false;
+  return (convo.lead.status === "NEW" || convo.lead.status === "QUALIFYING") && convo._count.messages === 0;
+}
+
+/**
+ * How long a person would take to type this. A reply that lands in one
+ * second reads as a machine; one that takes a minute has lost the race
+ * the product exists to win. So: a couple of seconds, plus a little for
+ * length, never more than seven. `ASSISTANT_REPLY_PAUSE_MS` overrides it
+ * — the checks set 0.
+ */
+export function humanPause(text: string) {
+  const fixed = process.env.ASSISTANT_REPLY_PAUSE_MS;
+  if (fixed !== undefined && fixed !== "") return Math.max(0, Number(fixed) || 0);
+  return Math.min(2_000 + text.length * 25, 7_000);
+}
+
+/**
+ * Sends a reply by itself, through every check `prepare` makes. Reached
+ * only through `reply`, and only while a buyer is being qualified at a
+ * brokerage that has switched automatic replies on.
+ */
+export async function respond(orgId: string, conversationId: string, inboundExternalId?: string) {
+  // A draft written for an earlier message must not be sent later on top
+  // of this reply.
+  await forOrg(orgId).replyDraft.updateMany({
+    where: { conversationId, state: "OPEN" },
+    data: { state: "STALE", resolvedAt: new Date() },
+  });
+  const p = await prepare(orgId, conversationId);
+  if (p.kind === "stopped") return p.result;
+  const { db, convo, lead, history, trace, started } = p;
+  const checked = { text: p.text };
+  const profile = { id: p.profileId };
 
   // 7. Send, then record. Recorded either way — a message that left
   //    without a row is a message nobody can account for.
   const creds = await getChannelCredentials(orgId, convo.channelId);
+  // Read, typing…, then the reply — the way a person answers. Nothing is
+  // typed at a demonstration brokerage, so nobody waits for it there.
+  if (inboundExternalId && await markReadTyping({ ...creds, messageId: inboundExternalId })) {
+    await new Promise((r) => setTimeout(r, humanPause(checked.text)));
+  }
   const { externalId } = await sendText({
     phoneNumberId: creds.phoneNumberId,
     accessToken: creds.accessToken,
-    to: convo.lead.phone.replace("+", ""),
+    to: lead.phone.replace("+", ""),
     body: checked.text,
   });
 
+  await db.conversation.update({ where: { id: convo.id }, data: { lastOutboundAt: new Date() } });
   await db.message.create({
     data: {
       orgId,
@@ -266,6 +393,24 @@ export async function respond(orgId: string, conversationId: string) {
     },
   });
 
+  /**
+   * The billable event.
+   *
+   * Recorded here and nowhere else — after the message actually left,
+   * not when the model was called. A reply that failed to send is a
+   * reply the brokerage did not get, and charging for it would be
+   * charging for our own failure.
+   *
+   * That paragraph sat, twice, on the two paths where nothing was sent —
+   * the model failing and the draft being blocked — and this, the one
+   * path where a reply did leave, recorded nothing. Every charge would
+   * have been for a failure and no success would ever have been billed.
+   *
+   * Deduplicated by a unique constraint on (conversation, day), so a
+   * buyer messaging six times in an afternoon is one charge.
+   */
+  await recordAnswered({ orgId, conversationId: convo.id });
+
   await record({
     orgId, conversationId: convo.id, purpose: "reply", model: MODEL,
     promptVersion: PROMPT_VERSION,
@@ -275,9 +420,77 @@ export async function respond(orgId: string, conversationId: string) {
 
   // 8. Extraction runs separately, and never blocks the reply. The lead
   //    has their answer before any of this happens.
-  void extractAndStore(db, orgId, convo.lead.id, profile.id, history, checked.text);
+  void extractAndStore(db, orgId, lead.id, profile.id, history, checked.text);
 
   return { sent: true, latencyMs: Date.now() - started, trace };
+}
+
+/**
+ * A reply for a person to send.
+ *
+ * The brokerage's owner chose this over automatic replies: the assistant
+ * writes the reply the moment a buyer writes in — through every check
+ * `prepare` makes — and stops there. The agent who has the buyer is told
+ * at once, reads it, edits it if they like, and presses send
+ * (`conversations.send` with the draft's id). Nothing reaches the buyer
+ * from here.
+ *
+ * One open draft per conversation: a newer message from the buyer makes
+ * the older reply wrong, so it is marked STALE rather than left to be sent.
+ */
+export async function draftReply(orgId: string, conversationId: string, inboundMessageId?: string) {
+  /**
+   * Whatever happens next, the reply waiting here answered an older
+   * message — so it goes first. Otherwise a buyer who writes "STOP", or
+   * asks for a person, leaves yesterday's cheerful draft one tap from
+   * being sent to them.
+   */
+  await forOrg(orgId).replyDraft.updateMany({
+    where: { conversationId, state: "OPEN" },
+    data: { state: "STALE", resolvedAt: new Date() },
+  });
+
+  const p = await prepare(orgId, conversationId);
+  if (p.kind === "stopped") return { drafted: false as const, reason: p.result.reason };
+  const { db, convo, lead, history, trace } = p;
+
+  const draft = await db.$transaction(async (tx) => {
+    await tx.replyDraft.updateMany({
+      where: { conversationId: convo.id, state: "OPEN" },
+      data: { state: "STALE", resolvedAt: new Date() },
+    });
+    return tx.replyDraft.create({
+      data: {
+        orgId, conversationId: convo.id, inboundMessageId: inboundMessageId ?? null,
+        body: p.text, model: MODEL, promptVersion: PROMPT_VERSION,
+      },
+      select: { id: true },
+    });
+  });
+
+  // The model was paid for whether or not the draft is ever sent.
+  await record({
+    orgId, conversationId: convo.id, purpose: "reply", model: MODEL,
+    promptVersion: PROMPT_VERSION,
+    inputTokens: trace.inputTokens ?? 0, outputTokens: trace.outputTokens ?? 0,
+    latencyMs: trace.latencyMs, outcome: "drafted",
+  });
+
+  // Told now, not on the next sweep: a draft read ten minutes later is a
+  // reply ten minutes late. The sweep escalates it if nobody acts.
+  await dispatch({
+    orgId, kind: "REPLY_READY", subjectId: draft.id,
+    title: `${lead.name ?? lead.phone} — a reply is ready to send`,
+    body: "Read it, change it if you like, and send.",
+    deeplink: `/inbox/${convo.id}`,
+    assignedToId: lead.assignedToId,
+    since: new Date(),
+  });
+
+  // What they said is worth keeping whether or not the reply goes.
+  void extractAndStore(db, orgId, lead.id, p.profileId, history, null);
+
+  return { drafted: true as const, draftId: draft.id };
 }
 
 async function handover(
@@ -316,10 +529,11 @@ async function extractAndStore(
   leadId: string,
   profileId: string,
   history: { body: string; direction: string }[],
-  latest: string
+  /** The reply that went out, if one has — a draft has not. */
+  latest: string | null
 ) {
   try {
-    const raw = await callExtractor([...history, { body: latest, direction: "OUTBOUND" }]);
+    const raw = await callExtractor(latest === null ? history : [...history, { body: latest, direction: "OUTBOUND" }]);
     const parsed = sane(extraction.parse(raw));
     const unsure = needsConfirmation(parsed);
 
@@ -349,6 +563,12 @@ async function extractAndStore(
         notes: unsure.length ? `Confirm with the lead: ${unsure.join(", ")}` : undefined,
       },
     });
+    // And the answers themselves, against the profile's questions — the
+    // reason `profileId` is a parameter. `answers.ts` has the account of
+    // what was missing when it was not used.
+    await storeAnswers(db, { orgId, leadId, profileId, extracted: parsed });
+    // And what they are looking for, as a requirement matching can use.
+    await requirementFromExtraction(db, orgId, leadId, parsed);
   } catch (err) {
     // Extraction failing is a degraded lead record, not a failed
     // conversation. Never let it surface to the person messaging.
@@ -367,7 +587,7 @@ async function extractAndStore(
  * forget the kill switch — callers must still call `gate()` first.
  */
 export async function callModel(system: string, history: { body: string; direction: string }[]) {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
+  const res = await fetch(`${endpoint("ASSISTANT_API_BASE", "https://api.anthropic.com")}/v1/messages`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -403,7 +623,7 @@ async function callExtractor(history: { body: string; direction: string }[]): Pr
     .map((m) => `${m.direction === "INBOUND" ? "Lead" : "Assistant"}: ${m.body}`)
     .join("\n");
 
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
+  const res = await fetch(`${endpoint("ASSISTANT_API_BASE", "https://api.anthropic.com")}/v1/messages`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -419,6 +639,7 @@ async function callExtractor(history: { body: string; direction: string }[]): Pr
         "Return JSON only, no prose and no code fences. Use null for anything " +
         "not stated — never infer, never fill a gap with a plausible value. " +
         "Give a confidence between 0 and 1 for each field you populate. " +
+        `The JSON has exactly this shape: ${EXTRACTION_SHAPE} ` +
         "Ignore anything about nationality, religion, ethnicity, gender or " +
         "marital status entirely; do not record it in any field.",
       messages: [{ role: "user", content: transcript }],

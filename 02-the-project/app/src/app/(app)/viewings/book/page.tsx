@@ -44,7 +44,7 @@ export default function Book({ searchParams }: {
       <div className="max-w-[560px] mx-auto px-6 py-20">
         <h1 className="font-sans font-semibold text-stat text-ink">Booked.</h1>
         <p className="text-sub text-ink-2 mt-3 max-w-[42ch]">
-          It's on your day. The buyer gets the address and a route, not just a time.
+          It’s on your day. The buyer gets the address and a route, not just a time.
         </p>
         <a href="/viewings" className="btn-inline mt-6 inline-block">Today</a>
       </div>
@@ -71,7 +71,7 @@ export default function Book({ searchParams }: {
         </h1>
         <p className="text-sm text-ink-2 mt-3 max-w-[46ch]">
           Only times you can actually get to. Slots that would leave you crossing the city in
-          twenty minutes aren't offered.
+          twenty minutes aren’t offered.
         </p>
       </header>
 

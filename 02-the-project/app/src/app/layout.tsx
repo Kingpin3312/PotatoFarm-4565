@@ -89,7 +89,7 @@ export const viewport: Viewport = {
   // from a palette ago — so on a phone the browser chrome was a very
   // slightly different cream from the page it framed, which reads as a
   // seam nobody can name.
-  themeColor: "#FFFFFF",
+  themeColor: "#292C32",
 };
 
 /**

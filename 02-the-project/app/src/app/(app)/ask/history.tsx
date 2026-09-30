@@ -30,7 +30,7 @@ export function History() {
   const [open, setOpen] = useState<string | null>(null);
 
   if (isLoading) {
-    return <p className="text-sm text-ink-3 mt-10">Loading what you've asked…</p>;
+    return <p className="text-sm text-ink-3 mt-10">Loading what you’ve asked…</p>;
   }
 
   if (isError) {
@@ -107,7 +107,7 @@ export function History() {
 
                   {r.state === "REFUSED" && r.caveats.length === 0 && (
                     <p className="mt-2 text-sm text-ink-2 max-w-[46ch] leading-snug">
-                      This one wasn't done and no reason was recorded against it. Ask it
+                      This one wasn’t done and no reason was recorded against it. Ask it
                       again and the answer will say why.
                     </p>
                   )}

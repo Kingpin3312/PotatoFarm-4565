@@ -16,6 +16,8 @@
      generated nothing — the same silent failure as accent-type and
      accent-edge, which were used 42 times before anybody noticed. */
   --color-rule-strong: var(--rule-strong);
+  /* Behind a dialog. See `--scrim` in tokens.css. */
+  --color-scrim: var(--scrim);
 
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);
@@ -389,4 +391,12 @@ strong, b { font-weight: var(--w-medium); }
      as the rest — a positive track on a connected script separates
      letters that should be joined. */
   --track-label:   0;
+}
+
+/* An invoice printed from a dark screen must still be black on white:
+   browsers drop backgrounds when printing, so the dark theme's light
+   text would print light on white paper. */
+@media print {
+  body { background: #fff !important; }
+  .print-ink, .print-ink * { color: #000 !important; border-color: #888 !important; background: transparent !important; }
 }

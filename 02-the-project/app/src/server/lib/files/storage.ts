@@ -1,4 +1,4 @@
-import { authHeaders, presign, type Creds } from "./sigv4";
+import { authHeaders, canonicalQuery, presign, type Creds } from "./sigv4";
 
 /**
  * Object storage.
@@ -152,13 +152,37 @@ export async function signPut(args: {
   return url;
 }
 
+/**
+ * A presigned GET, for a browser or a portal to fetch one object.
+ *
+ * Short-lived, and only ever issued by a caller that has already decided
+ * the reader may see it — the listing photo route checks the property is
+ * public first. The bucket itself stays private: a URL that expires in
+ * minutes is a loan, a public bucket is a gift of everything in it.
+ */
+export function signGet(args: { key: string; expiresInSeconds: number }): string {
+  const c = need();
+  const { url } = presign({
+    creds: c.creds,
+    method: "GET",
+    scheme: c.scheme,
+    host: c.host,
+    path: `${c.prefix}/${args.key}`,
+    headers: {},
+    expiresInSeconds: args.expiresInSeconds,
+  });
+  return url;
+}
+
 async function request(method: string, key: string, init?: RequestInit) {
   const c = need();
   const path = `${c.prefix}/${key}`;
   return fetch(`${c.scheme}://${c.host}${path}`, {
     ...init,
     method,
-    headers: authHeaders({ creds: c.creds, method, host: c.host, path }),
+    // Extra headers (a Range) ride unsigned beside the signed ones, which
+    // S3 and R2 both allow for headers not named in SignedHeaders.
+    headers: { ...(init?.headers as Record<string, string> | undefined), ...authHeaders({ creds: c.creds, method, host: c.host, path }) },
     // A storage call that hangs must not hold a serverless function open
     // until the platform kills it — the caller gets an answer either way.
     signal: AbortSignal.timeout(30_000),
@@ -173,11 +197,75 @@ export async function objectExists(key: string): Promise<boolean> {
   return true;
 }
 
+/**
+ * Bytes the server already holds, written straight in.
+ *
+ * Every other write is a browser PUT to a signed ticket; this is for a
+ * file that reaches the server from somewhere else — a document fetched
+ * from Meta — and would otherwise have to be handed to the browser to
+ * upload back, passing through the agent's device on the way.
+ */
+export async function putObject(key: string, bytes: Uint8Array, mimeType: string): Promise<void> {
+  const res = await request("PUT", key, { body: bytes as unknown as BodyInit, headers: { "content-type": mimeType } });
+  if (!res.ok) throw new Error(`Storage PUT ${key}: ${res.status}`);
+}
+
 /** The bytes, for forwarding to Meta's media endpoint. */
 export async function readObject(key: string): Promise<Uint8Array> {
   const res = await request("GET", key);
   if (!res.ok) throw new Error(`Storage GET ${key}: ${res.status}`);
   return new Uint8Array(await res.arrayBuffer());
+}
+
+/**
+ * The first few bytes, and the object's real size.
+ *
+ * For checking what a file is without downloading a 100MB PDF to read
+ * four bytes of it. A ranged GET; a store that ignores the range simply
+ * sends everything and this still returns the head.
+ */
+export async function readObjectHead(key: string, bytes = 16): Promise<{ head: Uint8Array; size: number | null }> {
+  const res = await request("GET", key, { headers: { range: `bytes=0-${bytes - 1}` } });
+  if (!res.ok) throw new Error(`Storage GET ${key}: ${res.status}`);
+  const all = new Uint8Array(await res.arrayBuffer());
+  // 206: the total is after the slash in Content-Range. 200: the store
+  // ignored the range and sent the whole object, so its length is the
+  // size. Never a missing header read as a number — `Number(null)` is 0,
+  // which would call every real upload the wrong size.
+  const total = res.status === 206 ? Number(res.headers.get("content-range")?.split("/")[1]) : all.length;
+  return { head: all.slice(0, bytes), size: Number.isFinite(total) && total > 0 ? total : null };
+}
+
+/**
+ * One page of the bucket under a prefix (ListObjectsV2), for the orphan
+ * sweep. A thousand at a time, with the token for the next page.
+ */
+export async function listObjects(prefix: string, token?: string): Promise<{
+  objects: { key: string; lastModified: Date; size: number }[];
+  next: string | null;
+}> {
+  const c = need();
+  const path = c.prefix || "/";
+  const query: Record<string, string> = {
+    "list-type": "2", prefix, "max-keys": "1000", ...(token ? { "continuation-token": token } : {}),
+  };
+  const res = await fetch(`${c.scheme}://${c.host}${path}?${canonicalQuery(query)}`, {
+    headers: authHeaders({ creds: c.creds, method: "GET", host: c.host, path, query }),
+    signal: AbortSignal.timeout(30_000),
+  });
+  if (!res.ok) throw new Error(`Storage LIST ${prefix}: ${res.status}`);
+  const xml = await res.text();
+  const text = (s: string, tag: string) => {
+    const m = new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`).exec(s);
+    return m ? m[1]!.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, "&") : null;
+  };
+  const objects = [...xml.matchAll(/<Contents>([\s\S]*?)<\/Contents>/g)].map((m) => ({
+    key: text(m[1]!, "Key") ?? "",
+    lastModified: new Date(text(m[1]!, "LastModified") ?? 0),
+    size: Number(text(m[1]!, "Size") ?? 0),
+  })).filter((o) => o.key);
+  const truncated = text(xml, "IsTruncated") === "true";
+  return { objects, next: truncated ? text(xml, "NextContinuationToken") : null };
 }
 
 /** Called when an attachment is deleted, so the object goes too. */

@@ -96,8 +96,9 @@ export default function Activity() {
           )}
 
           <p className="mt-3 max-w-[48ch] text-sm leading-snug text-ink-3">
-            Nothing reaches a client without you, at any setting. Even on Autopilot it
-            prepares the message and waits.
+            Nothing it starts on its own reaches a client without you, at any setting —
+            even on Autopilot it prepares the message and waits. Replying to a new buyer
+            while it qualifies them is a separate switch, under Settings → Assistant.
           </p>
         </section>
       )}

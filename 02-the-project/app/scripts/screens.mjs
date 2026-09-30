@@ -52,10 +52,10 @@ function routes() {
 }
 
 const db = new PrismaClient({ datasources:{db:{url:process.env.DATABASE_URL_UNSCOPED}} });
-const org = await db.organisation.findFirst({ where:{deletedAt:null}, select:{id:true} });
+const org = await db.organisation.findFirst({ where:{slug: "seed-marina", deletedAt:null}, select:{id:true} });
 
 /** Real ids, so a dynamic route is exercised rather than skipped. */
-const [lead, kyc, listing, convo, orgSlug, publicListing] = await Promise.all([
+const [lead, kyc, listing, convo, orgSlug, publicListing, vendor, invoice] = await Promise.all([
   db.lead.findFirst({ where: { orgId: org.id, deletedAt: null }, select: { id: true } }),
   db.kycRecord.findFirst({ where: { orgId: org.id }, select: { id: true } }),
   db.listing.findFirst({ where: { orgId: org.id, deletedAt: null }, select: { id: true } }),
@@ -71,6 +71,8 @@ const [lead, kyc, listing, convo, orgSlug, publicListing] = await Promise.all([
     where: { orgId: org.id, deletedAt: null, status: "AVAILABLE", permitNumber: { not: null } },
     select: { reference: true },
   }),
+  db.vendor.findFirst({ where: { orgId: org.id }, select: { id: true } }),
+  db.invoice.findFirst({ where: { orgId: org.id }, orderBy: { issuedAt: "desc" }, select: { number: true } }),
 ]);
 
 /**
@@ -94,6 +96,13 @@ const SUBST = {
   // reached with no session at all.
   "[slug]": orgSlug?.slug,
   "[reference]": publicListing?.reference,
+  // The owner's page. Reported as "not opened" from the day it was
+  // mounted, because nothing here knew how to fill the token — honest,
+  // and it meant the one screen an owner is shown was never walked.
+  "[vendorId]": vendor?.id,
+  // The invoice document. The seed issues one through the real
+  // invoicing code, so this is a real number from the real series.
+  "[number]": invoice?.number,
 };
 
 const all = routes();

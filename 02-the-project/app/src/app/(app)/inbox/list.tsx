@@ -6,6 +6,7 @@ import { api } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { aed, aedShort } from "@/lib/money";
 import { when } from "@/lib/when";
+import { LiveEnquiry } from "./live-enquiry";
 
 const FILTERS = [
   { id: "all", label: "All" },
@@ -36,9 +37,12 @@ export function InboxList({
     );
 
   const rows = data?.pages.flatMap((p) => p.rows) ?? [];
+  const { data: orgs } = api.org.mine.useQuery();
+  const demo = orgs?.find((o) => o.active)?.demo ?? false;
 
   return (
-    <aside className="border-e border-rule flex flex-col min-h-0">
+    <aside className="border-e border-rule flex flex-col min-h-0 h-full">
+      {demo && <LiveEnquiry onArrived={onSelect} />}
       <div className="flex gap-4 px-5 py-3.5 border-b border-rule overflow-x-auto">
         {FILTERS.map((f) => (
           <button
@@ -93,7 +97,7 @@ export function InboxList({
                 <span aria-label="unread" className="size-[7px] rounded-full bg-accent shrink-0" />
               )}
               <span className="text-ui font-medium text-ink">
-                {c.lead.name ?? c.lead.phone}
+                {c.party.name ?? c.party.phone}
               </span>
               {/* The last message, not `updatedAt`.
                   `updatedAt` moves on any write to the row — a mute, a
@@ -112,8 +116,12 @@ export function InboxList({
             </span>
 
             <span className="flex gap-2.5 mt-2 flex-wrap items-center">
+              {/* Said in words: an owner writing about their own flat
+                  and a buyer asking about it read the same in a list. */}
+              {c.party.kind === "OWNER" && <Tag>Owner</Tag>}
+              {c.replyReady && <Tag highlight>Reply ready</Tag>}
               {c.humanHandover && <Tag highlight>Handover</Tag>}
-              {c.lead.budgetMaxFils && <Tag>{aedShort(c.lead.budgetMaxFils)}</Tag>}
+              {c.lead?.budgetMaxFils && <Tag>{aedShort(c.lead.budgetMaxFils)}</Tag>}
               <Tag dashed={!c.window.open}>
                 {c.window.open ? `Window ${c.window.hoursLeft}h` : "Window closed"}
               </Tag>

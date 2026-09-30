@@ -25,7 +25,7 @@ export const dynamic = "force-dynamic";
  * and hand it over.
  */
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ token: string }> },
 ) {
   const { token } = await params;
@@ -47,18 +47,38 @@ export async function GET(
     return new NextResponse("Not found", { status: 404 });
   }
 
-  const listings = await feedFor(org.id);
+  // Photos as absolute addresses on the host the portal asked, which is
+  // the host it can reach.
+  const listings = await feedFor(org.id, { origin: new URL(req.url).origin });
   const body = toXml(listings, { brokerage: org.name });
 
   /**
-   * Logged on every fetch, and this is not noise.
+   * Recorded on every fetch, and the record is the point.
    *
    * A portal that silently stops fetching is exactly the shape of
    * failure this product is built to catch — nothing errors, listings
    * simply stop being refreshed, and it reads as a quiet market.
-   * `portals/health.ts` alarms on silence from a feed; this is the line
-   * that gives it something to measure.
+   *
+   * This used to be the `log.info` below and nothing else, under a
+   * comment asserting that `portals/health.ts` "alarms on silence from
+   * a feed; this is the line that gives it something to measure". It
+   * did not and could not: health sweeps `Channel`, a feed is not a
+   * channel, and a log line is not a measurement. **The alarm named in
+   * the comment had no input at all**, so a portal that stopped pulling
+   * was detected by nobody — the same fault as the Meta channel that
+   * never wrote `lastSyncAt`, in the outbound direction.
+   *
+   * Not awaited, and that is deliberate: a portal is waiting on this
+   * response, and a slow write must not delay the XML or turn a
+   * bookkeeping failure into a failed fetch. `checkFeedSilence()` reads
+   * it, and `org.listingFeed` shows it on the settings screen beside the URL
+   * so a brokerage can see whether their portal is actually pulling.
    */
+  void crossTenant("global-key").organisation
+    .update({ where: { id: org.id }, data: { feedFetchedAt: new Date() } })
+    .catch((err) => log.warn("[feed] could not record the fetch", { orgId: org.id },
+                             { err: String(err).slice(0, 120) }));
+
   log.info("[feed] served", { orgId: org.id }, { listings: listings.length });
 
   return new NextResponse(body, {
@@ -68,7 +88,11 @@ export async function GET(
       // Portals poll. A short cache absorbs a portal fetching more
       // often than it needs to without letting a price change sit
       // stale for long enough to matter.
-      "Cache-Control": "public, max-age=300",
+      // `private`, not `public`. The file's own comment two paragraphs
+      // up says the URL is a credential, and this is a brokerage's
+      // whole inventory with prices. The calendar route next door,
+      // built the same way, already says `private`.
+      "Cache-Control": "private, max-age=300",
       // The URL is a credential. Keep it out of search engines and out
       // of any referrer a photo host might otherwise receive.
       "X-Robots-Tag": "noindex, nofollow",

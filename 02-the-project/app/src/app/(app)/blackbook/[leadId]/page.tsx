@@ -5,6 +5,12 @@ import { api } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { QueryError } from "@/components/ui/query-state";
 import { cn } from "@/lib/cn";
+import { Details } from "./details";
+import { Plan } from "./plan";
+import { Requirements } from "./requirements";
+import { PersonTask } from "./task";
+import { Opportunities } from "./opportunities";
+import Link from "next/link";
 
 /**
  * One person, everything said to them.
@@ -23,6 +29,9 @@ export default function Person({ params }: { params: Promise<{ leadId: string }>
   const { data, isLoading, isError, refetch, error } =
     api.blackbook.person.useQuery({ leadId: leadId });
   const note = api.blackbook.note.useMutation();
+  // Read-only roles (viewer, compliance officer) open the page to read it.
+  const { data: who } = api.leads.detail.useQuery({ leadId });
+  const readOnly = who ? !who.canEdit : false;
   const [draft, setDraft] = useState("");
   const [editing, setEditing] = useState(false);
 
@@ -34,10 +43,18 @@ export default function Person({ params }: { params: Promise<{ leadId: string }>
   return (
     <div className="max-w-[680px] mx-auto px-6 pb-24">
       <header className="pt-10 pb-5">
-        <a href="/blackbook" className="t-label text-ink-3 no-underline">
+        <Link href="/blackbook" className="t-label text-ink-3 no-underline">
           ← Blackbook
-        </a>
+        </Link>
       </header>
+
+      {/* Who they are, first. The page showed a history and a note and
+          never said whose they were. */}
+      <Details leadId={leadId} />
+      <Requirements leadId={leadId} readOnly={readOnly} />
+      <Opportunities leadId={leadId} />
+      {!readOnly && <PersonTask leadId={leadId} name={null} />}
+      {!readOnly && <Plan leadId={leadId} />}
 
       {/* The reply window, on the person rather than the thread. This is
           the moment it matters — an agent looking at somebody's history
@@ -47,7 +64,7 @@ export default function Person({ params }: { params: Promise<{ leadId: string }>
         <div className="bg-sunk rounded-xl p-4 border-s-[3px] border-s-accent-edge mb-6">
           <p className="text-ui text-ink font-medium">The reply window has closed</p>
           <p className="text-sm text-ink-2 mt-1 max-w-[46ch] leading-snug">
-            A normal message won't arrive — WhatsApp accepts it and never delivers it. Use an
+            A normal message won’t arrive — WhatsApp accepts it and never delivers it. Use an
             approved template, or ring them.
           </p>
         </div>
@@ -60,6 +77,7 @@ export default function Person({ params }: { params: Promise<{ leadId: string }>
         </div>
       )}
 
+      {!readOnly && <>
       <h2 className="font-sans font-medium text-sub text-ink mb-1">Your note</h2>
       <p className="text-sm text-ink-3 mb-3">Yours alone. No manager sees this.</p>
       {editing ? (
@@ -76,9 +94,10 @@ export default function Person({ params }: { params: Promise<{ leadId: string }>
       ) : (
         <button className="btn-inline" onClick={() => setEditing(true)}>Write a note</button>
       )}
+      </>}
 
       <h2 className="font-sans font-medium text-sub text-ink mt-10 mb-3">Everything</h2>
-      <div className="border-t border-ink">
+      <div className="border-t border-rule-strong">
         {(data?.entries ?? []).map((e, i) => (
           <div key={i} className="flex items-baseline gap-3 py-3 border-b border-rule">
             <span className={cn("t-label w-16 shrink-0",

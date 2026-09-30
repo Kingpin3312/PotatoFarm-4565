@@ -171,7 +171,11 @@ if _os.path.exists(_css_path):
                       # stylesheet first, not assumed from the docs —
                       # `.ms-auto{margin-inline-start:auto}` and the rest
                       # are all in `.next/static/css`.
-                      r'|ms|me|ps|pe|start|end)-')
+                      r'|ms|me|ps|pe|start|end'
+                      # `align-top`, for the invoice table's cells, on the
+                      # same terms: `.align-top{vertical-align:top}` was
+                      # found in the compiled stylesheet before this line.
+                      r'|align)-')
     _used = set()
     for _f in _g.glob(_os.path.join(ROOT, "src/**/*.tsx"), recursive=True):
         for _m2 in _re.finditer(r'className="([^"{]+)"', open(_f).read()):

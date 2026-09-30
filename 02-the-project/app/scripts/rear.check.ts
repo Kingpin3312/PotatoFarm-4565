@@ -98,7 +98,7 @@ async function main() {
     process.exit(1);
   }
 
-  const org = await db.organisation.findFirst({ where: { deletedAt: null }, select: { id: true } });
+  const org = await db.organisation.findFirst({ where: { slug: "seed-marina", deletedAt: null }, select: { id: true } });
   if (!org) { console.error("no organisation"); process.exit(1); }
 
   const made: string[] = [];

@@ -92,6 +92,7 @@ export async function drainPublishQueue(limit = 200): Promise<Result> {
     try {
       const listing = await crossTenant("sweep").listing.findFirst({
         where: { id: row.listingId, deletedAt: null },
+        include: { location: { select: { pfLocationId: true } } },
       });
       const channel = await crossTenant("sweep").channel.findUnique({
         where: { id: row.channelId },

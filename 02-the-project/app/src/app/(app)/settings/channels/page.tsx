@@ -89,7 +89,7 @@ export default function Channels() {
           said, above an empty list, while every inbound WhatsApp message
           was being dropped as coming from an unknown number. */}
       {all && all.length === 0 && (
-        <div className="border-t border-ink py-10 max-w-[48ch]">
+        <div className="border-t border-rule-strong py-10 max-w-[48ch]">
           <p className="text-sub font-medium text-ink">Nothing is connected yet.</p>
           <p className="text-sm text-ink-2 mt-2">
             Until a WhatsApp number is connected here, messages sent to it do not reach
@@ -99,7 +99,7 @@ export default function Channels() {
         </div>
       )}
 
-      <div className="border-t border-ink">
+      <div className="border-t border-rule-strong">
         {(all ?? []).map((ch) => {
           // `health` only carries active channels, so a disconnected one
           // has no entry there. Absent means "no silence to report",

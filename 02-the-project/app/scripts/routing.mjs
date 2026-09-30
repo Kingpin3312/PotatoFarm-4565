@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { clearCheckDebris } from "./lib/demo-debris.mjs";
 import { PrismaClient } from "@prisma/client";
 
 /**
@@ -31,7 +32,9 @@ const ok = (l, p, d = "") => { console.log(`  ${p ? "✓" : "✗"} ${l}${d ? "  
 const db = new PrismaClient({
   datasources: { db: { url: process.env.DATABASE_URL_UNSCOPED ?? process.env.DATABASE_URL } },
 });
-const org = await db.organisation.findFirst({ where: { deletedAt: null }, select: { id: true } });
+const org = await db.organisation.findFirst({ where: { slug: "seed-marina", deletedAt: null }, select: { id: true } });
+// Whatever an earlier run left if it died before its clean-up.
+await clearCheckDebris(db, org.id);
 const NUMBER_ID = `ROUTE-TEST-${Date.now()}`;
 const made = [];
 
@@ -81,6 +84,20 @@ await db.channel.create({
  * whatever the data allows is a check that stops testing the thing —
  * so it builds the condition instead, and removes it afterwards.
  */
+// A run that crashed before its clean-up left its agent in the demo
+// brokerage, receiving real round-robin leads (the second audit's N12).
+// Clear any before adding this run's.
+{
+  const stale = await db.user.findMany({ where: { email: { startsWith: "routing-check-", endsWith: "@example.invalid" } }, select: { id: true } });
+  const ids = stale.map((u) => u.id);
+  if (ids.length) {
+    await db.lead.updateMany({ where: { assignedToId: { in: ids } }, data: { assignedToId: null, assignedAt: null } });
+    await db.leadOwnership.deleteMany({ where: { userId: { in: ids } } });
+    await db.agentAvailability.deleteMany({ where: { userId: { in: ids } } }).catch(() => {});
+    await db.membership.deleteMany({ where: { userId: { in: ids } } });
+    await db.user.deleteMany({ where: { id: { in: ids } } }).catch(() => {});
+  }
+}
 const extra = await db.user.create({
   data: { email: `routing-check-${Date.now()}@example.invalid`, name: "Rotation Check" },
   select: { id: true },

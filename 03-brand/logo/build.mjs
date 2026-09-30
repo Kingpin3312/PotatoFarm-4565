@@ -47,8 +47,15 @@ const py = (args) =>
 const MARK = py([]);                                  // <svg …>…</svg>, 64x64
 const GLOW = py(["--glow"]);                          // 128x128 on dark
 
-const GROUND = "#FFFFFF";
+const GROUND = "#FFFFFF";   // the light lockups, for use on white paper
 const NAVY = "#12202E";
+/** The product's own ground and ink: the grey, near-white, and the
+ *  darker band. The maskable icon and the share images carry the
+ *  product's identity, so they sit on it rather than on white. */
+const BRAND = "#292C32";
+const BRAND_INK = "#F3F4F6";
+const BRAND_INK_2 = "#C9CCD2";
+const BRAND_DEEP = "#1F2126";
 
 /**
  * The icon ladder.
@@ -96,7 +103,7 @@ for (const s of ICONS) {
 {
   const s = 512, inner = Math.round(s * MASKABLE_INSET);
   await shot(
-    `<div style="width:${s}px;height:${s}px;background:${GROUND};display:grid;place-items:center">
+    `<div style="width:${s}px;height:${s}px;background:${BRAND};display:grid;place-items:center">
        <div style="width:${inner}px;height:${inner}px">${sized(MARK, inner)}</div></div>`,
     s, s, path.join(LOGO, "icon-maskable-512.png"), false
   );
@@ -105,7 +112,7 @@ for (const s of ICONS) {
 // ---- the dark treatment ---------------------------------------------
 for (const s of [512, 192]) {
   await shot(
-    `<div style="width:${s}px;height:${s}px;background:#0A0705;display:grid;place-items:center">
+    `<div style="width:${s}px;height:${s}px;background:#1F2126;display:grid;place-items:center">
        <div style="width:${s}px;height:${s}px">${sized(GLOW, s)}</div></div>`,
     s, s, path.join(LOGO, `icon-glow-${s}.png`), false
   );
@@ -116,10 +123,10 @@ for (const s of [512, 192]) {
 // than from a stretched favicon, which is what the brief calls out and
 // what the old og-default.png was.
 for (const [name, bg, word] of [
-  ["og-image", GROUND, NAVY],
-  ["og-image-dark", "#0A0705", "#F5F3F0"],
+  ["og-image", BRAND, BRAND_INK],
+  ["og-image-dark", BRAND_DEEP, BRAND_INK],
 ]) {
-  const dark = bg !== GROUND;
+  const dark = bg === BRAND_DEEP;
   await shot(
     `<div style="width:1200px;height:630px;background:${bg};display:flex;
                  flex-direction:column;align-items:center;justify-content:center;gap:34px;
@@ -127,8 +134,8 @@ for (const [name, bg, word] of [
        <div style="width:${dark ? 330 : 260}px;height:${dark ? 330 : 260}px">
          ${sized(dark ? GLOW : MARK, dark ? 330 : 260)}</div>
        <div style="font-size:76px;font-weight:600;letter-spacing:-.028em;color:${word}">
-         PotatoFarm<span style="color:#FF5A00;font-weight:500">.io</span></div>
-       <div style="font-size:27px;color:${dark ? "#B5B5B5" : "#4A4A4A"};letter-spacing:-.01em">
+         PotatoFarm<span style="color:#FF1493;font-weight:500">.io</span></div>
+       <div style="font-size:27px;color:${BRAND_INK_2};letter-spacing:-.01em">
          Every property enquiry answered in seconds.</div>
      </div>`,
     1200, 630, path.join(LOGO, `${name}.png`), false
@@ -145,9 +152,9 @@ for (const [name, bg, word] of [
 // exists to prevent, in the files it does not reach.
 for (const [name, w, h, bg] of [
   ["lockup",                  300, 64,  GROUND],
-  ["lockup-reversed",         300, 64,  "#2A2825"],
+  ["lockup-reversed",         300, 64,  "#1F2126"],
   ["lockup-stacked",          300, 162, GROUND],
-  ["lockup-stacked-reversed", 300, 162, "#2A2825"],
+  ["lockup-stacked-reversed", 300, 162, "#1F2126"],
   ["lockup-stacked-onbg",     300, 162, GROUND],
 ]) {
   const f = path.join(LOGO, `${name}.svg`);
@@ -192,13 +199,13 @@ for (const [name, w, h, bg] of [
                  flex-direction:column;gap:26px">
        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:22px">
          ${cell("Stacked", stacked, GROUND)}
-         ${cell("Reversed", rev, "#2A2825")}
+         ${cell("Reversed", rev, "#1F2126")}
          ${cell("Horizontal", `<div style="width:100%;max-width:260px">${horiz.replace("<svg ", '<svg style="width:100%;height:auto" ')}</div>`, GROUND)}
        </div>
        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:22px">
          ${cell("App icon", `<div style="width:96px;height:96px">${sized(MARK, 96)}</div>`, GROUND)}
          ${cell("Maskable", `<div style="width:96px;height:96px;transform:scale(.62)">${sized(MARK, 96)}</div>`, GROUND)}
-         ${cell("Dark", `<div style="width:120px;height:120px">${sized(GLOW, 120)}</div>`, "#0A0705")}
+         ${cell("Dark", `<div style="width:120px;height:120px">${sized(GLOW, 120)}</div>`, "#1F2126")}
          ${cell("16 · 32 · 48",
             `<div style="display:flex;align-items:flex-end;gap:14px">
                <div style="width:16px;height:16px">${sized(MARK, 16)}</div>

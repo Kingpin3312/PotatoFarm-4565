@@ -6,6 +6,7 @@ import {
 } from "@/server/lib/commission/calculate";
 import { aed, aedToFils } from "@/lib/money";
 import { audit } from "@/server/lib/audit";
+import { can } from "@/server/auth/rbac";
 
 /**
  * The whole fee to the brokerage, when no split has been entered.
@@ -63,6 +64,16 @@ export const commissionRouter = router({
         // Three numbers, in the order an agent cares about them.
         paid: aed(sum((s) => s.paidAt !== null)),
         owed: aed(sum((s) => s.paidAt === null && s.commission.status === "RECEIVED")),
+        /**
+         * Billed to the client and not yet in the brokerage's account.
+         *
+         * An INVOICED commission appeared in none of the three figures
+         * above — not paid, not owed, not forecast — so the moment a fee
+         * was invoiced it vanished from the agent's screen until it was
+         * received. Nothing could invoice one until now, which is the
+         * only reason nobody saw it happen.
+         */
+        invoiced: aed(sum((s) => s.commission.status === "INVOICED")),
         forecast: aed(sum((s) => s.commission.status === "FORECAST")),
         rows: splits.map((s) => ({
           deal: s.commission.deal.reference,
@@ -72,6 +83,176 @@ export const commissionRouter = router({
         })),
       };
     }),
+
+  /**
+   * Commissions still in motion, for the person who runs the books.
+   *
+   * Forecast and invoiced fees, and received ones with a share still to
+   * pay out. A fee fully settled drops off; a written-off one too, since
+   * the report above counts those.
+   */
+  ledger: requirePermission("revenue:read").query(async ({ ctx }) => {
+    const rows = await ctx.db.commission.findMany({
+      where: {
+        OR: [
+          { status: { in: ["FORECAST", "INVOICED"] } },
+          { status: "RECEIVED", splits: { some: { paidAt: null, role: { not: "BROKERAGE" } } } },
+        ],
+      },
+      orderBy: { id: "desc" },
+      take: 100,
+      select: {
+        id: true, status: true, grossFils: true, invoicedAt: true, receivedAt: true,
+        deal: { select: { reference: true } },
+        splits: {
+          select: { id: true, userId: true, externalName: true, role: true, amountFils: true, paidAt: true, paidRef: true },
+          orderBy: { amountFils: "desc" },
+        },
+      },
+    });
+    const ids = [...new Set(rows.flatMap((r) => r.splits.map((s) => s.userId)).filter((x): x is string => !!x))];
+    const users = ids.length
+      ? await ctx.db.user.findMany({ where: { id: { in: ids } }, select: { id: true, name: true, email: true } })
+      : [];
+    const nameOf = new Map(users.map((u) => [u.id, u.name ?? u.email]));
+    return {
+      canSettle: can(ctx.role, "commission:settle"),
+      rows: rows.map((r) => ({
+        id: r.id, deal: r.deal.reference, status: r.status, gross: aed(r.grossFils),
+        invoicedAt: r.invoicedAt, receivedAt: r.receivedAt,
+        splits: r.splits.map((s) => ({
+          id: s.id, role: s.role, amount: aed(s.amountFils), paidAt: s.paidAt, paidRef: s.paidRef,
+          who: s.userId ? (nameOf.get(s.userId) ?? "Former colleague")
+             : s.role === "BROKERAGE" ? "The brokerage" : (s.externalName ?? sentenceRole(s.role)),
+          payable: s.role !== "BROKERAGE",
+        })),
+      })),
+    };
+  }),
+
+  /**
+   * Move a commission along: invoiced, received, written off.
+   *
+   * ## Why this exists
+   *
+   * `Commission.status` was declared with four values and **nothing ever
+   * set it past FORECAST**. `commission.mine` computes "owed to you" from
+   * RECEIVED, and the revenue report dates everything it earned by
+   * `receivedAt` — so every agent was owed nothing, and every brokerage
+   * had earned nothing, for as long as the product has existed. The
+   * report's own comment warns that a screen showing zero "reads as 'we
+   * earned nothing', which is the reassuring direction to be wrong in".
+   * It was wrong in exactly that direction, for everybody.
+   *
+   * The allowed moves are the ones a finance person actually makes. A
+   * received fee can go back to invoiced — a mis-click on a button that
+   * says "received" must be undoable — but not once anybody has been
+   * paid out of it, because then the money has moved and the record of
+   * it has to stand. The update is conditional on the status it was
+   * read with, so two people pressing at once cannot both win.
+   */
+  setStatus: requirePermission("commission:settle")
+    .input(z.object({
+      id: z.string(),
+      to: z.enum(["INVOICED", "RECEIVED", "WRITTEN_OFF"]),
+      /** When it happened. Defaults to now; a date in the future is refused. */
+      at: z.date().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const at = input.at ?? new Date();
+      if (at.getTime() > Date.now() + 86_400_000) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "That date is in the future." });
+      }
+      return ctx.db.$transaction(async (tx) => {
+        const c = await tx.commission.findUnique({
+          where: { id: input.id },
+          select: { id: true, status: true, invoicedAt: true, receivedAt: true, splits: { select: { paidAt: true } } },
+        });
+        if (!c) throw new TRPCError({ code: "NOT_FOUND" });
+
+        const allowed: Record<string, string[]> = {
+          FORECAST: ["INVOICED", "RECEIVED", "WRITTEN_OFF"],
+          INVOICED: ["RECEIVED", "WRITTEN_OFF"],
+          RECEIVED: ["INVOICED"],
+          WRITTEN_OFF: ["INVOICED", "RECEIVED"],
+        };
+        if (!allowed[c.status]?.includes(input.to)) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: (() => {
+              const from = c.status.toLowerCase().replace("_", " ");
+              return `${/^[aeiou]/.test(from) ? "An" : "A"} ${from} commission cannot be marked ${input.to.toLowerCase().replace("_", " ")}.`;
+            })(),
+          });
+        }
+        if (c.status === "RECEIVED" && c.splits.some((s) => s.paidAt)) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Somebody has already been paid from this commission, so it stays received.",
+          });
+        }
+
+        const data =
+          input.to === "INVOICED" ? { status: "INVOICED" as const, invoicedAt: c.invoicedAt ?? at, receivedAt: null }
+          : input.to === "RECEIVED" ? { status: "RECEIVED" as const, receivedAt: at }
+          : { status: "WRITTEN_OFF" as const };
+
+        const { count } = await tx.commission.updateMany({ where: { id: c.id, status: c.status }, data });
+        if (count !== 1) {
+          throw new TRPCError({ code: "CONFLICT", message: "Somebody else changed this commission just now. Refresh and try again." });
+        }
+        await audit(tx, ctx.orgId, {
+          actorId: ctx.userId, action: "commission.status",
+          entity: "Commission", entityId: c.id,
+          before: { status: c.status }, after: { status: input.to, at: at.toISOString() },
+        });
+        return { id: c.id, status: input.to };
+      });
+    }),
+
+  /**
+   * An agent's share, paid.
+   *
+   * `CommissionSplit.paidAt` was read by three screens — "paid", "owed",
+   * the unpaid column on the revenue board — and written by nothing.
+   * Only once the brokerage has the money: "owed to you" means received
+   * and not yet paid, and paying out of a fee still on an invoice is an
+   * advance, which is a different conversation. The brokerage's own
+   * share is not "paid" to anybody.
+   */
+  markPaid: requirePermission("commission:settle")
+    .input(z.object({
+      splitId: z.string(),
+      /** The transfer or payslip reference, so the payment can be found again. */
+      reference: z.string().trim().max(80).optional(),
+    }))
+    .mutation(async ({ ctx, input }) =>
+      ctx.db.$transaction(async (tx) => {
+        const s = await tx.commissionSplit.findUnique({
+          where: { id: input.splitId },
+          select: { id: true, role: true, paidAt: true, amountFils: true, userId: true,
+                    commission: { select: { id: true, status: true } } },
+        });
+        if (!s) throw new TRPCError({ code: "NOT_FOUND" });
+        if (s.role === "BROKERAGE") {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "The brokerage's own share is not paid out to anybody." });
+        }
+        if (s.commission.status !== "RECEIVED") {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Mark the commission received before paying anybody from it." });
+        }
+        const { count } = await tx.commissionSplit.updateMany({
+          where: { id: s.id, paidAt: null },
+          data: { paidAt: new Date(), paidRef: input.reference || null },
+        });
+        if (count !== 1) throw new TRPCError({ code: "BAD_REQUEST", message: "That share has already been paid." });
+        await audit(tx, ctx.orgId, {
+          actorId: ctx.userId, action: "commission.paid",
+          entity: "CommissionSplit", entityId: s.id,
+          after: { commissionId: s.commission.id, userId: s.userId, amount: s.amountFils.toString(), reference: input.reference ?? null },
+        });
+        return { id: s.id, paid: true };
+      })
+    ),
 
   /** Dry run, so a split can be argued with before it is saved. */
   preview: orgProcedure

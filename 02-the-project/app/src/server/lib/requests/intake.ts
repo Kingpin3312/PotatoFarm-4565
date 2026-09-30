@@ -189,19 +189,9 @@ export function trusted(raw: Intake): { value: Intake; dropped: string[] } {
   };
 }
 
-/** E.164, or nothing. A half-valid phone number is worse than none. */
-export function normalisePhone(raw: string | null): string | null {
-  if (!raw) return null;
-  const digits = raw.replace(/[^\d+]/g, "");
-  const e164 = digits.startsWith("+")
-    ? digits
-    // A UAE mobile said as "050 448 2211" or "0504482211".
-    : digits.startsWith("00") ? `+${digits.slice(2)}`
-    : digits.startsWith("05") && digits.length === 10 ? `+971${digits.slice(1)}`
-    : digits.startsWith("971") ? `+${digits}`
-    : null;
-  return e164 && /^\+[1-9]\d{7,14}$/.test(e164) ? e164 : null;
-}
+/** E.164, or nothing — the shared reader, which also takes "501234567"
+ *  and "00971…" that the copy here used to refuse. */
+export { normalisePhone } from "@/lib/phone";
 
 export async function extractIntake(args: {
   orgId: string;

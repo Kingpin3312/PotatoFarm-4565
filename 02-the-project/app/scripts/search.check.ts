@@ -371,6 +371,77 @@ async function main() {
     ok("no results rather than weak ones", r.empty, names(r).join(" | "));
   }
 
+  /* -- the audit's probes: numbers, references, spelling, words -- */
+  console.log("\nThe way agents actually type:");
+  await root.lead.create({
+    data: { orgId: org.id, phone: "+971501234567", name: "Stephen Clarke",
+            status: "QUALIFYING", assignedToId: mine.id, createdAt: ago(90) },
+  });
+  const arOwner = await root.vendor.create({
+    data: { orgId: org.id, name: "Rashid Belhoul", phone: "+971507776666" },
+  });
+  await root.listing.create({
+    data: {
+      orgId: org.id, reference: "AR-508", title: "4-bed townhouse, Arabian Ranches",
+      community: "Arabian Ranches", bedrooms: 4, priceFils: M(5_200_000),
+      purpose: "SALE", status: "AVAILABLE", vendorId: arOwner.id,
+    },
+  });
+  await root.listing.create({
+    data: {
+      orgId: org.id, reference: "SC-3", title: "2-bed apartment, Jumeirah Village Circle",
+      community: "JVC", bedrooms: 2, priceFils: M(1_400_000),
+      purpose: "SALE", status: "AVAILABLE",
+    },
+  });
+  for (const typed of ["050 123 4567", "+971 50 123 4567", "0501234567", "971501234567", "1234567"]) {
+    const r = await run(typed);
+    ok(`"${typed}" finds the person with that number`,
+       r.hits[0]?.title === "Stephen Clarke", names(r).join(" | ") || "nothing");
+  }
+  {
+    const r = await run("050 123 4567");
+    ok("and says it was the number", (r.hits[0]?.why ?? []).includes("phone number matches"),
+       (r.hits[0]?.why ?? []).join(" · "));
+    ok("and is not read as a budget", parse("050 123 4567").budget === null);
+  }
+  {
+    const r = await run("0507776666");
+    ok("an owner is found by their number too", names(r).includes("Rashid Belhoul"), names(r).join(" | "));
+  }
+  {
+    const r = await run("Stephan");
+    ok("a name spelt nearly right still finds them", names(r).includes("Stephen Clarke"), names(r).join(" | "));
+    ok("and says it was close, not exact",
+       (r.hits.find((h) => h.title === "Stephen Clarke")?.why ?? []).some((w) => w.startsWith("name is close")),
+       (r.hits.find((h) => h.title === "Stephen Clarke")?.why ?? []).join(" · "));
+  }
+  {
+    const r = await run("Rashed");
+    ok("an owner's name spelt nearly right too", names(r).includes("Rashid Belhoul"), names(r).join(" | "));
+  }
+  {
+    const r = await run("Stephen");
+    const exact = r.hits.find((h) => h.title === "Stephen Clarke")?.score ?? 0;
+    const close = (await run("Stephan")).hits.find((h) => h.title === "Stephen Clarke")?.score ?? 0;
+    ok("an exact name outranks a close one", exact > close, `${exact} vs ${close}`);
+  }
+  for (const typed of ["AR-508", "ar508", "AR 508", "ar-508"]) {
+    const r = await run(typed);
+    ok(`"${typed}" finds listing AR-508 first`,
+       r.hits[0]?.kind === "property" && r.hits[0]?.subtitle?.startsWith("AR-508") === true,
+       names(r).join(" | ") || "nothing");
+  }
+  {
+    const r = await run("AR 508");
+    ok("and its owner", names(r).includes("Rashid Belhoul"), names(r).join(" | "));
+  }
+  {
+    const r = await run("villa");
+    ok("'villa' finds the villa", names(r).some((n) => n.includes("villa")), names(r).join(" | "));
+    ok("and not the flat in Jumeirah Village", !names(r).some((n) => n.includes("Village")), names(r).join(" | "));
+  }
+
   /* -- tenancy -- */
   console.log("\nTenancy:");
   const rival = await root.organisation.create({
@@ -380,6 +451,26 @@ async function main() {
     data: { orgId: rival.id, phone: "+971509999111", name: "Khalid Al Suwaidi",
             status: "QUALIFYING", budgetMaxFils: M(4_100_000), intent: "BUY_TO_INVEST" },
   });
+  await root.lead.create({
+    data: { orgId: rival.id, phone: "+971501234567", name: "Stephen Clarke", status: "QUALIFYING" },
+  });
+  {
+    const r = await run("Stephan", asManager);
+    /**
+     * What this guards is the result, not the lookup. Removing both the
+     * scoped transaction and the `orgId` clause from the similarity query
+     * stays green — measured — because that query returns ids only and
+     * the records are then fetched through `forOrg`, so a rival's id
+     * finds nothing. Two layers; this proves the outer one.
+     */
+    ok("a close spelling in another brokerage never surfaces",
+       r.hits.filter((h) => h.title === "Stephen Clarke").length === 1,
+       String(r.hits.filter((h) => h.title === "Stephen Clarke").length));
+    const p = await run("050 123 4567", asManager);
+    ok("so does the phone lookup",
+       p.hits.filter((h) => h.title === "Stephen Clarke").length === 1,
+       String(p.hits.filter((h) => h.title === "Stephen Clarke").length));
+  }
   {
     const r = await search({ orgId: rival.id, q: parse("Emirati investor around 4 million"), scope: asManager });
     ok("the rival's own lead is the only thing they see",

@@ -62,7 +62,7 @@ export default function CommissionPlans() {
         </p>
       </header>
 
-      <div className="border-t border-ink">
+      <div className="border-t border-rule-strong">
         {rows.map((r) => (
           <div key={r.userId} className="py-4 border-b border-rule">
             <div className="flex items-baseline gap-3 flex-wrap">

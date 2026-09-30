@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/trpc";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/cn";
 import { QueryError } from "@/components/ui/query-state";
 
 /**
@@ -24,6 +26,88 @@ import { QueryError } from "@/components/ui/query-state";
  * So `configured` is the first thing this screen renders, and it is the
  * whole point of it.
  */
+/**
+ * Whether the assistant replies by itself while qualifying, with the
+ * evidence beside the switch: what agents did with its drafts. An owner
+ * deciding to let it send should be looking at that number when they do.
+ */
+const REPLY_MODES = [
+  {
+    key: "off", on: false, outOfHours: false, label: "Off",
+    blurb: "Every reply is drafted for an agent to send.",
+  },
+  {
+    key: "ooh", on: true, outOfHours: true, label: "Outside working hours",
+    blurb: "While you are closed, it replies to new buyers by itself and qualifies them. While you are open, it drafts and an agent sends. The usual first step.",
+  },
+  {
+    key: "always", on: true, outOfHours: false, label: "Always",
+    blurb: "It replies to new buyers by itself at any hour while it qualifies them, then hands over to their agent.",
+  },
+] as const;
+
+function AutoReply() {
+  const { data: status } = api.assistant.status.useQuery();
+  const { data: stats } = api.assistant.draftStats.useQuery();
+  const utils = api.useUtils();
+  const set = api.assistant.setAutoReply.useMutation({
+    onSuccess: () => void utils.assistant.status.invalidate(),
+  });
+  if (!status) return null;
+  const current = !status.autoReply ? "off" : status.autoReplyOutOfHours ? "ooh" : "always";
+  return (
+    <section className="border-t border-rule-strong pt-6 pb-8" aria-labelledby="auto-reply">
+      <h2 id="auto-reply" className="text-sub font-semibold text-ink">Replies while qualifying</h2>
+      <p className="text-sm text-ink-2 mt-2 max-w-[52ch]">
+        When a new buyer writes, whether the assistant replies by itself within seconds, asking your
+        questions one at a time, or drafts the reply for an agent. Once an agent writes in a
+        conversation, it goes back to drafting there.
+      </p>
+      <div role="radiogroup" aria-labelledby="auto-reply" className="mt-4 grid gap-2 max-w-[560px]">
+        {REPLY_MODES.map((m) => {
+          const on = current === m.key;
+          return (
+            <button
+              key={m.key}
+              type="button"
+              role="radio"
+              aria-checked={on}
+              disabled={set.isPending}
+              onClick={() => { if (!on) set.mutate({ on: m.on, outOfHours: m.outOfHours }); }}
+              className={cn(
+                "rounded-xl border px-4 py-3 text-start disabled:opacity-60 focus-visible:outline-none focus-visible:shadow-[var(--ring)]",
+                on ? "border-ink bg-sunk" : "border-rule hover:border-rule-strong",
+              )}
+            >
+              <span className="flex items-baseline gap-2">
+                <span className="text-control font-medium text-ink">{m.label}</span>
+                {/* In words. The border alone is not a signal. */}
+                {on && <span className="t-label text-accent-deep">Chosen</span>}
+              </span>
+              <span className="mt-1 block max-w-[52ch] text-sm leading-snug text-ink-2">{m.blurb}</span>
+            </button>
+          );
+        })}
+      </div>
+      {current === "ooh" && (
+        <p className="text-note text-ink-3 mt-3 max-w-[52ch]">
+          Your hours are under <Link href="/settings/hours" className="text-ink">Settings → Working hours</Link>.
+        </p>
+      )}
+      <p className="text-note text-ink-3 mt-3 max-w-[52ch]">
+        It never claims to be a person, and says it is the brokerage&rsquo;s assistant if asked.
+        “Stop everything” and “I&rsquo;ve got this” still stop it at once.
+      </p>
+      {stats && stats.sentAsWrittenPct !== null && (
+        <p className="text-note text-ink-2 mt-2">
+          Last 30 days: agents sent {stats.sentAsWrittenPct}% of {stats.decided} drafts exactly as written.
+        </p>
+      )}
+      {set.error && <p role="alert" className="text-sm text-danger-deep mt-3">{set.error.message}</p>}
+    </section>
+  );
+}
+
 export default function AssistantScript() {
   const { data, isLoading, isError, refetch, error } = api.assistant.script.useQuery();
   const utils = api.useUtils();
@@ -79,6 +163,8 @@ export default function AssistantScript() {
         )}
       </header>
 
+      {script.configured && <AutoReply />}
+
       {!script.configured ? (
         <p className="text-sm text-ink-2 max-w-[46ch]">
           Contact support. A script is created when a brokerage is set up, so a missing one
@@ -86,7 +172,7 @@ export default function AssistantScript() {
         </p>
       ) : (
         <form
-          className="border-t border-ink pt-6 flex flex-col gap-6"
+          className="border-t border-rule-strong pt-6 flex flex-col gap-6"
           onSubmit={(e) => {
             e.preventDefault();
             setSaved(false);

@@ -68,7 +68,7 @@ BODY = ("M27.6,3.0 C34.6,3.0 40.6,6.6 44.0,11.6 "
 # replaces argued the opposite. That history is kept because it is the
 # reason somebody would change it back.**
 #
-# What was here: one flat #FF5A00, everywhere, because a branding team
+# What was here: one flat #FF1493, everywhere, because a branding team
 # had twice objected that the logo was a different orange from the
 # product. The fix was to collapse the mark to the single interface
 # accent. It satisfied the objection and it also flattened the artwork
@@ -124,7 +124,7 @@ GLOSS  = "#FFF0CE"   # the specular edge, upper left.  hue 42
 # logo is not a reason to recolour every heading and table in a CRM.
 NAVY     = "#12202E"   # 14.88:1 on the ground
 NAVY_REV = "#F5F3F0"   # the same word on charcoal, where navy vanishes
-TLD      = "#FF5A00"   # the ".io" - the brand orange, Option 1
+TLD      = "#FF1493"   # the ".io" - the brand orange, Option 1
 
 # Four stops, not three. The artwork's light falls from the upper left
 # and turns over into shadow across the lower right, and three stops put
@@ -265,7 +265,7 @@ def svg(pfx: str, extra_g: str = "", size: str = "") -> str:
 # The viewBox is padded to 128 rather than 64 because a bloom that wide
 # is clipped by a tight box, and a clipped glow reads as a rectangle of
 # slightly lighter black around the logo.
-GLOW_BG = "#0A0705"   # not pure black; the reference has warmth in it
+GLOW_BG = "#1F2126"   # the darker grey of the product band, never black
 
 
 def glow(pfx: str) -> str:

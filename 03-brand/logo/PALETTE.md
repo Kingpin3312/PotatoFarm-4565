@@ -1,83 +1,61 @@
 # The palette
 
-**Three colours: `#FF5A00`, `#12202E` and charcoal.** The orange was
-set by the owner, and has been set by the owner four times — `#E86A2C`,
-`#FFA500`, `#C65A1E`, and now `#FF5A00`. Where a number below is
-measured against an earlier value it says so; where it is present tense
-it has been re-measured against `#FF5A00`. **The authority is
-`tokens.css`, not this file.** A document that restates a hex is a
-document that will one day disagree with the product, and this one
-did — for three accents. The navy arrived with the supplied logo artwork and
-dresses the wordmark only — it is not an interface colour, and `--ink`
-stays neutral. There is no fourth hue anywhere in the product.
+**Two colours: neon pink `#FF1493` on grey `#292C32`.** Set by the
+owner, and every other shade is derived from the grey — a darker step
+for the navigation band, lighter steps for panels and cards, subtle
+rules, near-white ink and a muted light grey. There is no second
+accent anywhere in the product: no orange, blue, green, purple or gold.
+**The authority is `tokens.css`, not this file**; `03-brand/repalette.py`
+moves every surface at once and `consistency.py` fails the build if one
+drifts.
 
-**Where the orange goes, and where it stopped going.** Primary actions,
-the active navigation state, selected rows, focus, the assistant's own
-output, and the `.io`. Roughly 2% of any screen.
+**Where the pink goes.** Primary buttons, active navigation, selected
+rows, links, key figures, focus, progress, the assistant's own output,
+the states that must pull the eye, and the `.io`.
 
-It used to go on every heading as well, and that is the one line of
-this file worth reading twice, because it was wrong in two separate
-ways and both were invisible until something measured them.
+It replaced white, charcoal and one orange, and it is a recolour, not a
+redesign: every token kept its name and its job, so no component changed
+to take the new colours.
 
-*The arithmetic.* Option 1 sets the surface at roughly 70% white, 20%
-warm grey, 8% charcoal and 2% orange. A 68px hero headline is not 2% of
-anything. On a 390px phone the marketing front page came out majority
-orange, and "Book a call" — the only thing on that page with a job —
-competed with the sentence above it instead of standing out from it.
-
-*The contrast.* `h3` is 20px at weight 500. WCAG large text starts at
-24px, or 18.66px bold, so an orange h3 needed 4.5:1 and had 3.22:1.
-`contrast.py` allowed it, because the exception was written against the
-whole `h1,h2,h3` selector on the grounds that "every heading these
-selectors cover is display-sized" — true of two of the three. An
-exception written per-selector cannot see that one element in the group
-is a different size from the others.
-
-Headings are `#171717` now, at 17.93:1, and the exception is deleted
-rather than narrowed. Everything that is not orange is ink.
-
-Two palettes ago this file described a `#FF6E00` family that existed in
-no asset anywhere, so the rule now is that every figure below is
-measured against the shipped token, not estimated and not carried
-forward. `03-brand/repalette.py` is what moves all the surfaces at once,
-and `consistency.py` fails the build if one of them drifts.
-
-**The mark is the exception, and it is the only one.** A logo is exempt
-from contrast rules; a button is not. The illustration keeps its warmer
-accent gradient. The `.io` beside it does not — that is type.
+**The mark is the exception, and it is the only one.** The potato is
+artwork and keeps its own lit gradient. The `.io` beside it is type, and
+takes the pink.
 
 ### The interface
 
-Every figure re-measured against the shipped tokens under Option 1.
-The previous version of this table carried the cream-ground numbers
-forward — `#E86A2C` was recorded at 2.56:1 and is 3.22:1 on white, and
-the navy at 14.88:1 is 16.51:1 — which is precisely the drift the
-paragraph above says this file exists to prevent.
+Every figure measured against the shipped tokens.
 
-| Role | Hex | On ground `#FFFFFF` | On panel `#F5F3F0` | Where |
+| Role | Hex | On ground `#292C32` | On panel `#2F3238` | Where |
 |---|---|---|---|---|
-| **Brand** | **`#FF5A00`** | **3.13:1** | 2.82:1 | Fills, focus, active state, selected, `.io` — **never type** |
-| **Wordmark navy** | **`#12202E`** | **16.51:1** | 14.91:1 | "PotatoFarm", and nothing else |
-| Hover / shade | `#FF5A00` | 3.13:1 | 2.82:1 | The same orange — the ramp is gone |
-| Edge | `#FF5A00` | 3.13:1 | 2.82:1 | The same orange |
-| Deep | `#171717` | **17.93:1** | 16.19:1 | Orange type on a light ground is ink — see below |
-| Soft | `#FFF0E8` | — | — | The tint on machine-written text and selected rows |
-| Ink | `#171717` | **17.93:1** | 16.19:1 | Headings, body, button labels, figures, tables |
-| Ink-2 | `#4A4A4A` | 8.86:1 | 8.00:1 | Secondary body |
-| Ink-3 | `#6B6B6B` | 5.33:1 | 4.81:1 | Captions and 10px labels |
-| Rule | `#E7E5E2` | 1.26:1 | — | Separators — decorative only |
-| Rule-strong | `#918A82` | 3.41:1 | 3.08:1 | Form-control boundaries (WCAG 1.4.11) |
+| **Brand** | **`#FF1493`** | **3.85:1** | 3.53:1 | Fills, focus, active state, selected, links, `.io` |
+| Hover / edge / type | `#FF1493` | 3.85:1 | 3.53:1 | The same pink — one value everywhere |
+| Soft | `#472940` | — | — | The pink mixed 14% into the grey: selected rows, machine-written text |
+| Ink | `#F3F4F6` | **12.72:1** | 11.68:1 | Headings, body, figures, tables, the wordmark |
+| Ink-2 | `#C9CCD2` | 8.70:1 | 7.99:1 | Secondary body |
+| Ink-3 | `#A0A5AE` | 5.66:1 | 5.19:1 | Captions and labels |
+| Rule | `#3D4148` | 1.36:1 | — | Separators — decorative only |
+| Rule-strong | `#7D828C` | 3.63:1 | 3.33:1 | Form-control boundaries (WCAG 1.4.11) |
+
+Cards (`--raised`, `#33373E`) and the darker navigation band
+(`--leather`, `#25282D`, and `--leather-deep`, `#1F2126`) are further
+steps of the same grey.
 
 **Every label on a fill takes `--on-accent`, which is white.**
+`#FFFFFF` on `#FF1493` is 3.64:1 — below the 4.5:1 AA floor for small
+text, chosen knowingly because white on neon pink is the direction's
+look. Button labels are semibold.
 
-`#171717` on `#FF5A00` is 5.73:1; `#FFFFFF` on `#FF5A00` is 3.13:1.
-So the readable choice is ink and the brand's choice is white. This token was briefly
-ink on exactly that reading and was changed back by the brand owner
-with the measurement in front of them, which is what makes it a
-decision rather than an oversight. The cost is recorded beside the
-token in `tokens.css` and is not re-argued here.
+## What this costs, plainly
 
-### The dark surfaces are charcoal, not black
+`#FF1493` as text on the grey is **3.85:1**. WCAG AA asks 4.5:1 for
+normal text and 3:1 for large. The pink clears the second and not the
+first, so pink *links* in a sentence are below AA on contrast alone.
+They are pink because the direction asks for pink links, and they keep
+their underline, which is the non-colour signal that keeps them
+findable. Everywhere else the pink is a fill, a border, an icon or a
+focus ring, where 3:1 is the requirement and it passes.
+
+### The mark
 
 | Role | Hex | Where |
 |---|---|---|
@@ -106,73 +84,21 @@ inside the 8–45 hue window `palette.py` enforces**, so the mark is
 still unambiguously the product's orange. It is now lit rather than
 recoloured.
 
-**Nothing in the interface moved.** `--accent` is still `#FF5A00`, the
-`.io` is still `#FF5A00`, and every contrast figure in the table above
-this section is unchanged. The values here dress the potato and nothing
-else.
+**The mark is artwork and keeps its own colours** through the move to
+pink: a recolour of the interface is not a redesign of the logo. The
+values here dress the potato and nothing else; the `.io` beside it is
+type, so it takes the pink.
 
 Drawn in one place — `03-brand/logo/mark.py` — and inlined into 47 copies
 by `--apply`.
 
-## What this costs, plainly
-
-**Nothing, now.** That sentence used to read differently, and the
-change is the point of this section.
-
-`#FF5A00` as text on white is **3.13:1**. WCAG AA asks 4.5:1 for normal
-text and 3:1 for large. It clears the second and not the first — so as
-long as the orange is a *surface* colour, and orange type steps down
-the same hue until it is readable, nothing in this product is below the
-threshold for what it is.
-
-That is only true because the headings moved. While the orange dressed
-every heading, this file recorded a deliberate accessibility cost: a
-person with reduced vision, or anybody reading a phone in Dubai
-sunlight, would find an orange heading harder than the near-black it
-replaced. That cost was accepted on the grounds that the brand was
-worth it. It has now been removed instead, and the brand is not
-diminished — the orange sits on the button, which is what a customer
-perceives as the brand colour anyway.
-
-## The four rules that keep it usable
-
-- **A label on orange is white, never ink.** Every button takes
-  `--on-accent`, which is `#FFFFFF`. The measurement runs the other way
-  and is stated rather than hidden.
-  `#171717` on `#FF5A00` is **5.73:1** and passes.
-  `#FFFFFF` on `#FF5A00` is **3.13:1** and does not — a 16px semibold
-  button
-  label is not "large text", which starts at 18.66px bold. This token
-  was ink for exactly that reason and was changed back by the brand
-  owner with the number in front of them. The two ways to keep white
-  *and* the contrast — darken the orange, or set labels at 18.66px bold
-  — are recorded beside the token for whoever revisits it.
-- **Every orange fill carries a hairline in the same orange.** The fill
-  is 2.82:1 against a panel, and `--accent-edge` is the same `#FF5A00`.
-  It used to be a darker step, `#B94E1F` at 4.54:1, and that step went
-  with the rest of the ramp: the direction is one colour. The border
-  still separates the control from what is behind it, and on a white
-  ground the fill's 3.13:1 clears the 3:1 WCAG 1.4.11 asks of a control
-  boundary.
-- **Orange type on a light ground is not orange: `--accent-deep` is `#171717`.**
-  Not "small orange type" — every size. That distinction used to carve
-  out headings and it is what let a 20px h3 through at 3.22:1.
-  `browser:option1` opens thirteen screens and measures computed colour
-  against computed size, because reading eighty-nine call sites is not
-  how the wrong ones get found.
-- **Colour is never the only signal for a state.** This became load-
-  bearing when the green and the red were removed — see below. It
-  applies to the soft orange too: `#FFF0E8` on `#FFFFFF` is a 1.11:1
-  tint, which is a reinforcement and not a signal, so every panel it
-  marks carries a word as well.
-
 ## State is no longer a colour
 
-`--success` was `#1F7A4C` and `--danger` was `#B3261E`. Both are gone:
-success is now ink, and danger is the accent itself — `#FF5A00`, the
-same orange as a primary action, because an error still has to pull the
-eye and there is only one colour left to pull it with. A confirmation
-that has already happened does not need to shout.
+`--success` was once a green and `--danger` a red. Both are gone:
+success is ink, and danger is the accent itself — the same pink as a
+primary action, because an error still has to pull the eye and there is
+only one colour to pull it with. A confirmation that has already
+happened does not need to shout.
 
 **This was checked before it was done.** All 32 places that used them
 already carried the word beside the colour — "Sent.", "PAID", "Reply
@@ -200,10 +126,5 @@ One source per surface, four surfaces: `app/src/styles/tokens.css`,
 pages. `consistency.py` compares the hexes across all four and fails when
 one drifts.
 
-`contrast.py` still measures every colour pair. The three brand
-exceptions — `h1,h2,h3`, `.display` and `.brand .tld` — are listed by
-name in `BRAND_EXCEPTIONS` with their measured value, printed on every
-run, and **the check fails again if the ratio ever drops below the
-recorded 2.56:1**. Proved by setting the orange to `#FF9977` and watching
-all three fail at 1.88:1. An exception that cannot detect its own drift
-is a hole, not an exception.
+`contrast.py` still measures every colour pair, and `ratios.py` checks
+every ratio written beside a colour in this file and the stylesheets.

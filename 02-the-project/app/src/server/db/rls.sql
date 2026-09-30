@@ -131,23 +131,14 @@ CREATE INDEX IF NOT EXISTS listing_deleted_idx ON "Listing" ("orgId", "deletedAt
 -- ---------------------------------------------------------------
 -- A conversation is with exactly one party.
 --
--- The constraint that stood here read:
---
 --   CHECK (("leadId" IS NULL) <> ("vendorId" IS NULL))
 --
--- and it could never have been applied, because **`Conversation` has no
--- `vendorId` column**. `leadId` is still `String @unique` and required.
---
--- That is not a typo in this file, it is a schema change that was
--- designed, written up in CLAUDE.md as done, and never made. Offer,
--- EmailMessage, BlackbookEntry, AgentRequest and FollowUp all carry a
--- `vendorId`; Conversation is the one that was missed — which means the
--- seller side of every deal is still, in CLAUDE.md's own words, half of
--- an agent's talking happening outside the system.
---
--- Reinstating the constraint needs the column, the relation, `leadId`
--- made optional, and the seventeen places that read `conversation.lead`
--- taught to handle its absence. That is a piece of work in its own right
--- and doing it badly, in passing, would be worse than leaving it
--- visible. The constraint returns with the column.
+-- stood here for a long time and could never be applied, because
+-- `Conversation` had no `vendorId` column and `leadId` was required. The
+-- column now exists, `leadId` is optional, and the constraint is applied
+-- by migration 20260929090000_owner_conversations as
+-- "Conversation_one_party" — in the migration rather than here, because
+-- it belongs with the columns it constrains. Every reader goes through
+-- `lib/conversations/party.ts`, which is where "buyer or owner" is
+-- decided.
 -- ---------------------------------------------------------------

@@ -34,15 +34,21 @@ export function Inbox({ selectedId }: { selectedId?: string }) {
   const selected = selectedId ?? null;
 
   return (
-    <div className="grid md:grid-cols-[340px_1fr] h-[calc(100dvh-3.5rem)] min-h-0">
-      <div className={cn("min-h-0", selected && "max-md:hidden")}>
+    // The header is 3.5rem and a 1px rule. The columns are held to the
+    // row (`h-full`), or the list grew to its full length and the whole
+    // page scrolled as one — 3,500px of it with forty conversations, and
+    // a thread opened from "Try a live enquiry" landed half under the
+    // header. Below `lg` the bottom tab bar (3.5rem and the home
+    // indicator) is under it as well, and `main` pads for it.
+    <div className="grid md:grid-cols-[340px_1fr] h-[calc(100dvh-7rem-1px-env(safe-area-inset-bottom))] lg:h-[calc(100dvh-3.5rem-1px)] min-h-0">
+      <div className={cn("min-h-0 h-full", selected && "max-md:hidden")}>
         <InboxList
           selectedId={selected}
           onSelect={(id) => router.replace(`/inbox/${id}`)}
         />
       </div>
 
-      <div className={cn("min-h-0", !selected && "max-md:hidden")}>
+      <div className={cn("min-h-0 h-full flex flex-col", !selected && "max-md:hidden")}>
         {selected ? (
           <>
             <button
@@ -51,7 +57,9 @@ export function Inbox({ selectedId }: { selectedId?: string }) {
             >
               ← All conversations
             </button>
-            <Thread conversationId={selected} />
+            <div className="flex-1 min-h-0">
+              <Thread conversationId={selected} />
+            </div>
           </>
         ) : (
           <div className="hidden md:grid place-items-center h-full text-sm text-ink-3">

@@ -9,6 +9,7 @@ import { crossTenant } from "@/server/db/client";
 import { audit } from "@/server/lib/audit";
 import { sendInvite } from "@/server/lib/mail";
 import { DAY_NAMES, DEFAULT_HOURS, hhmm, fromHhmm } from "@/server/lib/hours/defaults";
+import { FEED_SILENT_HOURS } from "@/server/lib/portals/health";
 
 const hash = (token: string) => createHash("sha256").update(token).digest("hex");
 
@@ -80,13 +81,33 @@ export const orgRouter = router({
   listingFeed: requirePermission("org:update").query(async ({ ctx }) => {
     const org = await ctx.db.organisation.findUnique({
       where: { id: ctx.orgId },
-      select: { feedToken: true, feedTokenAt: true },
+      select: { feedToken: true, feedTokenAt: true, feedFetchedAt: true },
     });
+    /**
+     * Whether anybody is actually pulling it, beside the URL itself.
+     *
+     * The screen showed a URL and the date it was issued, and those two
+     * facts together look like a working arrangement while being
+     * perfectly consistent with no portal ever having fetched it. The
+     * question a brokerage needs answered is not "do I have a feed" but
+     * "is my inventory reaching the portal", and only the fetch
+     * timestamp answers that.
+     *
+     * `lastFetchedAt: null` is rendered as *not yet fetched*, which is
+     * the honest state today — no portal agreement is signed, so nobody
+     * has the URL. It is deliberately not rendered as a fault.
+     */
+    const hours = org?.feedFetchedAt
+      ? (Date.now() - org.feedFetchedAt.getTime()) / 3_600_000
+      : null;
     return {
       url: org?.feedToken
         ? `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/api/feed/${org.feedToken}/listings.xml`
         : null,
       createdAt: org?.feedTokenAt ?? null,
+      lastFetchedAt: org?.feedFetchedAt ?? null,
+      /** Null when nothing has ever fetched — unused, rather than broken. */
+      quiet: hours === null ? null : hours > FEED_SILENT_HOURS,
     };
   }),
 
@@ -126,7 +147,7 @@ export const orgRouter = router({
   mine: orgProcedure.query(async ({ ctx }) => {
     const rows = await crossTenant("user-scoped").membership.findMany({
       where: { userId: ctx.userId, org: { deletedAt: null } },
-      select: { role: true, org: { select: { id: true, name: true, slug: true } } },
+      select: { role: true, org: { select: { id: true, name: true, slug: true, demo: true } } },
       orderBy: { createdAt: "asc" },
     });
     return rows.map((r) => ({ ...r.org, role: r.role, active: r.org.id === ctx.orgId }));
@@ -165,7 +186,11 @@ export const orgRouter = router({
       // An ADMIN cannot mint an OWNER. Enforced by the enum above rather
       // than by hoping nobody posts one — privilege escalation through an
       // unvalidated role field is the oldest bug in multi-tenant software.
-      if (input.role === "ADMIN" && ctx.role !== "OWNER" && ctx.role !== "ADMIN") {
+      // By permission, not by naming roles: whoever may change members'
+      // roles may create an admin. Today that is owners and admins, and
+      // a role added later inherits the right answer instead of a stale
+      // list of names.
+      if (input.role === "ADMIN" && !can(ctx.role, "member:update")) {
         throw new TRPCError({ code: "FORBIDDEN", message: "Only an owner or admin can invite admins." });
       }
 
@@ -266,11 +291,42 @@ export const orgRouter = router({
       if (a.length !== b.length || !timingSafeEqual(a, b)) throw bad();
 
       await crossTenant("user-scoped").$transaction(async (tx) => {
+        const already = await tx.membership.findUnique({
+          where: { orgId_userId: { orgId: invite.orgId, userId: session.user.id } },
+          select: { id: true },
+        });
         await tx.membership.upsert({
           where: { orgId_userId: { orgId: invite.orgId, userId: session.user.id } },
           create: { orgId: invite.orgId, userId: session.user.id, role: invite.role },
           update: {},
         });
+
+        /**
+         * Their seat starts today — and until now it never did.
+         *
+         * `signup` writes one seat event, the owner, under a comment
+         * saying "every agent invited later adds an event". Nothing did:
+         * `recordSeatChange` had no caller, so every brokerage's ledger
+         * stayed at one seat however many joined. The invoice charged
+         * for one agent, and the conversation allowance — which is per
+         * seat — was a one-person firm's, so a twenty-agent brokerage
+         * would have been billed overage on nearly every conversation.
+         * Wrong in both directions on the same bill, against a team
+         * screen promising "adding someone starts their seat today".
+         *
+         * Only when the membership is new: accepting a second invitation
+         * to a brokerage you already belong to is not another seat.
+         */
+        if (!already) {
+          const sub = await tx.subscription.findUnique({
+            where: { orgId: invite.orgId }, select: { id: true },
+          });
+          if (sub) {
+            await tx.seatEvent.create({
+              data: { orgId: invite.orgId, subId: sub.id, userId: session.user.id, change: 1, reason: "joined" },
+            });
+          }
+        }
         await tx.invitation.update({
           where: { id: invite.id },
           data: { acceptedAt: new Date() },
@@ -288,11 +344,65 @@ export const orgRouter = router({
       return { orgId: invite.orgId, orgName: invite.org.name };
     }),
 
-  removeMember: requirePermission("member:remove")
+  /**
+   * What an agent is holding, asked before they are removed.
+   *
+   * Removal used to be one click with no confirmation, and it unassigned
+   * every lead the person held — so a mis-tap on the team screen sent a
+   * whole book back to the pool with no undo and no record of whose it
+   * had been. The screen now shows this first and asks who takes it.
+   */
+  removalPreview: requirePermission("member:remove")
     .input(z.object({ userId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const now = new Date();
+      const [leads, viewings, followUps, listings] = await Promise.all([
+        ctx.db.lead.count({ where: { assignedToId: input.userId, deletedAt: null } }),
+        ctx.db.viewing.count({
+          where: { agentId: input.userId, scheduledAt: { gte: now }, status: { in: ["SCHEDULED", "CONFIRMED"] } },
+        }),
+        ctx.db.followUp.count({ where: { agentId: input.userId, completedAt: null } }),
+        ctx.db.listing.count({ where: { agentId: input.userId, deletedAt: null } }),
+      ]);
+      return { leads, viewings, followUps, listings };
+    }),
+
+  /**
+   * Remove somebody, and hand what they held to somebody else.
+   *
+   * ## What removal left behind
+   *
+   * It deleted the membership and unassigned the person's leads, and
+   * that was all:
+   *
+   *   - **Upcoming viewings** kept the departed agent. Nobody was
+   *     reminded, nothing appeared in anyone's diary, and the buyer
+   *     turned up to a locked door.
+   *   - **Follow-ups** kept them too — reminders nobody could see.
+   *   - **Open recommendations** stayed on a Today screen nobody opens.
+   *   - **Ownership history** was never closed, so each lead's record
+   *     said the departed agent still held it while the lead itself said
+   *     nobody did. `OwnershipReason.AGENT_LEFT` existed for this and
+   *     had never been written.
+   *   - **The seat** was never stopped. Nothing recorded a seat change
+   *     for anybody joining or leaving — see `acceptInvite` — so the
+   *     screen's promise that "removing them stops it the same way" was
+   *     not true either.
+   *
+   * With `handTo`, leads, upcoming viewings and open follow-ups move to
+   * that person, the way a brokerage actually handles somebody leaving.
+   * Without it, leads and viewings go back to the pool and the
+   * follow-ups are closed rather than left where nobody will see them.
+   * Everything happens in one transaction, including the seat.
+   */
+  removeMember: requirePermission("member:remove")
+    .input(z.object({ userId: z.string(), handTo: z.string().nullable().default(null) }))
     .mutation(async ({ ctx, input }) => {
       if (input.userId === ctx.userId) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "You can't remove yourself." });
+      }
+      if (input.handTo === input.userId) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Hand their work to somebody who is staying." });
       }
 
       const target = await ctx.db.membership.findUnique({
@@ -302,6 +412,12 @@ export const orgRouter = router({
 
       // Only an owner can remove an owner, and never the last one — an
       // organisation with no owner cannot be billed, transferred or closed.
+      //
+      // Compared by role deliberately, not converted to a permission: the
+      // rule is about the *target*, and "the person being removed is an
+      // owner" is data about them, not something the caller is allowed to
+      // do. Expressing it as `can(ctx.role, "org:delete")` would be true
+      // today and say something else.
       if (target.role === "OWNER") {
         if (ctx.role !== "OWNER") {
           throw new TRPCError({ code: "FORBIDDEN", message: "Only an owner can remove an owner." });
@@ -312,23 +428,91 @@ export const orgRouter = router({
         }
       }
 
-      await ctx.db.$transaction(async (tx) => {
+      const moved = await ctx.db.$transaction(async (tx) => {
+        const now = new Date();
+        const successor = input.handTo;
+        if (successor) {
+          const member = await tx.membership.findUnique({
+            where: { orgId_userId: { orgId: ctx.orgId, userId: successor } },
+          });
+          if (!member) throw new TRPCError({ code: "BAD_REQUEST", message: "That person isn't in your team." });
+        }
+
         await tx.membership.delete({ where: { id: target.id } });
 
-        // Their leads stay with the brokerage. Losing an agent must not
-        // lose the pipeline — unassign rather than cascade.
+        // Leads: to the successor, or back to the pool. Never cascaded —
+        // losing an agent must not lose the pipeline. Live leads only: a
+        // deleted person handed to a successor reappears in their book,
+        // which is the thing erasure exists to prevent.
+        const held = await tx.lead.findMany({
+          where: { assignedToId: input.userId, deletedAt: null }, select: { id: true },
+        });
         await tx.lead.updateMany({
-          where: { assignedToId: input.userId },
-          data: { assignedToId: null, assignedAt: null },
+          where: { assignedToId: input.userId, deletedAt: null },
+          data: { assignedToId: successor, assignedAt: successor ? now : null },
+        });
+        if (held.length) {
+          await tx.leadOwnership.updateMany({
+            where: { orgId: ctx.orgId, leadId: { in: held.map((l) => l.id) }, endedAt: null },
+            data: { endedAt: now },
+          });
+          if (successor) {
+            await tx.leadOwnership.createMany({
+              data: held.map((l) => ({
+                orgId: ctx.orgId, leadId: l.id, userId: successor,
+                fromUserId: input.userId, reason: "AGENT_LEFT" as const, actorId: ctx.userId,
+              })),
+            });
+          }
+        }
+
+        // Viewings still to happen. Past ones keep who showed them —
+        // that is history, and a commission can depend on it.
+        const viewings = await tx.viewing.updateMany({
+          where: { agentId: input.userId, scheduledAt: { gte: now }, status: { in: ["SCHEDULED", "CONFIRMED"] } },
+          data: { agentId: successor },
         });
 
+        // Follow-ups move with the work, or are closed rather than left
+        // on a list nobody will open again.
+        const followUps = await tx.followUp.updateMany({
+          where: { agentId: input.userId, completedAt: null },
+          data: successor ? { agentId: successor } : { completedAt: now },
+        });
+
+        // The listings they looked after. With nobody named they are
+        // nobody's, and the owner's weekly report falls back to asking
+        // who showed the property last.
+        const listings = await tx.listing.updateMany({
+          where: { agentId: input.userId, deletedAt: null },
+          data: { agentId: successor },
+        });
+
+        // Recommendations are drawn overnight for whoever holds the lead,
+        // so the departed agent's are stale and the sweep draws new ones.
+        await tx.recommendation.updateMany({
+          where: { agentId: input.userId, state: "OPEN" },
+          data: { state: "STALE", resolvedAt: now },
+        });
+
+        // The seat stops today, as the team screen says it does.
+        const sub = await tx.subscription.findUnique({ where: { orgId: ctx.orgId }, select: { id: true } });
+        if (sub) {
+          await tx.seatEvent.create({
+            data: { orgId: ctx.orgId, subId: sub.id, userId: input.userId, change: -1, reason: "removed" },
+          });
+        }
+
+        const counts = { leads: held.length, viewings: viewings.count, followUps: followUps.count, listings: listings.count };
         await audit(tx, ctx.orgId, {
           actorId: ctx.userId,
           action: "member.remove",
           entity: "Membership",
           entityId: input.userId,
           before: { role: target.role },
+          after: { handTo: successor, ...counts },
         });
+        return counts;
       });
 
       // Drop any session still pointing at this brokerage, so removal
@@ -338,7 +522,7 @@ export const orgRouter = router({
         data: { activeOrgId: null },
       });
 
-      return { ok: true };
+      return { ok: true, handTo: input.handTo, ...moved };
     }),
   /**
    * The working week.
@@ -551,6 +735,74 @@ export const orgRouter = router({
       });
 
       return { ok: true as const };
+    }),
+
+  /**
+   * The notifications themselves, which nothing has ever read.
+   *
+   * `notifications` below returns the **preferences** — quiet hours,
+   * push on or off. It is what `/me/notifications` renders, and the
+   * similar name is how this went unnoticed: the `Notification` table
+   * had no reader anywhere in the product.
+   *
+   * That mattered more than a missing screen. Push was the only
+   * delivery route, and push has never worked: nothing calls
+   * `registerDevice`, `PushDevice` has never had a row, and the only
+   * client that could register one is an Expo app that cannot build.
+   * So a handover waiting, a viewing tomorrow, a deal at risk — every
+   * notification the product has ever generated reached nobody, by any
+   * route, while the escalation ladder recorded each rung as told.
+   *
+   * This is the fallback that makes the subsystem work without a phone
+   * in it, and it is deliberately the same rows the push would have
+   * carried rather than a second computation of them.
+   */
+  inbox: orgProcedure
+    .input(z.object({ unreadOnly: z.boolean().default(false) }).optional())
+    .query(async ({ ctx, input }) => {
+      const rows = await ctx.db.notification.findMany({
+        where: {
+          userId: ctx.userId,
+          ...(input?.unreadOnly ? { readAt: null } : {}),
+        },
+        // Unread first, then most recent. An agent opening this wants
+        // what they have not seen, not a reverse-chronological log.
+        orderBy: [{ readAt: "asc" }, { sentAt: "desc" }],
+        take: 50,
+        select: {
+          id: true, kind: true, title: true, body: true, deeplink: true,
+          sentAt: true, readAt: true, actedAt: true, escalation: true,
+          deliveredAt: true,
+        },
+      });
+      return {
+        items: rows.map((r) => ({
+          ...r,
+          /**
+           * Whether a phone ever buzzed for this one.
+           *
+           * Shown rather than hidden, because an agent who thinks they
+           * are being alerted and is not will work differently from one
+           * who knows the screen is the only channel. Today it is null
+           * for every row in the product.
+           */
+          pushed: r.deliveredAt !== null,
+        })),
+        unread: rows.filter((r) => !r.readAt).length,
+      };
+    }),
+
+  /** Marks what the agent has actually looked at. */
+  markNotificationsRead: orgProcedure
+    .input(z.object({ ids: z.array(z.string()).max(50) }))
+    .mutation(async ({ ctx, input }) => {
+      const { count } = await ctx.db.notification.updateMany({
+        // Scoped to the caller: a notification belongs to one person,
+        // and marking a colleague's as read would hide it from them.
+        where: { id: { in: input.ids }, userId: ctx.userId, readAt: null },
+        data: { readAt: new Date() },
+      });
+      return { marked: count };
     }),
 
   notifications: orgProcedure.query(async ({ ctx }) => {

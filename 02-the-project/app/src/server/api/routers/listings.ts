@@ -1,37 +1,177 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
+import { crossTenant, type forOrg } from "@/server/db/client";
 import { router, orgProcedure, requirePermission } from "../trpc";
 import { audit } from "@/server/lib/audit";
 import { validateForPublish, blocking, PORTAL_REQUIREMENTS } from "@/server/lib/feeds/validate";
 import { buyersFor, pitch } from "@/server/lib/matching/buyers";
 import { can } from "@/server/auth/rbac";
-import { aedToFils } from "@/lib/money";
+import { aedToFils, filsToAed } from "@/lib/money";
+import { toCsv } from "@/lib/csv";
+import type { Prisma } from "@prisma/client";
+import { placesIn, storedVariants } from "@/server/lib/places";
+import { publicListing, propertyPath, PUBLIC_REQUIREMENTS } from "@/server/lib/listings/public";
+import { resolveLocation, listingNames } from "@/server/lib/locations";
+import {
+  PHOTO_LIMIT, PHOTO_MAX_BYTES, PHOTO_TYPES, PHOTO_URL_SECONDS, photoList, photoPrefix, realPhotos,
+} from "@/server/lib/listings/photos";
+import { deleteObject, objectExists, readObjectHead, signGet, signPut, storageConfigured } from "@/server/lib/files/storage";
+import { matchesType } from "@/server/lib/files/signature";
 
+
+/**
+ * A person or an owner named on a listing must belong to this brokerage.
+ *
+ * Checked here because the database cannot: a foreign key is validated
+ * without row-level security, so `vendorId` or `agentId` taken from
+ * the request could point a listing at another brokerage's owner or at
+ * somebody who is not on the team. Reading through `ctx.db` is scoped,
+ * so "not found" here means "not ours".
+ */
+async function assertOurs(
+  db: ReturnType<typeof forOrg>,
+  orgId: string,
+  ids: { vendorId?: string | null; agentId?: string | null },
+) {
+  if (ids.vendorId) {
+    const v = await db.vendor.findFirst({ where: { id: ids.vendorId }, select: { id: true } });
+    if (!v) throw new TRPCError({ code: "BAD_REQUEST", message: "That owner isn't one of yours." });
+  }
+  if (ids.agentId) {
+    const m = await db.membership.findFirst({ where: { orgId, userId: ids.agentId }, select: { id: true } });
+    if (!m) throw new TRPCError({ code: "BAD_REQUEST", message: "That person isn't on your team." });
+  }
+}
+
+/**
+ * What kind of property, and on what terms. Added with the audit's B5:
+ * a listing could not say it was off-plan, a villa, or a rental with
+ * four cheques, so none of it could be matched or filtered.
+ */
+const PROPERTY_TYPES = ["APARTMENT", "VILLA", "TOWNHOUSE", "PENTHOUSE", "DUPLEX", "PLOT", "OFFICE", "RETAIL", "WAREHOUSE", "OTHER"] as const;
+const detailFields = {
+  propertyType: z.enum(PROPERTY_TYPES).nullish(),
+  completion: z.enum(["READY", "OFF_PLAN"]).optional(),
+  handoverAt: z.string().datetime().nullish(),
+  developer: z.string().trim().max(80).nullish(),
+  project: z.string().trim().max(80).nullish(),
+  paymentPlan: z.string().trim().max(80).nullish(),
+  unitNumber: z.string().trim().max(40).nullish(),
+  furnishing: z.enum(["UNFURNISHED", "SEMI_FURNISHED", "FURNISHED"]).nullish(),
+  rentCheques: z.number().int().min(1).max(12).nullish(),
+  depositAed: z.number().min(0).max(100_000_000).nullish(),
+  serviceChargeAed: z.number().min(0).max(100_000_000).nullish(),
+};
+
+/** The detail fields as columns: dates parsed, dirhams to fils, `undefined` left alone. */
+function details(input: { handoverAt?: string | null; depositAed?: number | null; serviceChargeAed?: number | null }) {
+  const out: Record<string, unknown> = {};
+  if (input.handoverAt !== undefined) out.handoverAt = input.handoverAt === null ? null : new Date(input.handoverAt);
+  if (input.depositAed !== undefined) out.depositFils = input.depositAed === null ? null : aedToFils(input.depositAed);
+  if (input.serviceChargeAed !== undefined) out.serviceChargeFils = input.serviceChargeAed === null ? null : aedToFils(input.serviceChargeAed);
+  return out;
+}
+
+/**
+ * The listings screen's filters, applied in the query.
+ *
+ * The screen asked for twenty-five and never for more, and could not
+ * filter at all beyond a search box — so "3-bed in the Marina under 3m"
+ * meant scrolling a list that stopped a quarter of the way down.
+ */
+const listingFilters = {
+  status: z.enum(["DRAFT", "AVAILABLE", "UNDER_OFFER", "SOLD", "LET", "WITHDRAWN"]).optional(),
+  search: z.string().trim().max(80).optional(),
+  purpose: z.enum(["SALE", "RENT"]).optional(),
+  community: z.string().trim().max(60).optional(),
+  agentId: z.string().optional(),
+  bedrooms: z.number().int().min(0).max(12).optional(),
+  minPriceAed: z.number().int().min(0).optional(),
+  maxPriceAed: z.number().int().min(0).optional(),
+  propertyType: z.enum(PROPERTY_TYPES).optional(),
+  completion: z.enum(["READY", "OFF_PLAN"]).optional(),
+};
+
+function listingWhere(input: z.infer<z.ZodObject<typeof listingFilters>>): Prisma.ListingWhereInput {
+  const q = input.search;
+  // "AR 508" and "ar508" find AR-508, as they do in search.
+  const compact = q?.replace(/[\s-]/g, "");
+  return {
+    deletedAt: null,
+    ...(input.status && { status: input.status }),
+    ...(input.purpose && { purpose: input.purpose }),
+    ...(input.agentId && { agentId: input.agentId }),
+    ...(input.propertyType && { propertyType: input.propertyType }),
+    ...(input.completion && { completion: input.completion }),
+    ...(input.bedrooms != null && { bedrooms: { gte: input.bedrooms } }),
+    // A place the vocabulary knows matches every way it is filed ("DHE",
+    // "Dubai Hills Estate"); anything else matches as typed.
+    ...(input.community && (() => {
+      const place = placesIn(input.community).places[0];
+      return place
+        ? { community: { in: storedVariants(place), mode: "insensitive" as const } }
+        : { community: { contains: input.community, mode: "insensitive" as const } };
+    })()),
+    ...((input.minPriceAed != null || input.maxPriceAed != null) && {
+      priceFils: {
+        ...(input.minPriceAed != null ? { gte: aedToFils(input.minPriceAed) } : {}),
+        ...(input.maxPriceAed != null ? { lte: aedToFils(input.maxPriceAed) } : {}),
+      },
+    }),
+    ...(q && {
+      OR: [
+        { reference: { contains: q, mode: "insensitive" as const } },
+        ...(compact && compact !== q ? [{ reference: { contains: compact, mode: "insensitive" as const } }] : []),
+        ...(/^[a-z]+\d+$/i.test(compact ?? "") ? [{ reference: { contains: compact!.replace(/^([a-z]+)(\d+)$/i, "$1-$2"), mode: "insensitive" as const } }] : []),
+        { title: { contains: q, mode: "insensitive" as const } },
+        { community: { contains: q, mode: "insensitive" as const } },
+        { building: { contains: q, mode: "insensitive" as const } },
+      ],
+    }),
+  };
+}
+
+/**
+ * An exact place on the location tree, or a plain refusal.
+ *
+ * "Exact" is the most specific node the tree has there — a building, or
+ * a villa's sub-community — because a community with buildings under
+ * it is a neighbourhood, not an address, and Property Finder files a
+ * listing under the node it is given. The names written beside it
+ * (`community`, `building`) come from the tree, so search and matching
+ * read the same place the portal does.
+ */
+async function exactLocation(locationId: string) {
+  const r = await resolveLocation(locationId);
+  if (!r) throw new TRPCError({ code: "BAD_REQUEST", message: "That location is not on the list. Choose one from the search." });
+  if (!r.exact) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: `"${r.path}" is an area, not an exact location. Choose the building or sub-community within it.`,
+    });
+  }
+  return { locationId: r.id, ...listingNames(r) };
+}
 
 export const listingsRouter = router({
   list: orgProcedure
     .input(z.object({
-      status: z.enum(["DRAFT", "AVAILABLE", "UNDER_OFFER", "SOLD", "LET", "WITHDRAWN"]).optional(),
-      search: z.string().trim().max(80).optional(),
+      ...listingFilters,
       cursor: z.string().nullish(),
-      limit: z.number().min(1).max(100).default(25),
+      limit: z.number().min(1).max(100).default(50),
+      sort: z.enum(["updated", "newest", "price_asc", "price_desc"]).default("updated"),
     }))
     .query(async ({ ctx, input }) => {
       const rows = await ctx.db.listing.findMany({
-        where: {
-          deletedAt: null,
-          ...(input.status && { status: input.status }),
-          ...(input.search && {
-            OR: [
-              { reference: { contains: input.search, mode: "insensitive" } },
-              { title: { contains: input.search, mode: "insensitive" } },
-              { community: { contains: input.search, mode: "insensitive" } },
-            ],
-          }),
-        },
+        where: listingWhere(input),
         take: input.limit + 1,
         cursor: input.cursor ? { id: input.cursor } : undefined,
-        orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+        // `id` last on every order, so the cursor has one place to resume.
+        orderBy:
+          input.sort === "newest" ? [{ createdAt: "desc" }, { id: "desc" }]
+          : input.sort === "price_asc" ? [{ priceFils: { sort: "asc", nulls: "last" } }, { id: "asc" }]
+          : input.sort === "price_desc" ? [{ priceFils: { sort: "desc", nulls: "last" } }, { id: "desc" }]
+          : [{ updatedAt: "desc" }, { id: "desc" }],
         include: {
           publications: { select: { channelId: true, state: true, rejection: true } },
           _count: { select: { enquiries: true } },
@@ -40,6 +180,8 @@ export const listingsRouter = router({
           // nobody to sign it — and the screen could not tell you which
           // listings were in that state.
           vendor: { select: { id: true, name: true } },
+          agent: { select: { id: true, name: true, email: true } },
+          location: { select: { id: true, path: true, pfLocationId: true } },
         },
       });
 
@@ -56,6 +198,52 @@ export const listingsRouter = router({
             : null,
         })),
       };
+    }),
+
+  /**
+   * How many match, for the heading. The heading read `rows.length` —
+   * the loaded page — and called every one of them "live" whatever its
+   * status. Same `where` as `list`, so the two cannot disagree.
+   */
+  count: orgProcedure
+    .input(z.object(listingFilters))
+    .query(async ({ ctx, input }) => {
+      const [total, available] = await Promise.all([
+        ctx.db.listing.count({ where: { ...listingWhere(input), deletedAt: null } }),
+        ctx.db.listing.count({ where: { ...listingWhere(input), deletedAt: null, status: "AVAILABLE" } }),
+      ]);
+      return { total, available };
+    }),
+
+  /** The stock as a spreadsheet, as filtered. Managers, logged. */
+  exportCsv: requirePermission("lead:export")
+    .input(z.object(listingFilters))
+    .mutation(async ({ ctx, input }) => {
+      const rows = await ctx.db.listing.findMany({
+        where: listingWhere(input),
+        orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+        take: 25_000,
+        select: {
+          reference: true, title: true, status: true, purpose: true, community: true, building: true,
+          bedrooms: true, priceFils: true, permitNumber: true, permitExpiresAt: true,
+          propertyType: true, completion: true, developer: true, project: true, handoverAt: true,
+          vendor: { select: { name: true } }, agent: { select: { name: true, email: true } },
+        },
+      });
+      const csv = toCsv(
+        ["Reference", "Title", "Status", "Sale or rent", "Type", "Ready or off-plan", "Developer", "Project", "Handover", "Area", "Building", "Bedrooms", "Price (AED)", "Permit", "Permit expires", "Owner", "Agent"],
+        rows.map((r) => [
+          r.reference, r.title, r.status, r.purpose, r.propertyType ?? "", r.completion, r.developer, r.project,
+          r.handoverAt?.toISOString().slice(0, 10) ?? "", r.community, r.building, r.bedrooms,
+          r.priceFils === null ? "" : filsToAed(r.priceFils), r.permitNumber,
+          r.permitExpiresAt?.toISOString().slice(0, 10) ?? "", r.vendor?.name ?? "", r.agent?.name ?? r.agent?.email ?? "",
+        ]),
+      );
+      await audit(ctx.db, ctx.orgId, {
+        actorId: ctx.userId, action: "listing.export", entity: "Listing", entityId: `${rows.length} listings`,
+        after: { count: rows.length },
+      });
+      return { csv, count: rows.length, filename: `listings-${new Date().toISOString().slice(0, 10)}.csv` };
     }),
 
   /**
@@ -85,8 +273,13 @@ export const listingsRouter = router({
     .input(z.object({
       reference: z.string().trim().min(1).max(40),
       title: z.string().trim().min(1).max(160),
-      community: z.string().trim().max(80).optional(),
-      building: z.string().trim().max(80).optional(),
+      /**
+       * Where it is, exactly — a node of the location tree. Required:
+       * every new listing is placed, because Property Finder will not
+       * take one that is not, and fixing it afterwards is the step that
+       * gets forgotten. `community` and `building` are filled from it.
+       */
+      locationId: z.string({ required_error: "Choose the property's location." }).min(1, "Choose the property's location."),
       bedrooms: z.number().int().min(0).max(20).optional(),
       bathrooms: z.number().int().min(0).max(20).optional(),
       areaSqft: z.number().int().min(1).max(1_000_000).optional(),
@@ -105,9 +298,11 @@ export const listingsRouter = router({
       permitExpiresAt: z.string().datetime().optional(),
       reraBrokerCard: z.string().trim().max(60).optional(),
       vendorId: z.string().optional(),
+      ...detailFields,
     }))
     .mutation(async ({ ctx, input }) => {
-      const { priceAed, permitExpiresAt, ...rest } = input;
+      const { priceAed, permitExpiresAt, handoverAt, depositAed, serviceChargeAed, locationId, ...rest } = input;
+      const place = await exactLocation(locationId);
 
       /**
        * The reference is unique per brokerage, and a collision is an
@@ -128,12 +323,19 @@ export const listingsRouter = router({
         });
       }
 
+      await assertOurs(ctx.db, ctx.orgId, { vendorId: (rest as { vendorId?: string | null }).vendorId });
       const listing = await ctx.db.listing.create({
         data: {
           ...rest,
+          ...place,
           orgId: ctx.orgId,
+          // Whoever adds it looks after it until somebody says otherwise.
+          // Without a default every listing starts with nobody, and the
+          // owner's report goes back to guessing.
+          agentId: ctx.userId,
           ...(priceAed !== undefined ? { priceFils: aedToFils(priceAed) } : {}),
           ...(permitExpiresAt ? { permitExpiresAt: new Date(permitExpiresAt) } : {}),
+          ...details({ handoverAt, depositAed, serviceChargeAed }),
         },
         select: { id: true, reference: true, title: true },
       });
@@ -162,8 +364,8 @@ export const listingsRouter = router({
       id: z.string(),
       reference: z.string().trim().min(1).max(40).optional(),
       title: z.string().trim().min(1).max(160).optional(),
-      community: z.string().trim().max(80).nullish(),
-      building: z.string().trim().max(80).nullish(),
+      /** Move it to another exact place. Once placed, it stays placed. */
+      locationId: z.string().min(1).optional(),
       bedrooms: z.number().int().min(0).max(20).nullish(),
       bathrooms: z.number().int().min(0).max(20).nullish(),
       areaSqft: z.number().int().min(1).max(1_000_000).nullish(),
@@ -174,9 +376,14 @@ export const listingsRouter = router({
       permitExpiresAt: z.string().datetime().nullish(),
       reraBrokerCard: z.string().trim().max(60).nullish(),
       vendorId: z.string().nullish(),
+      /** Who looks after it. Must be on the team. */
+      agentId: z.string().nullish(),
+      ...detailFields,
     }))
     .mutation(async ({ ctx, input }) => {
-      const { id, priceAed, permitExpiresAt, ...rest } = input;
+      const { id, priceAed, permitExpiresAt, handoverAt, depositAed, serviceChargeAed, locationId, ...rest } = input;
+      await assertOurs(ctx.db, ctx.orgId, { vendorId: input.vendorId, agentId: input.agentId });
+      const place = locationId ? await exactLocation(locationId) : {};
 
       const before = await ctx.db.listing.findFirst({
         where: { id, deletedAt: null },
@@ -201,6 +408,7 @@ export const listingsRouter = router({
         where: { id },
         data: {
           ...rest,
+          ...place,
           // `null` clears the price, `undefined` leaves it. Collapsing
           // the two would make every edit of the bedroom count wipe the
           // asking price.
@@ -210,6 +418,7 @@ export const listingsRouter = router({
           ...(permitExpiresAt === undefined
             ? {}
             : { permitExpiresAt: permitExpiresAt === null ? null : new Date(permitExpiresAt) }),
+          ...details({ handoverAt, depositAed, serviceChargeAed }),
         },
         select: { id: true, reference: true, title: true },
       });
@@ -220,7 +429,7 @@ export const listingsRouter = router({
         entity: "Listing",
         entityId: id,
         before: { reference: before.reference, status: before.status },
-        after: { reference: listing.reference, changed: Object.keys(rest) },
+        after: { reference: listing.reference, changed: [...Object.keys(rest), ...(locationId ? ["location"] : [])] },
       });
 
       return listing;
@@ -235,6 +444,9 @@ export const listingsRouter = router({
     .query(async ({ ctx, input }) => {
       const listing = await ctx.db.listing.findFirst({
         where: { id: input.listingId, deletedAt: null },
+        // Property Finder refuses a place it has no id for, so the gate
+        // needs the node's id, not only that there is one.
+        include: { location: { select: { pfLocationId: true } } },
       });
       if (!listing) throw new TRPCError({ code: "NOT_FOUND" });
 
@@ -285,6 +497,7 @@ export const listingsRouter = router({
       ctx.db.$transaction(async (tx) => {
         const listing = await tx.listing.findFirst({
           where: { id: input.listingId, deletedAt: null },
+          include: { location: { select: { pfLocationId: true } } },
         });
         if (!listing) throw new TRPCError({ code: "NOT_FOUND" });
 
@@ -370,6 +583,237 @@ export const listingsRouter = router({
    * being raised. A VIEWER already has `lead:read:all`, so nothing here
    * widens what anybody can see.
    */
+  /**
+   * A property's page, ready to send.
+   *
+   * The public page existed and nothing in the product linked to it: an
+   * agent had no way to get the address of the thing built for "send
+   * somebody a property". This is that way, and the page's own gate
+   * decides — `publicListing` is called exactly as a stranger's browser
+   * would call it, so the button can never offer a link the page then
+   * refuses. When it would refuse, the reason comes from the same
+   * validator, in the words it uses.
+   *
+   * The listing is read through the scoped client first, so an id from
+   * another brokerage is simply not found.
+   */
+  share: requirePermission("listing:read")
+    .input(z.object({ id: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const listing = await ctx.db.listing.findFirst({
+        where: { id: input.id, deletedAt: null },
+      });
+      if (!listing) throw new TRPCError({ code: "NOT_FOUND", message: "No such property." });
+      const org = await crossTenant("user-scoped").organisation.findUnique({
+        where: { id: ctx.orgId }, select: { slug: true },
+      });
+      const shown = org ? await publicListing(org.slug, listing.reference) : null;
+      if (shown && org) {
+        return {
+          ok: true as const,
+          path: propertyPath(org.slug, listing.reference),
+          reference: shown.reference,
+          title: shown.title,
+          priceFils: shown.priceFils,
+          purpose: shown.purpose,
+        };
+      }
+      if (listing.status !== "AVAILABLE") {
+        return { ok: false as const, reason: "Only an available property has a page to send." };
+      }
+      const photos = ((listing.descriptions ?? {}) as { photos?: string[] }).photos?.length ?? 0;
+      const why = blocking(validateForPublish(listing as never, PUBLIC_REQUIREMENTS, photos))[0];
+      return { ok: false as const, reason: why?.message ?? "This property cannot be advertised yet." };
+    }),
+
+  /**
+   * A listing's photographs, cover first, for the agent's own screen.
+   *
+   * Each comes with an address signed for a few minutes, because the
+   * bucket is private and an unpublished listing's photos have no public
+   * route yet. `storage` is false where no bucket is configured, so the
+   * screen can say so instead of offering an upload that cannot land.
+   */
+  photos: requirePermission("listing:read")
+    .input(z.object({ listingId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const listing = await ctx.db.listing.findFirst({
+        where: { id: input.listingId, deletedAt: null }, select: { id: true, descriptions: true },
+      });
+      if (!listing) throw new TRPCError({ code: "NOT_FOUND", message: "No such property." });
+      const storage = storageConfigured();
+      const real = await realPhotos(ctx.orgId, listing.id, listing.descriptions);
+      return {
+        storage,
+        limit: PHOTO_LIMIT,
+        canEdit: can(ctx.role, "listing:write"),
+        // Placeholders from before uploads existed: counted by the
+        // publishing rules until a real photo replaces them.
+        placeholders: real.length ? 0 : photoList(listing.descriptions).length,
+        rows: real.map((p) => ({
+          id: p.id, fileName: p.fileName,
+          url: storage ? signGet({ key: p.storageRef, expiresInSeconds: PHOTO_URL_SECONDS }) : null,
+        })),
+      };
+    }),
+
+  /**
+   * Somewhere to put one photo: a signed upload straight to storage.
+   *
+   * Checked before the bytes move, so an agent on hotel wifi is not told
+   * after two minutes that a HEIC was never going to be accepted. The
+   * size is signed exactly, so the ticket cannot carry anything larger.
+   */
+  photoUpload: requirePermission("listing:write")
+    .input(z.object({
+      listingId: z.string(),
+      fileName: z.string().trim().min(1).max(200),
+      mimeType: z.string().max(100),
+      sizeBytes: z.number().int(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const listing = await ctx.db.listing.findFirst({
+        where: { id: input.listingId, deletedAt: null }, select: { id: true, descriptions: true },
+      });
+      if (!listing) throw new TRPCError({ code: "NOT_FOUND", message: "No such property." });
+      if (!storageConfigured()) {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Photo storage is not set up yet, so photos cannot be added. Ask whoever runs your account to connect it." });
+      }
+      if (!(PHOTO_TYPES as readonly string[]).includes(input.mimeType)) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Photos must be JPEG or PNG. Most phones can save a HEIC photo as JPEG." });
+      }
+      if (input.sizeBytes <= 0) throw new TRPCError({ code: "BAD_REQUEST", message: "That file is empty." });
+      if (input.sizeBytes > PHOTO_MAX_BYTES) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: `That photo is ${(input.sizeBytes / 1024 / 1024).toFixed(0)}MB and the limit is ${PHOTO_MAX_BYTES / 1024 / 1024}MB. Export it smaller and try again.` });
+      }
+      if ((await realPhotos(ctx.orgId, listing.id, listing.descriptions)).length >= PHOTO_LIMIT) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: `A property can have ${PHOTO_LIMIT} photos. Remove one to add another.` });
+      }
+      const key = `${photoPrefix(ctx.orgId, listing.id)}${crypto.randomUUID()}`;
+      const uploadUrl = await signPut({ key, mimeType: input.mimeType, sizeBytes: input.sizeBytes, expiresInSeconds: 900 });
+      return { key, uploadUrl };
+    }),
+
+  /**
+   * Kept only once the bytes are there and are what they say they are.
+   *
+   * The key must be under this listing's own prefix — a key from another
+   * listing or brokerage is refused, not attached. The first bytes are
+   * read back and must be a JPEG or PNG of the declared size; anything
+   * else is deleted, never recorded. The photo joins the end of the
+   * order, and placeholders from before uploads existed go.
+   */
+  photoConfirm: requirePermission("listing:write")
+    .input(z.object({
+      listingId: z.string(),
+      key: z.string().max(300),
+      fileName: z.string().trim().min(1).max(200),
+      mimeType: z.string().max(100),
+      sizeBytes: z.number().int().positive(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const listing = await ctx.db.listing.findFirst({
+        where: { id: input.listingId, deletedAt: null }, select: { id: true },
+      });
+      if (!listing) throw new TRPCError({ code: "NOT_FOUND", message: "No such property." });
+      if (!input.key.startsWith(photoPrefix(ctx.orgId, listing.id)) || input.key.includes("..")) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "That upload does not belong to this property." });
+      }
+      if (!(PHOTO_TYPES as readonly string[]).includes(input.mimeType)) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Photos must be JPEG or PNG." });
+      }
+      if (await ctx.db.attachment.findFirst({ where: { storageRef: input.key }, select: { id: true } })) {
+        throw new TRPCError({ code: "CONFLICT", message: "That photo is already on the property." });
+      }
+      if (!(await objectExists(input.key))) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "That upload didn't finish. Try again." });
+      }
+      const { head, size } = await readObjectHead(input.key);
+      if (!matchesType(head, input.mimeType) || (size !== null && size !== input.sizeBytes)) {
+        await deleteObject(input.key).catch(() => {});
+        throw new TRPCError({ code: "BAD_REQUEST", message: "That file isn't the photo it says it is, so it wasn't kept. Save it again as a JPEG or PNG and upload that." });
+      }
+
+      const id = await ctx.db.$transaction(async (tx) => {
+        const row = await tx.listing.findFirstOrThrow({ where: { id: listing.id }, select: { descriptions: true } });
+        const kept = (await realPhotos(ctx.orgId, listing.id, row.descriptions)).map((p) => p.id);
+        if (kept.length >= PHOTO_LIMIT) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: `A property can have ${PHOTO_LIMIT} photos. Remove one to add another.` });
+        }
+        const photo = await tx.attachment.create({
+          data: {
+            orgId: ctx.orgId, listingId: listing.id, kind: "PHOTO",
+            fileName: input.fileName, storageRef: input.key, mimeType: input.mimeType,
+            sizeBytes: input.sizeBytes, uploadedById: ctx.userId,
+          },
+          select: { id: true },
+        });
+        await tx.listing.update({
+          where: { id: listing.id },
+          data: { descriptions: { ...((row.descriptions ?? {}) as object), photos: [...kept, photo.id] } },
+        });
+        await audit(tx as never, ctx.orgId, {
+          actorId: ctx.userId, action: "listing.photo_added", entity: "Listing", entityId: listing.id,
+          after: { photoId: photo.id, count: kept.length + 1 },
+        });
+        return photo.id;
+      });
+      return { id };
+    }),
+
+  /** The cover is the first photo: on the page, in the card, in the feed. */
+  photoCover: requirePermission("listing:write")
+    .input(z.object({ listingId: z.string(), photoId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const listing = await ctx.db.listing.findFirst({
+        where: { id: input.listingId, deletedAt: null }, select: { id: true, descriptions: true },
+      });
+      if (!listing) throw new TRPCError({ code: "NOT_FOUND", message: "No such property." });
+      const ids = (await realPhotos(ctx.orgId, listing.id, listing.descriptions)).map((p) => p.id);
+      if (!ids.includes(input.photoId)) throw new TRPCError({ code: "NOT_FOUND", message: "That photo is no longer on the property." });
+      await ctx.db.listing.update({
+        where: { id: listing.id },
+        data: { descriptions: { ...((listing.descriptions ?? {}) as object), photos: [input.photoId, ...ids.filter((x) => x !== input.photoId)] } },
+      });
+      await audit(ctx.db, ctx.orgId, {
+        actorId: ctx.userId, action: "listing.photo_cover", entity: "Listing", entityId: listing.id, after: { photoId: input.photoId },
+      });
+      return { ok: true };
+    }),
+
+  /**
+   * Off the property, and out of storage.
+   *
+   * The row and the order change together; the object is deleted after,
+   * because a storage hiccup must not leave a photo on the page that the
+   * agent was told was gone. An object left behind costs pennies.
+   */
+  photoRemove: requirePermission("listing:write")
+    .input(z.object({ listingId: z.string(), photoId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const listing = await ctx.db.listing.findFirst({
+        where: { id: input.listingId, deletedAt: null }, select: { id: true, descriptions: true },
+      });
+      if (!listing) throw new TRPCError({ code: "NOT_FOUND", message: "No such property." });
+      const photo = await ctx.db.attachment.findFirst({
+        where: { id: input.photoId, listingId: listing.id, kind: "PHOTO" }, select: { id: true, storageRef: true },
+      });
+      if (!photo) throw new TRPCError({ code: "NOT_FOUND", message: "That photo is no longer on the property." });
+      const ids = (await realPhotos(ctx.orgId, listing.id, listing.descriptions)).map((p) => p.id);
+      await ctx.db.$transaction(async (tx) => {
+        await tx.attachment.delete({ where: { id: photo.id } });
+        await tx.listing.update({
+          where: { id: listing.id },
+          data: { descriptions: { ...((listing.descriptions ?? {}) as object), photos: ids.filter((x) => x !== photo.id) } },
+        });
+        await audit(tx as never, ctx.orgId, {
+          actorId: ctx.userId, action: "listing.photo_removed", entity: "Listing", entityId: listing.id, after: { photoId: photo.id },
+        });
+      });
+      await deleteObject(photo.storageRef).catch(() => {});
+      return { ok: true };
+    }),
+
   buyers: requirePermission("listing:read")
     .input(z.object({
       listingId: z.string(),

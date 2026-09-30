@@ -183,9 +183,10 @@ export async function applyIntake(args: {
      * The match, computed now rather than waiting for the nightly sweep.
      *
      * An agent standing in a car park who has just described a buyer
-     * wants to know whether we hold anything, now. `matching.new-listings`
-     * runs overnight and is the right place for the other direction —
-     * new listing, who wants it — but it is the wrong latency for this.
+     * wants to know whether we hold anything, now. The other direction —
+     * new listing, who wants it — is `intelligence.sweep` overnight and
+     * the Buyers screen on demand, and overnight is the wrong latency
+     * for this.
      *
      * `best()` returns **one** match and only above 0.75. Five mediocre
      * ones is a mailshot, and it is the same threshold the outbound path

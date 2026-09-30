@@ -4,6 +4,7 @@ import { leadsRouter } from "./routers/leads";
 import { conversationsRouter } from "./routers/conversations";
 import { pipelineRouter } from "./routers/pipeline";
 import { listingsRouter } from "./routers/listings";
+import { locationsRouter } from "./routers/locations";
 import { viewingsRouter } from "./routers/viewings";
 import { assistantRouter } from "./routers/assistant";
 import { reportsRouter } from "./routers/reports";
@@ -16,6 +17,10 @@ import { copyRouter } from "./routers/copy";
 import { routingRouter } from "./routers/routing";
 import { migrationRouter } from "./routers/migration";
 import { billingRouter } from "./routers/billing";
+import { securityRouter } from "./routers/security";
+import { opportunitiesRouter } from "./routers/opportunities";
+import { emailRouter } from "./routers/email";
+import { demoRouter } from "./routers/demo";
 import { offersRouter } from "./routers/offers";
 import { blackbookRouter } from "./routers/blackbook";
 import { channelsRouter } from "./routers/channels";
@@ -26,6 +31,12 @@ import { dealsRouter } from "./routers/deals";
 import { activityRouter } from "./routers/activity";
 import { searchRouter } from "./routers/search";
 import { documentsRouter } from "./routers/documents";
+import { plansRouter } from "./routers/plans";
+import { requirementsRouter } from "./routers/requirements";
+import { viewsRouter } from "./routers/views";
+import { importsRouter } from "./routers/imports";
+import { tenanciesRouter } from "./routers/tenancies";
+import { tasksRouter } from "./routers/tasks";
 
 /**
  * The API surface.
@@ -57,6 +68,7 @@ export const appRouter = router({
   conversations: conversationsRouter,
   pipeline: pipelineRouter,
   listings: listingsRouter,
+  locations: locationsRouter,
   viewings: viewingsRouter,
 
   assistant: assistantRouter,
@@ -64,6 +76,10 @@ export const appRouter = router({
   reports: reportsRouter,
 
   billing: billingRouter,
+  security: securityRouter,
+  opportunities: opportunitiesRouter,
+  email: emailRouter,
+  demo: demoRouter,
   offers: offersRouter,
   blackbook: blackbookRouter,
   channels: channelsRouter,
@@ -75,6 +91,21 @@ export const appRouter = router({
   // with nothing able to put a row in it.
   documents: documentsRouter,
   routing: routingRouter,
+  // Nurture plans. The nightly job that works them had been running
+  // over a table nothing could write.
+  plans: plansRouter,
+  // What a buyer is looking for. Matching and search read it; only voice
+  // intake had ever written one.
+  requirements: requirementsRouter,
+  // Saved filters for the lists.
+  views: viewsRouter,
+  // Leads in from a spreadsheet. The migration router records what is
+  // wrong with an export; this one brings the rows in.
+  imports: importsRouter,
+  // Leases on rentals, so the renewal comes round before the notice line.
+  tenancies: tenanciesRouter,
+  // Tasks a person writes, and hands to a colleague.
+  tasks: tasksRouter,
 
   privacy: privacyRouter,
   support: supportRouter,

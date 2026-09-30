@@ -123,7 +123,10 @@ export async function sendDueFollowUps() {
         subjectId: f.id,
         title: f.title,
         body: f.body ?? "",
-        deeplink: "/blackbook",
+        // To the list the reminder is on. This pointed at the blackbook,
+        // which does not show follow-ups, so tapping a reminder landed an
+        // agent on a screen with no mention of what they were reminded of.
+        deeplink: "/today#follow-ups",
         // Theirs alone — a follow-up an agent set for themselves is not
         // a queue anybody else should be pulled into.
         assignedToId: f.agentId,

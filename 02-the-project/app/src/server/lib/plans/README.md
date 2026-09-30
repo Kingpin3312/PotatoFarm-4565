@@ -66,10 +66,21 @@ about the sequence, not just about the lead.
 
 ## Not built yet
 
-- The step actions themselves. Advancement, pausing and scheduling are
-  here and tested; `MESSAGE` and `CHECK_MATCHES` currently log rather
-  than send.
-- Auto-subscription. Nothing yet puts a lead on a plan when the assistant
-  extracts a long timeframe, which is the obvious trigger.
+- ~~The step actions themselves.~~ Each due step now puts a task on the
+  lead's agent's list — a `MESSAGE` names the template, a
+  `CHECK_MATCHES` carries the property and a draft, or says nothing when
+  nothing fits — and the step is taken only in the same transaction.
+  Nothing sends by itself: `intelligence/autonomy.ts` stops every
+  message to a client at a person pressing send.
+- ~~Creating a plan at all.~~ `plans.create` from Settings → Nurture
+  plans, and `plans.subscribe` / `resume` / `stop` from the person's
+  page. A resume records `resumedAt`, so the reply that paused a plan
+  does not pause it again — rule one says restarting is the agent's
+  decision, and without it the decision did nothing.
+- ~~Auto-subscription.~~ Suggested rather than automatic: the nightly
+  sweep raises `START_PLAN` for somebody whose timeframe reads as three
+  months or more (`timeframe.ts`), who is not on a plan, has not opted
+  out, and whose brokerage has a plan in use. The agent picks the plan
+  from the person's page; subscribing closes the suggestion.
 - Per-step reporting — which step loses people. That is the number that
   makes a sequence better over time.

@@ -1,0 +1,11 @@
+import pw from "playwright";
+import { chromePath } from "../scripts/_browser.mjs";
+const [, , input, output, mode] = process.argv;
+const b = await pw.chromium.launch({ executablePath: chromePath() });
+const p = await b.newPage();
+await p.goto("file://" + input, { waitUntil: "load" });
+await p.evaluate(() => document.fonts.ready);
+await p.waitForTimeout(500);
+await p.pdf({ path: output, format: "A4", printBackground: true, preferCSSPageSize: true });
+await b.close();
+console.log("rendered", output);

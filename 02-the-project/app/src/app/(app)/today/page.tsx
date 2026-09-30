@@ -1,14 +1,18 @@
 "use client";
 
 import { useState } from "react";
+import type { NextAction } from "@prisma/client";
 
 import Link from "next/link";
+import { buttonStyles } from "@/components/ui/button";
 import { api } from "@/lib/trpc";
 import { cn } from "@/lib/cn";
 import { aedShort, aedWhole } from "@/lib/money";
 import { sentence as label } from "@/lib/sentence";
 import { Ask } from "../ask/ask-box";
 import { QueryError } from "@/components/ui/query-state";
+import { Alerts } from "./alerts";
+import { FollowUps } from "./follow-ups";
 
 /**
  * The front door.
@@ -92,6 +96,10 @@ export default function Today() {
      */
     <div className="mx-auto max-w-[1180px] px-6 pb-28">
       <header className="pt-10 pb-6">
+        {/* The manual, one tap from where every day starts. Beside the
+            greeting rather than in a menu: a new agent's first question is
+            "how do I…", and the answer should be on the first screen. */}
+        <div className="flex items-start justify-between gap-4">
         <h1 className="font-sans text-page font-semibold text-ink">
           {/* "day" while it loads, not a guess at "morning". It is
               correct English at any hour, so the one-word settle when
@@ -100,6 +108,13 @@ export default function Today() {
               small wrongness that makes a product feel careless. */}
           Good {data?.partOfDay ?? "day"}
         </h1>
+          <Link href="/manual" className={buttonStyles({ size: "sm", variant: "secondary" })}>
+            <svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="me-2">
+              <path d="M4 19.5V5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2Z" /><path d="M19 17v4H6" />
+            </svg>
+            Training manual
+          </Link>
+        </div>
         {data && (
           <Summary
             counts={data.counts}
@@ -129,6 +144,19 @@ export default function Today() {
       {isError && (
         <div className="mt-10">
           <QueryError retry={() => void refetch()} what="today" error={error} />
+          {/* Today is a worker's list. A viewer or compliance officer has
+              none, and "/" lands here — so the refusal says where their
+              work is instead of being the end of the road (the second
+              audit's N10). */}
+          {error?.data?.code === "FORBIDDEN" && (
+            <nav aria-label="Where to go instead" className="mt-5 flex flex-wrap gap-x-6 gap-y-1" data-read-only-links>
+              <span className="text-sm text-ink-2 w-full">Your role reads the book rather than working it:</span>
+              <a href="/leads" className="btn-inline min-h-11 inline-flex items-center">Leads</a>
+              <a href="/listings" className="btn-inline min-h-11 inline-flex items-center">Listings</a>
+              <a href="/pipeline" className="btn-inline min-h-11 inline-flex items-center">Pipeline</a>
+              <a href="/search" className="btn-inline min-h-11 inline-flex items-center">Find anyone</a>
+            </nav>
+          )}
         </div>
       )}
 
@@ -159,6 +187,14 @@ export default function Today() {
               onAct={(id) => act.mutate({ id })}
               onDismiss={(id) => dismiss.mutate({ id })}
             />
+            <OtherBusiness items={data.otherBusiness} />
+            {/* The agent's own list, straight after the product's. Both
+                are things to do; alerts, below, are things that happened. */}
+            <FollowUps />
+            {/* Beneath the day's actions, not above them: an alert is
+                something that happened, an action is something to do,
+                and the list an agent works from should come first. */}
+            <Alerts />
           </div>
 
           {/* The rail, sticky as a pair.
@@ -313,7 +349,9 @@ function Book({
  * rendered `call`, and a lookup table is a quieter place for that fault
  * to hide than a `.toLowerCase()` call.
  */
-const LABEL: Record<string, string> = {
+// Every action, checked by the compiler, so a new one gets its short
+// word rather than falling back to its enum name read as a sentence.
+const LABEL: Record<NextAction, string> = {
   CALL: "Call",
   SEND_PROPERTY: "Send",
   FOLLOW_UP: "Follow up",
@@ -325,6 +363,7 @@ const LABEL: Record<string, string> = {
   INTRODUCE_FINANCE: "Finance",
   NEGOTIATE: "Negotiate",
   RECORD_OUTCOME: "Log outcome",
+  START_PLAN: "Plan",
 };
 
 function Actions({
@@ -332,11 +371,13 @@ function Actions({
 }: {
   actions: {
     id: string; action: string; headline: string; reason: string;
-    priority: number; valueFils: bigint | null; leadId: string | null;
+    priority: number; valueFils: bigint | null; leadId: string | null; dealId?: string | null;
   }[];
   onAct: (id: string) => void;
   onDismiss: (id: string) => void;
 }) {
+  const people = actions.filter((a) => !a.dealId);
+  const deals = actions.filter((a) => a.dealId);
   /**
    * An empty list here is good news, and has to read like it.
    *
@@ -361,13 +402,38 @@ function Actions({
   }
 
   return (
+    <>
+    {people.length > 0 && (
     <section className="mt-10 border-t border-rule pt-6">
       <h2 className="t-label text-ink-3">
-        Today · {actions.length}
+        Today · {people.length}
       </h2>
+      <ActionList items={people} onAct={onAct} onDismiss={onDismiss} />
+    </section>
+    )}
+    {/* Deals apart, beneath the people. They outrank on priority — money
+        and a date are committed — and in one list they pushed a buyer
+        who wrote in this morning off the screen. */}
+    {deals.length > 0 && (
+    <section className="mt-10 border-t border-rule pt-6" aria-label="Deals to keep moving">
+      <h2 className="t-label text-ink-3">
+        Deals to keep moving · {deals.length}
+      </h2>
+      <ActionList items={deals} onAct={onAct} onDismiss={onDismiss} />
+    </section>
+    )}
+    </>
+  );
+}
 
+function ActionList({ items, onAct, onDismiss }: {
+  items: { id: string; action: string; headline: string; reason: string; valueFils: bigint | null; leadId: string | null }[];
+  onAct: (id: string) => void;
+  onDismiss: (id: string) => void;
+}) {
+  return (
       <ol className="mt-2">
-        {actions.map((a, i) => (
+        {items.map((a, i) => (
           <li key={a.id} className="border-b border-rule py-4">
             <div className="flex items-baseline gap-3">
               {/* Ordinal, not a priority score. A number to two decimal
@@ -404,7 +470,7 @@ function Actions({
                   </p>
                   <div className="flex shrink-0 items-baseline gap-x-3">
                     <span className="t-label text-ink-3">
-                      {LABEL[a.action] ?? label(a.action)}
+                      {LABEL[a.action as NextAction] ?? label(a.action)}
                     </span>
                     {a.valueFils !== null && a.valueFils > 0n && (
                       <span className="t-label tabular text-ink-3">
@@ -451,6 +517,49 @@ function Actions({
           </li>
         ))}
       </ol>
+  );
+}
+
+/**
+ * The agent's other business: a letting, a sale or a rental they work for
+ * somebody, which sits on the board beside the person's main search.
+ *
+ * Longest in its column first, three at most, and nothing at all when
+ * there is none — most agents have none, and an empty heading is one
+ * more thing scrolled past in a car park. The row opens the person,
+ * where the column is changed and the business is won or lost.
+ */
+function OtherBusiness({
+  items,
+}: {
+  items: { id: string; title: string; person: string; stage: string | null; days: number; valueFils: bigint | null; leadId: string }[];
+}) {
+  if (items.length === 0) return null;
+  return (
+    <section className="mt-10 border-t border-rule pt-6" aria-label="Other business" data-other-business>
+      <h2 className="t-label text-ink-3">Other business · {items.length}</h2>
+      <ul className="mt-2">
+        {items.map((o) => (
+          <li key={o.id} className="border-b border-rule py-4">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
+              <p className="text-control leading-snug text-ink">
+                <Link href={`/blackbook/${o.leadId}`} className="text-ink no-underline hover:underline">
+                  {o.title}
+                </Link>
+              </p>
+              {o.valueFils !== null && o.valueFils > 0n && (
+                <span className="t-label tabular text-ink-3">{aedShort(o.valueFils)}</span>
+              )}
+            </div>
+            <p className="mt-1 max-w-[68ch] text-sm leading-snug text-ink-2">
+              For {o.person}
+              {o.stage && <> · {o.stage}</>}
+              {" · "}
+              {o.days === 0 ? "moved there today" : `${o.days} day${o.days === 1 ? "" : "s"} in that column`}
+            </p>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }

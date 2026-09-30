@@ -102,3 +102,68 @@ export async function contactabilityByChannel(orgId: string, days = 30) {
     GROUP BY e."channelId"
   `;
 }
+
+/**
+ * The outbound half, which had no alarm at all.
+ *
+ * `checkChannelSilence()` above watches feeds coming *in*. Listings go
+ * *out* by a portal fetching `/api/feed/<token>/listings.xml` on a
+ * schedule, and that is the only route by which a brokerage's
+ * properties reach Property Finder, Bayut or Dubizzle today — no
+ * integration exists, and a feed needs no partner agreement, only a URL
+ * handed over.
+ *
+ * A portal that stops fetching it produces exactly the symptom this
+ * file opens by describing: nothing errors, listings simply stop being
+ * refreshed, prices go stale, withdrawn properties stay advertised, and
+ * it reads as a quiet market. The feed route's own comment claimed this
+ * function existed. It did not.
+ *
+ * ## Why a brokerage that has never been fetched is not an alarm
+ *
+ * `feedFetchedAt` is null until a portal first pulls, and today that is
+ * the ordinary state of every brokerage — no contract is signed, so
+ * nobody has the URL. Alarming on that would fire for every customer
+ * every day, and an alarm that is always on is one somebody switches
+ * off, taking the real one with it.
+ *
+ * So the entry condition is: a token has been issued **and** something
+ * has fetched at least once. That is a brokerage with a live portal
+ * arrangement, which is the only population where silence means
+ * something has broken.
+ *
+ * Note this is the same `if (!x) continue` that hid the Meta bug two
+ * files away, and here it is correct rather than a hole — because
+ * something now writes the field. The guard was never the fault; the
+ * missing writer was.
+ */
+/**
+ * Exported, because `org.listingFeed` answers the same question for
+ * the screen and two copies of one threshold is how the alarm and the
+ * screen come to disagree about whether a feed is quiet.
+ */
+export const FEED_SILENT_HOURS = Number(process.env.FEED_SILENT_HOURS ?? 48);
+
+export async function checkFeedSilence() {
+  const orgs = await crossTenant("sweep").organisation.findMany({
+    where: { deletedAt: null, feedToken: { not: null }, feedFetchedAt: { not: null } },
+    select: { id: true, name: true, feedFetchedAt: true, feedTokenAt: true },
+  });
+
+  const alerts: { orgId: string; name: string; quietHours: number; expected: number }[] = [];
+  for (const o of orgs) {
+    if (!o.feedFetchedAt) continue;
+    const quietHours = (Date.now() - o.feedFetchedAt.getTime()) / 3_600_000;
+    if (quietHours <= FEED_SILENT_HOURS) continue;
+    /**
+     * A rotation is the likeliest innocent explanation, and the schema
+     * comment on `feedTokenAt` says so: rotating the token is how
+     * access is revoked, and a portal still holding the old URL stops
+     * fetching immediately. Reported either way — somebody has to hand
+     * over the new URL — but the ordering means the person reading the
+     * alert checks the right thing first.
+     */
+    alerts.push({ orgId: o.id, name: o.name, quietHours, expected: FEED_SILENT_HOURS });
+  }
+  return alerts;
+}

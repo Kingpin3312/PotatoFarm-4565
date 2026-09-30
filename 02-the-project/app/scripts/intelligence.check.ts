@@ -19,7 +19,7 @@
 import { crossTenant, forOrg } from "../src/server/db/client";
 import { movement, scoreLead, type ScoreInput } from "../src/server/lib/intelligence/score";
 import { nextAction, type Subject } from "../src/server/lib/intelligence/next-action";
-import { sweepIntelligence } from "../src/server/lib/intelligence/sweep";
+import { sweepIntelligence, liveBook } from "../src/server/lib/intelligence/sweep";
 import { dayWindow } from "../src/server/api/routers/today";
 import { fatal } from "./fatal";
 
@@ -63,6 +63,7 @@ function subject(over: Partial<Subject> = {}): Subject {
     openOffers: 0, offerExpiringInDays: null,
     budgetMaxFils: 3_000_000n * 100n, matchesWaiting: 0,
     optedOut: false, windowHoursLeft: 20,
+    timeframe: null, onPlan: false, planAvailable: false,
     ...over,
   };
 }
@@ -187,6 +188,24 @@ async function main() {
   ok("a lead who messaged today with a viewing booked produces silence",
      settled === null, settled?.headline ?? "null");
 
+  console.log("\nSomebody who said \"later\" is offered a plan — and only them:");
+  {
+    const later = { timeframe: "in about six months", planAvailable: true, now: new Date("2026-09-25T08:00:00Z") };
+    const yes = nextAction(subject(later));
+    ok("\"in about six months\" suggests a nurture plan, quoting them", yes?.action === "START_PLAN" && (yes?.reason ?? "").includes("in about six months"), yes?.headline ?? "nothing");
+    const cases: [string, Partial<Subject>][] = [
+      ["\"within six months\" is buying now, not later", { timeframe: "within six months" }],
+      ["somebody already on a plan", { onPlan: true }],
+      ["a brokerage with no plan to offer", { planAvailable: false }],
+      ["somebody who asked not to be messaged", { optedOut: true }],
+      ["a phrase it cannot read", { timeframe: "when the right one comes up" }],
+    ];
+    for (const [why, over] of cases) {
+      const r = nextAction(subject({ ...later, ...over }));
+      ok(`not for ${why}`, r?.action !== "START_PLAN", r?.action ?? "nothing");
+    }
+  }
+
   console.log("\nThe reason is always there:");
   const sample = [hot, expiring, subject({ viewingsAwaitingOutcome: 1 }),
                   subject({ daysInStage: 30 }), subject({ matchesWaiting: 2 })]
@@ -293,6 +312,49 @@ async function main() {
     where: { leadId: stalled.id, action: recs2[0]!.action, state: "OPEN" },
   });
   ok("the dismissed action is not resurrected the next night", revived.length === 0);
+
+  /**
+   * The audit's B9: the sweep took the first 5,000 leads and the newest
+   * 500 listings and stopped, silently. It pages now, so a brokerage one
+   * page bigger than a page is the test — every lead scored, none twice —
+   * and the book it matches against is all of the stock.
+   */
+  console.log("\nEvery lead and every listing, however many:");
+  const big = await root.organisation.create({ data: { name: "Intel Scale", slug: `${SLUG}big` } });
+  await root.membership.create({ data: { orgId: big.id, userId: user.id, role: "AGENT" } });
+  const N = 1_050;
+  await root.lead.createMany({
+    data: Array.from({ length: N }, (_, i) => ({
+      orgId: big.id, phone: `+97155${String(7_000_000 + i)}`, name: `Scale ${i}`,
+      status: "QUALIFYING" as const, createdAt: ago(3),
+    })),
+  });
+  await root.listing.createMany({
+    data: Array.from({ length: 520 }, (_, i) => ({
+      orgId: big.id, reference: `SC-${i}`, title: `Flat ${i}`, community: "JVC", bedrooms: 1,
+      priceFils: 900_000n * 100n, purpose: "SALE" as const, status: "AVAILABLE" as const,
+      createdAt: new Date(Date.now() - i * 60_000),
+    })),
+  });
+  // Last week's score for one of them, so movement is read in the batch.
+  const one = await root.lead.findFirst({ where: { orgId: big.id, name: "Scale 1049" } });
+  await root.leadScoreEvent.create({
+    data: { orgId: big.id, leadId: one!.id, score: 1, recency: 1, engagement: 0, intent: 0, budgetFit: 0,
+            drivers: [], computedAt: ago(7) },
+  });
+  const t0 = Date.now();
+  await sweepIntelligence();
+  const ms = Date.now() - t0;
+  const unscored = await root.lead.count({ where: { orgId: big.id, score: null } });
+  ok(`all ${N} leads scored, across a page boundary`, unscored === 0, `${unscored} unscored`);
+  const perLead = await root.leadScoreEvent.groupBy({ by: ["leadId"], where: { orgId: big.id, computedAt: { gt: ago(1) } }, _count: { _all: true } });
+  ok("each exactly once", perLead.length === N && perLead.every((g) => g._count._all === 1), `${perLead.length} leads`);
+  const moved = await root.leadScoreEvent.findFirst({ where: { leadId: one!.id, computedAt: { gt: ago(1) } } });
+  ok("last week's score is read for movement", (moved?.drivers ?? []).some((d) => /up \d+ points/.test(d)), (moved?.drivers ?? []).join("; "));
+  const book = await liveBook(root, big.id);
+  ok("the book is every live listing, not the newest 500", book.candidates.length === 520 && book.candidates.some((c) => c.reference === "SC-519"),
+     String(book.candidates.length));
+  console.log(`    (the sweep took ${ms}ms with ${N} leads here)`);
 
   await root.organisation.deleteMany({ where: { slug: { startsWith: SLUG } } });
   await root.user.deleteMany({ where: { email: "intel-check@example.com" } });

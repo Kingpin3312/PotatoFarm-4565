@@ -205,6 +205,33 @@ async function main() {
   const read = await s.readObject(key);
   ok("readObject returns the exact bytes", Buffer.from(read).equals(body));
 
+  const head = await s.readObjectHead(key);
+  ok("readObjectHead returns the first bytes and the real size",
+     Buffer.from(head.head).toString("latin1").startsWith("%PDF") && head.size === body.length, `${head.size}`);
+
+  /**
+   * A program saved as "brochure.pdf" (the audit's D2). The browser says
+   * PDF and the ticket is signed for a PDF, so the store accepts it; the
+   * confirm step is where it is caught, before any row is written.
+   */
+  console.log("\nWhat a file really is:");
+  {
+    const u = await import("../src/server/lib/files/upload");
+    const fake = Buffer.concat([Buffer.from([0x4d, 0x5a, 0x90, 0x00]), Buffer.alloc(60, 0x41)]);
+    const fakeKey = "org/abc123/files/brochure.pdf";
+    const t = await s.signPut({ key: fakeKey, mimeType: "application/pdf", sizeBytes: fake.length, expiresInSeconds: 900 });
+    await fetch(t, { method: "PUT", body: fake, headers: { "Content-Type": "application/pdf", "Content-Length": String(fake.length) } });
+    // Refused before any row is written, so no brokerage is needed. If
+    // the check is skipped, the write is attempted and throws — which is
+    // reported as acceptance, the thing this is here to catch.
+    const r = await u.confirmUpload({
+      orgId: "no-org-needed-refused-first", actorId: "x", storageRef: fakeKey,
+      fileName: "brochure.pdf", mimeType: "application/pdf", sizeBytes: fake.length, kind: "BROCHURE",
+    }).catch((e: Error) => ({ ok: true as const, attachmentId: `write attempted: ${e.message.slice(0, 60)}` }));
+    ok("a program named .pdf is refused at confirm", r.ok === false && /isn't the PDF/.test(r.ok ? "" : r.reason), r.ok ? "accepted" : r.reason);
+    ok("and deleted rather than left in the bucket", (await s.objectExists(fakeKey)) === false);
+  }
+
   console.log("\nThe signature is doing work, not decoration:");
   {
     const tampered = url.replace(/X-Amz-Signature=[0-9a-f]+/, "X-Amz-Signature=" + "0".repeat(64));

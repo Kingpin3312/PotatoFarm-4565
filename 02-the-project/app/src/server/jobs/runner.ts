@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { crossTenant } from "@/server/db/client";
 import { log, report } from "@/lib/log";
 
@@ -16,39 +17,61 @@ import { log, report } from "@/lib/log";
  *
  * Two defences, deliberately overlapping:
  *
- *   1. **A Postgres advisory lock**, so only one run of a job executes at
- *      a time across every instance. No Redis, no new dependency — the
+ *   1. **A lease row per job**, so only one run of a job executes at a
+ *      time across every instance. No Redis, no new dependency — the
  *      database is already there and already the thing everything else
  *      agrees on.
+ *
+ *      It was a session-level advisory lock, which belongs to the
+ *      *connection* that took it. The lock was taken on one pooled
+ *      connection and released on whichever the pool handed out next;
+ *      after any run that opened more than one connection — every real
+ *      sweep does — the release missed, the lock stayed held, and every
+ *      later run of that job in the process came back `skipped`.
+ *      Measured: one run, then five skips in a row. Behind the
+ *      transaction-mode pooler DEPLOY.md requires, lock and release
+ *      would almost never share a connection. A row is taken and given
+ *      back by single statements that work on any connection, and
+ *      expires by itself if the process holding it dies.
  *   2. **Every job is independently idempotent.** The lock is not trusted
  *      on its own, because a lock is a runtime guarantee and money is not
  *      a runtime concern. Invoices are keyed on period, reminders on a
  *      sent-at timestamp, notifications on a unique constraint.
  */
 
-/** Stable 64-bit key per job name, for the advisory lock. */
-function lockKey(job: string) {
-  let h = 0n;
-  for (const c of job) h = (h * 31n + BigInt(c.charCodeAt(0))) % 9_223_372_036_854_775_807n;
-  return h;
+/**
+ * Longer than any run is allowed to take (`maxDuration` is 300s), so a
+ * live run is never overtaken; short enough that a run killed mid-way
+ * does not hold its job off for long.
+ */
+const LEASE_MINUTES = 15;
+
+/** Take the job, or learn that somebody else has it. One statement. */
+async function acquire(job: string, holder: string): Promise<boolean> {
+  const rows = await crossTenant("sweep").$queryRaw<{ holder: string }[]>`
+    INSERT INTO "JobLease" ("job", "holder", "until", "acquiredAt")
+    VALUES (${job}, ${holder}, now() + make_interval(mins => ${LEASE_MINUTES}::int), now())
+    ON CONFLICT ("job") DO UPDATE
+      SET "holder" = EXCLUDED."holder", "until" = EXCLUDED."until", "acquiredAt" = now()
+      WHERE "JobLease"."until" < now()
+    RETURNING "holder"`;
+  return rows[0]?.holder === holder;
+}
+
+/** Give it back — only if it is still ours. */
+async function release(job: string, holder: string) {
+  await crossTenant("sweep").$executeRaw`
+    DELETE FROM "JobLease" WHERE "job" = ${job} AND "holder" = ${holder}`;
 }
 
 export type JobResult = Record<string, unknown>;
 
 export async function run(job: string, fn: () => Promise<JobResult>) {
-  const key = lockKey(job);
-
-  // pg_try_advisory_lock returns immediately rather than queueing. A
-  // second run should skip, not wait — waiting means two runs happen back
-  // to back, which for a sweep is the same as running twice.
-  const [row] = await crossTenant("sweep").$queryRaw<{ locked: boolean }[]>`
-    SELECT pg_try_advisory_lock(${key}::bigint) AS locked
-  `;
-  // A raw query is typed by assertion, so the compiler cannot know the
-  // row is there. Treating an absent row as "did not get the lock" is
-  // the safe reading: skipping a sweep costs one cycle, running two at
-  // once is what the lock exists to prevent.
-  const locked = row?.locked ?? false;
+  // Returns at once rather than queueing. A second run should skip, not
+  // wait — waiting means two runs back to back, which for a sweep is the
+  // same as running twice.
+  const holder = `${process.pid}:${randomUUID()}`;
+  const locked = await acquire(job, holder);
 
   if (!locked) {
     log.info("job skipped, already running", {}, { job });
@@ -81,10 +104,10 @@ export async function run(job: string, fn: () => Promise<JobResult>) {
     });
     report(err, {}, { job });
     // Rethrown so the platform's own retry can take over — but the lock
-    // is released in `finally` first, or the retry would skip forever.
+    // is released in `finally` first, or the retry would skip until the lease expires.
     throw err;
   } finally {
-    await crossTenant("sweep").$queryRaw`SELECT pg_advisory_unlock(${key}::bigint)`;
+    await release(job, holder);
   }
 }
 

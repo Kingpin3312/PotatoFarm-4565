@@ -19,7 +19,18 @@ import { forOrg } from "@/server/db/client";
  */
 
 export type Row = {
-  userId: string;
+  /**
+   * Null on a masked row, and the type says so rather than the caller
+   * having to know.
+   *
+   * RANKED mode hides a colleague's name and figures. It used to keep
+   * their id, which made a "masked" row a directory of every agent in
+   * the brokerage — and paired with `viewings.day`, which accepted an
+   * `agentId` from the caller unchecked, that was a two-call route to
+   * any colleague's diary. Widening this is what stops a future caller
+   * assuming an id is always there.
+   */
+  userId: string | null;
   name: string;
   isMe: boolean;
   rank: number;
@@ -179,11 +190,32 @@ export async function leaderboard(args: {
   if (mode === "RANKED") {
     return {
       mode, headStartHours, countedTo,
-      rows: rows.map((r) =>
-        r.isMe
-          ? r
-          : { ...r, name: `Agent ${r.rank}`, viewingsBooked: -1, dealsWon: -1, medianFirstReplyMins: null }
-      ),
+      /**
+       * `userId` goes too, and leaving it was the hole.
+       *
+       * The masked row renamed the person to "Agent 3" and blanked
+       * their figures while spreading `...r`, which kept the id. A
+       * masked row that carries a durable identifier is not anonymous
+       * — it is a directory. Paired with `viewings.day`, which took an
+       * `agentId` from the caller unchecked, it was a two-call route to
+       * every colleague's diary: buyer names, phone numbers, addresses
+       * and access notes.
+       *
+       * Removed by destructuring rather than by overwriting, so a
+       * field added to `rows` later is not silently re-exposed here.
+       */
+      rows: rows.map((r) => {
+        if (r.isMe) return r;
+        const { userId: _hidden, ...rest } = r;
+        return {
+          ...rest,
+          userId: null,
+          name: `Agent ${r.rank}`,
+          viewingsBooked: -1,
+          dealsWon: -1,
+          medianFirstReplyMins: null,
+        };
+      }),
     };
   }
   return { mode, headStartHours, countedTo, rows };

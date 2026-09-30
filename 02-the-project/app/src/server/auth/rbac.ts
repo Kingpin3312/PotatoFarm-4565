@@ -36,6 +36,10 @@ export const PERMISSIONS = [
   "org:update", "org:delete", "org:billing",
   "member:invite", "member:update", "member:remove",
   "lead:read:own", "lead:read:all", "lead:create", "lead:update", "lead:delete", "lead:assign",
+  // A book in and a book out. A manager's, not an agent's: an export is
+  // every client's number in one file, and an import can put hundreds of
+  // people on the board at once. Both are audited with a count.
+  "lead:import", "lead:export",
   "conversation:read", "conversation:send", "conversation:takeover",
   "listing:read", "listing:write",
   "viewing:write",
@@ -80,6 +84,28 @@ export const PERMISSIONS = [
    * before anybody asks.
    */
   "revenue:read",
+
+  /**
+   * Moving money along: a commission invoiced, received or written off,
+   * and an agent's share marked paid.
+   *
+   * Separate from `revenue:read` because seeing what the firm earned and
+   * recording that somebody has been paid are different acts, and the
+   * second is the one an agent's pay depends on. A sales manager reads
+   * the board; the owner and the admin run the books. Nothing held this
+   * permission's work before it existed — no procedure moved a
+   * commission past FORECAST — so every agent's "owed to you" was zero
+   * and the revenue report said the brokerage had earned nothing.
+   */
+  "commission:settle",
+
+  /**
+   * Writing the brokerage's nurture plans — the sequences every agent
+   * then puts their own people on. A manager's, because a plan is a
+   * house decision about how often clients hear from the firm; any agent
+   * with `lead:update` may put their own lead on one, pause it or stop it.
+   */
+  "plan:manage",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -98,9 +124,9 @@ const AGENT: Permission[] = [
 ];
 
 const MANAGER: Permission[] = [
-  ...AGENT, "lead:read:all", "lead:assign", "lead:delete",
+  ...AGENT, "lead:read:all", "lead:assign", "lead:delete", "lead:import", "lead:export",
   "listing:write", "channel:read", "audit:read", "member:invite",
-  "document:write",
+  "document:write", "plan:manage",
   // A sales manager runs the floor and is measured on what it bills.
   // Withholding the number they are accountable for makes the board an
   // instrument of management rather than a tool they use.
@@ -108,7 +134,7 @@ const MANAGER: Permission[] = [
 ];
 
 const ADMIN: Permission[] = [
-  ...MANAGER, "org:update",
+  ...MANAGER, "org:update", "commission:settle",
   "member:update", "member:remove", "channel:write", "export:all",
   "kyc:approve",
   // Deliberately absent: compliance:read and compliance:file. An admin
@@ -157,4 +183,16 @@ export function can(role: Role, permission: Permission) {
  */
 export function leadScope(role: Role, userId: string) {
   return can(role, "lead:read:all") ? {} : { assignedToId: userId };
+}
+
+/**
+ * Who may *read* a person: whoever may read the lead, and the agent
+ * working one of their other pieces of business — the lettings agent on
+ * the villa of somebody sales is helping to buy. Changing the lead itself
+ * stays with `leadScope`.
+ */
+export function personScope(role: Role, userId: string) {
+  return can(role, "lead:read:all")
+    ? {}
+    : { OR: [{ assignedToId: userId }, { opportunities: { some: { agentId: userId } } }] };
 }

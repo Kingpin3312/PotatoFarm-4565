@@ -78,6 +78,15 @@ CREATE = re.compile(r'CREATE\s+(?:UNIQUE\s+)?INDEX\s+(?:CONCURRENTLY\s+)?'
                     r'(?:IF\s+NOT\s+EXISTS\s+)?"?([A-Za-z0-9_]+)"?', re.I)
 DROP = re.compile(r'DROP\s+INDEX\s+(?:CONCURRENTLY\s+)?(?:IF\s+EXISTS\s+)?"?([A-Za-z0-9_]+)"?', re.I)
 
+# The same for constraints, and for the same reason. The fifty foreign
+# keys from every tenant table to "Organisation" are raw SQL
+# (20261004090000_org_foreign_keys, added NOT VALID so they cost no lock
+# on a live table), Prisma cannot see them, and `migrate diff` proposes
+# dropping every one — measured when they were added. A dropped key
+# fails nothing either: orphans simply start accumulating again.
+CREATE_CON = re.compile(r'ADD\s+CONSTRAINT\s+"?([A-Za-z0-9_]+)"?', re.I)
+DROP_CON = re.compile(r'DROP\s+CONSTRAINT\s+(?:IF\s+EXISTS\s+)?"?([A-Za-z0-9_]+)"?', re.I)
+
 
 def strip_sql_comments(text):
     """`-- DropIndex` headers and any commented-out example SQL.
@@ -102,6 +111,8 @@ def main():
 
     # index name -> migration that most recently created it
     live = {}
+    live_con = {}
+    con_fails = []
     fails = []
     excused = []
     checked = 0
@@ -128,9 +139,29 @@ def main():
         for m in CREATE.finditer(sql):
             live[m.group(1)] = mig
 
+        re_added = {m.group(1) for m in CREATE_CON.finditer(sql)}
+        for m in DROP_CON.finditer(sql):
+            con = m.group(1)
+            if con in live_con and con not in re_added:
+                con_fails.append((mig, con, live_con[con]))
+        for m in CREATE_CON.finditer(sql):
+            live_con[m.group(1)] = mig
+
     print("Migration audit\n")
     print(f"  {checked} migration(s) read")
-    print(f"  {len(live)} index(es) standing at the end of the chain\n")
+    print(f"  {len(live)} index(es) standing at the end of the chain")
+    print(f"  {len(live_con)} constraint(s) added along it\n")
+
+    if con_fails:
+        print(f"  {len(con_fails)} constraint(s) dropped and never re-added:\n")
+        for mig, con, born in con_fails:
+            print(f"    x {con}")
+            print(f"        added by    {born}")
+            print(f"        dropped by  {mig}")
+        print()
+        print("  If `migrate dev` wrote these, it is removing raw-SQL constraints")
+        print("  it cannot see in schema.prisma. Delete the DROP statements.")
+        return 1
 
     if fails:
         print(f"  {len(fails)} index(es) dropped and never re-created:\n")

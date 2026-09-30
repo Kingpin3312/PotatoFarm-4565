@@ -9,11 +9,11 @@ the single most important sentence in this document, because the natural
 instinct on arriving at a large codebase is to find something to build,
 and building is not what this project needs.
 
-The gate is green: `tsc` clean, 296 unit assertions, 34 check suites, 22
+The gate is green: `tsc` clean, 432 unit assertions, 66 check suites, 23
 audit scripts, all browser suites, and a production build that succeeds.
 CI runs the lot on every push.
 
-**What is left is four accounts and a phone call.** They are listed
+**What is left is accounts, agreements and a phone call — no code the pilot needs.** They are listed
 under *Still needed from the business* at the end of this file, and
 `PREFLIGHT_ENV=1 npm run check:preflight` names whichever one is
 missing. Run that first; it answers "where are we" in one command.
@@ -139,7 +139,7 @@ After the build, four passes that each found real faults:
 | Security | 131 undeclared RLS bypasses, all safe, none announced | `SECURITY-REVIEW.md` |
 | Board audit | An unthrottled sign-in endpoint; alerts that never left the process; two checks that had been passing while measuring nothing | this file, `OPERATIONS.md`, and the commit log |
 
-All twenty-four check suites are green. Read the reports before changing
+All 66 check suites are green. Read the reports before changing
 anything structural — several of the fixes look like preferences and are
 not.
 
@@ -151,15 +151,15 @@ by putting a bug back and watching them stay green.
 
 ## The shape of it
 
-    prisma/schema.prisma      75 models
+    prisma/schema.prisma      83 models
     src/server/db/            tenant isolation — read rls.sql first
     src/server/auth/          passwordless, database sessions, permission matrix
-    src/server/api/           27 routers, mounted on root.ts
+    src/server/api/           38 routers, mounted on root.ts
     src/server/assistant/     the model, its guardrails, its off switch
     src/server/lib/           the domain: portals, feeds, scheduling,
                               billing, privacy, notify, health, support
-    src/server/jobs/          28 scheduled jobs, advisory-locked
-    src/app/                  44 screens, every one opened by browser:screens
+    src/server/jobs/          30 scheduled jobs, one run at a time by lease
+    src/app/                  53 screens, every one opened by browser:screens
     mobile/                   push, offline policy, auth — does not build
 
 **These numbers said 34 models, 11 routers and 11 scheduled jobs until <!-- counts: ignore -->
@@ -277,10 +277,39 @@ real and names the one that is missing:
 2. **Somewhere for alerts to arrive** — a Slack webhook or PagerDuty.
 3. **A dead-man's-switch monitor** — Healthchecks.io or Better Stack,
    free tier.
-4. **Vercel Pro.** 25 crons and a 300-second function both exceed Hobby,
+4. **Vercel Pro.** 30 crons and a 300-second function both exceed Hobby,
    and deploying to Hobby does not fail loudly: the crons simply never
    run, which for a product built on nightly sweeps is the quietest
    possible outage.
+
+**Added since — these block publishing and due diligence, and need
+the business rather than code:**
+
+5. **A storage bucket** (Cloudflare R2 or AWS S3, the four `S3_*`
+   settings in `.env.example`). Every route to a buyer or a portal
+   requires a listing photo, and every due diligence file needs a
+   passport and an Emirates ID; all three are uploads. `check:preflight`
+   names it when it is missing.
+6. **Signed legal terms, a privacy policy and a data processing
+   agreement**, from counsel. The last thing between the code and a
+   paid pilot.
+7. **WhatsApp Business verification** for the pilot brokerage's number,
+   and a real phone to send a passport photo from and file it out of the
+   thread — the one step of that path no check can take.
+8. **App registrations with Google and Microsoft** for the mailbox
+   connection, with the calendar free/busy permission as well as mail
+   (`.env.example` names both). The code is built and tested against
+   stand-ins.
+9. **A screening provider.** Without one every screening records ERROR,
+   honestly, and the compliance officer is told nothing was checked.
+10. **Portal partner agreements.** The feed works; Property Finder's
+    location IDs arrive with the agreement.
+
+**Calendar sync is two-way now.** The diary publishes a feed a phone
+subscribes to, and the mailbox connection reads the agent's own calendar
+back — busy times only, never what the appointment is — so a viewing is
+never offered on top of it (`check:calendar-busy`). A mailbox connected
+before this asks to be connected again, and Settings → Email says so.
 
 Also outstanding, and cheap: **a Stripe test key**, so
 `npm run check:billing` can exercise the one step it currently skips.

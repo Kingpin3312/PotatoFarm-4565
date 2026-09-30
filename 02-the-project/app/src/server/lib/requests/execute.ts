@@ -1,4 +1,5 @@
 import { forOrg } from "@/server/db/client";
+import { mineOnly } from "@/server/lib/conversations/party";
 import { comparables } from "./comparables";
 import { messagingWindow } from "@/server/lib/whatsapp";
 import type { Classified } from "./classify";
@@ -148,7 +149,8 @@ export async function execute(args: {
           // Lead names the column `assignedToId`; there is no `agentId`
           // on Lead. (Viewing has one, which is where the mix-up came
           // from.)
-          where: { unreadCount: { gt: 0 }, lead: { assignedToId: args.agentId } },
+          // Theirs, owners included — the inbox's own "mine".
+          where: { unreadCount: { gt: 0 }, ...mineOnly(args.agentId) },
         }),
       ]);
 

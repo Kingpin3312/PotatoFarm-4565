@@ -53,10 +53,6 @@
       "schedule": "0 5 * * *"
     },
     {
-      "path": "/api/cron/matching.new-listings",
-      "schedule": "0 6 * * *"
-    },
-    {
       "path": "/api/cron/documents.expiry",
       "schedule": "30 4 * * *"
     },
@@ -74,11 +70,15 @@
     },
     {
       "path": "/api/cron/feedback.vendor-report",
-      "schedule": "0 8 * * 1"
+      "schedule": "0 5 * * *"
     },
     {
       "path": "/api/cron/billing.trials",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/billing.vat-threshold",
+      "schedule": "15 3 * * *"
     },
     {
       "path": "/api/cron/ratelimit.sweep",
@@ -93,6 +93,10 @@
       "schedule": "0 9 * * *"
     },
     {
+      "path": "/api/cron/tenancy.renewals",
+      "schedule": "5 9 * * *"
+    },
+    {
       "path": "/api/cron/email.sync",
       "schedule": "*/15 * * * *"
     },
@@ -103,6 +107,10 @@
     {
       "path": "/api/cron/privacy.retention",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/storage.orphans",
+      "schedule": "30 3 * * 0"
     },
     {
       "path": "/api/cron/intelligence.sweep",

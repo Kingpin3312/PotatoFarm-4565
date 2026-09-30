@@ -54,20 +54,20 @@ export function CheckCopy({ listingId }: { listingId: string }) {
 
   return (
     <>
-      <Button size="sm" variant="secondary" onClick={open}>Check wording</Button>
+      <button type="button" className="min-h-11 px-1.5 text-sm text-ink-2 hover:text-ink hover:underline underline-offset-4 focus-visible:outline-none focus-visible:shadow-[var(--ring)] rounded-sm" onClick={open}>Check wording</button>
 
       <dialog
         ref={dialog}
         aria-labelledby="check-copy-title"
         tabIndex={-1}
-        className="border border-ink rounded-[3px] p-0 max-w-[560px] w-[calc(100%-40px)] bg-raised text-ink-2 backdrop:bg-ink/50"
+        className="border border-rule-strong rounded-[3px] p-0 max-w-[560px] w-[calc(100%-40px)] bg-raised text-ink-2 backdrop:bg-scrim/50"
       >
         <div className="p-6">
           <h2 id="check-copy-title" className="font-sans font-semibold text-h3 text-ink mb-1.5">
             Check the wording
           </h2>
           <p className="text-sm text-ink-3 mb-5">
-            Draft it from the property's facts, or paste your own. Either way it is
+            Draft it from the property’s facts, or paste your own. Either way it is
             checked against the rules portals reject listings for.
           </p>
 

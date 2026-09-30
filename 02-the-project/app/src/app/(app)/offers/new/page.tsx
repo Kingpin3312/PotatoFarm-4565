@@ -3,6 +3,7 @@
 import { use, useState } from "react";
 import { api } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 /**
  * Record an offer.
@@ -45,7 +46,7 @@ export default function NewOffer({ searchParams }: {
             the weekly report and the Form F both need them.
           </p>
         )}
-        <a href="/offers" className="btn-inline mt-6 inline-block">Back to offers</a>
+        <Link href="/offers" className="btn-inline mt-6 inline-block">Back to offers</Link>
       </div>
     );
   }
@@ -64,7 +65,7 @@ export default function NewOffer({ searchParams }: {
 
         <div>
           <span className="block t-label text-ink-3 mb-2">
-            How they're paying
+            How they’re paying
           </span>
           <div className="flex gap-2 flex-wrap">
             {(["CASH", "MORTGAGE", "UNKNOWN"] as const).map((k) => (
@@ -101,7 +102,7 @@ export default function NewOffer({ searchParams }: {
           <Field label="Expires in (days)" value={String(f.expiresInDays)} type="number"
                  onChange={(v) => setF({ ...f, expiresInDays: Number(v) || 3 })} />
           <p className="text-sm text-ink-2 mt-1.5 max-w-[44ch] leading-snug">
-            We'll mark it lapsed and tell you. Chasing an acceptance on an offer that ran out
+            We’ll mark it lapsed and tell you. Chasing an acceptance on an offer that ran out
             on Tuesday is a bad afternoon.
           </p>
         </div>

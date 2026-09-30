@@ -222,6 +222,41 @@ async function main() {
     }
   }
 
+  /**
+   * And every one of them points at its brokerage.
+   *
+   * Fifty tenant tables had an `orgId` and no foreign key to
+   * "Organisation" (the audit's C5), so a deleted brokerage left rows
+   * behind naming nobody — found in this very database: invoices,
+   * subscriptions and assignment rules from check runs whose clean-up
+   * deleted the brokerage and not what it owned. Asked of the database,
+   * like the policy above, so a new tenant table without the key fails
+   * here rather than being noticed by an auditor.
+   */
+  console.log("\nEvery table with an orgId points at its brokerage:");
+  {
+    const missing = await root.$queryRaw<{ table_name: string }[]>`
+      SELECT col.table_name
+        FROM information_schema.columns col
+        JOIN pg_class c ON c.relname = col.table_name AND c.relkind = 'r'
+        JOIN pg_namespace n ON n.oid = c.relnamespace AND n.nspname = 'public'
+       WHERE col.table_schema = 'public' AND col.column_name = 'orgId'
+         AND NOT EXISTS (
+           SELECT 1 FROM pg_constraint k
+            WHERE k.conrelid = c.oid AND k.contype = 'f'
+              AND k.confrelid = '"Organisation"'::regclass
+              AND k.conkey = ARRAY[(SELECT attnum FROM pg_attribute WHERE attrelid = c.oid AND attname = 'orgId')]::smallint[]
+         )
+       ORDER BY 1`;
+    const ok = missing.length === 0;
+    console.log(`  ${ok ? "✓" : "✗"} every tenant table has a foreign key to Organisation` +
+                (ok ? "" : ` — ${missing.length} without`));
+    for (const m of missing) {
+      console.log(`      x ${m.table_name} — no foreign key on orgId`);
+      fails.push(`${m.table_name}: no foreign key to Organisation`);
+    }
+  }
+
   console.log("\nA write cannot cross either:");
   const stolen = await forOrg(a.id).lead.updateMany({
     where: { phone: `${TAG}00003` },          // B's lead, from A's client
@@ -230,6 +265,61 @@ async function main() {
   const ok = stolen.count === 0;
   console.log(`  ${ok ? "✓" : "✗"} A updating B's lead affected ${stolen.count} rows`);
   if (!ok) fails.push(`A wrote to ${stolen.count} of B's rows`);
+
+  /**
+   * Inside `$transaction(async (tx) => …)`, which is where thirty-one of
+   * the product's writes happen — ingest, erasure, offers, handover,
+   * every mutation that writes a row and its audit entry together.
+   *
+   * The scope held there all along. What did not hold was the
+   * transaction: each statement committed on its own connection, so an
+   * update followed by a throw stayed written. `forOrg` now opens a real
+   * transaction and scopes it from the inside, and these are the four
+   * things that has to keep true.
+   */
+  console.log("\nInside a transaction:");
+  const inside = await forOrg(a.id).$transaction(async (tx) =>
+    (await tx.lead.findMany({ where: { phone: { startsWith: TAG } }, select: { name: true } }))
+      .map((l) => l.name ?? ""));
+  check("A's transaction sees only A", inside, ["A-one", "A-two"]);
+
+  const crossed = await forOrg(a.id).$transaction(async (tx) =>
+    tx.lead.updateMany({ where: { phone: `${TAG}00003` }, data: { name: "STOLEN" } }));
+  console.log(`  ${crossed.count === 0 ? "✓" : "✗"} A's transaction writing B's lead affected ${crossed.count} rows`);
+  if (crossed.count !== 0) fails.push(`A's transaction wrote to ${crossed.count} of B's rows`);
+
+  let thrown = false;
+  try {
+    await forOrg(a.id).$transaction(async (tx) => {
+      await tx.lead.updateMany({ where: { phone: `${TAG}00001` }, data: { name: "HALF-DONE" } });
+      throw new Error("the second half failed");
+    });
+  } catch { thrown = true; }
+  const afterThrow = await seen(a.id);
+  const rolledBack = thrown && !afterThrow.includes("HALF-DONE");
+  console.log(`  ${rolledBack ? "✓" : "✗"} a failure half way leaves nothing behind`);
+  if (!rolledBack) fails.push("a transaction that threw kept its first write — it is not a transaction");
+
+  /**
+   * And the scope ends with it. `set_config(…, true)` is
+   * transaction-local; the moment that became session-level, the next
+   * request on the pooled connection would run as brokerage A. A raw
+   * query is not a model operation, so the hook does not scope it — it
+   * reads whatever the connection it lands on is carrying. Ten of them,
+   * because the pool has more than one connection to land on.
+   */
+  for (let i = 0; i < 5; i++) {
+    await forOrg(a.id).$transaction(async (tx) => tx.lead.count());
+  }
+  const leftovers = new Set<string>();
+  for (let i = 0; i < 10; i++) {
+    const [row] = await forOrg(b.id).$queryRaw<{ org: string | null }[]>`
+      SELECT current_setting('app.current_org', true) AS org`;
+    if (row?.org) leftovers.add(row.org);
+  }
+  const clean = !leftovers.has(a.id);
+  console.log(`  ${clean ? "✓" : "✗"} the scope ends with the transaction, not the connection`);
+  if (!clean) fails.push("a transaction's scope was still set on a pooled connection afterwards");
 
   // Facts and recommendations cascade with the organisation, so the two
   // deletes below take everything this script made.

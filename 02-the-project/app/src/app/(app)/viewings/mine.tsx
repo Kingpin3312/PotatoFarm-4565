@@ -17,7 +17,7 @@ export function MyViewings() {
   return (
     <section>
       <h2 className="font-sans font-medium text-sub text-ink mb-3">Next two days</h2>
-      <div className="border-t border-ink">
+      <div className="border-t border-rule-strong">
         {viewings.map((v) => (
           /* The person, not `/viewings#<id>`.
              

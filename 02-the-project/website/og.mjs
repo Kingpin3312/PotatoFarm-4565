@@ -38,7 +38,7 @@ const CARDS = [
     file: "og-default.png",
     eyebrow: "WhatsApp CRM for UAE brokerages",
     head: "Every enquiry answered in seconds.",
-    sub: "A portal lead goes to four agencies at once. The first to reply usually gets the viewing — so the assistant replies, qualifies the buyer and books it, day or night.",
+    sub: "A portal lead goes to four agencies at once. The first to reply usually gets the viewing — so the assistant replies, qualifies the buyer and lines the viewing up for your agent, day or night.",
   },
   {
     file: "og-guides.png",

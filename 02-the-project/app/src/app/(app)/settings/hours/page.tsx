@@ -110,7 +110,7 @@ export default function WorkingHoursPage() {
           save.mutate({ days: days.map(({ dayOfWeek, closed, start, end }) => ({ dayOfWeek, closed, start, end })) });
         }}
       >
-        <div className="border-t border-ink">
+        <div className="border-t border-rule-strong">
           {days.map((d, i) => (
             <div
               key={d.dayOfWeek}

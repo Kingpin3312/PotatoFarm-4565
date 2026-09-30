@@ -64,13 +64,48 @@ Three layers, and the first is the one that matters:
 Cheap and certain before expensive and uncertain. Most handovers never
 reach the model at all:
 
+    a newer message arrived?      -> the waiting draft is retired first
+    owner's thread?               -> silent
     handover already active?      -> silent
+    "I've got this" on the thread -> silent (the mute; it was never read before)
     outside the 24-hour window?   -> stop (a send here is accepted and never delivered)
+    "stop", or a closed file?     -> silent
     inbound screening             -> handover, no model call
     generate                      -> 8s timeout, model failure is a handover
     outbound screening            -> handover on any failure, never a silent retry
-    send, then record
-    extract separately            -> never blocks the reply
+    send it, or leave the draft   -> sent while qualifying at a brokerage that
+                                     chose it (read, typing…, a short pause);
+                                     otherwise a person reads, edits and sends
+    extract separately            -> never blocks anything
+
+## Sent while qualifying, drafted after
+
+The brokerage's owner chooses, on Settings → Assistant ("Replies while
+qualifying", off by default, every change audited).
+
+**On:** while a buyer is NEW or QUALIFYING and no agent has written in
+the thread, the assistant replies by itself (`respond()`, reached through
+`reply()` in `run.ts`): it marks their message read, shows "typing…",
+waits a couple of seconds as a person would (`humanPause`, never more
+than seven) and sends. It writes like an agent texting — their language,
+one question at a time, picking up what they said — and it never claims
+to be a person; asked, it says it is the brokerage's assistant and offers
+somebody. The moment an agent writes in the thread, or the buyer is
+qualified, it goes back to drafting there.
+
+**Off, and everywhere past qualification:** every new message from a
+buyer is answered with a **draft** the moment it arrives (`draftReply`),
+the agent who has the buyer is notified at once, and the reply goes only
+when a person presses send — as written, after editing, or not at all. A
+manager hears if a draft sits for fifteen minutes. A new message from the
+buyer retires the waiting draft, so a reply written before "STOP" can
+never be one tap from going out — and an automatic reply retires it too.
+
+What becomes of each draft — sent as written, edited, discarded,
+overtaken — is kept (`ReplyDraft.state`) and shown beside the switch as
+"sent exactly as written", which is the evidence an owner should be
+looking at when they turn it on. `check:auto-reply` and
+`check:reply-drafts`.
 
 A failed outbound check is always a handover, never a retry. An assistant
 that quietly rewrites its own hallucinations is harder to trust than one
@@ -198,5 +233,10 @@ if the lead cannot do Saturday morning the conversation stalls.
   nothing yet checks that it did.
 - **A pause reason shown in the inbox.** Right now an agent sees the
   assistant has stopped but not why.
-- **Per-conversation opt-out**, for the lead who says "stop messaging me".
-  Currently only handover, which is not the same thing.
+- ~~**Per-conversation opt-out**~~ — "stop" is recorded by the ingest
+  and the assistant writes nothing in reply to it.
+- ~~**The switch to automatic replies.**~~ Built: "Replies while
+  qualifying" on Settings → Assistant — off, outside working hours only
+  (`autoReplyOutOfHours`, read against the brokerage's `WorkingHours` by
+  `lib/hours/open.ts`; no hours set counts as open, so it drafts), or
+  always. `check:auto-reply`.

@@ -37,7 +37,7 @@ export function ErasureHistory() {
         Everything asked for and what was done about it. An inspector asks about the
         requests you refused or deferred, not only the ones you honoured.
       </p>
-      <div className="border-t border-ink">
+      <div className="border-t border-rule-strong">
         {data.requests.map((r) => (
           <div key={r.id} className="py-3 border-b border-rule">
             <div className="flex items-baseline gap-3">

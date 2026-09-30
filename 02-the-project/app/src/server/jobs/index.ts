@@ -4,25 +4,27 @@ import { releaseHeld } from "@/server/lib/notify/digest";
 import { sendDueReminders, expireHolds } from "@/server/lib/reminders";
 import { checkChannelSilence } from "@/server/lib/portals/health";
 import { retentionSweep } from "@/server/lib/privacy/erase";
+import { sweepOrphans } from "@/server/lib/files/sweep";
 import { expireGrants } from "@/server/lib/support/access";
 import { sweepOverdue } from "@/server/lib/billing/dunning";
 import { generateInvoice } from "@/server/lib/billing/invoice";
 import { reconcile } from "@/server/lib/billing/reconcile";
 import { sweepTrials } from "@/server/lib/billing/signup";
+import { watchVatThreshold, type AlertState } from "@/server/lib/billing/vat-threshold";
 import { sweepRateLimits } from "@/server/lib/ratelimit";
 import { sweepMailboxes } from "@/server/lib/email/sync";
 import { sendDueFollowUps } from "@/server/lib/reminders";
 import { sweepExpired } from "@/server/lib/offers/negotiate";
 import { sweep as sweepVisaNudges } from "@/server/lib/matching/visa-nudge";
+import { sweepRenewals } from "@/server/lib/tenancy/renewals";
 import { evaluate } from "@/server/lib/health/alert";
 import { assess } from "@/server/lib/deals/timeline";
-import { best } from "@/server/lib/matching/score";
-import { decide, message } from "@/server/lib/matching/outreach";
-import { canDriveOutreach } from "@/server/lib/matching/requirements";
+import { best, type Candidate } from "@/server/lib/matching/score";
+import { message } from "@/server/lib/matching/outreach";
 import { groupForNotification } from "@/server/lib/documents/expiry";
-import { shouldAdvance, scheduleNext } from "@/server/lib/plans/run";
-import { askAt } from "@/server/lib/feedback/collect";
-import { compose } from "@/server/lib/feedback/report";
+import { shouldAdvance, scheduleNext, taskForStep } from "@/server/lib/plans/run";
+import { askAt, question } from "@/server/lib/feedback/collect";
+import { compose, vendorsDueToday, channelFor } from "@/server/lib/feedback/report";
 import { crossTenant } from "@/server/db/client";
 import { dispatch } from "@/server/lib/notify/dispatch";
 import { sweepIntelligence } from "@/server/lib/intelligence/sweep";
@@ -459,112 +461,33 @@ export const JOBS = {
     return { live: live.length, atRisk };
   }),
 
-  /**
-   * New listings, matched against live requirements. Once a day, at 10am.
+  /*
+   * `matching.new-listings` was here, and was retired rather than fixed.
    *
-   * Deliberately not hourly. A buyer does not need to know within the
-   * hour, and a job that can message people is a job that should run as
-   * seldom as it usefully can.
+   * It matched each new listing against live requirements, ran the
+   * outreach rules, and then — beneath a comment saying "sending happens
+   * through the normal outbound path" — sent nothing. It wrote a log
+   * line, stamped `Lead.lastOutreachAt` and counted the buyer as
+   * `messaged`. Three consequences, all silent:
    *
-   * Only listings that went live in the last 24 hours are considered. The
-   * alternative — matching against the whole inventory — means the first
-   * run messages everybody about everything, which is exactly the
-   * behaviour that gets a WhatsApp number reported.
+   *   - no buyer ever received a new-listing alert;
+   *   - the Buyers screen reads `lastOutreachAt` through `decide()`, so
+   *     an agent was told a buyer had been "messaged 3 days ago" by a
+   *     message that never existed, and held off contacting them;
+   *   - a `return` inside the requirement loop ended the whole brokerage
+   *     at the first buyer who failed a gate, so most were never
+   *     considered at all.
+   *
+   * It was not given a sender because sending is not allowed.
+   * `intelligence/autonomy.ts` caps every customer-facing action at
+   * CONFIRM — a person presses send, at every mode including Autopilot —
+   * and the settings screen promises owners exactly that. The allowed
+   * version already exists: `intelligence.sweep` runs the matcher over
+   * the live book every night and puts "Send Priya the one that fits"
+   * on the agent's list as a SEND_PROPERTY recommendation, needing their
+   * yes. A second path that decides by itself is the thing the floor
+   * exists to prevent, and this one only appeared to work.
    */
-  "matching.new-listings": () => run("matching.new-listings", async () => {
-    const since = new Date(Date.now() - 24 * 3_600_000);
-
-    const fresh = await crossTenant("sweep").listing.findMany({
-      where: { status: "AVAILABLE", deletedAt: null, createdAt: { gte: since } },
-      select: {
-        id: true, orgId: true, reference: true, title: true, priceFils: true,
-        bedrooms: true, community: true, purpose: true, createdAt: true,
-      },
-    });
-    if (!fresh.length) return { listings: 0, messaged: 0 };
-
-    const byOrg = new Map<string, typeof fresh>();
-    for (const l of fresh) byOrg.set(l.orgId, [...(byOrg.get(l.orgId) ?? []), l]);
-
-    let messaged = 0, considered = 0, blocked = 0;
-
-    await each(byOrg, ([orgId, listings]) => `org ${orgId}`, async ([orgId, listings]) => {
-      const requirements = await crossTenant("sweep").requirement.findMany({
-        where: { orgId, active: true },
-        include: {
-          lead: {
-            select: {
-              id: true, name: true, phone: true, status: true,
-              optedOutOfOutreach: true, lastOutreachAt: true, createdAt: true,
-              assignedTo: { select: { name: true } },
-              conversation: { select: { lastInboundAt: true } },
-            },
-          },
-        },
-      });
-
-      for (const r of requirements) {
-        considered += 1;
-
-        // Trust gate first — cheapest check, and the one that keeps a
-        // guessed requirement from ever reaching a customer.
-        const trust = canDriveOutreach(r);
-        if (!trust.ok) { blocked += 1; return; }
-
-        const match = best(
-          {
-            budgetMinFils: r.budgetMinFils,
-            budgetMaxFils: r.budgetMaxFils,
-            bedrooms: r.bedroomsMin,
-            communities: r.communities,
-            intent: r.intent as never,
-          },
-          listings.map((l) => ({
-            id: l.id, reference: l.reference, title: l.title,
-            // Straight through. The column is `priceFils` and is already
-            // in fils — the previous line selected a `price` field that
-            // does not exist and then multiplied it by 100 to "convert"
-            // it, which is the hundred-times bug money.ts was written to
-            // end. Had the column existed, every match would have scored
-            // against a budget a hundred times too large.
-            priceFils: l.priceFils,
-            bedrooms: l.bedrooms, community: l.community,
-            purpose: l.purpose as "SALE" | "RENT", listedAt: l.createdAt,
-          }))
-        );
-        if (!match) return;
-
-        const call = decide({
-          lead: {
-            status: r.lead.status,
-            optedOut: r.lead.optedOutOfOutreach,
-            lastInboundAt: r.lead.conversation?.lastInboundAt ?? null,
-            lastOutreachAt: r.lead.lastOutreachAt,
-            createdAt: r.lead.createdAt,
-          },
-          match,
-        });
-        if (!call.send) { blocked += 1; return; }
-
-        // Sending happens through the normal outbound path, so the
-        // template rule, the ledger and the audit trail all apply. There
-        // is no separate marketing pipe that bypasses them.
-        log.info("outreach match", { orgId }, {
-          listing: match.listing.reference,
-          score: match.score,
-          template: call.useTemplate,
-        });
-
-        await crossTenant("sweep").lead.update({
-          where: { id: r.lead.id },
-          data: { lastOutreachAt: new Date() },
-        });
-        messaged += 1;
-      }
-    });
-
-    return { listings: fresh.length, considered, messaged, blocked };
-  }),
 
   /**
    * Task plans. Once a day.
@@ -576,29 +499,52 @@ export const JOBS = {
   "plans.advance": () => run("plans.advance", async () => {
     const due = await crossTenant("sweep").planSubscription.findMany({
       where: { state: "RUNNING", nextDueAt: { lte: new Date() } },
+      // Oldest first, so a backlog past the batch is worked through
+      // rather than the same five hundred read every run.
+      orderBy: { nextDueAt: "asc" },
       take: 500,
       include: {
         plan: { include: { steps: { orderBy: { order: "asc" } } } },
       },
     });
 
-    let acted = 0, paused = 0, finished = 0;
+    let acted = 0, quiet = 0, unassigned = 0, paused = 0, finished = 0;
+    // The live book, once per brokerage. CHECK_MATCHES is the only
+    // step that needs it and a sweep can hold a few hundred subscriptions.
+    const books = new Map<string, Candidate[]>();
 
-    await each(due, (sub) => `plan sub ${sub.id}`, async (sub) => {
+    const r = await each(due, (sub) => `plan sub ${sub.id}`, async (sub) => {
       const lead = await crossTenant("sweep").lead.findUnique({
         where: { id: sub.leadId },
         select: {
-          status: true, optedOutOfOutreach: true,
+          name: true, phone: true, status: true, optedOutOfOutreach: true,
+          assignedToId: true, deletedAt: true,
+          assignedTo: { select: { name: true } },
           conversation: { select: { lastInboundAt: true } },
         },
       });
-      if (!lead) return;
+      /**
+       * Somebody removed from the book comes off the plan.
+       *
+       * This returned and left the plan RUNNING and due, so it was read
+       * again every run, for ever — and enough of them would fill the
+       * batch above and starve everybody else's plans.
+       */
+      if (!lead || lead.deletedAt) {
+        await crossTenant("sweep").planSubscription.update({
+          where: { id: sub.id },
+          data: { state: "STOPPED", finishedAt: new Date(), endedReason: "removed from the book" },
+        });
+        finished++;
+        return;
+      }
 
       const call = shouldAdvance({
         sub: {
           currentStep: sub.currentStep,
           state: sub.state,
           startedAt: sub.startedAt,
+          resumedAt: sub.resumedAt,
           nextDueAt: sub.nextDueAt,
         },
         steps: sub.plan.steps,
@@ -622,27 +568,112 @@ export const JOBS = {
         return;
       }
 
-      // The step itself goes through the ordinary outbound path — same
-      // frequency cap, quiet hours, opt-out and template rule as a match
-      // alert. A sequence with its own sending rules is spam on a
-      // schedule.
-      log.info("plan step due", { orgId: sub.orgId }, {
-        plan: sub.plan.name, step: call.step.order, action: call.step.action,
-      });
+      /**
+       * Nobody to hand it to, so the step is **not** taken.
+       *
+       * Every step ends with a person doing something, and a step taken
+       * with nobody to do it is the bug this replaced: consumed, logged,
+       * and never happened. Left due, it is retried tomorrow, and the
+       * count in this job's result says why it is stuck.
+       */
+      if (!lead.assignedToId) { unassigned++; return; }
 
-      const next = scheduleNext(sub.plan.steps, sub.currentStep, new Date());
-      await crossTenant("sweep").planSubscription.update({
-        where: { id: sub.id },
-        data: {
-          currentStep: call.step.order,
-          nextDueAt: next?.dueAt ?? null,
-          ...(next ? {} : { state: "COMPLETED", finishedAt: new Date(), endedReason: "sequence finished" }),
-        },
+      const who = lead.name?.split(" ")[0] || lead.phone;
+      let match: { title: string; draft: string } | null = null;
+
+      if (call.step.action === "CHECK_MATCHES") {
+        let book = books.get(sub.orgId);
+        if (!book) {
+          const rows = await crossTenant("sweep").listing.findMany({
+            where: { orgId: sub.orgId, status: { in: ["AVAILABLE", "UNDER_OFFER"] }, deletedAt: null },
+            orderBy: { createdAt: "desc" },
+            take: 500,
+            select: {
+              id: true, reference: true, title: true, priceFils: true,
+              bedrooms: true, community: true, purpose: true, createdAt: true,
+            },
+          });
+          book = rows.map((l) => ({
+            id: l.id, reference: l.reference, title: l.title, priceFils: l.priceFils,
+            bedrooms: l.bedrooms, community: l.community,
+            purpose: l.purpose as "SALE" | "RENT", listedAt: l.createdAt,
+          }));
+          books.set(sub.orgId, book);
+        }
+        const wants = await crossTenant("sweep").requirement.findMany({
+          where: { orgId: sub.orgId, leadId: sub.leadId, active: true },
+          select: {
+            budgetMinFils: true, budgetMaxFils: true, bedroomsMin: true,
+            communities: true, intent: true, purpose: true,
+          },
+        });
+        let top: ReturnType<typeof best> = null;
+        for (const r of wants) {
+          const m = best(
+            {
+              budgetMinFils: r.budgetMinFils, budgetMaxFils: r.budgetMaxFils,
+              bedrooms: r.bedroomsMin, communities: r.communities,
+              intent: r.intent === "RENT" ? "RENT"
+                    : r.intent === "BUY_TO_INVEST" ? "BUY_TO_INVEST"
+                    : r.intent === "BUY_TO_LIVE" ? "BUY_TO_LIVE" : null,
+            },
+            book.filter((c) => c.purpose === r.purpose),
+          );
+          if (m && (!top || m.score > top.score)) top = m;
+        }
+        if (top) {
+          match = {
+            title: top.listing.title,
+            draft: message({
+              firstName: lead.name?.split(" ")[0] ?? null,
+              match: top,
+              agentName: lead.assignedTo?.name ?? null,
+            }),
+          };
+        }
+      }
+
+      const task = taskForStep({ step: call.step, planName: sub.plan.name, who, match });
+      const next = scheduleNext(sub.plan.steps, call.step.order, new Date());
+
+      /**
+       * The task and the step, together or not at all.
+       *
+       * Advancing first and failing the create is the old bug in a new
+       * place: a step recorded as taken that nobody was asked to take.
+       *
+       * And only if nobody moved it meanwhile. An agent can stop or pause
+       * a plan now, and an unconditional write here would have restarted
+       * it — or marked a stopped plan "sequence finished" — with a task
+       * for a step they had just called off.
+       */
+      const took = await crossTenant("sweep").$transaction(async (tx) => {
+        const moved = await tx.planSubscription.updateMany({
+          where: { id: sub.id, state: "RUNNING", currentStep: sub.currentStep },
+          data: {
+            currentStep: call.step.order,
+            nextDueAt: next?.dueAt ?? null,
+            ...(next ? {} : { state: "COMPLETED", finishedAt: new Date(), endedReason: "sequence finished" }),
+          },
+        });
+        if (moved.count !== 1) return false;
+        if (task) {
+          await tx.followUp.create({
+            data: {
+              orgId: sub.orgId, agentId: lead.assignedToId!, leadId: sub.leadId,
+              title: task.title, body: task.body, dueAt: new Date(),
+            },
+          });
+        }
+        return true;
       });
-      acted++;
+      if (!took) return;
+      task ? acted++ : quiet++;
     });
 
-    return { due: due.length, acted, paused, finished };
+    // `failed` in the result: a step whose task could not be written is
+    // left due and retried, and without the count nobody would know.
+    return { due: due.length, acted, quiet, unassigned, paused, finished, failed: r.failed };
   }),
 
   /**
@@ -658,29 +689,79 @@ export const JOBS = {
         status: "COMPLETED",
         scheduledAt: { gte: new Date(Date.now() - 3 * 86_400_000) },
       },
-      select: { id: true, orgId: true, scheduledAt: true, durationMins: true, leadId: true },
+      select: {
+        id: true, orgId: true, scheduledAt: true, durationMins: true,
+        leadId: true, listingId: true, agentId: true,
+        lead: { select: { name: true, phone: true, assignedToId: true, deletedAt: true } },
+        listing: { select: { title: true } },
+      },
       take: 200,
     });
 
-    let asked = 0;
-    await each(done, (v) => `viewing ${v.id}`, async (v) => {
+    let prompted = 0, unassigned = 0;
+    const r = await each(done, (v) => `viewing ${v.id}`, async (v) => {
+      if (v.lead.deletedAt) return;
+
+      /**
+       * A row means the agent has been asked to ask. `askedAt` stays
+       * empty until the buyer actually is — see below.
+       */
       const already = await crossTenant("sweep").viewingFeedback.findUnique({
         where: { viewingId: v.id },
-        select: { askedAt: true },
+        select: { id: true },
       });
-      if (already?.askedAt) return;
+      if (already) return;
 
       const due = askAt(new Date(v.scheduledAt.getTime() + v.durationMins * 60_000));
       if (due > new Date()) return;
 
-      await crossTenant("sweep").viewingFeedback.upsert({
-        where: { viewingId: v.id },
-        create: { orgId: v.orgId, viewingId: v.id, leadId: v.leadId, askedAt: new Date() },
-        update: { askedAt: new Date() },
-      });
-      asked += 1;
+      // Whoever showed it, or failing that whoever has the lead.
+      const agentId = v.agentId ?? v.lead.assignedToId;
+      if (!agentId) { unassigned++; return; }
+
+      /**
+       * The question goes to the agent, ready to send, not to the buyer.
+       *
+       * This stamped `ViewingFeedback.askedAt` and counted the viewing as
+       * `asked` without sending anything — no sender was ever wired — so
+       * every buyer was recorded as asked and none was. Nothing wrote an
+       * answer either, so the weekly vendor report was composed from
+       * feedback that was never collected; the task now carries the
+       * viewing, and the agent records the answer on it
+       * (`viewings.feedback`), which closes it.
+       *
+       * It is not given a sender because `intelligence/autonomy.ts` stops
+       * every message to a client at CONFIRM: a person presses send. So
+       * the agent gets the one question `collect.ts` drafts, two hours
+       * after the viewing, and sends it themselves or asks on the phone.
+       *
+       * `listingId` is written now. It never was, and the vendor report
+       * finds feedback by listing — so an answer, had one ever been
+       * recorded, would not have reached the owner's report either.
+       */
+      const title = v.listing?.title ?? "the property";
+      const firstName = v.lead.name?.split(" ")[0] ?? null;
+      const q = question(title, firstName);
+
+      await crossTenant("sweep").$transaction([
+        crossTenant("sweep").viewingFeedback.create({
+          data: { orgId: v.orgId, viewingId: v.id, leadId: v.leadId, listingId: v.listingId },
+        }),
+        crossTenant("sweep").followUp.create({
+          data: {
+            // The viewing, so recording the answer closes this task.
+            orgId: v.orgId, agentId, leadId: v.leadId, viewingId: v.id,
+            title: `Ask ${firstName ?? v.lead.phone} what they thought of ${title}`,
+            body:
+              `One question gets an honest answer two hours after a viewing. A draft:\n\n` +
+              `${q.body}\n` + q.options.map((o) => `• ${o.label}`).join("\n"),
+            dueAt: new Date(),
+          },
+        }),
+      ]);
+      prompted += 1;
     });
-    return { completed: done.length, asked };
+    return { completed: done.length, prompted, unassigned, failed: r.failed };
   }),
 
   /**
@@ -691,47 +772,124 @@ export const JOBS = {
    * have nothing to say. This gives them something.
    */
   "feedback.vendor-report": () => run("feedback.vendor-report", async () => {
-    const since = new Date(Date.now() - 7 * 86_400_000);
-
-    const listings = await crossTenant("sweep").listing.findMany({
-      where: { status: { in: ["AVAILABLE", "UNDER_OFFER"] }, deletedAt: null },
-      select: { id: true, orgId: true, title: true, createdAt: true },
-      take: 500,
+    /**
+     * ## What this did, and why it changed
+     *
+     * It ran on Mondays, composed a report for every live listing with a
+     * viewing, wrote a `VendorReport` row — and **nothing read the row or
+     * sent it**. `sentAt` was never set. Every owner's report was written
+     * to a table and left there.
+     *
+     * It also ignored everything the owner had asked for.
+     * `vendorsDueToday()` — reports off, offers only, which day — was
+     * written for exactly this and had no caller; and the default report
+     * day is **Thursday** while the job ran on Monday, so even a correct
+     * send would never have reached the default owner. And it skipped a
+     * listing with no viewings, beneath a module that says "nothing
+     * happened this week is not a reason to skip".
+     *
+     * Now it runs daily, takes the owners due today, and puts each one's
+     * report on an agent's list, in the channel the owner chose: a
+     * message to an owner is a message to a client, and
+     * `intelligence/autonomy.ts` stops those at a person pressing send.
+     *
+     * **Which agent**: the one who looks after the property
+     * (`Listing.agentId`). For a listing nobody has been given yet it
+     * falls back to whoever showed one of the owner's properties most
+     * recently, else whoever handled an offer on one, else the
+     * brokerage's owner — and the task says which, so a guess is
+     * visible rather than silent.
+     */
+    const today = new Date();
+    const since = new Date(today.getTime() - 6 * 86_400_000);
+    const orgs = await crossTenant("sweep").organisation.findMany({
+      where: { deletedAt: null }, select: { id: true },
     });
 
-    let composed = 0, withSignal = 0;
+    let due = 0, prepared = 0, unassigned = 0;
+    const r = await each(orgs, (o) => `org ${o.id}`, async (o) => {
+      for (const v of await vendorsDueToday(o.id, today)) {
+        due += 1;
+        const listings = await crossTenant("sweep").listing.findMany({
+          where: { orgId: o.id, vendorId: v.id, status: { in: ["AVAILABLE", "UNDER_OFFER"] }, deletedAt: null },
+          select: { id: true, title: true, createdAt: true, agentId: true },
+        });
+        if (!listings.length) continue;
 
-    await each(listings, (l) => `listing ${l.id}`, async (l) => {
-      const rows = await crossTenant("sweep").viewingFeedback.findMany({
-        where: { listingId: l.id, answeredAt: { not: null } },
-        select: { verdict: true, reasons: true },
-      });
-      const viewings = await crossTenant("sweep").viewing.count({
-        where: { listingId: l.id, status: "COMPLETED" },
-      });
-      if (!viewings) return;
+        // Once a week per property, whatever day it lands on.
+        const recent = await crossTenant("sweep").vendorReport.findFirst({
+          where: { orgId: o.id, listingId: { in: listings.map((l) => l.id) }, createdAt: { gte: since } },
+          select: { id: true },
+        });
+        if (recent) continue;
 
-      const offers = rows.filter((r) => r.verdict === "OFFERING").length;
-      const daysListed = Math.floor((Date.now() - l.createdAt.getTime()) / 86_400_000);
+        const ids = listings.map((l) => l.id);
+        // The listing agent first. Everything after it is a guess, kept
+        // for listings nobody has been given yet.
+        const listingAgent = listings.find((l) => l.agentId)?.agentId ?? null;
+        const lastViewing = listingAgent ? null : await crossTenant("sweep").viewing.findFirst({
+          where: { orgId: o.id, listingId: { in: ids }, agentId: { not: null } },
+          orderBy: { scheduledAt: "desc" }, select: { agentId: true },
+        });
+        const lastOffer = listingAgent || lastViewing ? null : await crossTenant("sweep").offer.findFirst({
+          where: { orgId: o.id, listingId: { in: ids }, agentId: { not: null } },
+          orderBy: { submittedAt: "desc" }, select: { agentId: true },
+        });
+        const owner = listingAgent || lastViewing || lastOffer ? null : await crossTenant("sweep").membership.findFirst({
+          where: { orgId: o.id, role: "OWNER" }, select: { userId: true },
+        });
+        const agentId = listingAgent ?? lastViewing?.agentId ?? lastOffer?.agentId ?? owner?.userId ?? null;
+        const why = listingAgent ? "you look after their property"
+          : lastViewing ? "nobody has been given their property, and you showed it most recently"
+          : lastOffer ? "you handled the latest offer on one of their properties"
+          : "nobody has shown their properties yet, so it came to the owner of the brokerage";
+        if (!agentId) { unassigned += 1; continue; }
 
-      const report = compose({
-        propertyTitle: l.title, viewings, offers, rows, daysListed,
-      });
+        const reports = [];
+        for (const l of listings) {
+          const [rows, viewings, offers] = await Promise.all([
+            crossTenant("sweep").viewingFeedback.findMany({
+              where: { listingId: l.id, answeredAt: { not: null } },
+              select: { verdict: true, reasons: true },
+            }),
+            crossTenant("sweep").viewing.count({ where: { listingId: l.id, status: "COMPLETED" } }),
+            // Real offers, not feedback verdicts. "I'd like to make an
+            // offer" is an intention; an offer is recorded on its own model.
+            crossTenant("sweep").offer.count({ where: { listingId: l.id } }),
+          ]);
+          const daysListed = Math.floor((today.getTime() - l.createdAt.getTime()) / 86_400_000);
+          reports.push({ listing: l, viewings, offers, report: compose({ propertyTitle: l.title, viewings, offers, rows, daysListed }) });
+        }
 
-      await crossTenant("sweep").vendorReport.create({
-        data: {
-          orgId: l.orgId, listingId: l.id,
-          periodFrom: since, periodTo: new Date(),
-          viewings, offers,
-          summary: { headline: report.headline, body: report.body } as never,
-          priceSignal: report.signal.kind === "none" ? null : report.signal.message,
-        },
-      });
-
-      composed += 1;
-      if (report.recommendation) withSignal += 1;
+        const how = channelFor(v.prefers);
+        const verb = how === "call" ? `Call ${v.name}` : `Send ${v.name}`;
+        const via = how === "email" ? " by email" : how === "whatsapp" ? " on WhatsApp" : "";
+        await crossTenant("sweep").$transaction([
+          ...reports.map((x) => crossTenant("sweep").vendorReport.create({
+            data: {
+              orgId: o.id, listingId: x.listing.id,
+              periodFrom: since, periodTo: today,
+              viewings: x.viewings, offers: x.offers,
+              summary: { headline: x.report.headline, body: x.report.body } as never,
+              priceSignal: x.report.signal.kind === "none" ? null : x.report.signal.message,
+            },
+          })),
+          crossTenant("sweep").followUp.create({
+            data: {
+              orgId: o.id, agentId,
+              title: how === "call" ? `${verb} with this week's update` : `${verb} this week's update${via}`,
+              body:
+                `It's their report day. It came to you because ${why}.\n\n` +
+                reports.map((x) => `${x.report.headline}\n${x.report.body}` +
+                  (x.report.recommendation ? `\n\n${x.report.recommendation}` : "")).join("\n\n———\n\n"),
+              dueAt: today,
+            },
+          }),
+        ]);
+        prepared += 1;
+      }
     });
-    return { listings: listings.length, composed, withSignal };
+    return { due, prepared, unassigned, failed: r.failed };
   }),
 
   /**
@@ -742,6 +900,25 @@ export const JOBS = {
    * ACTIVE; no card stops the assistant and keeps every lead.
    */
   "billing.trials": () => run("billing.trials", async () => sweepTrials()),
+
+  /**
+   * Turnover against the VAT registration line. Daily.
+   *
+   * PotatoFarm charges no VAT because it is not registered, which is
+   * lawful only while turnover stays under AED 375,000 a year. Nobody
+   * adds that up by hand, and finding out late means paying the VAT that
+   * was never charged. Emails SALES_INBOX once per step up, and weekly
+   * once registering is compulsory.
+   */
+  "billing.vat-threshold": () => run("billing.vat-threshold", async () => {
+    const last = await crossTenant("sweep").jobRun.findFirst({
+      where: { job: "billing.vat-threshold", state: "SUCCEEDED" },
+      orderBy: { startedAt: "desc" },
+      select: { result: true },
+    });
+    const prev = last?.result as Partial<AlertState> | null;
+    return watchVatThreshold(prev?.alerted ? { alerted: prev.alerted, alertedAt: prev.alertedAt ?? null } : null);
+  }),
 
   /**
    * Offers past their expiry. Hourly.
@@ -760,6 +937,12 @@ export const JOBS = {
    * rather than after.
    */
   "matching.visa-nudge": () => run("matching.visa-nudge", async () => sweepVisaNudges()),
+
+  /**
+   * Leases nearing their end. Daily. A renewal missed is a rent frozen
+   * or a flat emptied, and it is noticed only when it has happened.
+   */
+  "tenancy.renewals": () => run("tenancy.renewals", async () => sweepRenewals()),
 
   /**
    * Mailboxes. Every fifteen minutes.
@@ -785,6 +968,14 @@ export const JOBS = {
 
   /** Rate-limit hits older than two days. Daily. */
   "ratelimit.sweep": () => run("ratelimit.sweep", async () => sweepRateLimits()),
+
+  /**
+   * Uploads nothing kept, removed. Weekly: a day's grace protects an
+   * upload in progress, and the cost of waiting is storage rent — except
+   * for an identity document, which is why it runs at all.
+   * `files/sweep.ts` says what it may and may not touch.
+   */
+  "storage.orphans": () => run("storage.orphans", async () => sweepOrphans()),
 
   /** Erasure of long-deleted records. Daily. */
   "privacy.retention": () => run("privacy.retention", async () =>

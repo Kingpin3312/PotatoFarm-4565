@@ -45,10 +45,15 @@ export const NAV: NavItem[] = [
   // seven; it moved under More.
   { href: "/today", labelKey: "nav.today" },
   { href: "/inbox", labelKey: "nav.inbox" },
-  { href: "/viewings", labelKey: "nav.diary" },
+  // Leads and Listings are the two lists a CRM is, and they were only
+  // under Settings — the second audit found a broker looking for their
+  // leads could not see where they were (N7). They took the places of
+  // Blackbook and Offers, which are one click away in the second tier
+  // and reached from every person and every property anyway.
+  { href: "/leads", labelKey: "nav.leads" },
+  { href: "/listings", labelKey: "nav.listings" },
   { href: "/pipeline", labelKey: "nav.pipeline" },
-  { href: "/blackbook", labelKey: "nav.blackbook" },
-  { href: "/offers", labelKey: "nav.offers" },
+  { href: "/viewings", labelKey: "nav.diary" },
   { href: "/settings", labelKey: "nav.settings" },
 ];
 
@@ -69,8 +74,10 @@ export const SETTINGS_NAV: NavItem[] = [
   // down, rather than being hidden from a nav everybody shares.
   { href: "/reports/revenue", labelKey: "nav.revenue" },
   { href: "/me", labelKey: "nav.mine" },
-  { href: "/leads", labelKey: "nav.leads" },
-  { href: "/listings", labelKey: "nav.listings" },
+  // Every follow-up, not just today's, and the ones handed to others.
+  { href: "/tasks", labelKey: "nav.tasks" },
+  { href: "/blackbook", labelKey: "nav.blackbook" },
+  { href: "/offers", labelKey: "nav.offers" },
   { href: "/settings", labelKey: "nav.general" },
   { href: "/compliance", labelKey: "nav.compliance" },
   // Not under Compliance: a broker card and a Trakheesi permit are an
@@ -79,20 +86,25 @@ export const SETTINGS_NAV: NavItem[] = [
   { href: "/documents", labelKey: "nav.documents" },
   { href: "/settings/privacy", labelKey: "nav.privacy" },
   { href: "/settings/access", labelKey: "nav.access" },
+  { href: "/settings/security", labelKey: "nav.security" },
+  { href: "/settings/email", labelKey: "nav.email" },
   { href: "/settings/assistant", labelKey: "nav.assistantQuestions" },
   { href: "/settings/hours", labelKey: "nav.hours" },
   { href: "/settings/routing", labelKey: "nav.routing" },
+  { href: "/settings/plans", labelKey: "nav.plans" },
   { href: "/settings/channels", labelKey: "nav.channels" },
   { href: "/settings/import", labelKey: "nav.import" },
   { href: "/team", labelKey: "nav.team" },
   { href: "/settings/commission", labelKey: "nav.commissionPlans" },
   { href: "/settings/billing", labelKey: "nav.billing" },
+  { href: "/manual", labelKey: "nav.manual" },
 ];
 
 /** Behind More on a phone, ordered by how often an agent opens them. */
 export const MORE: NavItem[] = [
   { href: "/search", labelKey: "nav.findAnyone" },
   { href: "/ask", labelKey: "nav.ask" },
+  { href: "/tasks", labelKey: "nav.tasks" },
   { href: "/deals", labelKey: "nav.deals" },
   { href: "/activity", labelKey: "nav.activity" },
   { href: "/blackbook", labelKey: "nav.blackbook" },
@@ -104,5 +116,6 @@ export const MORE: NavItem[] = [
   { href: "/documents", labelKey: "nav.documents" },
   { href: "/reports", labelKey: "nav.reports" },
   { href: "/team", labelKey: "nav.team" },
+  { href: "/manual", labelKey: "nav.manual" },
   { href: "/settings", labelKey: "nav.settings" },
 ];

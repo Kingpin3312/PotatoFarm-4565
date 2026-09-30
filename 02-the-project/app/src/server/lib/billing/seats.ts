@@ -18,23 +18,25 @@ import { crossTenant } from "@/server/db/client";
  * asking "why is this month different".
  */
 
-export async function recordSeatChange(args: {
-  orgId: string; userId: string; change: 1 | -1; reason?: string;
-}) {
-  const sub = await crossTenant("global-key").subscription.findUnique({
-    where: { orgId: args.orgId }, select: { id: true },
-  });
-  // No subscription yet during onboarding — seats still get recorded once
-  // there is one, from the memberships that already exist.
-  if (!sub) return;
-
-  await crossTenant("global-key").seatEvent.create({
-    data: {
-      orgId: args.orgId, subId: sub.id, userId: args.userId,
-      change: args.change, reason: args.reason,
-    },
-  });
-}
+/*
+ * Where seat changes are written, and why not here.
+ *
+ * `recordSeatChange` lived here and **nothing ever called it**, so the
+ * ledger held one event per brokerage — the owner, from signup — for
+ * ever. It is gone rather than wired, because it wrote through its own
+ * client: called from a mutation, the membership and the seat would
+ * commit separately, and a failure between them is a person on the team
+ * who is not being billed, or billing for somebody who never joined.
+ *
+ * Each writer now records the seat inside its own transaction:
+ *
+ *   - `billing/signup.ts`   +1  the owner
+ *   - `org.acceptInvite`    +1  somebody joining
+ *   - `org.removeMember`    -1  somebody leaving
+ *
+ * and `reconcile.ts` compares the ledger with the team every night, so a
+ * fourth way of joining that forgets this is found rather than billed.
+ */
 
 /**
  * Seat-days across a period.
@@ -73,6 +75,26 @@ export async function seatDays(subId: string, from: Date, to: Date) {
     // the terms, and it avoids fractional fils nobody can reconcile.
     seatDays: Math.ceil(total),
     seatsAtEnd: seats,
-    fullPeriodDays: Math.round(days(from, to)),
+    /**
+     * At least one, and the floor is not cosmetic.
+     *
+     * Both callers divide by this. `Math.round` of an elapsed period
+     * under twelve hours is **0**, so for roughly the first half-day
+     * of every billing period `billing.status` computed
+     * `seatPriceFils / 0` → `Infinity` → `RangeError: The number
+     * Infinity cannot be converted to a BigInt`, and the billing
+     * screen threw for every member of the brokerage. Periods start at
+     * `trialEndsAt`, an arbitrary time of day, so the dead window
+     * landed mid-morning Dubai on the very day the invoice was issued.
+     *
+     * The quieter half was `usage()`, which guards the same division
+     * with `> 0 ? … : 0` — making the allowance zero and counting
+     * every conversation of the new period as overage. That one does
+     * not throw; it produces a bill.
+     *
+     * Floored here rather than at each call site so a third caller
+     * cannot reintroduce it.
+     */
+    fullPeriodDays: Math.max(1, Math.round(days(from, to))),
   };
 }

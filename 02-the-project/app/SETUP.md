@@ -1,70 +1,79 @@
-# Getting this running
+# Running it on a laptop
 
-## What you have
+`DEPLOY.md` covers putting it on the internet. This covers one computer,
+for development or for clicking through the product with the demo
+brokerage. About half an hour.
 
-Source files and a schema, not a working application. **Nothing here has
-been compiled or run.** Budget half a day to get `npm run dev` up, and
-expect the errors to be real.
+(This file used to say the code had never been compiled or run. That
+stopped being true long ago: it builds, runs and passes its checks.
+The old steps — `prisma db push` and applying `rls.sql` by hand — are
+wrong now, because the migrations do all of it.)
+
+## What you need
+
+- Node 20 or newer.
+- Postgres 16, running locally (Postgres.app on a Mac is the easiest).
 
 ## Steps
 
-    # 1. Download the folder from the chat, then:
-    cd potato-crm
-    git init && git add -A && git commit -m "Initial import"
-
-    # 2. Install
+    # 1. From 02-the-project/app
     npm install
 
-    # 3. Database — local Postgres or Neon/Supabase
-    echo 'DATABASE_URL="postgresql://localhost:5432/potatofarm"' > .env.local
+    # 2. Two database logins. The app's own login is deliberately NOT
+    #    the owner of the tables — that is what makes each brokerage's
+    #    data invisible to the others. The migrations create it; give it
+    #    a password once they have run (step 4).
+    createdb potatofarm
+
+    # 3. Settings
+    cp .env.example .env
+    #    DATABASE_URL          postgresql://potato_app:<password>@localhost:5432/potatofarm
+    #    DATABASE_URL_DIRECT   postgresql://<your owner login>@localhost:5432/potatofarm
+    #      (the login Postgres.app gives you is fine: it must own the
+    #       tables and be allowed past the row-level security rules)
+    #    DATABASE_URL_UNSCOPED the same owner address as DATABASE_URL_DIRECT
+    #    AUTH_SECRET           any long random string (openssl rand -base64 32)
+    #    SECRETS_KEY           openssl rand -base64 32
+    #    DEMO_OWNER_EMAIL      your email, if you will sign in by email
+    #    Everything else can stay empty for now; the app says at start-up
+    #    what each empty one switches off.
+
+    # 4. Tables, security rules and the app's login
     npx prisma generate
-    npx prisma db push
+    npx prisma migrate deploy        # uses DATABASE_URL_DIRECT
+    psql potatofarm -c "ALTER ROLE potato_app LOGIN PASSWORD '<password>'"
 
-    # 4. Row-level security. Prisma does not manage this — run it by hand.
-    psql $DATABASE_URL -f src/server/db/rls.sql
-    psql $DATABASE_URL -f src/server/db/scheduling.sql
+    # 5. The demo brokerage (Marina Bay) — safe to run again at any time
+    npm run db:seed
 
-    # 5. See what actually breaks
-    npm run typecheck
+    # 6. Start it
+    npm run dev                      # http://localhost:3000
 
-## Then open Claude Code
+**Never use `prisma migrate dev` or `db push`.** They silently drop
+indexes and keys Prisma cannot see; CLAUDE.md explains. New migrations
+are written by hand and applied with `migrate deploy`.
 
-    claude
+## Signing in
 
-It reads `CLAUDE.md` automatically. A good opening prompt:
+Sign-in is an emailed link, so with no email service configured nobody
+can sign in the ordinary way. Either:
 
-> Run `npm run typecheck` and work through the errors one file at a time.
-> Read CLAUDE.md first — several things in here look wrong and are
-> deliberate. Show me each fix before applying it if it touches anything
-> in the "do not undo" list.
+- **Set `RESEND_API_KEY`** (and `MAIL_FROM` on a domain verified with
+  Resend), then sign in with the email set as `DEMO_OWNER_EMAIL` before
+  you ran the seed; or
+- **Use a seeded session.** In the browser's developer tools
+  (Application → Cookies → localhost), add a cookie named
+  `authjs.session-token` with the value `dev-session-token-ask-history`
+  and reload. You are Omar, the demo brokerage's owner.
+  `dev-session-manager` is Lena, an agent.
 
-## Order I would work in
+## Checking it works
 
-1. **Typecheck clean.** Nothing else matters until it compiles.
-2. **`prisma validate`** and a real migration rather than `db push`.
-3. **The RLS policies actually applied**, then prove it: connect as
-   `potato_app`, set a different org, confirm you see nothing.
-4. **One route end to end** — `/api/trpc` with the leads router, against
-   a seeded database.
-5. **The inbox thread rendering** against real data.
-6. Everything else.
+    npm test                           # unit tests, no database
+    npm run check:locations            # one of the database suites
+    npm run verify                     # everything; long — see CLAUDE.md
 
-## Things that will bite
+## Then
 
-- **Prisma `Unsupported("tstzrange")`** on `Viewing.timespan` — it is a
-  generated column, created by `scheduling.sql`, and Prisma only reads
-  it. `db push` may fight you; use a migration.
-- **`next-auth` v5 is beta** and its API moved. The config is written to
-  the v5 shape.
-- **Tailwind v4** uses `@theme inline` in CSS rather than a JS config.
-  That is deliberate; the tokens come from one file.
-- **BigInt and JSON** do not mix. superjson is configured on tRPC for
-  exactly this.
-- The **marketing site** (`potato-site/`) is separate and static. It does
-  not need any of this.
-
-## What to hand Claude Code first
-
-Not the whole thing. Pick one vertical slice — leads, or the inbox — and
-get it genuinely working end to end. A codebase that compiles everywhere
-and works nowhere is harder to fix than one that works in one place.
+Read `CLAUDE.md` before changing anything. Several things in this code
+look wrong and are deliberate, and it lists them.

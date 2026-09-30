@@ -7,7 +7,12 @@ import { QueryError } from "@/components/ui/query-state";
 import { Button } from "@/components/ui/button";
 
 /**
- * The Stop everything.
+ * Stop everything.
+ *
+ * Named "Stop everything" here, in the prose that points at it, on the
+ * website and in the manual. It was "Stop the assistant" on the button
+ * alone while every description of it used the other name, so an owner
+ * told to press "Stop everything" found no such button.
  *
  * First and largest thing on the settings page, because anyone reaching
  * for it is already having a bad afternoon and should not have to hunt
@@ -79,7 +84,7 @@ export function KillSwitch() {
       <div
         className={cn(
           "rounded-[3px] overflow-hidden",
-          running ? "border border-ink" : "border-2 border-accent"
+          running ? "border border-rule-strong" : "border-2 border-accent"
         )}
       >
         <div className={cn("p-6 flex gap-5 items-center flex-wrap", !running && "bg-accent/5")}>
@@ -109,7 +114,7 @@ export function KillSwitch() {
           <div className="ms-auto">
             {running ? (
               <Button variant="primary" size="md" onClick={() => { dialog.current?.showModal(); dialog.current?.focus(); }}>
-                Stop the assistant
+                Stop everything
               </Button>
             ) : (
               <Button variant="secondary" size="md" loading={resume.isPending} onClick={() => resume.mutate()}>
@@ -131,10 +136,10 @@ export function KillSwitch() {
         ref={dialog}
         aria-labelledby="kill-title"
         tabIndex={-1}
-        className="border border-ink rounded-[3px] p-0 max-w-[460px] w-[calc(100%-40px)] bg-raised text-ink-2 backdrop:bg-ink/50"
+        className="border border-rule-strong rounded-[3px] p-0 max-w-[460px] w-[calc(100%-40px)] bg-raised text-ink-2 backdrop:bg-scrim/50"
       >
         <div className="p-6">
-          <h2 className="font-sans font-semibold text-h3 text-ink mb-2.5">Stop the assistant?</h2>
+          <h2 className="font-sans font-semibold text-h3 text-ink mb-2.5">Stop everything?</h2>
           <p className="text-ui mb-1.5">
             It stops replying to every conversation, immediately.
           </p>

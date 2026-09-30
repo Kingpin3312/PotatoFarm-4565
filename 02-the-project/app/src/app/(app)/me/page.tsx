@@ -69,7 +69,7 @@ export default function Me() {
         </p>
       </header>
 
-      <div className="grid grid-cols-3 max-[600px]:grid-cols-1 border-t border-ink mt-8">
+      <div className="grid grid-cols-3 max-[600px]:grid-cols-1 border-t border-rule-strong mt-8">
         <Fig label="Owed to you" value={money?.owed ?? "—"} highlight />
         <Fig label="Paid" value={money?.paid ?? "—"} />
         <Fig label="Forecast" value={money?.forecast ?? "—"} muted />
@@ -85,7 +85,7 @@ export default function Me() {
             worth improving and a terrible one to compete on.
           </p>
 
-          <div className="grid grid-cols-3 max-[600px]:grid-cols-1 border-t border-ink mt-5">
+          <div className="grid grid-cols-3 max-[600px]:grid-cols-1 border-t border-rule-strong mt-5">
             <Fig label={`of ${board!.rows.length} agents`} value={`#${me.rank}`} highlight />
             <Fig label="Viewings booked" value={String(me.viewingsBooked)} />
             <Fig
@@ -102,7 +102,7 @@ export default function Me() {
           <h2 className="font-sans font-semibold text-section text-ink mt-12 mb-4">
             The board
           </h2>
-          <div className="border-t border-ink">
+          <div className="border-t border-rule-strong">
             {board.rows.map((r) => (
               <div
                 key={r.userId}

@@ -16,7 +16,14 @@ import { chromePath } from "./_browser.mjs";
 /**
  * The colours the design system actually declares.
  *
- * The hue window below is a good proxy for "is this our orange?" and it
+ * **Now neon pink on grey.** The window is the pink's hue, ±15°, and
+ * greys are judged by their real (HSL) saturation, because the grey
+ * family leans blue — #292C32 has more blue than red — and a
+ * max-minus-min test called it a colour. The potato's own paths keep
+ * their orange, but only inside the logo's SVG (the one drawn with a
+ * gradient): an orange anywhere else is a second accent and fails.
+ *
+ * The hue window below is a good proxy for "is this our accent?" and it
  * was right about every colour in the product except one. `--brand-navy`
  * (#12202E, hue 210) dresses the wordmark and nothing else — a deliberate
  * brand colour, documented in `tokens.css`, sampled off the supplied
@@ -40,6 +47,15 @@ if (DECLARED.size === 0) {
   console.error(`No colours parsed out of ${TOKENS} — this run would exempt nothing and prove nothing. Aborting.`);
   process.exit(1);
 }
+
+/** The accent's hue, read from the same file, so the window moves with it. */
+const ACCENT_HEX = fs.readFileSync(TOKENS, "utf8").match(/--accent:\s*#([0-9A-Fa-f]{6})/)[1];
+const ACCENT_H = (() => {
+  const [r, g, bl] = [0, 2, 4].map((i) => parseInt(ACCENT_HEX.slice(i, i + 2), 16));
+  const mx = Math.max(r, g, bl), mn = Math.min(r, g, bl), d = mx - mn;
+  let h = mx === r ? ((g - bl) / d) % 6 : mx === g ? (bl - r) / d + 2 : (r - g) / d + 4;
+  return Math.round(h * 60 + 360) % 360;
+})();
 
 /**
  * `PROVE_RED=1` paints one undeclared blue onto every screen before
@@ -65,7 +81,7 @@ for (const s of SCREENS) {
     el.textContent = "prove-red";
     document.body.appendChild(el);
   });
-  const r = await p.evaluate((allowed) => {
+  const r = await p.evaluate(([allowed, ACCENT_H]) => {
     const off = new Map(); let blue = [];
     for (const el of document.querySelectorAll("*")) {
       const c = getComputedStyle(el);
@@ -76,16 +92,20 @@ for (const s of SCREENS) {
         const m = v.match(/(\d+),\s*(\d+),\s*(\d+)/); if (!m) continue;
         const [rr,gg,bb] = m.slice(1).map(Number);
         const mx=Math.max(rr,gg,bb), mn=Math.min(rr,gg,bb);
-        if (mx===0 || (mx-mn)/mx < 0.12) continue;
-        const d=mx-mn; let h;
+        const L=(mx+mn)/510, d=mx-mn;
+        const sat = d === 0 ? 0 : (d/255) / (1 - Math.abs(2*L - 1));
+        if (sat < 0.25 || L < 0.12 || L > 0.9) continue;    // a grey, or near black/white
+        let h;
         if (mx===rr) h=((gg-bb)/d)%6; else if (mx===gg) h=(bb-rr)/d+2; else h=(rr-gg)/d+4;
         h=Math.round(h*60+360)%360;
-        if ((h < 8 || h > 45) && !allowed.includes(v))
+        const fromPink = Math.min(Math.abs(h - ACCENT_H), 360 - Math.abs(h - ACCENT_H));
+        const inMark = !!el.closest("svg")?.querySelector("linearGradient") && h >= 8 && h <= 45;
+        if (fromPink > 15 && !inMark && !allowed.includes(v))
           off.set(v, (el.tagName+"."+(el.className||"").toString().slice(0,30)));
       }
     }
     return { off:[...off.entries()], blue };
-  }, [...DECLARED.keys()]);
+  }, [[...DECLARED.keys()], ACCENT_H]);
   const real = await p.evaluate(() => ({
     url: location.pathname,
     h1: (document.querySelector("h1")?.textContent||"").trim().slice(0,40),

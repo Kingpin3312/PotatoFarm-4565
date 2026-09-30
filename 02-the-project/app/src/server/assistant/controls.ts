@@ -122,7 +122,8 @@ export async function record(u: {
   inputTokens: number;
   outputTokens: number;
   latencyMs: number;
-  outcome: "sent" | "handover" | "blocked" | "error";
+  /** `drafted`: written for a person to send, and paid for either way. */
+  outcome: "sent" | "drafted" | "handover" | "blocked" | "error";
 }) {
   const costFils = priceFils(u.model, u.inputTokens, u.outputTokens);
 

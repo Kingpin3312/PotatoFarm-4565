@@ -3,6 +3,7 @@ import { audit } from "@/server/lib/audit";
 import { aed, aedWhole } from "@/lib/money";
 import { log } from "@/lib/log";
 import { openKycFile } from "@/server/lib/aml/open";
+import { nextDealReference } from "@/server/lib/deals/reference";
 
 /**
  * Offers, and everything said after them.
@@ -158,7 +159,13 @@ export async function accept(args: {
 
     const listing = await tx.listing.findUniqueOrThrow({
       where: { id: offer.listingId },
-      select: { reference: true, purpose: true },
+      select: { reference: true, purpose: true, completion: true },
+    });
+
+    // Scoped by the transaction's tenant, so these are this brokerage's.
+    const taken = await tx.deal.findMany({
+      where: { reference: { startsWith: listing.reference } },
+      select: { reference: true },
     });
 
     const deal = await tx.deal.create({
@@ -167,11 +174,15 @@ export async function accept(args: {
         leadId: offer.leadId,
         listingId: offer.listingId,
         // The listing reference, so a deal and a property are findable
-        // by the same string an agent already says on the phone.
-        reference: listing.reference,
+        // by the same string an agent already says on the phone — with a
+        // suffix if the property has had a deal before (deals/reference.ts).
+        reference: nextDealReference(listing.reference, taken.map((d) => d.reference)),
         // DealType is SALE | RENTAL | OFF_PLAN. "LETTING" is the word
         // the UK-English copy uses and is not a value of the enum.
-        type: listing.purpose === "RENT" ? "RENTAL" : "SALE",
+        // Off-plan is its own deal type — an SPA with the developer and
+        // an Oqood registration rather than a transfer at the DLD — and
+        // listings could not say they were off-plan until recently.
+        type: listing.purpose === "RENT" ? "RENTAL" : listing.completion === "OFF_PLAN" ? "OFF_PLAN" : "SALE",
         valueFils: agreedFils,
         stage: "AGREED",
         financing: offer.financing,

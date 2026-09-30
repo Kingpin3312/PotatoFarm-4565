@@ -1,7 +1,8 @@
 import { forOrg } from "@/server/db/client";
 import { audit } from "@/server/lib/audit";
 import { LIMITS } from "./send";
-import { signPut, objectExists } from "./storage";
+import { signPut, objectExists, readObjectHead, deleteObject } from "./storage";
+import { matchesType } from "./signature";
 
 /**
  * Getting a file in.
@@ -112,6 +113,24 @@ export async function confirmUpload(args: {
     return { ok: false as const, reason: "That upload didn't finish. Try again." };
   }
 
+  /**
+   * What the bytes are, not what the browser said.
+   *
+   * The type was the browser's word and nothing checked it (the audit's
+   * D2): a renamed executable declared as a PDF was stored and would be
+   * forwarded to a buyer's WhatsApp as their brochure. The first bytes
+   * are read back and must match the declared type; a mismatch is
+   * deleted, never recorded.
+   */
+  const { head, size } = await readObjectHead(args.storageRef);
+  if (!matchesType(head, args.mimeType) || (size !== null && size !== args.sizeBytes)) {
+    await deleteObject(args.storageRef).catch(() => {});
+    return {
+      ok: false as const,
+      reason: `That file isn't the ${args.mimeType.split("/")[1]?.toUpperCase() ?? "file"} it says it is, so it wasn't kept. Save it again as a real ${args.mimeType.split("/")[1]?.toUpperCase()} and upload that.`,
+    };
+  }
+
   const db = forOrg(args.orgId);
   const file = await db.attachment.create({
     data: {
@@ -138,29 +157,8 @@ export async function confirmUpload(args: {
 }
 
 /**
- * Orphans.
- *
- * An agent who starts an upload and closes the tab leaves an object with
- * no row. It would be swept weekly rather than daily, because the window
- * between upload and confirm can legitimately be several minutes on bad
- * signal and deleting somebody's brochure mid-upload is worse than
- * paying for a week of storage.
- *
- * **Not implemented and not scheduled**, which is the honest state.
- * `storage.ts` no longer blocks it — that is real now — but this needs
- * `ListObjectsV2` paged over the bucket and cross-checked against
- * Attachment, and nothing registers it in `jobs/index.ts`, so writing
- * the body would produce a correct function nothing calls. It is the
- * shape this codebase keeps finding: a complete module with nothing that
- * starts it.
- *
- * The cost of leaving it is storage rent on abandoned uploads, which at
- * pilot scale is pennies. Add it to `jobs/index.ts` and `vercel.json`
- * together, or not at all.
+ * Orphans — an upload started and never confirmed — are swept weekly by
+ * `storage.orphans` (`files/sweep.ts`), which checks every table that
+ * holds a storage reference before deleting anything.
  */
-export async function sweepOrphans() {
-  return {
-    removed: 0,
-    note: "not implemented — needs ListObjectsV2 and a job registration, see the comment",
-  };
-}
+

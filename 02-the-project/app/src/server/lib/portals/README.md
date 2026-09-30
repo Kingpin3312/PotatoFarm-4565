@@ -77,6 +77,29 @@ rising share of enquiries with no usable phone number is a brokerage
 paying for leads it cannot ring, and it is invisible unless somebody
 counts.
 
+## Where a listing is: the location tree
+
+Property Finder files every listing under one node of its own location
+tree — city, community, sub-community, building — by its own numeric id.
+So a listing points at a node of ours (`Location`, `lib/locations/`), a
+new one cannot be saved without an exact node (a building, or a villa's
+sub-community), and each node can carry Property Finder's id.
+
+**Those ids come only from Property Finder's location list**, which
+arrives with the partner agreement:
+
+    npm run locations:import -- pf-locations.csv [--dry-run]
+
+It reads a `path` column ("Dubai > Dubai Marina > Marina Gate > Marina
+Gate 1") or a column per level, with the id in `pf_id`, `location_id` or
+`id`; it is idempotent, refuses rather than guesses on a conflicting id,
+and lists the places listings are filed under that still have none —
+usually a name we spell differently from Property Finder. Until a place
+has its id, publishing that listing to Property Finder is refused with a
+reason naming the command, in the publish check, the publish itself and
+the queue. The feed carries the tree by name either way, and the id when
+there is one. `check:locations`.
+
 ## Still to build
 
 - **Outbound listing feed.** Portals take XML on a schedule. Generate it

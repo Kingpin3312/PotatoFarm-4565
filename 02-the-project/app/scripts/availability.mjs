@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { clearCheckDebris } from "./lib/demo-debris.mjs";
 import fs from "node:fs";
 import pw from "playwright";
 import { PrismaClient } from "@prisma/client";
@@ -25,7 +26,9 @@ let bad = 0;
 const ok = (l, p, d = "") => { console.log(`  ${p ? "✓" : "✗"} ${l}${d ? "  — " + d : ""}`); if (!p) bad++; };
 
 const db = new PrismaClient({ datasources:{db:{url:process.env.DATABASE_URL_UNSCOPED}} });
-const org = await db.organisation.findFirst({ where:{deletedAt:null}, select:{id:true} });
+const org = await db.organisation.findFirst({ where:{slug: "seed-marina", deletedAt:null}, select:{id:true} });
+// Whatever an earlier run left if it died before its clean-up.
+await clearCheckDebris(db, org.id);
 const sess = await db.session.findUnique({
   where: { sessionToken: "dev-session-token-ask-history" }, select: { userId: true },
 });
@@ -61,6 +64,20 @@ async function arrive(text) {
 }
 
 // Two agents, so "somewhere else" is a place that exists.
+// A run that crashed before its clean-up left its agent in the demo
+// brokerage, receiving real round-robin leads (the second audit's N12).
+// Clear any before adding this run's.
+{
+  const stale = await db.user.findMany({ where: { email: { startsWith: "avail-check-", endsWith: "@example.invalid" } }, select: { id: true } });
+  const ids = stale.map((u) => u.id);
+  if (ids.length) {
+    await db.lead.updateMany({ where: { assignedToId: { in: ids } }, data: { assignedToId: null, assignedAt: null } });
+    await db.leadOwnership.deleteMany({ where: { userId: { in: ids } } });
+    await db.agentAvailability.deleteMany({ where: { userId: { in: ids } } }).catch(() => {});
+    await db.membership.deleteMany({ where: { userId: { in: ids } } });
+    await db.user.deleteMany({ where: { id: { in: ids } } }).catch(() => {});
+  }
+}
 const extra = await db.user.create({
   data: { email: `avail-check-${Date.now()}@example.invalid`, name: "Cover Agent" },
   select: { id: true },

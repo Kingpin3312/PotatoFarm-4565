@@ -114,15 +114,105 @@ for _blk in re.finditer(r"^model (\w+) \{(.*?)^\}", schema, re.S | re.M):
             _owners.setdefault(_f.group(2), set()).add((_owner, _f.group(1)))
 
 
+def _code(text: str) -> str:
+    """
+    Source with its prose removed.
+
+    Not optional here, and the first version of the check below proved
+    it on itself. It counted `registerDevice` as called because two
+    comments — the ones explaining that **nothing** calls it — mention
+    the name. The check read the sentence describing the bug as
+    evidence against the bug.
+
+    That is the trap CLAUDE.md records about `palette.py`, which passed
+    because a stylesheet's prose about a rejected colour matched the
+    search for that colour. **Strip prose from both sides of any
+    comparison**, including the side you wrote yourself.
+    """
+    text = re.sub(r"/\*.*?\*/", " ", text, flags=re.S)
+    return re.sub(r"//[^\n]*", " ", text)
+
+
+_allcode = None
+
+
+def _code_all() -> str:
+    """The whole corpus with its comments removed, computed once."""
+    global _allcode
+    if _allcode is None:
+        _allcode = "\n".join(_code(t) for t in src.values())
+    return _allcode
+
+
+def _enclosing_fn(text: str, at: int) -> str | None:
+    """The name of the exported function a position sits inside."""
+    head = text[:at]
+    m = None
+    for m in re.finditer(r"export\s+(?:async\s+)?function\s+(\w+)", head):
+        pass
+    return m.group(1) if m else None
+
+
+def _reachable_write(lower: str) -> bool:
+    """
+    A write, inside something that is actually called.
+
+    This used to be a bare search of the whole corpus, and that is how
+    `PushDevice` read as written for the life of the project.
+    `registerDevice()` does `pushDevice.upsert(...)`, so the pattern
+    matched — and **nothing anywhere calls `registerDevice`**. The
+    table has never had a row, no device has ever been registered, and
+    therefore no push notification has ever reached anybody. Every
+    notification the product generated was recorded and delivered to
+    nothing.
+
+    A model whose only writer is a function nobody calls is a model
+    nothing writes. One level of indirection was all it took to hide a
+    whole channel.
+
+    Deliberately shallow: it asks whether the *enclosing exported
+    function* is named anywhere else, not whether that caller is itself
+    reachable. A full call graph would be the honest version and would
+    also produce a cliff of findings on a codebase this size; this
+    catches the single-hop case, which is the one that occurred.
+    """
+    for path, text in src.items():
+        for m in re.finditer(rf"\.{lower}\.(?:create|createMany|upsert)\b", text):
+            fn = _enclosing_fn(text, m.start())
+            if fn is None:
+                return True          # top-level or a method — assume reached
+            # Named anywhere other than its own definition?
+            code = _code_all()
+            uses = len(re.findall(rf"\b{fn}\b", code))
+            defs = len(re.findall(rf"function\s+{fn}\b", code))
+            if uses > defs:
+                return True
+    return False
+
+
 def _written(model: str) -> bool:
     lower = model[0].lower() + model[1:]
-    if re.search(rf"\.{lower}\.(?:create|createMany|upsert)\b", allsrc):
+    if _reachable_write(lower):
         return True
     for owner, field in _owners.get(model, ()):
         o = owner[0].lower() + owner[1:]
         if not re.search(rf"\.{o}\.(?:create|update|upsert)\b", allsrc):
             continue
-        if re.search(rf"\b{field}:\s*\{{\s*(?:create|createMany|connectOrCreate|upsert)\b", allsrc):
+        # Against comment-stripped source, because a comment between the
+        # brace and the `create` defeats this regex — and one does. The
+        # nested write in `seedQualification` reads:
+        #
+        #     questions: {
+        #       // `options` is a scalar-list field, and Prisma types it…
+        #       create: DEFAULT_QUESTIONS.map(…)
+        #
+        # so `Question` reported as having no writer the moment anything
+        # first read it, on a model created during signup. Third time
+        # this trap has bitten in this repository, and CLAUDE.md states
+        # the rule outright: **strip prose from both sides of any
+        # comparison.** The check that finds unwritten models was itself
+        # reading prose.
+        if re.search(rf"\b{field}:\s*\{{\s*(?:create|createMany|connectOrCreate|upsert)\b", _code_all()):
             return True
     return False
 
@@ -178,8 +268,31 @@ KNOWN_UNWRITTEN = {
     # has none, and `aml.openFile` calls it on the way in. The ratchet
     # asked for this line to be removed rather than letting it sit as a
     # permanent excuse, which is the point of listing them.
-    "PlanSubscription": "portal plan subscriptions cannot be created",
-    "EmailAccount": "no mailbox can be connected",
+    #
+    # `PlanSubscription` was here and has been retired: `plans.create`
+    # writes a plan and its steps, `plans.subscribe` puts a lead on one
+    # from the person's page, and `plans.advance` works it.
+
+    # The whole notification channel, and it read as written for the
+    # life of the project because `registerDevice()` does contain a
+    # `pushDevice.upsert` — the check looked for a write and found one,
+    # without asking whether anything calls the function around it.
+    # Nothing does. The table has never had a row, so **no push
+    # notification has ever reached anybody**: not a handover waiting,
+    # not a viewing tomorrow, not a deal at risk.
+    #
+    # It cannot be wired from here. An Expo push token comes from a
+    # native client, and `mobile/` cannot build — no app.json, no
+    # tsconfig, an SDK two years old. The web app is installable but a
+    # PWA cannot mint an Expo token.
+    #
+    # What has changed is that the product no longer pretends
+    # otherwise: `dispatch` records `deliveredAt` only when a device
+    # actually took it, the escalation ladder no longer climbs rungs
+    # nobody received, the morning digest holds rather than clearing a
+    # backlog it could not deliver, and `tenantHealth` reports a
+    # brokerage where nobody can be interrupted.
+    "PushDevice": "no client can register one — mobile/ cannot build, so no push has ever been delivered",
 }
 
 _all_models = re.findall(r"^model (\w+)", schema, re.M)
@@ -230,8 +343,13 @@ for model, _ in DRIVERS:
 # Most procedures legitimately have no UI yet; that is a note. The
 # revenue path is not, because a billing procedure nothing calls means
 # nobody can pay.
+# `src/components` too: a shared control is a screen's caller. The
+# location picker calls `locations.search` from `components/ui`, on the
+# Add a property and Edit forms, and scanning `src/app` alone reported
+# it as a procedure nothing could reach.
 screens = "\n".join(open(p2).read() for p2 in
-                    ours(glob.glob(f"{ROOT}/src/app/**/*.tsx", recursive=True)))
+                    ours(glob.glob(f"{ROOT}/src/app/**/*.tsx", recursive=True)
+                         + glob.glob(f"{ROOT}/src/components/**/*.tsx", recursive=True)))
 routers = glob.glob(f"{ROOT}/src/server/api/routers/*.ts")
 
 REVENUE = {"billing"}
@@ -272,7 +390,7 @@ KNOWN_UNCALLED = {
         "reads them; this is for a client that wants the rules rather than "
         "the sentences",
     "leads.assign":
-        "the single-lead form of pipeline.bulkAssign, which has the screen "
+        "the single-lead form of leads.bulk (assign), which has the screen "
         "and handles one lead as readily as two hundred. Kept for a detail "
         "screen or the mobile client; both write the same LeadOwnership rows "
         "and must be changed together",
@@ -287,7 +405,7 @@ KNOWN_UNCALLED = {
 for rf in routers:
     router = os.path.basename(rf)[:-3]
     body = open(rf).read()
-    procs = re.findall(r'^\s{2}(\w+):\s*(?:requirePermission|orgProcedure|publicProcedure)',
+    procs = re.findall(r'^\s{2}(\w+):\s*(?:requirePermission|requireAnyPermission|orgProcedure|publicProcedure|signedInProcedure)',
                        body, re.M)
     # A procedure gated on `audit:read` is ours, not the customer's —
     # billing.trials is our view of which trials are dying, and it
@@ -295,8 +413,13 @@ for rf in routers:
     # better than exempting it by name, which would rot the moment
     # somebody adds a second internal query.
     internal = set(re.findall(r'^\s{2}(\w+):\s*requirePermission\("audit:read"\)', body, re.M))
+    # `utils.<router>.<proc>.fetch(...)` is a call too: a screen asking on
+    # demand (a button press) rather than on render. listings.share is
+    # the first, and was reported as reachable by nothing while two
+    # screens called it.
     uncalled = [pr for pr in procs
-                if pr not in internal and f"api.{router}.{pr}" not in screens]
+                if pr not in internal and f"api.{router}.{pr}" not in screens
+                and f"utils.{router}.{pr}.fetch(" not in screens]
     if not uncalled:
         continue
     if router in REVENUE:
@@ -330,9 +453,18 @@ router_inputs = {}
 for rf in routers:
     rname = os.path.basename(rf)[:-3]
     rbody = open(rf).read()
+    # Field sets shared between procedures as a plain object and spread
+    # in: `z.object({ ...filters, cursor: … })`. Without this every key of
+    # the shared set read as unknown, and the listings form was reported
+    # as passing eleven arguments its procedure does not take — all of
+    # which it does, through `...detailFields`.
+    field_sets = {name: set(re.findall(r'(\w+)\s*:\s*z\.', fields))
+                  for name, fields in re.findall(r'^const (\w+) = \{(.*?)\n\};', rbody, re.M | re.S)}
     for m in re.finditer(r'^  (\w+): (?:require\w+\([^)]*\)|orgProcedure|publicProcedure)'
                          r'\s*\n\s*\.input\(z\.object\(\{(.*?)\}\)\)', rbody, re.M | re.S):
         keys = set(re.findall(r'(\w+)\s*:\s*z\.', m.group(2)))
+        for spread in re.findall(r'\.\.\.(\w+)', m.group(2)):
+            keys |= field_sets.get(spread, set())
         # Shorthand: `phone,` on its own line, where the value is a
         # shared schema const rather than an inline `z.…`.
         #
@@ -348,6 +480,16 @@ for rf in routers:
         # has happened once already in this suite.
         keys |= set(re.findall(r'^\s{4,}(\w+),\s*$', m.group(2), re.M))
         router_inputs[f"{rname}.{m.group(1)}"] = keys
+    # A shared schema widened per procedure: `.input(feedbackInput.extend({
+    # viewingId: z.string() }))`. The form above does not match it, so the
+    # procedure was absent from this table and every call to it went
+    # unchecked, without saying so.
+    shared = {name: set(re.findall(r'(\w+)\s*:\s*z\.', fields))
+              for name, fields in re.findall(r'^const (\w+) = z\.object\(\{(.*?)\}\);', rbody, re.M | re.S)}
+    for m in re.finditer(r'^  (\w+): (?:require\w+\([^)]*\)|orgProcedure|publicProcedure)'
+                         r'\s*\n\s*\.input\((\w+)\.extend\(\{(.*?)\}\)\)', rbody, re.M | re.S):
+        if m.group(2) in shared:
+            router_inputs[f"{rname}.{m.group(1)}"] = shared[m.group(2)] | set(re.findall(r'(\w+)\s*:\s*z\.', m.group(3)))
 
 def _keys_only(fragment: str) -> str:
     """
@@ -368,6 +510,36 @@ def _keys_only(fragment: str) -> str:
     return re.sub(r"`[^`]*`|'[^']*'|\"[^\"]*\"", "''", without_comments)
 
 
+def _top_level(after_brace: str) -> str:
+    """
+    The argument object's own level, nested objects blanked out.
+
+    The call was read up to its first `}`, which is the end of the first
+    *nested* object if there is one: `outcome.mutate({ viewingId, feedback:
+    { verdict, reasons } })` was reported as passing `verdict` and
+    `reasons` to a procedure that takes them one level down — and every
+    key after the nested object went unread.
+    """
+    # The brackets themselves are kept and only their contents dropped:
+    # `iso(x) : null` must still read as a call before a ternary, not as
+    # a key called `iso`.
+    depth, out = 0, []
+    for ch in after_brace:
+        if ch in "{([":
+            if depth == 0:
+                out.append(ch)
+            depth += 1
+        elif ch in "})]":
+            if depth == 0:
+                break
+            depth -= 1
+            if depth == 0:
+                out.append(ch)
+        elif depth == 0:
+            out.append(ch)
+    return "".join(out)
+
+
 bad = 0
 for sf in ours(glob.glob(f"{ROOT}/src/app/**/*.tsx", recursive=True)):
     body = open(sf).read()
@@ -382,15 +554,14 @@ for sf in ours(glob.glob(f"{ROOT}/src/app/**/*.tsx", recursive=True)):
         expected = router_inputs.get(key)
         if not expected:
             continue
-        for call in re.finditer(rf'\b{re.escape(var)}\.(?:mutate|mutateAsync)\(\s*\{{([^}}]*)\}}',
-                                body):
+        for call in re.finditer(rf'\b{re.escape(var)}\.(?:mutate|mutateAsync)\(\s*\{{', body):
             # `word:` finds object keys, and also finds the tail of a
             # ternary — `x ?? null : null` reads as a key called `null`.
             # These are the only words that can appear immediately before
             # a colon without being a key, so excluding them is exact
             # rather than a guess.
             LITERALS = {"null", "undefined", "true", "false"}
-            passed = set(re.findall(r'(\w+)\s*:', _keys_only(call.group(1)))) - LITERALS
+            passed = set(re.findall(r'(\w+)\s*:', _top_level(_keys_only(body[call.end():])))) - LITERALS
             unknown = passed - expected
             if unknown:
                 bad += 1

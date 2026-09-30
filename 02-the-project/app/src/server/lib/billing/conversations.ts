@@ -1,6 +1,7 @@
 import { seatDays } from "./seats";
 import { forOrg, crossTenant } from "@/server/db/client";
 import { log } from "@/lib/log";
+import { dayWindow } from "@/lib/day";
 
 /**
  * Billing for conversations answered.
@@ -30,13 +31,27 @@ export async function recordAnswered(args: {
   conversationId: string;
   at?: Date;
 }) {
-  const day = new Date(args.at ?? new Date());
-  day.setUTCHours(0, 0, 0, 0);
+  const [sub, org] = await Promise.all([
+    forOrg(args.orgId).subscription.findUnique({
+      where: { orgId: args.orgId },
+      select: { id: true, status: true },
+    }),
+    forOrg(args.orgId).organisation.findUnique({
+      where: { id: args.orgId }, select: { timezone: true },
+    }),
+  ]);
 
-  const sub = await forOrg(args.orgId).subscription.findUnique({
-    where: { orgId: args.orgId },
-    select: { id: true, status: true },
-  });
+  /**
+   * The brokerage's day, not UTC's.
+   *
+   * This was `setUTCHours(0, 0, 0, 0)`, so in Dubai the day turned over
+   * at 4am: a conversation running from 3:30 to 4:30 was charged twice
+   * and one running from 11:30pm to 12:30am once. The rule on the bill
+   * is "once per conversation per day", and the customer's day is the
+   * one they are in. The same `dayWindow` the Today screen uses, so the
+   * two cannot disagree about when a day starts.
+   */
+  const day = dayWindow(args.at ?? new Date(), org?.timezone ?? "Asia/Dubai").start;
   // A trial still records. The brokerage should be able to see what the
   // bill would have been before it arrives — a first invoice that
   // surprises somebody is a first invoice that gets disputed.

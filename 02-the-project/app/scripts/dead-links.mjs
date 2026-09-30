@@ -98,7 +98,13 @@ for (const h of queries) {
     .filter((f) => f.endsWith(".tsx") || f.endsWith(".ts"))
     .map((f) => fs.readFileSync(path.join(root, f), "utf8")).join("\n");
   for (const n of names) {
-    ok(`${pathname} reads "${n}"`, text.includes(`"${n}"`) || text.includes(`'${n}'`),
+    // Quoted, as `params.get("lead")` reads it — or declared in the page's
+    // search params, as `searchParams: Promise<{ date?: string }>` then
+    // `const { date } = use(searchParams)` does. The second form is how
+    // every Next 15 page here reads one, and the quoted-only test called
+    // a parameter the diary reads "never read".
+    const declared = text.includes("searchParams") && new RegExp(`\\b${n}\\?:\\s*string`).test(text);
+    ok(`${pathname} reads "${n}"`, text.includes(`"${n}"`) || text.includes(`'${n}'`) || declared,
        `offered from ${found.get(h).join(", ")}`);
   }
 }

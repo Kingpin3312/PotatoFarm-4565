@@ -1,8 +1,10 @@
 import { z } from "zod";
-import { router, requirePermission } from "../trpc";
+import { looksLikePhone, phoneSearchKey } from "@/lib/phone";
+import { router, requirePermission, requireAnyPermission } from "../trpc";
 import { timeline } from "@/server/lib/blackbook/timeline";
 import { audit } from "@/server/lib/audit";
 import { TRPCError } from "@trpc/server";
+import { leadScope, personScope } from "@/server/auth/rbac";
 
 /**
  * The blackbook.
@@ -18,17 +20,59 @@ export const blackbookRouter = router({
   /** My people, most recently touched first. */
   mine: requirePermission("lead:read:own")
     .input(z.object({ q: z.string().trim().max(80).optional(),
-                      tag: z.string().trim().max(40).optional() }).optional())
+                      tag: z.string().trim().max(40).optional(),
+                      cursor: z.string().nullish(),
+                      limit: z.number().int().min(1).max(200).default(100) }).optional())
     .query(async ({ ctx, input }) => {
-      const rows = await ctx.db.blackbookEntry.findMany({
+      /**
+       * Paged, and searchable.
+       *
+       * It stopped at 300 with nothing saying so — an agent's 301st
+       * contact simply was not in their book (the audit's D1) — and the
+       * `q` it accepted was never read.
+       */
+      const q = input?.q;
+      /**
+       * By the number as it is on the agent's phone, and by the person
+       * behind a linked entry. "050 222 3302" found nothing because the
+       * stored number is +971…, and an entry that points at a lead has no
+       * name of its own to match (the second audit's N9).
+       */
+      const phoneKey = q && looksLikePhone(q) ? phoneSearchKey(q) : null;
+      const linked = q
+        ? (await ctx.db.lead.findMany({
+            where: {
+              deletedAt: null,
+              OR: [
+                { name: { contains: q, mode: "insensitive" as const } },
+                ...(phoneKey ? [{ phone: { contains: phoneKey } }] : []),
+              ],
+            },
+            select: { id: true }, take: 500,
+          })).map((l) => l.id)
+        : [];
+      const where = {
         // Scoped to the caller, always. Not a filter a future edit can
         // drop — see the audit invariant.
-        where: {
-          agentId: ctx.userId,
-          ...(input?.tag ? { tags: { has: input.tag } } : {}),
-        },
-        orderBy: [{ starred: "desc" }, { lastTouched: "desc" }],
-        take: 300,
+        agentId: ctx.userId,
+        ...(input?.tag ? { tags: { has: input.tag } } : {}),
+        ...(q ? { OR: [
+          { nickname: { contains: q, mode: "insensitive" as const } },
+          { standaloneName: { contains: q, mode: "insensitive" as const } },
+          { standaloneEmail: { contains: q, mode: "insensitive" as const } },
+          { standalonePhone: { contains: phoneKey ?? (q.replace(/[^\d+]/g, "") || q) } },
+          ...(linked.length ? [{ leadId: { in: linked } }] : []),
+          { privateNote: { contains: q, mode: "insensitive" as const } },
+        ] } : {}),
+      };
+      const limit = input?.limit ?? 100;
+      const [rows, total] = await Promise.all([ctx.db.blackbookEntry.findMany({
+        where,
+        orderBy: [{ starred: "desc" }, { lastTouched: "desc" }, { id: "desc" }],
+        take: limit + 1,
+        // The cursor is the first row of the next page (the one popped below),
+        // so no skip — skipping it lost a contact at every page boundary.
+        ...(input?.cursor ? { cursor: { id: input.cursor } } : {}),
         select: {
           id: true, nickname: true, tags: true, starred: true, lastTouched: true,
           standaloneName: true, standalonePhone: true, standaloneEmail: true,
@@ -44,8 +88,9 @@ export const blackbookRouter = router({
            */
           privateNote: true,
         },
-      });
-      return rows;
+      }), ctx.db.blackbookEntry.count({ where })]);
+      const nextCursor = rows.length > limit ? rows.pop()!.id : null;
+      return { rows, nextCursor, total };
     }),
 
   /** One person, everything said to them, newest first. */
@@ -62,7 +107,7 @@ export const blackbookRouter = router({
    * Also enforces that exactly one of the two is given. Neither would
    * have thrown inside `timeline()` on `vendorId!`.
    */
-  person: requirePermission("lead:read:own")
+  person: requireAnyPermission("lead:read:own", "lead:read:all")
     .input(z.object({ leadId: z.string().optional(), vendorId: z.string().optional() }))
     .query(async ({ ctx, input }) => {
       if (!input.leadId === !input.vendorId) {
@@ -72,9 +117,34 @@ export const blackbookRouter = router({
         });
       }
 
+      /**
+       * Scoped to the caller, the same way `conversations.thread` is.
+       *
+       * This existence check had no `assignedToId`, and `timeline()`
+       * below **declares an `agentId` parameter its body never
+       * mentions** — so the router passed the right value and nothing
+       * used it. An agent editing the id in `/blackbook/<leadId>` got a
+       * colleague's WhatsApp message bodies, email snippets, viewings
+       * and offer amounts. `conversations.thread` guards exactly those
+       * message bodies correctly; this was a second door to the same
+       * data with the lock off.
+       *
+       * CLAUDE.md's shape #7: a declared field that changes no
+       * behaviour is the same shape as a module nothing calls.
+       *
+       * Vendors carry no `assignedToId`, so there is nothing to scope
+       * them by — an owner belongs to the brokerage rather than to one
+       * agent, and RLS already bounds that. Left explicit so the
+       * asymmetry is a decision on the page rather than an oversight.
+       */
       const exists = input.leadId
         ? await ctx.db.lead.findFirst({
-            where: { id: input.leadId, deletedAt: null }, select: { id: true } })
+            where: {
+              id: input.leadId,
+              deletedAt: null,
+              ...personScope(ctx.role, ctx.userId),
+            },
+            select: { id: true } })
         : await ctx.db.vendor.findFirst({
             where: { id: input.vendorId }, select: { id: true } });
 

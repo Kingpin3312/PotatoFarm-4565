@@ -1,4 +1,5 @@
 import { forOrg } from "@/server/db/client";
+import { partyOf, partySelect, waNumber } from "@/server/lib/conversations/party";
 import { sendDocument } from "@/server/lib/whatsapp";
 import { messagingWindow } from "@/server/lib/whatsapp";
 import { audit } from "@/server/lib/audit";
@@ -50,13 +51,18 @@ export async function sendFile(args: {
       // The lead's phone is the WhatsApp recipient. Selected here rather
       // than looked up inside the send client, which has no business
       // touching the database.
-      select: { id: true, lastInboundAt: true, channelId: true, leadId: true,
-                lead: { select: { phone: true } } },
+      select: { id: true, lastInboundAt: true, channelId: true, leadId: true, vendorId: true,
+                ...partySelect },
     }),
   ]);
 
   if (!file) return { ok: false, reason: "That file is no longer here." };
   if (!convo) return { ok: false, reason: "That conversation is no longer here." };
+  // A buyer's or an owner's number; an owner's is typed by an agent.
+  const to = waNumber(partyOf(convo).phone);
+  if (!to) {
+    return { ok: false, reason: "There is no WhatsApp number we can read for them.", fix: "Add it with the country code, e.g. +971 50 123 4567." };
+  }
 
   /**
    * The window applies to files exactly as it applies to text.
@@ -99,13 +105,14 @@ export async function sendFile(args: {
     const sent = await sendDocument({
       phoneNumberId: creds.phoneNumberId,
       accessToken: creds.accessToken,
-      to: convo.lead.phone,
+      to,
       storageRef: file.storageRef,
       fileName: file.fileName,
       mimeType: file.mimeType,
       caption: args.caption?.slice(0, 1024),
     });
 
+    await db.conversation.update({ where: { id: convo.id }, data: { lastOutboundAt: new Date() } });
     const message = await db.message.create({
       data: {
         orgId: args.orgId,
@@ -132,7 +139,7 @@ export async function sendFile(args: {
       action: "message.file_sent",
       entity: "Message",
       entityId: message.id,
-      after: { fileName: file.fileName, leadId: convo.leadId },
+      after: { fileName: file.fileName, leadId: convo.leadId, vendorId: convo.vendorId },
     });
 
     return { ok: true, messageId: message.id };

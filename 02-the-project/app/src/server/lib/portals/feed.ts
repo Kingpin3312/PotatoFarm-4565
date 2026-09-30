@@ -1,6 +1,7 @@
 import { crossTenant } from "@/server/db/client";
 import { aedPlain } from "@/lib/money";
 import { validateForPublish, blocking } from "@/server/lib/feeds/validate";
+import { photoList, photoPath, propertyPath } from "@/lib/listing-paths";
 
 /**
  * The listing feed — distribution that needs no partner API.
@@ -54,6 +55,16 @@ export type FeedListing = {
   priceFils: bigint | null;
   community: string | null;
   building: string | null;
+  /**
+   * Its place on the location tree, level by level, and Property
+   * Finder's id for it once that list is imported. Null for a listing
+   * nobody has placed yet — it is still in the feed (see below), and
+   * Listings flags it.
+   */
+  location: {
+    city: string | null; community: string | null; subCommunity: string | null;
+    building: string | null; pfLocationId: number | null;
+  } | null;
   bedrooms: number | null;
   bathrooms: number | null;
   areaSqft: number | null;
@@ -73,7 +84,8 @@ export type FeedListing = {
  * filtered explicitly below, so the scope is narrower than the reason
  * allows rather than wider.
  */
-export async function feedFor(orgId: string): Promise<FeedListing[]> {
+export async function feedFor(orgId: string, opts: { origin?: string } = {}): Promise<FeedListing[]> {
+  const org = await crossTenant("global-key").organisation.findUnique({ where: { id: orgId }, select: { slug: true } });
   const rows = await crossTenant("global-key").listing.findMany({
     where: {
       orgId,
@@ -90,15 +102,37 @@ export async function feedFor(orgId: string): Promise<FeedListing[]> {
       reference: true, title: true, purpose: true, priceFils: true,
       community: true, building: true, bedrooms: true, bathrooms: true,
       areaSqft: true, permitNumber: true, permitExpiresAt: true,
-      reraBrokerCard: true, descriptions: true, updatedAt: true,
+      reraBrokerCard: true, descriptions: true, updatedAt: true, id: true,
+      location: { select: { path: true, pfLocationId: true } },
     },
     orderBy: { updatedAt: "desc" },
     take: 5000,
   });
 
+  /**
+   * Stored photos become addresses a portal can download.
+   *
+   * The feed used to print whatever `descriptions.photos` held, which was
+   * only ever the seed's file names — `<photo>01.jpg</photo>`, nothing a
+   * portal could fetch. A stored photo is now its public route under the
+   * property page, absolute, which answers only while the page does. One
+   * query for the whole brokerage, not one per listing. Anything else in
+   * the list is a placeholder from before uploads existed and is printed
+   * as it always was.
+   */
+  const stored = await crossTenant("global-key").attachment.findMany({
+    where: { orgId, kind: "PHOTO", listingId: { in: rows.map((r) => r.id) } },
+    select: { id: true, listingId: true },
+  });
+  const photoOf = new Set(stored.map((a) => `${a.listingId}:${a.id}`));
+  const address = (listingId: string, reference: string, entry: string) =>
+    org && photoOf.has(`${listingId}:${entry}`)
+      ? `${opts.origin ?? ""}${photoPath(propertyPath(org.slug, reference), entry)}`
+      : entry;
+
   const out: FeedListing[] = [];
   for (const r of rows) {
-    const d = (r.descriptions ?? {}) as { photos?: string[]; en?: string };
+    const d = (r.descriptions ?? {}) as { en?: string };
     const listing: FeedListing = {
       reference: r.reference,
       title: r.title,
@@ -107,13 +141,14 @@ export async function feedFor(orgId: string): Promise<FeedListing[]> {
       priceFils: r.priceFils,
       community: r.community,
       building: r.building,
+      location: r.location ? byLevel(r.location.path, r.location.pfLocationId) : null,
       bedrooms: r.bedrooms,
       bathrooms: r.bathrooms,
       areaSqft: r.areaSqft,
       permitNumber: r.permitNumber,
       permitExpiresAt: r.permitExpiresAt,
       reraBrokerCard: r.reraBrokerCard,
-      photos: Array.isArray(d.photos) ? d.photos : [],
+      photos: photoList(r.descriptions).map((p) => address(r.id, r.reference, p)),
       updatedAt: r.updatedAt,
     };
     /**
@@ -167,6 +202,17 @@ function xml(value: string | null | undefined): string {
  * because a feed without them is rejected wholesale and the rejection
  * usually names only the first offending listing.
  */
+/**
+ * A path from the tree ("Dubai > Dubai Marina > Marina Gate > Marina
+ * Gate 1") as its levels. The tree is built by depth — city, community,
+ * sub-community, building — so position is level, the same rule the
+ * seed and the Property Finder import write it with.
+ */
+export function byLevel(path: string, pfLocationId: number | null) {
+  const [city = null, community = null, subCommunity = null, building = null] = path.split(" > ");
+  return { city, community, subCommunity, building, pfLocationId };
+}
+
 export function toXml(listings: FeedListing[], meta: { brokerage: string }): string {
   const items = listings.map((l) => `  <listing>
     <reference>${xml(l.reference)}</reference>
@@ -176,6 +222,12 @@ export function toXml(listings: FeedListing[], meta: { brokerage: string }): str
     <price currency="AED">${aedPlain(l.priceFils)}</price>
     <community>${xml(l.community)}</community>
     <building>${xml(l.building)}</building>
+    <location${l.location?.pfLocationId != null ? ` pfLocationId="${l.location.pfLocationId}"` : ""}>
+      <city>${xml(l.location?.city ?? null)}</city>
+      <community>${xml(l.location?.community ?? null)}</community>
+      <subCommunity>${xml(l.location?.subCommunity ?? null)}</subCommunity>
+      <building>${xml(l.location?.building ?? null)}</building>
+    </location>
     <bedrooms>${l.bedrooms ?? ""}</bedrooms>
     <bathrooms>${l.bathrooms ?? ""}</bathrooms>
     <size unit="sqft">${l.areaSqft ?? ""}</size>

@@ -42,7 +42,7 @@ export default function SearchPage() {
 
       <form
         onSubmit={(e) => { e.preventDefault(); setAsked(text.trim()); }}
-        className="flex gap-2 border-t border-ink pt-5"
+        className="flex gap-2 border-t border-rule-strong pt-5"
       >
         <input
           value={text}
@@ -155,7 +155,7 @@ export default function SearchPage() {
 
           {data && data.hits.length > 0 && (
             <>
-              <ul className="mt-3 border-t border-ink">
+              <ul className="mt-3 border-t border-rule-strong">
                 {data.hits.map((h) => (
                   <li key={`${h.kind}:${h.id}`} className="border-b border-rule py-3.5">
                     <div className="flex items-baseline gap-3">

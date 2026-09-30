@@ -58,6 +58,9 @@ const CEILING: Record<NextAction, AutonomyLevel> = {
   ASK_FOR_LISTING: "DRAFT",
   PREPARE_CMA: "DRAFT",
   RECORD_OUTCOME: "DRAFT",
+  // Putting somebody on a plan commits the agent to a sequence of tasks
+  // for months. The agent chooses the plan; nothing here subscribes.
+  START_PLAN: "DRAFT",
 
   /**
    * Never more than a suggestion, at any setting.

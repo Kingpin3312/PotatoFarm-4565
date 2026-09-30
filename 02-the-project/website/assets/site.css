@@ -12,140 +12,69 @@
 
 :root{
   /* ============================================================
-     The palette. Option 1: white, deep charcoal, a controlled orange.
-
-     Every ratio here was re-measured against the shipped tokens. The
-     block this replaces was the cream palette's — it argued at length
-     for warm white while `--ground` had already been set to #FFFFFF,
-     and quoted the brand orange at 2.65:1 when on white it is 3.22:1.
-     `repalette.py` moves hex values and cannot move prose, so the
-     numbers and the argument drifted a generation behind the colours
-     they described.
+     The palette: neon pink #FF1493 on grey #292C32.
 
      `app/src/styles/tokens.css` is the source of truth and carries the
      reasoning; `consistency.py` fails the build if the four surfaces
-     disagree on a hex.
+     disagree on a hex, and `ratios.py` checks every ratio written here.
      ============================================================ */
 
   /* ---- The ground ---------------------------------------------------
-     White, and the warm grey does the separating. Roughly 70% white,
-     20% warm neutral, 8% charcoal and 2% orange.
-
-     The cream this replaced had a real argument behind it — Hermès does
-     not put orange on #FFFFFF — and it lost to a decision. The warmth
-     lives in `--panel` now rather than in the ground. */
-  --ground: #FFFFFF;
-  --panel:  #F5F3F0;   /* Warm Grey — secondary sections, inputs */
-  --raised: #FFFFFF;   /* a card is its border and its spacing, not a tint */
+     The grey dominates; panels and cards step lighter. */
+  --ground: #292C32;   /* the brief's grey */
+  --panel:  #2F3238;   /* secondary sections, inputs */
+  --raised: #33373E;   /* cards */
 
   /* ---- Ink ----------------------------------------------------------
-     Deep charcoal rather than pure black. */
-  --ink:   #171717;   /* 17.93:1 on white, 16.19:1 on panel */
-  --ink-2: #4A4A4A;   /*  8.86:1 on white */
-  --ink-3: #6B6B6B;   /*  5.33:1 on white, 4.81:1 on panel */
+     Near-white, and two muted greys beneath it. */
+  --ink:   #F3F4F6;   /* 12.72:1 on ground */
+  --ink-2: #C9CCD2;   /*  8.70:1 on ground */
+  --ink-3: #A0A5AE;   /*  5.66:1 on ground, 5.19:1 on panel */
 
   /* Two rules, because they do different jobs. `--rule` is a hairline
-     between table rows; WCAG 1.4.11 wants a form control's boundary at
-     3:1, which is what the second one is for. */
-  --rule:        #E7E5E2;   /* 1.26:1 — separators, decorative only */
-  --rule-strong: #918A82;   /* 3.41:1 on white, 3.08:1 on panel */
+     between rows; WCAG 1.4.11 wants a form control's boundary at 3:1,
+     which is what the second one is for. */
+  --rule:        #3D4148;   /* 1.36:1 — separators only */
+  --rule-strong: #7D828C;   /* 3.63:1 on ground, 3.33:1 on panel */
 
-  /* ---- The wordmark navy --------------------------------------------
-     The one colour the supplied logo has that this palette did not.
-     "PotatoFarm" in the artwork is a deep blue-black rather than the
-     neutral ink beside it — sampled at #0E1822, blue leading red by
-     eleven points, which is a decision and not compression noise.
+  /* ---- The wordmark --------------------------------------------------
+     The logo's navy disappears on the grey, so "PotatoFarm" reverses
+     out to the ink colour and only the `.io` carries the pink. */
+  --brand-navy: #F3F4F6;
 
-     It dresses the wordmark and nothing else. Repainting `--ink` navy
-     would have recoloured every heading and paragraph on the site
-     because a logo arrived, which is a different job.
+  /* ---- One pink ------------------------------------------------------
+     #FF1493, everywhere, exactly: buttons, the active state, selected
+     rows, links, focus, the `.io`. It is 3.85:1 on the grey — enough
+     for a fill, an icon, a border or a focus ring, and under the 4.5:1
+     body text needs, so pink links keep their underline. */
+  --accent:      #FF1493;   /* fills, focus, active state */
+  --accent-type: #FF1493;   /* the `.io` */
+  --accent-hover:#FF1493;   /* the hover on a fill — the same pink */
+  --accent-deep: #FF1493;   /* pink as type: links */
+  --accent-edge: #FF1493;   /* the hairline on a fill — the same pink */
 
-     **16.51:1 on the ground.** It read 14.88:1 here, which was correct
-     against the cream and was never re-measured when the ground went
-     white. */
-  --brand-navy: #12202E;
+  /* Soft pink: the pink mixed 14% into the grey, for selected rows and
+     machine-written text. Ink on it is 11.50:1. */
+  --accent-soft: #472940;
 
-  /* ---- Orange, and the discipline it needs ---------------------------
-     **#E86A2C is 3.22:1 on white.** That clears the 3:1 a border, an
-     icon or a focus ring needs, and falls short of the 4.5:1 text
-     needs. So the orange is a *surface* colour — fills, focus, the
-     active state, selected rows, the `.io` — and orange type steps down
-     the same hue until it is readable.
-
-     It used to dress every heading too. A 68px headline is not 2% of a
-     page, and an h3 at 20px/500 is not large text, so that was both an
-     imbalance and a genuine AA failure. Headings are `--ink` now. */
-  --accent:      #FF5A00;   /* 3.13:1 on white, 2.82:1 on panel — a
-                               fill colour, never type */
-  --accent-type: #FF5A00;   /* the `.io`, and nothing else */
-  --accent-hover:#FF5A00;   /* the hover on a fill — the same orange */
-
-  /**
-   * The legible orange, and it is not a second brand colour.
-   *
-   * Orange type at any size takes this. Not "small orange type" — every
-   * size. That distinction used to carve out headings, and carving out
-   * headings is what let a 20px h3 through at 3.22:1.
-   */
-  /* Orange type, and on a light ground it is **ink**, not orange.
-     #FF5A00 is 3.13:1 on white — it clears the 3:1 a border needs and
-     is well under the 4.5:1 body text needs, so orange body text stays
-     a knowing exception rather than the default. The brief is white
-     ground, black text, one accent. `tokens.css` carries the same
-     split and the same number. */
-  --accent-deep: #171717;   /* 17.93:1 on white */
-
-  /**
-   * The border on every orange fill, and it is not decoration.
-   *
-   * The fill is 3.22:1 on white and **2.90:1 on the panel** — the same
-   * button passes on one surface and fails on the other. Rather than
-   * forbid orange on panels, the fill carries a darker hairline, so the
-   * edge is defined regardless of what is behind it. WCAG 1.4.11 asks
-   * 3:1 of a control boundary; this is 4.54:1 there.
-   */
-  --accent-edge: #FF5A00;   /* the same orange */
-
-  /* Soft Orange. Selected rows and machine-written text — see
-     `components/ui/machine.tsx`. Charcoal on it is 16.22:1. */
-  --accent-soft: #FFF0E8;
-
-  /* **Labels on the orange fill are white, never ink**, on
-     instruction.
-
-     White on the accent is 3.13:1.
-     Ink #171717 on the same fill would be 5.73:1.
-
-     **White, confirmed by the brand owner with the number in front of
-     them.** Below the AA floor and chosen knowingly; `tokens.css`
-     carries the full note and the two ways to keep white and the
-     contrast. Do not change this to ink — it has been once. */
+  /* Labels on the pink fill are white, at 3.64:1 — chosen knowingly;
+     `tokens.css` has the note. */
   --on-accent: #FFFFFF;
 
-  /* ---- Leather -----------------------------------------------------
-     The anchor. Orange without a dark warm neutral beneath it floats;
-     this is the belt and the box. */
-  --leather:      #34322F;   /* raised inside the dark band */
-  --leather-deep: #2A2825;   /* charcoal, not black — see charcoal.py */
-  /* The type that sits on leather, named at the root rather than only
-     inside `.on-leather`. The footer is on leather and outside that
-     class, so without these it gets literals — which is exactly what
-     happened, three times. */
-  --leather-ink:   #F5F3F0;   /* 13.27:1 on leather-deep */
-  --leather-ink-2: #B5B5B5;   /*  7.17:1 */
-  --leather-ink-3: #9A9A96;   /*  5.21:1 on charcoal — #8A8A8A fell to 4.03 */
+  /* ---- The darker band ------------------------------------------------
+     Named leather for history: a darker step of the same grey, for the
+     footer and any band that breaks a long page. */
+  --leather:      #25282D;   /* raised inside the dark band */
+  --leather-deep: #1F2126;   /* the band itself */
+  /* Type on the band, at the root so the footer gets tokens. */
+  --leather-ink:   #F3F4F6;   /* 14.64:1 on leather-deep */
+  --leather-ink-2: #C9CCD2;   /* 10.01:1 on leather-deep */
+  --leather-ink-3: #A0A5AE;   /*  6.51:1 on leather-deep */
 
-  /* ---- State, and why it is no longer a colour ---------------------
-     The product is two colours by brand decision, so state cannot be
-     carried by hue. Every place that used green or red already said the
-     thing in words beside it; the hue was reinforcement, not the
-     message. Danger keeps the accent in its readable step because an
-     error still has to pull the eye; success drops to ink, because a
-     confirmation that has already happened does not need to shout. */
-  --success:      #171717;
-  /* An error is a sentence, so it follows the type token rather than
-     the raw accent — #FFA500 as an error message is 1.97:1. The orange
-     still marks the field: `[data-invalid]` borders it. */
+  /* ---- State ----------------------------------------------------------
+     Two colours, so state is said in words and never by hue alone.
+     Danger and warning take the pink; success is ink. */
+  --success:      #F3F4F6;
   --danger:       var(--accent-deep);
   --warning:      var(--accent-deep);
 
@@ -289,61 +218,30 @@
 
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
 
-  /* Warmer and shallower than a neutral shadow. A grey shadow on a
-     cream ground looks like dirt. */
-  --lift: 0 1px 2px rgb(43 30 23 / .05), 0 6px 20px rgb(43 30 23 / .06);
-  /* The focus ring, and why it is written out in numbers.
-     It was `rgb(232 106 44 / .40)` in the CRM and `rgb(217 119 87 / .40)`
-     on the website, the mobile preview and both design-system pages —
-     the first accent this project ever had, and a terracotta that was
-     never one of its accents at all. Two wrong oranges, on every
-     keyboard focus ring across five surfaces, surviving four palette
-     changes. Nothing could see them: `recolour.py` rewrites hex,
-     `palette.py` scanned for hex, and `browser:palette` measures hue —
-     19.8 and 14.8 both sit inside its 8–45 orange window, so all three
-     passed a colour none of them had ever read. It took an
-     accessibility check printing the focus shadow verbatim to find it.
-     `palette.py` now reads rgb() notation as well, which is what makes
-     this the last time. */
-  --ring: 0 0 0 3px rgb(255 90 0 / .40);
+  /* Black and a little deeper than a light-page shadow: on a grey
+     ground a faint shadow is simply not there. */
+  --lift: 0 1px 2px rgb(0 0 0 / .20), 0 6px 20px rgb(0 0 0 / .26);
+  /* The focus ring: the pink at 45%, in numbers because it carries an
+     alpha. `palette.py` reads rgb() as well as hex. */
+  --ring: 0 0 0 3px rgb(255 20 147 / .45);
 }
 
-/* The inverted section. Leather, not black — a pure black band under a
-   cream page is a hole in it. */
+/* The darker band. A darker step of the same grey, never black — a
+   black band on a grey page is a hole in it. */
 
 .on-leather{
   --ground: var(--leather-deep); --panel: var(--leather); --raised: var(--leather);
   --ink: var(--leather-ink); --ink-2: var(--leather-ink-2); --ink-3: var(--leather-ink-3);
-  /* Navy on leather is 1.3:1 — the wordmark would vanish. It reverses
-     to the light type here for the same reason --ink does. */
   --brand-navy: var(--leather-ink);
-  --rule: #42403D;
-  /* On leather the bright orange finally works as type — 6.4:1 — so the
-     accent and the accent-type collapse into one here. */
-  /* The brand orange on the dark band. **4.57:1 on `--leather-deep`,
-     which passes AA — and 3.97:1 on `--leather`, the raised step, which
-     does not.**
-
-     It said "5.18:1 — passes AA", and the number was measured against a
-     charcoal two palettes ago. Both halves were wrong: the figure, and
-     the claim that it holds everywhere in the band.
-
-     It is not a fault, because since headings went to `--ink` the only
-     thing wearing this on a dark surface is the `.io` in the wordmark,
-     and WCAG 1.4.1 exempts a wordmark. But an inline comment saying
-     "passes AA" beside a value that does not is exactly how somebody
-     later puts a caption in it. */
-  --accent-type: #FF5A00;
-  /* The dark band. #FF5A00 is 4.70:1 on the charcoal ground — better
-     than the 3.42:1 it replaces and past the AA floor, so the accent
-     may be a word here as well as a fill. It is the one surface this
-     accent improves. */
-  --accent-deep: #FF5A00;
+  --rule: #373A41;
+  /* The pink reads better here than on the page: 4.43:1 on the band. */
+  --accent-type: #FF1493;
+  --accent-deep: #FF1493;
   --on-accent: #FFFFFF;
 }
 
-/* Cream is the default, so this class is a no-op that exists only
-   so a section can opt back to it after a leather one. */
+/* The page's own ground is the default, so this class is a no-op that
+   exists only so a section can opt back to it after a darker one. */
 .theme-cream{}
 
 @media (prefers-reduced-motion: reduce){
@@ -904,7 +802,7 @@ section.on-ocean{background:var(--leather)}
   background: var(--raised);
   /* Warmer and deeper than the card lift — this one is meant to sit off
      the page rather than on it. */
-  box-shadow: 0 2px 6px rgb(43 30 23 / .06), 0 24px 60px rgb(43 30 23 / .13);
+  box-shadow: 0 2px 6px rgb(0 0 0 / .26), 0 24px 60px rgb(0 0 0 / .34);
 }
 
 .shot-phone {
@@ -917,7 +815,7 @@ section.on-ocean{background:var(--leather)}
   border: 1px solid var(--rule);
   border-radius: 20px;
   background: var(--raised);
-  box-shadow: 0 2px 6px rgb(43 30 23 / .07), 0 18px 44px rgb(43 30 23 / .18);
+  box-shadow: 0 2px 6px rgb(0 0 0 / .26), 0 18px 44px rgb(0 0 0 / .40);
 }
 
 @media (min-width: 880px) {

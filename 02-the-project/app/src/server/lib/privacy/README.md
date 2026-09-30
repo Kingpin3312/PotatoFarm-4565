@@ -55,6 +55,28 @@ somebody is as identifying as what they wrote back.
 which the brokerage needs for its own reporting, and which are not
 personal data once detached — do not silently change underneath them.
 
+**Everything written about a person goes, not only what they wrote.**
+Erasure used to cover the thread, the qualification answers and the lead
+record — and none of what later features wrote about somebody: a task
+titled "Ask Priya what they thought of…", an alert naming them, an
+agent's private note and nickname, the facts recorded about a client, a
+voice note's transcript, an email's subject line. `scrubParty` in
+`erase.ts` clears all of it, for a buyer and for an owner alike. Rows
+that something counts are kept and their words removed; facts about a
+client exist only to describe them, so they are deleted, as answers are.
+Offer terms are left: they are the negotiation record, not a
+description of the person.
+
+**Owners are people too.** A property owner has a WhatsApp thread with
+the brokerage, and both the export and erasure were keyed on a buyer's
+number alone — an owner asking what we hold was told "nothing". Both now
+find owners by their normalised number. An owner's record stays as a
+nameless placeholder that their listings still point at, and their
+weekly report stops. No due diligence is recorded on the seller's side
+in this product, so nothing holds an owner's erasure back; somebody
+held as a buyer still has their owner side erased, and is told which
+happened.
+
 **A departed brokerage's tenancy is flagged for manual removal, not
 deleted on a timer.** A tenancy disappearing automatically with nobody
 looking is how a customer who was mid-renewal loses four years of data.

@@ -28,9 +28,13 @@ export function AddLead() {
   const dialog = useRef<HTMLDialogElement>(null);
   const utils = api.useUtils();
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const create = api.leads.create.useMutation({
-    onSuccess: () => {
+    onSuccess: (r) => {
+      // Where it went, when that is not "to you".
+      setNotice(r.givenTo === "nobody yet" ? "Added. Nobody has it yet — it is in the pool."
+        : r.givenTo ? `Added, and given to ${r.givenTo} by your routing rules.` : null);
       void utils.leads.list.invalidate();
       void utils.leads.distribution.invalidate();
       dialog.current?.close();
@@ -42,6 +46,7 @@ export function AddLead() {
 
   const open = () => {
     setError(null);
+    setNotice(null);
     create.reset();
     dialog.current?.showModal();
     dialog.current?.focus();
@@ -58,13 +63,12 @@ export function AddLead() {
 
     create.mutate({
       /**
-       * Spaces stripped, because people write numbers with them.
-       *
-       * The procedure requires E.164 — `+971501234567` — and an agent
-       * typing "+971 50 123 4567" is entering a valid number that the
-       * regex rejects. Failing that is technically correct and useless.
+       * Sent as typed. The server reads every way a number is written —
+       * "+971 50 123 4567", "050 123 4567", "00971…" — into one E.164
+       * form (`lib/phone.ts`), so the duplicate check sees one person
+       * however the agent copied it down.
        */
-      phone: (str("phone") ?? "").replace(/[\s-]/g, ""),
+      phone: str("phone") ?? "",
       name: str("name"),
       email: str("email"),
       source: (f.get("source") as "WALK_IN" | "REFERRAL" | "UNKNOWN") ?? "WALK_IN",
@@ -75,12 +79,13 @@ export function AddLead() {
   return (
     <>
       <Button size="sm" variant="primary" onClick={open}>Add a lead</Button>
+      {notice && <p role="status" className="text-sm text-ink-2 mt-2">{notice}</p>}
 
       <dialog
         ref={dialog}
         aria-labelledby="add-lead-title"
         tabIndex={-1}
-        className="border border-ink rounded-[3px] p-0 max-w-[520px] w-[calc(100%-40px)] bg-raised text-ink-2 backdrop:bg-ink/50"
+        className="border border-rule-strong rounded-[3px] p-0 max-w-[520px] w-[calc(100%-40px)] bg-raised text-ink-2 backdrop:bg-scrim/50"
       >
         <form onSubmit={submit} className="p-6">
           <h2 id="add-lead-title" className="font-sans font-semibold text-h3 text-ink mb-1.5">

@@ -74,6 +74,23 @@ export default function Privacy() {
         onClick={() => setBuilding(true)}>
         Build the file
       </Button>
+      {/* The file itself. This button built it and nothing handed it
+          over — no download, no preview, and "nothing held" was not
+          shown either — so a subject access request could not actually
+          be answered from here. */}
+      {building && subject.data && (
+        <p className="mt-3 text-sm text-ink max-w-[48ch]">
+          Ready.{" "}
+          <a className="btn-inline" download={`data-request-${phone.replace(/\D/g, "").slice(-4)}-${new Date().toISOString().slice(0, 10)}.json`}
+            href={`data:application/json;charset=utf-8,${encodeURIComponent(JSON.stringify(subject.data, null, 2))}`}>
+            Download the file
+          </a>{" "}
+          to send them.
+        </p>
+      )}
+      {building && subject.error && (
+        <p role="status" className="mt-3 text-sm text-ink-2 max-w-[48ch]">{subject.error.message}</p>
+      )}
 
       <h2 className="font-sans font-medium text-sub text-ink mt-10 mb-2">Erase them</h2>
       <p className="text-sm text-ink-2 mb-3 max-w-[48ch] leading-snug">
@@ -113,11 +130,15 @@ export default function Privacy() {
         </div>
       )}
 
-      {erase.data?.deferredUntil && (
-        <p className="text-sm text-ink-2 mt-4 ps-3 border-s-2 border-s-accent-edge max-w-[48ch] leading-snug">
-          Deferred — there is a live KYC file. Scheduled for {erase.data.deferredUntil}.
+      {/* What happened, every time. A completed erasure used to show
+          nothing at all, so the officer could not tell it had run. */}
+      {erase.data && (
+        <p role="status" className={`text-sm mt-4 ps-3 border-s-2 max-w-[48ch] leading-snug ${
+          erase.data.deferredUntil ? "text-ink-2 border-s-accent-edge" : "text-ink border-s-rule"}`}>
+          {erase.data.message}
         </p>
       )}
+      {erase.error && <p role="alert" className="text-sm text-danger mt-4">{erase.error.message}</p>}
 
       {/* What was done with the requests already made.
 

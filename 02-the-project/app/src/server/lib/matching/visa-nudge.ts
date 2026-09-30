@@ -52,6 +52,7 @@ export async function dueForVisaNudge(orgId: string, now = new Date()) {
     select: {
       id: true, status: true, optedOutOfOutreach: true,
       lastOutreachAt: true, createdAt: true, visaExpiresAt: true,
+      name: true, phone: true, assignedToId: true,
       // `lastInboundAt` lives on the conversation, not the lead.
       conversation: { select: { lastInboundAt: true } },
     },
@@ -73,7 +74,10 @@ export async function dueForVisaNudge(orgId: string, now = new Date()) {
       now,
     });
     if (verdict.send) {
-      due.push({ leadId: lead.id, visaExpiresAt: lead.visaExpiresAt!, useTemplate: verdict.useTemplate });
+      due.push({
+        leadId: lead.id, visaExpiresAt: lead.visaExpiresAt!, useTemplate: verdict.useTemplate,
+        who: lead.name?.split(" ")[0] || lead.phone, agentId: lead.assignedToId,
+      });
     }
   }
   return due;
@@ -93,9 +97,14 @@ export function draftNudge(): string {
          "suits. No pressure either way.";
 }
 
-export async function sweep() {
+/**
+ * `now` is a parameter so a check can pin it. `dueForVisaNudge` applies
+ * the outreach rules, which include Dubai sending hours, so a check run
+ * at 11pm would otherwise find nobody due and prove nothing.
+ */
+export async function sweep(now = new Date()) {
   const { crossTenant } = await import("@/server/db/client");
-  let sent = 0;
+  let raised = 0, unassigned = 0;
   // A closed brokerage does not message anybody. Without this the sweep
   // went on sending on behalf of an account that no longer exists.
   const orgs = await crossTenant("sweep").organisation.findMany({
@@ -104,22 +113,50 @@ export async function sweep() {
   });
 
   for (const org of orgs) {
-    const due = await dueForVisaNudge(org.id);
+    const due = await dueForVisaNudge(org.id, now);
+    const before = raised;
     for (const item of due) {
-      // Marked immediately, not after the send succeeds. A retry on a
-      // failed send should not also re-nudge somebody a second time on
-      // the same day for the same reason.
-      await forOrg(org.id).lead.update({
-        where: { id: item.leadId },
-        data: { visaNudgedAt: new Date() },
+      if (!item.agentId) { unassigned += 1; continue; }
+
+      /**
+       * To the agent, with the draft, and stamped only alongside it.
+       *
+       * This stamped `visaNudgedAt` and counted the lead as `sent` beneath
+       * a comment saying it was "handed to the existing send path… same
+       * queue". There was no queue and no send. `visaNudgedAt` then kept
+       * the lead out of this sweep for ninety days, so the one moment the
+       * feature exists for was recorded as used and never happened.
+       *
+       * No sender, because `intelligence/autonomy.ts` stops every message
+       * to a client at CONFIRM — a person presses send. The agent gets
+       * the draft below, which says nothing about the visa on purpose;
+       * the title does, because the agent needs to know why now.
+       */
+      const when = item.visaExpiresAt.toLocaleDateString("en-GB", {
+        day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Dubai",
       });
-      // Handed to the existing send path exactly like a matched-listing
-      // nudge — same queue, same template rules, same rate limits.
-      sent += 1;
+      await crossTenant("sweep").$transaction([
+        crossTenant("sweep").followUp.create({
+          data: {
+            orgId: org.id, agentId: item.agentId, leadId: item.leadId,
+            title: `Check in with ${item.who} — their visa renews on ${when}`,
+            body:
+              "A renewal is when a tenant decides whether to buy. Don't mention the " +
+              "visa or the date — that reads as a file on them. A draft:\n\n" +
+              draftNudge(),
+            dueAt: new Date(),
+          },
+        }),
+        crossTenant("sweep").lead.update({
+          where: { id: item.leadId },
+          data: { visaNudgedAt: new Date() },
+        }),
+      ]);
+      raised += 1;
     }
-    if (due.length) {
-      log.info("visa nudges queued", { orgId: org.id }, { count: due.length });
+    if (raised > before) {
+      log.info("visa renewals raised with agents", { orgId: org.id }, { count: raised - before });
     }
   }
-  return { sent };
+  return { raised, unassigned };
 }

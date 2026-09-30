@@ -159,6 +159,7 @@ export async function buyersFor(args: {
     select: {
       id: true, reference: true, title: true, priceFils: true,
       bedrooms: true, community: true, purpose: true, createdAt: true,
+      propertyType: true, completion: true,
     },
   });
   if (!listing) return null;
@@ -172,6 +173,8 @@ export async function buyersFor(args: {
     community: listing.community,
     purpose: listing.purpose as "SALE" | "RENT",
     listedAt: listing.createdAt,
+    propertyType: listing.propertyType,
+    completion: listing.completion,
   };
 
   /**
@@ -194,7 +197,7 @@ export async function buyersFor(args: {
     take: 2_000,
     select: {
       id: true, leadId: true, budgetMinFils: true, budgetMaxFils: true,
-      bedroomsMin: true, communities: true, intent: true,
+      bedroomsMin: true, communities: true, intent: true, propertyTypes: true, completion: true,
       source: true, confidence: true, confirmedAt: true, active: true, expiresAt: true,
     },
   });
@@ -237,6 +240,8 @@ export async function buyersFor(args: {
         intent: r.intent === "RENT" ? "RENT"
               : r.intent === "BUY_TO_INVEST" ? "BUY_TO_INVEST"
               : r.intent === "BUY_TO_LIVE" ? "BUY_TO_LIVE" : null,
+        propertyTypes: r.propertyTypes,
+        completion: r.completion,
       },
       candidate
     );
@@ -307,7 +312,10 @@ export async function buyersFor(args: {
       score: m.score,
       reasons: m.reasons,
       caveats: m.caveats,
-      budgetMaxFils: lead.budgetMaxFils,
+      // The requirement that matched says what they will spend; the lead's
+      // own field is only a fallback. Most buyers now have their budget on
+      // the requirement, and the row showed none (the second audit's N13).
+      budgetMaxFils: req.budgetMaxFils ?? lead.budgetMaxFils,
       leadScore: lead.score,
       contactable,
     });

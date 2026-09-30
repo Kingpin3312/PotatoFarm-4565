@@ -62,8 +62,12 @@ export default function Invite({ searchParams }: {
     return (
       <Shell title={`You're in.`}>
         <p className="text-sub text-ink-2 max-w-[42ch]">
-          You've joined {accept.data.orgName}. Your leads will start arriving here.
+          You’ve joined {accept.data.orgName}. Your leads will start arriving here.
         </p>
+        {/* A full load on purpose, not <Link>: they have just joined a
+            brokerage, and the whole app has to start again with the new
+            membership rather than carry the signed-out shell forward. */}
+        {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
         <a href="/inbox" className="btn-inline mt-6 inline-block">Open the inbox</a>
       </Shell>
     );
@@ -91,7 +95,7 @@ export default function Invite({ searchParams }: {
   return (
     <Shell title="Sign in to join.">
       <p className="text-sub text-ink-2 max-w-[44ch]">
-        We'll email you a link — there's no password to choose. You'll come straight back
+        We’ll email you a link — there’s no password to choose. You’ll come straight back
         here and the invitation will be waiting.
       </p>
       <Button variant="primary" className="mt-6"

@@ -37,7 +37,7 @@ export async function timeline(args: {
     args.leadId
       ? db.message.findMany({
           where: { conversation: { leadId: args.leadId } },
-          orderBy: { sentAt: "desc" }, take,
+          orderBy: [{ sentAt: "desc" }, { id: "desc" }], take,
           select: { body: true, direction: true, sentAt: true },
         })
       : Promise.resolve([]),

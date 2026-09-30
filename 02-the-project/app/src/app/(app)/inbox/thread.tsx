@@ -7,9 +7,10 @@ import { Message } from "@/components/ui/message";
 import { WindowState } from "@/components/ui/window-state";
 import { ThreadControls } from "./thread-controls";
 import { SendFile } from "./send-file";
+import { SendProperty } from "./send-property";
 import { LeadRouting } from "../pipeline/lead-routing";
 import { ContactRow } from "@/components/ui/contact-row";
-import { KycPanel } from "./kyc-panel";
+import { KycPanel, FileFromMessage } from "./kyc-panel";
 import { Button } from "@/components/ui/button";
 
 /**
@@ -20,7 +21,14 @@ export function Thread({ conversationId }: { conversationId: string }) {
   const utils = api.useUtils();
   const { data, isLoading , isError, refetch, error } = api.conversations.thread.useQuery({ conversationId });
   const [draft, setDraft] = useState("");
+  // The assistant's draft this message began as, once "Edit" moves it
+  // into the box — so sending it still counts as that draft, edited.
+  const [fromDraft, setFromDraft] = useState<string | null>(null);
+  const discard = api.conversations.discardDraft.useMutation({
+    onSettled: () => void utils.conversations.thread.invalidate({ conversationId }),
+  });
   const [attaching, setAttaching] = useState(false);
+  const [offering, setOffering] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -50,12 +58,14 @@ export function Thread({ conversationId }: { conversationId: string }) {
                   sentAt: new Date(),
                   failure: null,
                   templateName: null,
+                  file: null,
                 },
               ],
             }
           : old
       );
       setDraft("");
+      setFromDraft(null);
       return { previous };
     },
 
@@ -81,17 +91,24 @@ export function Thread({ conversationId }: { conversationId: string }) {
   if (isError) return <QueryError retry={() => void refetch()} what="this" error={error} />;
   if (!data) return null;
 
-  const { window: w } = data;
+  const { window: w, party } = data;
+  const owner = party.kind === "OWNER";
 
   return (
     <div className="flex flex-col min-h-0 h-full">
-      <header className="px-6 py-3.5 border-b border-ink flex items-center gap-3.5 flex-wrap">
+      <header className="px-6 py-3.5 border-b border-rule-strong flex items-center gap-3.5 flex-wrap">
         <div>
           <div className="font-sans font-semibold text-section text-ink">
-            {data.lead.name ?? data.lead.phone}
+            {party.name ?? party.phone}
           </div>
           <div className="font-mono text-label text-ink-3">
-            {data.lead.phone} · {data.lead.language}
+            {owner ? (
+              // Who this is, in words, and the way to everything else
+              // about them: their properties, offers and report day.
+              <a href={`/vendors/${party.id}`} className="no-underline hover:underline">Owner · their page</a>
+            ) : (
+              <>{party.phone} · {party.language}</>
+            )}
           </div>
         </div>
 
@@ -102,7 +119,7 @@ export function Thread({ conversationId }: { conversationId: string }) {
             still right, because the component that fixed it was
             imported by nothing. The number was here all along as plain
             text you cannot press. */}
-        <ContactRow phone={data.lead.phone} name={data.lead.name} compact quiet />
+        {party.phone && <ContactRow phone={party.phone} name={party.name} compact quiet />}
         {data.humanHandover && (
           // Says why the assistant stopped. Silence with no explanation
           // reads as a fault, and the agent rings support.
@@ -114,7 +131,11 @@ export function Thread({ conversationId }: { conversationId: string }) {
 
       <div className="flex-1 overflow-y-auto">
         {data.messages.map((m) => (
-          <Message key={m.id} {...m} />
+          <Message key={m.id} {...m}>
+            {/* A photo or PDF they sent, which can go into their
+                identity file from here — see `FileFromMessage`. */}
+            {m.file && data.lead && <FileFromMessage leadId={data.lead.id} messageId={m.id} file={m.file} />}
+          </Message>
         ))}
 
         {/* The due diligence file, at the foot of the conversation.
@@ -126,7 +147,8 @@ export function Thread({ conversationId }: { conversationId: string }) {
             header because it is a state to notice while reading, not a
             control to reach for: an agent scrolls to the bottom to
             reply, and what is outstanding is the last thing they pass. */}
-        <div className="px-6 pb-2">
+        {/* A buyer's file and routing. An owner has neither. */}
+        {data.lead && <div className="px-6 pb-2">
           <KycPanel leadId={data.lead.id} />
 
           {/* Why this lead is yours, and the two things you can do
@@ -136,12 +158,12 @@ export function Thread({ conversationId }: { conversationId: string }) {
               null when there is no routing history, so it is invisible
               where it has nothing to say. */}
           <LeadRouting leadId={data.lead.id} />
-        </div>
+        </div>}
 
         <div ref={endRef} />
       </div>
 
-      <div className="border-t border-ink p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+      <div className="border-t border-rule-strong p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         {w.open ? (
           <>
             <WindowState open hoursLeft={w.hoursLeft} />
@@ -150,11 +172,41 @@ export function Thread({ conversationId }: { conversationId: string }) {
                 {failed}
               </p>
             )}
+            {/* The assistant's reply, for a person to send.
+                
+                Nothing it writes reaches a buyer from here without a tap:
+                the brokerage's owner chose drafts over automatic replies
+                until the drafts have earned it. Said in the panel, so an
+                agent never wonders whether it has already gone. */}
+            {data.draft && fromDraft !== data.draft.id && (
+              <section aria-labelledby="draft-heading" className="mt-3 rounded-xl border border-rule bg-sunk p-4">
+                <h3 id="draft-heading" className="t-label text-ink-3">
+                  Suggested reply — written by the assistant, sent only when you press Send
+                </h3>
+                <p className="mt-2 text-ui text-ink whitespace-pre-line max-w-[62ch]">{data.draft.body}</p>
+                <div className="mt-3 flex flex-wrap gap-2 items-center">
+                  <Button variant="primary" loading={send.isPending}
+                    onClick={() => send.mutate({ conversationId, body: data.draft!.body, draftId: data.draft!.id })}>
+                    Send as written
+                  </Button>
+                  <Button variant="secondary"
+                    onClick={() => { setDraft(data.draft!.body); setFromDraft(data.draft!.id); }}>
+                    Edit
+                  </Button>
+                  <button type="button" className="btn-inline min-h-11" disabled={discard.isPending}
+                    onClick={() => discard.mutate({ draftId: data.draft!.id })}>
+                    Discard
+                  </button>
+                </div>
+              </section>
+            )}
             <div className="flex gap-3 items-end mt-3">
               <label htmlFor="reply" className="sr-only">Message</label>
               <textarea
                 id="reply"
-                rows={1}
+                // Grows with what is in it, so a property and its link
+                // are both in view before anybody presses Send.
+                rows={Math.min(6, Math.max(1, draft.split("\n").length))}
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 onKeyDown={(e) => {
@@ -162,7 +214,7 @@ export function Thread({ conversationId }: { conversationId: string }) {
                   // round costs a message every time somebody is quick.
                   if (e.key === "Enter" && !e.shiftKey && draft.trim()) {
                     e.preventDefault();
-                    send.mutate({ conversationId, body: draft.trim() });
+                    send.mutate({ conversationId, body: draft.trim(), draftId: fromDraft ?? undefined });
                   }
                 }}
                 placeholder="Write a reply…"
@@ -172,7 +224,7 @@ export function Thread({ conversationId }: { conversationId: string }) {
                 variant="primary"
                 loading={send.isPending}
                 disabled={!draft.trim()}
-                onClick={() => send.mutate({ conversationId, body: draft.trim() })}
+                onClick={() => send.mutate({ conversationId, body: draft.trim(), draftId: fromDraft ?? undefined })}
               >
                 Send
               </Button>
@@ -197,15 +249,34 @@ export function Thread({ conversationId }: { conversationId: string }) {
                 the busiest screen, and an attachment is occasional. */}
             <div className="mt-2">
               <button
-                onClick={() => setAttaching((a) => !a)}
+                onClick={() => { setAttaching((a) => !a); setOffering(false); }}
                 aria-expanded={attaching}
                 className="min-h-11 px-2 t-label text-ink-3 hover:text-ink"
               >
                 {attaching ? "Never mind" : "Attach"}
               </button>
+              {/* A property as its page: the brokerage's preview card in
+                  the chat, and the price that updates if it changes. It
+                  fills the reply box; the agent still presses Send. */}
+              <button
+                onClick={() => { setOffering((o) => !o); setAttaching(false); }}
+                aria-expanded={offering}
+                className="min-h-11 px-2 t-label text-ink-3 hover:text-ink"
+              >
+                {offering ? "Never mind" : "Send a property"}
+              </button>
               {attaching && (
                 <div className="mt-2">
                   <SendFile conversationId={conversationId} windowOpen={w.open} />
+                </div>
+              )}
+              {offering && (
+                <div className="mt-2">
+                  <SendProperty onInsert={(text) => {
+                    setDraft((d) => (d.trim() ? `${d.trim()}\n\n${text}` : text));
+                    setOffering(false);
+                    document.getElementById("reply")?.focus();
+                  }} />
                 </div>
               )}
             </div>
@@ -227,6 +298,8 @@ export function Thread({ conversationId }: { conversationId: string }) {
             muted={data.assistantMuted}
             windowOpen={w.open}
             handover={data.humanHandover}
+            owner={owner}
+            neverWrote={!data.lastInboundAt}
           />
         </div>
       </div>

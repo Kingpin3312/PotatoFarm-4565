@@ -26,14 +26,47 @@ more expensive per day than March, and somebody eventually notices.
 
 ## Two things specific to selling here
 
-**UAE VAT is 5%, and a valid tax invoice needs both parties' TRN.** A
-brokerage that cannot reclaim the VAT because the invoice was malformed
-will ask for it to be reissued, every month, forever.
+**PotatoFarm is not VAT-registered, so it charges no VAT.** Only a
+registered business may charge it — collecting VAT without a
+registration is an offence, not a rounding question. So the registration
+decides the rate: with no `SUPPLIER_TRN`, every invoice carries 0%, no
+supplier TRN, and a line saying "No VAT charged — PotatoFarm is not
+VAT-registered", so a brokerage's accountant finds a reason rather than
+a gap. On the day the FTA certificate arrives, set `SUPPLIER_TRN` and
+every invoice from then on carries 5% on the whole supply, with both
+parties' TRNs as they stood on the day. A value that is set but not
+fifteen digits refuses every invoice: a typo would be printed on each
+one, and reading it as "not registered" would stop charging VAT the
+business owes.
 
-**Invoice numbers are sequential per brokerage and gapless.** A tax
-authority expects them not to skip. A random id, or a global counter,
-leaves every customer's sequence full of holes — which is a conversation
-nobody wants during an audit.
+This used to refuse every invoice until a TRN was set, on the
+assumption that the company was registered and the number merely
+unconfigured. Unregistered, that meant nobody could be billed at all.
+
+**Registration stops being optional at AED 375,000.** Once taxable
+supplies over the previous twelve months exceed it — or are expected to
+in the next thirty days alone — the application is due within thirty
+days, and VAT not charged after that date is PotatoFarm's to pay. Nobody
+adds that up by hand, so `billing.vat-threshold` does, daily
+(`vat-threshold.ts`): turnover is the subtotal of every issued invoice
+from the last 365 days, and the thirty-day figure is the paying
+brokerages' seats at their price plus last month's overage. It emails
+`SALES_INBOX` once at each step up — AED 187,500 (voluntary
+registration is possible, and costs VAT-registered customers nothing),
+AED 300,000 (start the application), and past AED 375,000 (compulsory,
+repeated weekly until the TRN is set). An email the mailer could not
+send is not remembered as sent. `check:vat-threshold` runs the real job
+against a stand-in mailer.
+
+**Invoice numbers are one gapless series for the supplier** —
+`PF-000001`, `PF-000002`, never reset. This used to say the opposite,
+and was wrong: the sequence Article 59 of the VAT Executive Regulation
+asks for belongs to whoever issues the invoice, which is PotatoFarm —
+one company, and one TRN once registered — and a gap in *that* series is what an auditor reads as a supply
+left off the return. A customer does not need unbroken numbers; the
+supplier does. The series is a counter row incremented inside the
+invoice's own transaction (`InvoiceSequence`), so a failed invoice gives
+its number back — a Postgres sequence would not.
 
 Everything is in fils. Money in a floating point number is how a customer
 ends up with a bill for 0.30000000000000004.
@@ -137,3 +170,34 @@ The seat price. `seatPriceFils` is stored on the subscription rather than
 looked up from a price list, so a future price change never silently
 reprices an existing customer — but the first number has to come from
 you, and it is the same number that has to go on the pricing page.
+
+## Decided: charged per person on the team, with no minimum
+
+Sign-up refuses fewer than eight agents, and billing charges only for the
+people actually on the team. That is deliberate. The website promises
+"pro rata for the days they use" and "no minimum term"; charging for eight
+seats a brokerage has not filled would break the first and quietly
+become the second. The eight is advice about who the product suits, not
+a floor on the bill.
+
+## Not built
+
+- ~~**The invoice itself, as a document.**~~ **Built.** Settings →
+  Billing → an invoice → "Open the invoice to print or save" is the
+  document a brokerage files, printed or saved as a PDF from the browser
+  rather than by a PDF library whose copy could disagree with the screen.
+  Both parties' names and addresses are written onto the invoice the day
+  it is issued (`supplierName`, `customerAddress`…), like the TRNs, so a
+  rename or an office move changes the next invoice and never an old one.
+  It reads "Tax invoice" only when it carries PotatoFarm's TRN. An owner
+  sets the billing address and TRN on the billing page — the TRN could
+  only be given at sign-up before, where it is optional. PotatoFarm's side
+  comes from `SUPPLIER_NAME` and `SUPPLIER_ADDRESS`; once registered, the
+  boot log names a missing address, which a tax invoice requires.
+  `check:billing`.
+- ~~**Keeping invoices.**~~ **Done.** `Invoice` cascaded from
+  `Subscription`, so removing a subscription row took its invoices with
+  it — five years' tax records and a hole in the supplier's series, in
+  one statement. The foreign key is `RESTRICT` now
+  (`20260930090000_invoice_restrict`) and `check:billing` asserts the
+  database refuses.

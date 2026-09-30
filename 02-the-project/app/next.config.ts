@@ -26,6 +26,16 @@ const config: NextConfig = {
   poweredByHeader: false,
 
   /**
+   * The training manual's files are read from disk by
+   * `api/manual/[...path]`, outside `public/` so they stay behind sign-in.
+   * A file read by path is not something the bundler can see, so it is
+   * named here or a deployment ships the route without its pages.
+   */
+  outputFileTracingIncludes: {
+    "/api/manual/[...path]": ["./manual-assets/**/*"],
+  },
+
+  /**
    * The image optimiser is **off**, and that is a security decision.
    *
    * ## What was here

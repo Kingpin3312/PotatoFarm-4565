@@ -48,7 +48,7 @@ export default function Access() {
       </header>
 
       {live.length > 0 && (
-        <div className="border-t border-ink mb-10">
+        <div className="border-t border-rule-strong mb-10">
           {live.map((g) => (
             <div key={g.id} className="py-4 border-b border-rule">
               <div className="flex items-baseline gap-3 flex-wrap">

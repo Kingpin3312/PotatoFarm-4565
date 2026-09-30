@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { cn } from "@/lib/cn";
@@ -9,10 +9,15 @@ import { QueryError } from "@/components/ui/query-state";
 import { aedWhole } from "@/lib/money";
 import { PublishCheck } from "./publish-check";
 import { AttachOwner } from "./attach-owner";
+import { Lease } from "./lease";
 import { WhoWantsIt } from "./who-wants-it";
 import { AddProperty } from "./add-property";
 import { EditListing } from "./edit-listing";
+import { Photos } from "./photos";
 import { CheckCopy } from "./check-copy";
+import { ShareLink } from "./share-link";
+import { download } from "@/lib/download";
+import { TYPE_OPTIONS } from "./add-property";
 
 /**
  * Listings.
@@ -52,11 +57,55 @@ function Listings() {
   // Which row has its owner panel open. One at a time: the panel is a
   // block, and two of them open in a table turns the list into a form.
   const [ownerFor, setOwnerFor] = useState<string | null>(null);
+  const [photosFor, setPhotosFor] = useState<string | null>(null);
 
-  const { data, isLoading } = api.listings.list.useInfiniteQuery(
-    { limit: 25, ...(q ? { search: q } : {}) },
-    { getNextPageParam: (l) => l.nextCursor }
-  );
+  /**
+   * Filters, applied by the server. The screen asked for twenty-five and
+   * never for more — `fetchNextPage` was not called anywhere — so a
+   * brokerage with two hundred properties saw an eighth of its stock.
+   */
+  const [f, setF] = useState<ListingFilters>({ status: "AVAILABLE" });
+  const [typed, setTyped] = useState(q);
+  const [sort, setSort] = useState<"updated" | "newest" | "price_asc" | "price_desc">("updated");
+  const [showFilters, setShowFilters] = useState(false);
+  useEffect(() => { setTyped(q); }, [q]);
+  useEffect(() => {
+    const next = typed.trim() || undefined;
+    const t = setTimeout(() => setF((x) => (x.search === next ? x : { ...x, search: next })), 300);
+    return () => clearTimeout(t);
+  }, [typed]);
+  // Arriving from search with a reference means that listing, whatever
+  // its status — a sold one is still the one they asked for.
+  useEffect(() => { if (q) setF((x) => ({ ...x, status: undefined })); }, [q]);
+  const filters = Object.fromEntries(Object.entries(f).filter(([, v]) => v !== undefined && v !== "")) as ListingFilters;
+
+  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage, isPlaceholderData } =
+    api.listings.list.useInfiniteQuery(
+      { ...filters, sort, limit: 50 },
+      { getNextPageParam: (l) => l.nextCursor ?? undefined, placeholderData: (prev) => prev },
+    );
+  const { data: counted } = api.listings.count.useQuery(filters, { placeholderData: (prev) => prev });
+  const { data: mine } = api.org.mine.useQuery();
+  const manager = ["MANAGER", "ADMIN", "OWNER"].includes(mine?.find((o) => o.active)?.role ?? "");
+  const { data: team } = api.org.members.useQuery(undefined, { enabled: manager });
+  const { data: everything } = api.listings.count.useQuery({});
+  const exporter = api.listings.exportCsv.useMutation({ onSuccess: (r) => download(r.filename, r.csv) });
+
+  const sentinel = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = sentinel.current;
+    if (!el) return;
+    const io = new IntersectionObserver((es) => {
+      if (es[0]?.isIntersecting && hasNextPage && !isFetchingNextPage) void fetchNextPage();
+    }, { rootMargin: "400px" });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+  const set = (patch: Partial<ListingFilters>) => setF((x) => ({ ...x, ...patch }));
+  const aedIn = (v: string) => {
+    const n = Number(v.replace(/[,\s]/g, "").replace(/m$/i, "e6").replace(/k$/i, "e3"));
+    return v.trim() && Number.isFinite(n) ? Math.round(n) : undefined;
+  };
   const { data: expiring , isError, refetch } = api.listings.expiringPermits.useQuery({ withinDays: 14 });
   const { data: rejections } = api.listings.rejections.useQuery();
 
@@ -69,8 +118,13 @@ function Listings() {
           <span className="t-label text-ink-3 block mb-3">
             Listings
           </span>
-          <h1 className="font-sans text-page text-ink">
-            {isLoading ? "—" : `${rows.length} live`}
+          {/* The count of what matches, not of what is loaded, and "live"
+              only for what is available — it said "25 live" over a page
+              of drafts and sold stock. */}
+          <h1 className="font-sans text-page text-ink" data-total={counted?.total ?? ""}>
+            {counted === undefined ? "—"
+              : f.status === "AVAILABLE" ? `${counted.total.toLocaleString()} available`
+              : `${counted.total.toLocaleString()} ${counted.total === 1 ? "property" : "properties"}`}
           </h1>
         </div>
 
@@ -86,12 +140,20 @@ function Listings() {
         {/* `ms-auto` so it sits at the end of the header on a desktop
             and wraps under the heading on a phone, where the flex-wrap
             above puts it on its own line at full reach of a thumb. */}
-        <div className="ms-auto"><AddProperty /></div>
+        <div className="ms-auto flex items-center gap-4">
+          {manager && (
+            <button type="button" className="btn-inline min-h-11" disabled={exporter.isPending}
+              onClick={() => exporter.mutate(filters)}>
+              {exporter.isPending ? "Exporting…" : "Export"}
+            </button>
+          )}
+          <AddProperty />
+        </div>
       </header>
 
       {/* The two failures that are otherwise invisible. Shown before the
           list, because a permit nobody sees becomes a permit that lapses. */}
-      <div className="grid grid-cols-2 max-[720px]:grid-cols-1 border-t border-ink mt-6">
+      <div className="grid grid-cols-2 max-[720px]:grid-cols-1 border-t border-rule-strong mt-6">
         <Alert
           count={expiring?.length ?? 0}
           title="Permits expiring inside 14 days"
@@ -105,8 +167,60 @@ function Listings() {
         />
       </div>
 
-      <div className="border-t border-ink mt-9">
-        <div className="grid grid-cols-[1.6fr_140px_1fr_120px_auto] gap-4 py-3.5 px-1 border-b border-ink t-label text-ink-3 max-[820px]:hidden">
+      <div className="mt-6 min-[900px]:hidden">
+        <button type="button" className="btn-inline min-h-11" aria-expanded={showFilters}
+        aria-controls="listing-filters" onClick={() => setShowFilters((v) => !v)}>
+        {showFilters ? "Hide filters" : "Filters"}
+      </button></div>
+      <div id="listing-filters" role="search"
+        className={cn("gap-3 mt-4 grid-cols-2 min-[900px]:grid min-[900px]:mt-8 min-[900px]:grid-cols-[minmax(0,2fr)_repeat(4,minmax(0,1fr))]",
+          showFilters ? "grid" : "hidden")}>
+        <label className="flex flex-col gap-1 col-span-2 min-[900px]:col-span-1">
+          <span className="t-label text-ink-3">Reference, name or building</span>
+          <input value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="DH-101, Marina Gate" className={INPUT} />
+        </label>
+        <Pick label="Status" value={f.status ?? ""} onChange={(v) => set({ status: (v || undefined) as ListingFilters["status"] })}
+          options={[["", "Any"], ["AVAILABLE", "Available"], ["UNDER_OFFER", "Under offer"], ["DRAFT", "Draft"], ["SOLD", "Sold"], ["LET", "Let"], ["WITHDRAWN", "Withdrawn"]]} />
+        <Pick label="Sale or rent" value={f.purpose ?? ""} onChange={(v) => set({ purpose: (v || undefined) as "SALE" | "RENT" | undefined })}
+          options={[["", "Either"], ["SALE", "For sale"], ["RENT", "To rent"]]} />
+        <label className="flex flex-col gap-1 min-w-0">
+          <span className="t-label text-ink-3">Area</span>
+          <input defaultValue="" placeholder="Marina" className={INPUT}
+            onBlur={(e) => set({ community: e.target.value.trim() || undefined })}
+            onKeyDown={(e) => { if (e.key === "Enter") set({ community: (e.target as HTMLInputElement).value.trim() || undefined }); }} />
+        </label>
+        <Pick label="Type" value={f.propertyType ?? ""} onChange={(v) => set({ propertyType: (v || undefined) as ListingFilters["propertyType"] })}
+          options={[["", "Any"], ...TYPE_OPTIONS.slice(1)]} />
+        <Pick label="Ready or off-plan" value={f.completion ?? ""} onChange={(v) => set({ completion: (v || undefined) as ListingFilters["completion"] })}
+          options={[["", "Either"], ["READY", "Ready"], ["OFF_PLAN", "Off-plan"]]} />
+        <Pick label="Bedrooms" value={f.bedrooms == null ? "" : String(f.bedrooms)}
+          onChange={(v) => set({ bedrooms: v === "" ? undefined : Number(v) })}
+          options={[["", "Any"], ["0", "Studio +"], ["1", "1 +"], ["2", "2 +"], ["3", "3 +"], ["4", "4 +"], ["5", "5 +"]]} />
+        <label className="flex flex-col gap-1 min-w-0">
+          <span className="t-label text-ink-3">Price from (AED)</span>
+          <input inputMode="decimal" placeholder="1m" className={INPUT}
+            onBlur={(e) => set({ minPriceAed: aedIn(e.target.value) })} />
+        </label>
+        <label className="flex flex-col gap-1 min-w-0">
+          <span className="t-label text-ink-3">Price up to (AED)</span>
+          <input inputMode="decimal" placeholder="3m" className={INPUT}
+            onBlur={(e) => set({ maxPriceAed: aedIn(e.target.value) })} />
+        </label>
+        {team && (
+          <Pick label="Agent" value={f.agentId ?? ""} onChange={(v) => set({ agentId: v || undefined })}
+            options={[["", "Anyone"], ...team.members.map((m) => [m.user.id, m.user.name ?? m.user.email] as [string, string])]} />
+        )}
+        <Pick label="Sort" value={sort} onChange={(v) => setSort(v as typeof sort)}
+          options={[["updated", "Last changed"], ["newest", "Newest first"], ["price_asc", "Price, low to high"], ["price_desc", "Price, high to low"]]} />
+      </div>
+
+      <div className={cn("border-t border-rule-strong mt-6 transition-opacity", isPlaceholderData && "opacity-60")}
+           data-rows={rows.length} aria-busy={isPlaceholderData || undefined}>
+        {/* The last column is a width, not `auto`, and in both grids. Each
+            row is its own grid, so `auto` sized it to that row's five
+            buttons while the header's empty cell sized it to nothing —
+            every heading sat a column to the right of what it named. */}
+        <div className="grid grid-cols-[1.6fr_140px_1fr_120px_400px] gap-4 py-3.5 px-1 border-b border-rule-strong t-label text-ink-3 max-[820px]:hidden">
           <span>Property</span><span>Price</span><span>Portals</span><span>Permit</span><span />
         </div>
 
@@ -121,11 +235,30 @@ function Listings() {
             // with the price parsing deliberately broken, because it was
             // reading a matching number off a different listing.
             data-listing={l.reference}
-            className="grid grid-cols-[1.6fr_140px_1fr_120px_auto] gap-4 items-center py-3.5 px-1 border-b border-rule hover:bg-raised max-[820px]:grid-cols-1 max-[820px]:gap-2"
+            className="grid grid-cols-[1.6fr_140px_1fr_120px_400px] gap-4 items-center py-3.5 px-1 border-b border-rule hover:bg-raised max-[820px]:grid-cols-1 max-[820px]:gap-2"
           >
             <div>
               <div className="font-mono text-label text-ink-3">{l.reference}</div>
               <div className="text-ui font-medium text-ink mt-0.5">{l.title}</div>
+              {/* Where it is, as Property Finder will file it — or the
+                  fact that it is not placed yet, which keeps it off that
+                  portal until somebody chooses the building. */}
+              {l.location
+                ? <div className="text-sm text-ink-3 mt-0.5">{l.location.path.split(" > ").slice(1).join(" › ")}</div>
+                : <div className="text-sm text-accent-deep mt-0.5">No exact location. Edit it to choose the building.</div>}
+              {/* What it is, when somebody has said: a buyer asks "villa or
+                  apartment? ready or off-plan?" before anything else. */}
+              {(l.propertyType || l.completion === "OFF_PLAN" || l.developer) && (
+                <div className="text-sm text-ink-3 mt-0.5">
+                  {[
+                    l.propertyType ? TYPE_OPTIONS.find(([v]) => v === l.propertyType)?.[1] : null,
+                    l.completion === "OFF_PLAN"
+                      ? `Off-plan${l.handoverAt ? `, handover ${new Date(l.handoverAt).toLocaleDateString("en-GB", { month: "short", year: "numeric" })}` : ""}`
+                      : null,
+                    [l.developer, l.project].filter(Boolean).join(", ") || null,
+                  ].filter(Boolean).join(" · ")}
+                </div>
+              )}
             </div>
 
             <div className="font-mono text-note text-ink">
@@ -185,6 +318,14 @@ function Listings() {
 
             <div className="justify-self-end flex gap-2 flex-wrap justify-end max-[820px]:justify-self-start max-[820px]:justify-start">
               <EditListing listing={l} />
+              <button
+                onClick={() => setPhotosFor((o) => (o === l.id ? null : l.id))}
+                aria-expanded={photosFor === l.id}
+                className="min-h-11 px-1.5 text-sm text-ink-2 hover:text-ink hover:underline underline-offset-4 focus-visible:outline-none focus-visible:shadow-[var(--ring)] rounded-sm"
+              >
+                Photos
+              </button>
+              <ShareLink listingId={l.id} />
               <CheckCopy listingId={l.id} />
               <WhoWantsIt listingId={l.id} reference={l.reference} />
               <PublishCheck
@@ -202,15 +343,24 @@ function Listings() {
               <button
                 onClick={() => setOwnerFor((o) => (o === l.id ? null : l.id))}
                 aria-expanded={ownerFor === l.id}
-                className="btn-inline min-h-11"
+                className={l.vendor
+                  ? "min-h-11 px-1.5 text-sm text-ink-2 hover:text-ink hover:underline underline-offset-4 focus-visible:outline-none focus-visible:shadow-[var(--ring)] rounded-sm"
+                  : "btn-inline min-h-11"}
               >
-                {l.vendor ? "Owner" : "No owner"}
+                {l.vendor ? "Owner" : "No owner"}{l.purpose === "RENT" ? " & lease" : ""}
               </button>
             </div>
 
+            {photosFor === l.id && (
+              <div className="col-span-full">
+                <Photos listingId={l.id} />
+              </div>
+            )}
+
             {ownerFor === l.id && (
               <div className="col-span-full">
-                <AttachOwner listingId={l.id} current={l.vendor} />
+                <AttachOwner listingId={l.id} current={l.vendor} agent={l.agent} />
+                {l.purpose === "RENT" && <Lease listingId={l.id} />}
               </div>
             )}
           </div>
@@ -222,12 +372,36 @@ function Listings() {
             state that names two routes a brokerage does not have reads
             as "you have missed a setting" and sends them looking. It
             now names the one that works. */}
-        {!isLoading && rows.length === 0 && !q && (
+        {rows.length > 0 && (
+          <div ref={sentinel} className="pt-5 flex items-center gap-4">
+            <span className="text-sm text-ink-3 tabular" data-shown={rows.length}>
+              Showing {rows.length.toLocaleString()} of {(counted?.total ?? rows.length).toLocaleString()}
+            </span>
+            {hasNextPage && (
+              <button type="button" className="btn-inline min-h-11" disabled={isFetchingNextPage}
+                onClick={() => void fetchNextPage()}>
+                {isFetchingNextPage ? "Loading…" : "Show more"}
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Stock that exists but is filtered out is a different sentence
+            from having none: "No properties yet" over a list of drafts
+            would send somebody to add them again. */}
+        {!isLoading && rows.length === 0 && !q && (everything?.total ?? 0) > 0 && (
+          <p className="py-8 text-sm text-ink-3">
+            Nothing matches these filters.{" "}
+            <button type="button" className="btn-inline" onClick={() => { setF({}); setTyped(""); }}>Show everything</button>
+          </p>
+        )}
+
+        {!isLoading && rows.length === 0 && !q && everything?.total === 0 && (
           <div className="py-10 max-w-[46ch]">
             <p className="text-sub font-medium text-ink">No properties yet.</p>
             <p className="text-sm text-ink-2 mt-2">
               Add the first one and it appears here, ready to match against your
-              buyers. A reference and a name are enough — the permit can follow.
+              buyers. A reference, a name and where it is are enough — the permit can follow.
             </p>
             <div className="mt-4"><AddProperty /></div>
           </div>
@@ -279,4 +453,27 @@ function permit(days: number | null) {
   if (days < 0) return `Expired ${Math.abs(days)}d ago`;
   if (days === 0) return "Expires today";
   return `${days} days left`;
+}
+
+type ListingFilters = {
+  status?: "DRAFT" | "AVAILABLE" | "UNDER_OFFER" | "SOLD" | "LET" | "WITHDRAWN";
+  search?: string; purpose?: "SALE" | "RENT"; community?: string; agentId?: string;
+  bedrooms?: number; minPriceAed?: number; maxPriceAed?: number;
+  propertyType?: "APARTMENT" | "VILLA" | "TOWNHOUSE" | "PENTHOUSE" | "DUPLEX" | "PLOT" | "OFFICE" | "RETAIL" | "WAREHOUSE" | "OTHER";
+  completion?: "READY" | "OFF_PLAN";
+};
+
+/** 16px on every control — below that iOS zooms the page on focus. */
+const INPUT = "min-h-11 px-3 text-control bg-ground border border-rule rounded-[3px] text-ink outline-none focus:border-ink w-full";
+
+function Pick({ label, value, onChange, options }:
+  { label: string; value: string; onChange: (v: string) => void; options: [string, string][] }) {
+  return (
+    <label className="flex flex-col gap-1 min-w-0">
+      <span className="t-label text-ink-3">{label}</span>
+      <select value={value} onChange={(e) => onChange(e.target.value)} className={INPUT}>
+        {options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+      </select>
+    </label>
+  );
 }

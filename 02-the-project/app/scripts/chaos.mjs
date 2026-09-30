@@ -212,7 +212,7 @@ console.log("\n████ APP — chaos\n");
   await p.goto("http://localhost:3000/not-a-real-page", { waitUntil: "networkidle" }).catch(()=>{});
   await p.waitForTimeout(1200);
   const nf = (await p.locator("body").innerText().catch(()=>"")).replace(/\s+/g," ");
-  chk("app","medium","unknown route shows a 404, not a crash", /404|not found|can.t find/i.test(nf), nf.slice(0,80));
+  chk("app","medium","unknown route shows a 404, not a crash", /404|not found|can.t find|nothing at this address/i.test(nf), nf.slice(0,80));
 
   // 3. Rapid double-submit on the search form.
   await p.goto("http://localhost:3000/search", { waitUntil: "networkidle" });
@@ -232,7 +232,9 @@ console.log("\n████ APP — chaos\n");
   const v = await p.inputValue('input[aria-label="What are you looking for?"]');
   chk("app","medium","the search field caps its own length", v.length <= 200, `${v.length} chars`);
   await p.getByRole("button", { name: "Find" }).last().click();
-  await p.waitForTimeout(2000);
+  // Until the answer replaces "Looking…", with a ceiling that still
+  // catches a real hang. A fixed 2s read a first-compile as a hang.
+  await p.waitForFunction(() => !/Looking…/.test(document.querySelector("section")?.textContent || ""), null, { timeout: 15000 }).catch(() => {});
   const longTxt = (await p.locator("section").innerText().catch(()=>"")).replace(/\s+/g," ");
   chk("app","high","a 200-char nonsense query answers rather than hangs",
       longTxt.length > 20 && !/Couldn.t load/i.test(longTxt), longTxt.slice(0,80));
