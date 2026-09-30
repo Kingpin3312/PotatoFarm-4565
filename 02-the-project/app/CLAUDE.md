@@ -102,7 +102,7 @@ What is verified today, measured rather than assumed:
   `/api/health` returns `200 {"ok":true}` against a real Postgres.
 - The boot log names every unconfigured service with its consequence —
   six of them in a bare development environment.
-- 432 assertions in 31 files, 65 check suites, 23 audits, all green.
+- 432 assertions in 31 files, 66 check suites, 23 audits, all green.
 
 Type errors on a fresh checkout are no longer expected. If you get one,
 it is new.
@@ -935,7 +935,7 @@ send path read it.
 ## Run the tests
 
     npm test          # 432 assertions, pure functions, no database
-    npm run verify    # tsc, eslint, the tests, 65 check suites, 23 audits
+    npm run verify    # tsc, eslint, the tests, 66 check suites, 23 audits
 
 **The gate is now green end to end, including the two things that used
 to skip.** `verify` reports what it did not run rather than counting a
@@ -1445,12 +1445,27 @@ with an empirical floor under it.
 - Migration source adapters.
 - ~~**Connecting a mailbox.**~~ **Built; the app registrations are the
   owner's.** Settings → Email runs the OAuth handshake with Google or
-  Microsoft (read-mail scopes only), seals the tokens, refreshes them, and
-  `email.sync` reads Gmail (history + metadata) and Outlook (`$delta`).
+  Microsoft (read-mail and calendar free/busy scopes only), seals the
+  tokens, refreshes them, and `email.sync` reads Gmail (history +
+  metadata) and Outlook (`$delta`).
   What a brokerage needs is a client id, secret and registered callback
   per provider (`.env.example`); without them the screen says the
   provider is not set up. `check:email-connect` drives it all against
-  loopback stand-ins. Still not built: two-way calendar sync.
+  loopback stand-ins.
+
+  **The calendar is read back, busy times only.** The diary published
+  viewings *to* an agent's phone and nothing read the other way, so a
+  viewing could be offered to a buyer — and confirmed — on top of the
+  agent's own appointment. Each sync now reads the next 21 days of the
+  agent's primary calendar (Google `freeBusy`, which returns nothing but
+  times; Microsoft `calendarView` selecting start, end, `showAs` and
+  `isCancelled`) into `CalendarBusy`, replacing the last read, and
+  `availableSlots` keeps an across-town buffer either side. Free,
+  working-elsewhere and cancelled time does not block. A mailbox
+  connected before the scope was asked for records `calendarError`,
+  blocks nothing, and Settings → Email offers to connect again;
+  disconnecting forgets the busy times. Microsoft's paging is followed
+  only on its own address, as the mail cursor is. `check:calendar-busy`.
 
   Proving it red found the same shape as a swallowed database error: the
   per-message `catch` read "already have it" and swallowed *everything*,

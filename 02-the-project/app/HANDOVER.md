@@ -9,7 +9,7 @@ the single most important sentence in this document, because the natural
 instinct on arriving at a large codebase is to find something to build,
 and building is not what this project needs.
 
-The gate is green: `tsc` clean, 432 unit assertions, 65 check suites, 23
+The gate is green: `tsc` clean, 432 unit assertions, 66 check suites, 23
 audit scripts, all browser suites, and a production build that succeeds.
 CI runs the lot on every push.
 
@@ -139,7 +139,7 @@ After the build, four passes that each found real faults:
 | Security | 131 undeclared RLS bypasses, all safe, none announced | `SECURITY-REVIEW.md` |
 | Board audit | An unthrottled sign-in endpoint; alerts that never left the process; two checks that had been passing while measuring nothing | this file, `OPERATIONS.md`, and the commit log |
 
-All 65 check suites are green. Read the reports before changing
+All 66 check suites are green. Read the reports before changing
 anything structural — several of the fixes look like preferences and are
 not.
 
@@ -151,7 +151,7 @@ by putting a bug back and watching them stay green.
 
 ## The shape of it
 
-    prisma/schema.prisma      82 models
+    prisma/schema.prisma      83 models
     src/server/db/            tenant isolation — read rls.sql first
     src/server/auth/          passwordless, database sessions, permission matrix
     src/server/api/           38 routers, mounted on root.ts
@@ -297,15 +297,19 @@ the business rather than code:**
    and a real phone to send a passport photo from and file it out of the
    thread — the one step of that path no check can take.
 8. **App registrations with Google and Microsoft** for the mailbox
-   connection. The code is built and tested against stand-ins.
+   connection, with the calendar free/busy permission as well as mail
+   (`.env.example` names both). The code is built and tested against
+   stand-ins.
 9. **A screening provider.** Without one every screening records ERROR,
    honestly, and the compliance officer is told nothing was checked.
 10. **Portal partner agreements.** The feed works; Property Finder's
     location IDs arrive with the agreement.
 
-Not built, and larger than an afternoon: **two-way calendar sync**. The
-diary publishes a feed a phone can subscribe to; nothing reads an
-agent's own calendar back.
+**Calendar sync is two-way now.** The diary publishes a feed a phone
+subscribes to, and the mailbox connection reads the agent's own calendar
+back — busy times only, never what the appointment is — so a viewing is
+never offered on top of it (`check:calendar-busy`). A mailbox connected
+before this asks to be connected again, and Settings → Email says so.
 
 Also outstanding, and cheap: **a Stripe test key**, so
 `npm run check:billing` can exercise the one step it currently skips.

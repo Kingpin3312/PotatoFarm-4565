@@ -17,34 +17,44 @@ import { endpoint } from "@/server/lib/loopback";
  */
 export type Provider = "GOOGLE" | "MICROSOFT";
 
-type Urls = { authorize: string; tokenUrl: string; identity: string; api: string };
+type Urls = { authorize: string; tokenUrl: string; identity: string; api: string; calendar: string };
 
 function urls(p: Provider): Urls {
   if (p === "GOOGLE") {
     const base = endpoint("GOOGLE_OAUTH_BASE", "");
     return base
-      ? { authorize: `${base}/o/oauth2/v2/auth`, tokenUrl: `${base}/token`, identity: `${base}/userinfo`, api: `${base}/gmail/v1/users/me` }
+      ? { authorize: `${base}/o/oauth2/v2/auth`, tokenUrl: `${base}/token`, identity: `${base}/userinfo`, api: `${base}/gmail/v1/users/me`, calendar: `${base}/calendar/v3` }
       : {
           authorize: "https://accounts.google.com/o/oauth2/v2/auth",
           tokenUrl: "https://oauth2.googleapis.com/token",
           identity: "https://openidconnect.googleapis.com/v1/userinfo",
           api: "https://gmail.googleapis.com/gmail/v1/users/me",
+          calendar: "https://www.googleapis.com/calendar/v3",
         };
   }
   const base = endpoint("MICROSOFT_OAUTH_BASE", "");
   return base
-    ? { authorize: `${base}/authorize`, tokenUrl: `${base}/token`, identity: `${base}/v1.0/me`, api: `${base}/v1.0/me` }
+    ? { authorize: `${base}/authorize`, tokenUrl: `${base}/token`, identity: `${base}/v1.0/me`, api: `${base}/v1.0/me`, calendar: `${base}/v1.0/me` }
     : {
         authorize: "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
         tokenUrl: "https://login.microsoftonline.com/common/oauth2/v2.0/token",
         identity: "https://graph.microsoft.com/v1.0/me",
         api: "https://graph.microsoft.com/v1.0/me",
+        calendar: "https://graph.microsoft.com/v1.0/me",
       };
 }
 
+/**
+ * Mail, read-only, and the calendar's **free/busy only**: Google's
+ * `calendar.freebusy` returns start and end times and nothing else, and
+ * Microsoft's `Calendars.ReadBasic` excludes bodies and attachments —
+ * `busyTimes` selects start, end and whether the time shows as busy,
+ * and discards the rest. A mailbox connected before the calendar was
+ * asked for has neither; the account says so and connecting again adds it.
+ */
 const SCOPES: Record<Provider, string> = {
-  GOOGLE: "openid email https://www.googleapis.com/auth/gmail.readonly",
-  MICROSOFT: "offline_access openid email User.Read Mail.Read",
+  GOOGLE: "openid email https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/calendar.freebusy",
+  MICROSOFT: "offline_access openid email User.Read Mail.Read Calendars.ReadBasic",
 };
 
 function client(p: Provider) {
@@ -261,4 +271,71 @@ export async function fetchNew(p: Provider, token: string, cursor: string | null
     });
   }
   return { messages, cursor: next };
+}
+
+/* ------------------------------ calendar --------------------------- */
+
+export type Busy = { start: Date; end: Date };
+
+/** The calendar was not shared with this connection — it predates the scope. */
+export class CalendarNotShared extends Error {
+  constructor() { super("calendar not shared"); }
+}
+
+/**
+ * When the agent is busy between two instants, from their primary
+ * calendar. Times only: Google's free/busy query returns nothing else,
+ * and from Microsoft only start, end, how the time shows and whether it
+ * was cancelled are asked for. "Free" and "working elsewhere" do not
+ * block a viewing; tentative, busy and out of office do.
+ */
+export async function busyTimes(p: Provider, token: string, from: Date, to: Date): Promise<Busy[]> {
+  const u = urls(p);
+  const auth = { Authorization: `Bearer ${token}` };
+  const out: Busy[] = [];
+  const keep = (s: unknown, e: unknown) => {
+    const start = new Date(String(s)), end = new Date(String(e));
+    if (Number.isFinite(start.getTime()) && Number.isFinite(end.getTime()) && end > start) out.push({ start, end });
+  };
+
+  if (p === "GOOGLE") {
+    const res = await fetch(`${u.calendar}/freeBusy`, {
+      method: "POST",
+      headers: { ...auth, "content-type": "application/json" },
+      body: JSON.stringify({ timeMin: from.toISOString(), timeMax: to.toISOString(), items: [{ id: "primary" }] }),
+      signal: AbortSignal.timeout(20_000),
+    });
+    if (res.status === 401) throw new TokenError("unauthorized");
+    if (res.status === 403) throw new CalendarNotShared();
+    if (!res.ok) throw new Error(`GOOGLE calendar ${res.status}`);
+    const b = await res.json() as { calendars?: { primary?: { busy?: { start: string; end: string }[]; errors?: unknown[] } } };
+    if (b.calendars?.primary?.errors?.length) throw new CalendarNotShared();
+    for (const x of b.calendars?.primary?.busy ?? []) keep(x.start, x.end);
+    return out;
+  }
+
+  const q = new URLSearchParams({
+    startDateTime: from.toISOString(), endDateTime: to.toISOString(),
+    $select: "start,end,showAs,isCancelled", $top: "500",
+  });
+  let url: string | null = `${u.calendar}/calendarView?${q}`;
+  for (let pages = 0; url && pages < 10; pages++) {
+    const res: Response = await fetch(url, {
+      headers: { ...auth, Prefer: 'outlook.timezone="UTC"' }, signal: AbortSignal.timeout(20_000),
+    });
+    if (res.status === 401) throw new TokenError("unauthorized");
+    if (res.status === 403) throw new CalendarNotShared();
+    if (!res.ok) throw new Error(`MICROSOFT calendar ${res.status}`);
+    const b = await res.json() as { value?: Record<string, any>[]; "@odata.nextLink"?: string };
+    for (const ev of b.value ?? []) {
+      if (ev.isCancelled || ev.showAs === "free" || ev.showAs === "workingElsewhere") continue;
+      // Asked for in UTC, and Graph writes UTC without the Z.
+      const z = (d: unknown) => { const t = String(d ?? ""); return /[zZ]|[+-]\d\d:?\d\d$/.test(t) ? t : `${t}Z`; };
+      keep(z(ev.start?.dateTime), z(ev.end?.dateTime));
+    }
+    // Followed only on Microsoft's own API, as the mail cursor is.
+    const next = b["@odata.nextLink"];
+    url = next && next.startsWith(`${u.calendar}/`) ? next : null;
+  }
+  return out;
 }

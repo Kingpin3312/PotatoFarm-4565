@@ -1,6 +1,6 @@
 import { forOrg, crossTenant } from "@/server/db/client";
 import { fetchSecret, writeSecret } from "@/server/lib/secrets/vault";
-import { fetchNew, refresh, TokenError, type Provider, type Tokens } from "./providers";
+import { busyTimes, CalendarNotShared, fetchNew, refresh, TokenError, type Provider, type Tokens } from "./providers";
 import { log } from "@/lib/log";
 
 /**
@@ -142,9 +142,68 @@ export async function syncAccount(accountId: string) {
     data: { cursor: page.cursor, lastSyncedAt: new Date(), lastError: null },
   });
 
+  let busy: number | null;
+  try {
+    busy = await syncBusy(acct, provider, tokens.accessToken);
+  } catch (e) {
+    if (e instanceof TokenError) return disconnected(e.code);
+    // The mail is in; a calendar that failed this time keeps what was
+    // last read, and says nothing new until it fails for a reason a
+    // person can fix.
+    log.warn("calendar sync failed", { orgId: acct.orgId }, { account: acct.address, e: String(e).slice(0, 100) });
+    busy = null;
+  }
+
   log.info("email synced", { orgId: acct.orgId },
-           { account: acct.address, seen: page.messages.length, stored: saved });
-  return { synced: saved, seen: page.messages.length };
+           { account: acct.address, seen: page.messages.length, stored: saved, busy });
+  return { synced: saved, seen: page.messages.length, busy };
+}
+
+/** As far ahead as the booking screen looks (`viewings.slots`, 21 days). */
+export const BUSY_DAYS = 21;
+
+/**
+ * The agent's busy times, replacing whatever was read last time.
+ *
+ * Why this exists: the diary publishes viewings *to* an agent's phone,
+ * and nothing read the other way — so a viewing could be offered to a
+ * buyer, and confirmed, on top of the agent's own appointment, and the
+ * clash surfaced when the agent looked at their phone. Times only; see
+ * `busyTimes` for what is and is not asked for.
+ *
+ * A mailbox connected before the calendar was asked for cannot be read.
+ * That is recorded on the account for Settings to say, and anything
+ * previously read is cleared — a busy time nobody can refresh is a slot
+ * refused for ever.
+ */
+async function syncBusy(acct: { id: string; orgId: string; agentId: string }, provider: Provider, token: string) {
+  const from = new Date();
+  const to = new Date(from.getTime() + BUSY_DAYS * 86_400_000);
+  const db = forOrg(acct.orgId);
+  let blocks;
+  try {
+    blocks = await busyTimes(provider, token, from, to);
+  } catch (e) {
+    if (!(e instanceof CalendarNotShared)) throw e;
+    await db.$transaction(async (tx) => {
+      await tx.calendarBusy.deleteMany({ where: { accountId: acct.id } });
+      await tx.emailAccount.update({
+        where: { id: acct.id },
+        data: { calendarError: "Your calendar isn't shared yet. Connect this mailbox again and allow calendar access, and viewings will stop being offered when you're busy." },
+      });
+    });
+    return 0;
+  }
+  await db.$transaction(async (tx) => {
+    await tx.calendarBusy.deleteMany({ where: { accountId: acct.id } });
+    if (blocks.length) {
+      await tx.calendarBusy.createMany({
+        data: blocks.map((b) => ({ orgId: acct.orgId, accountId: acct.id, agentId: acct.agentId, startsAt: b.start, endsAt: b.end })),
+      });
+    }
+    await tx.emailAccount.update({ where: { id: acct.id }, data: { busySyncedAt: new Date(), calendarError: null } });
+  });
+  return blocks.length;
 }
 
 /** Swept every fifteen minutes. Email is not WhatsApp — nobody expects

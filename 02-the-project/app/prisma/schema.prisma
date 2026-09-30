@@ -2980,10 +2980,37 @@ model EmailAccount {
   lastError    String?
   active       Boolean   @default(true)
 
+  /// When the agent's busy times were last read from their calendar, and
+  /// why they could not be — most often a mailbox connected before the
+  /// calendar was asked for, which needs connecting again.
+  busySyncedAt  DateTime?
+  calendarError String?
+
   createdAt DateTime @default(now())
+
+  busy CalendarBusy[]
 
   @@unique([agentId, address])
   @@index([orgId, active])
+}
+
+/// When an agent's own calendar says they are busy, so a viewing is never
+/// offered over it (`scheduling.ts`). A start and an end only — never a
+/// title, attendees or a place; the connection asks for free/busy and
+/// nothing more. Replaced wholesale on each sync (`email/sync.ts`), and
+/// deleted with the connection.
+model CalendarBusy {
+  id        String   @id @default(cuid())
+  orgId     String
+  accountId String
+  agentId   String
+  startsAt  DateTime
+  endsAt    DateTime
+
+  account EmailAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, agentId, startsAt])
+  @@index([accountId])
 }
 
 enum EmailProvider {

@@ -157,7 +157,14 @@ async function main() {
   const to = new URL(location(start));
   const state = to.searchParams.get("state") ?? "";
   ok("the agent is sent to Google with this app's id", to.host === "127.0.0.1:4335" && to.searchParams.get("client_id") === "check-google-client", to.origin + to.pathname);
-  ok("asking to read mail only, with a refresh token", /gmail\.readonly/.test(to.searchParams.get("scope") ?? "") && !/modify|send|compose/.test(to.searchParams.get("scope") ?? "") && to.searchParams.get("access_type") === "offline");
+  // Read-only mail and the calendar's free/busy — never events, never
+  // anything that can change a calendar or send as the agent.
+  const scopes = (to.searchParams.get("scope") ?? "").split(" ");
+  ok("asking to read mail and see when the calendar is busy, nothing more, with a refresh token",
+     scopes.includes("https://www.googleapis.com/auth/gmail.readonly") &&
+     scopes.includes("https://www.googleapis.com/auth/calendar.freebusy") &&
+     !scopes.some((x) => /modify|send|compose|calendar$|calendar\.events|calendar\.readonly/.test(x)) &&
+     to.searchParams.get("access_type") === "offline", scopes.join(" "));
 
   console.log("\n=== somebody else's link, or a forged one ===");
   const cb = (params: string, t: string) => fetch(`${BASE}/api/oauth/google/callback?${params}`, { headers: cookie(t), redirect: "manual" });

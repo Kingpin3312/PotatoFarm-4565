@@ -16,7 +16,7 @@ export const emailRouter = router({
     const accounts = await ctx.db.emailAccount.findMany({
       where: { agentId: ctx.userId, active: true },
       orderBy: { createdAt: "asc" },
-      select: { id: true, provider: true, address: true, lastSyncedAt: true, lastError: true },
+      select: { id: true, provider: true, address: true, lastSyncedAt: true, lastError: true, busySyncedAt: true, calendarError: true },
     });
     const counts = accounts.length
       ? await ctx.db.emailMessage.groupBy({ by: ["accountId"], where: { accountId: { in: accounts.map((a) => a.id) } }, _count: { _all: true } })
@@ -33,8 +33,11 @@ export const emailRouter = router({
     .mutation(async ({ ctx, input }) => {
       const a = await ctx.db.emailAccount.findFirst({ where: { id: input.id, agentId: ctx.userId }, select: { id: true, secretRef: true } });
       if (!a) throw new TRPCError({ code: "NOT_FOUND", message: "That mailbox is not connected." });
-      // The key goes; the mail already logged stays on the timeline.
+      // The key goes; the mail already logged stays on the timeline. The
+      // busy times go too: nothing can refresh them now, and a busy time
+      // nobody can refresh is a slot refused for ever.
       await forgetSecret(a.secretRef);
+      await ctx.db.calendarBusy.deleteMany({ where: { accountId: a.id } });
       await ctx.db.emailAccount.update({ where: { id: a.id }, data: { active: false } });
       await audit(ctx.db, ctx.orgId, { actorId: ctx.userId, action: "email.disconnected", entity: "EmailAccount", entityId: a.id, after: { active: false } });
       return { ok: true };

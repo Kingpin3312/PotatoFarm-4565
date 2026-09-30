@@ -31,6 +31,10 @@ function EmailSettings() {
           on the book is kept, and only who it was with, when, the subject and a line of it — never the
           whole message, and nothing else from your inbox.
         </p>
+        <p className="text-sm text-ink-2 mt-2 max-w-[52ch]">
+          Your calendar is read for when you are busy, so a viewing is never offered on top of your own
+          appointments. Only the times — never what the appointment is, or who with.
+        </p>
       </header>
 
       {connected && <p role="status" className="text-ui text-ink mb-6">Connected {connected}. Mail with your clients will appear on their pages.</p>}
@@ -49,6 +53,19 @@ function EmailSettings() {
                     ? `${a.messages} message${a.messages === 1 ? "" : "s"} logged · last checked ${new Date(a.lastSyncedAt).toLocaleString("en-GB")}`
                     : "Waiting for the first check")}
                 </p>
+                {/* The calendar, read through the same connection. A
+                    mailbox connected before it was asked for cannot be
+                    read until it is connected again. */}
+                {!a.lastError && (a.calendarError ? (
+                  <p className="text-sm text-ink-2 mt-1 max-w-[52ch]" data-calendar="not-shared">
+                    {a.calendarError}{" "}
+                    <a href={`/api/oauth/${a.provider.toLowerCase()}/start`} className="text-accent-deep underline underline-offset-4">Connect again</a>
+                  </p>
+                ) : a.busySyncedAt ? (
+                  <p className="text-sm text-ink-3 mt-1" data-calendar="read">
+                    Calendar: busy times read · last checked {new Date(a.busySyncedAt).toLocaleString("en-GB")}
+                  </p>
+                ) : null)}
               </div>
               <button type="button" className="btn-inline min-h-11 ms-auto" disabled={disconnect.isPending}
                 onClick={() => disconnect.mutate({ id: a.id })}>

@@ -106,8 +106,8 @@ token, which the web app cannot do. Treat it as a design sketch.
 
 ## 4. What is built
 
-**82 database models · 68 enums · 38 API routers · 228 procedures ·
-53 screens · 30 scheduled jobs · 23 audit scripts · 65 check suites.**
+**83 database models · 68 enums · 38 API routers · 228 procedures ·
+53 screens · 30 scheduled jobs · 23 audit scripts · 66 check suites.**
 
 **Five procedures have no screen, and every one of them deliberately:**
 `aml.checkRear`, `aml.visibilityPolicy`, `onboarding.previewImport`,
@@ -423,10 +423,11 @@ Ask — an agent can see what they asked for earlier and what came back.
   the brokerage's number lands on their own thread, the inbox and the
   owner's page show it, and the assistant never speaks in it
   (`check:owner-conversations`).
-- **Two-way calendar sync.** The diary publishes a feed a phone can
-  subscribe to (`calendar/ics.ts`); nothing reads an agent's own Google
-  or Outlook calendar back, so a clash with a private appointment is
-  found by the agent, not the product.
+- ~~**Two-way calendar sync.**~~ **Built.** The diary publishes a feed a
+  phone subscribes to (`calendar/ics.ts`), and the mailbox connection now
+  reads the agent's own Google or Outlook calendar back — busy times only
+  — so a viewing is never offered on top of a private appointment
+  (`check:calendar-busy`).
 - **Voice recipes** `BOOK_VIEWING` and `COMPARABLES` return a follow-up
   question rather than completing in one step. Deliberate, but the second
   step is not wired to the booking screen.
@@ -435,7 +436,7 @@ Ask — an agent can see what they asked for earlier and what came back.
   parser, lead scoring, deal risk, the assistant's guardrails and the
   interface's Arabic — the
   pure logic where being wrong is expensive and silent. Everything
-  stateful is still covered only by the 65 check suites and the
+  stateful is still covered only by the 66 check suites and the
   28 browser checks, which is not the same thing as a test suite. What is
   left untested in `assistant/` is everything that needs a model:
   `run.ts` and `prompt.ts` are exercised only through `check:autonomy`
@@ -757,8 +758,8 @@ Full spec: `03-brand/logo/SPEC.md`.
 
 ## 10. Database, API, auth, integrations
 
-**Database:** PostgreSQL via Prisma. `app/prisma/schema.prisma`, 82
-models. 40 migrations in `app/prisma/migrations/`. **`rls.sql` is
+**Database:** PostgreSQL via Prisma. `app/prisma/schema.prisma`, 83
+models. 42 migrations in `app/prisma/migrations/`. **`rls.sql` is
 appended to the init migration** — it is not a file somebody has to
 remember to run, because the tenant boundary is not something to leave to
 memory.
