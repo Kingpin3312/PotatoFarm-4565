@@ -72,6 +72,7 @@
     "browser:add-property": "node --env-file-if-exists=.env scripts/add-property.mjs",
     "audit:deps": "node scripts/audit-deps.mjs",
     "browser:mobile-agent": "node scripts/mobile-agent.mjs",
+    "browser:narrow": "node --env-file-if-exists=.env scripts/narrow.mjs",
     "browser:add-lead": "node scripts/add-lead.mjs",
     "browser:lead-list": "node --env-file-if-exists=.env scripts/lead-list.mjs",
     "browser:import-leads": "node --env-file-if-exists=.env scripts/import-leads.mjs",

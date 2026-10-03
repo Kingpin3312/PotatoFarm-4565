@@ -102,7 +102,9 @@ What is verified today, measured rather than assumed:
   `/api/health` returns `200 {"ok":true}` against a real Postgres.
 - The boot log names every unconfigured service with its consequence —
   six of them in a bare development environment.
-- 432 assertions in 31 files, 66 check suites, 23 audits, all green.
+- 432 assertions in 31 files, 66 check suites, 23 audits, all green —
+  and since 3 October 2026, **all of them run in CI**, which was not
+  true before it. See *Run the tests*.
 
 Type errors on a fresh checkout are no longer expected. If you get one,
 it is new.
@@ -937,6 +939,29 @@ send path read it.
     npm test          # 432 assertions, pure functions, no database
     npm run verify    # tsc, eslint, the tests, 66 check suites, 23 audits
 
+**Until 3 October 2026, sixteen of the check suites and four of the browser suites
+had never run in CI, while this file said the gate ran "every check
+suite".** `verify.sh` listed its suites by hand and twelve were never on
+the list — every suite added for listing photos, identity documents,
+documents sent on WhatsApp, the upload sweep and the calendar among
+them. Four more were on it, in the block that needs the application,
+which the verify job reaches with no application up, so they skipped on
+every push: the WhatsApp inbound path, routing, availability and broker
+card blocking. The browser job steps its suites by hand too, and four
+browser suites were in neither job. All of them passed locally; none had
+run on a push. The summary at the end of `verify.sh` printed the skips,
+and a green job does not get its log read.
+
+What changed: `verify.sh` runs every `check:*` in `package.json` except
+those it names in `APP_CHECKS`, and `crm-audit.py` fails the build on any
+`APP_CHECKS` suite or any `browser:*` suite that is not a step of the
+browser job. Running those four in full for the first time
+found pages that scrolled sideways on a 320px phone — the leads list
+once a manager's Import and Export loaded, search, and import — and
+`browser:narrow` now walks every screen at that width as an owner and as
+an agent. **"It passed" and "it ran" are different claims; a gate's
+skip list is part of its result.**
+
 **The gate is now green end to end, including the two things that used
 to skip.** `verify` reports what it did not run rather than counting a
 skip as a pass, and for a long time it reported two:
@@ -1126,7 +1151,7 @@ development cookie name. **Run a new HTTP check against `npm run start`
 at least once**, not only against the dev server.
 
 `scripts/_browser.mjs` is now the only thing that answers "where is
-Chromium", with thirty-one importers. A new browser script imports it
+Chromium", with thirty-three importers. A new browser script imports it
 rather than writing its own, and **an absolute path to anything outside
 the repository is the smell** — derive the root from `import.meta.url`,
 not from where the author happened to be standing.
@@ -1381,7 +1406,10 @@ with an empirical floor under it.
   `Attachment` of the listing; the order stays in `descriptions.photos`
   as attachment ids, first is the cover, and pre-upload placeholders are
   counted as before and dropped at the first real photo
-  (`lib/listings/photos.ts`). Buyers reach a photo through
+  (`lib/listings/photos.ts`). Every change to that order reads it under
+  a row lock (`lockedPhotos`): without it, three photos confirmed at once
+  kept one, and a removal racing an upload lost the upload — stored,
+  billed and on nobody's page. Buyers reach a photo through
   `/p/<slug>/<ref>/photos/<id>`, which asks the page's own gate and then
   redirects to a URL signed for ten minutes — the bucket stays private and
   a withheld property's photos go dark with it. The preview card uses the
@@ -1416,7 +1444,10 @@ with an empirical floor under it.
   fetches it from Meta **straight into the file's storage**, never
   through the agent's device, with the upload's checks: a person the
   agent can open, an open file, bytes that prove the type, the 15MB cap
-  whatever Meta declares, once per message. **The channel token goes
+  whatever Meta declares, once per message — enforced by a unique
+  `storageRef`, since two tabs both pass the "already filed?" look while
+  Meta is answering, and the loser must not delete the object, which is
+  the winner's. **The channel token goes
   only to Meta's media hosts** — the download address arrives in a
   response body, so it is checked, and redirects are refused. A file Meta
   no longer holds says "ask them to send it again". The browser never
@@ -1464,7 +1495,11 @@ with an empirical floor under it.
   working-elsewhere and cancelled time does not block. A mailbox
   connected before the scope was asked for records `calendarError`,
   blocks nothing, and Settings → Email offers to connect again;
-  disconnecting forgets the busy times. Microsoft's paging is followed
+  disconnecting forgets the busy times. Google answers 403 for a rate
+  limit as well as for a missing scope, so only a refusal of permission
+  reads as "not shared"; a rate limit or a `backendError` keeps the last
+  read rather than clearing it and asking the agent to reconnect a
+  mailbox that is fine. Microsoft's paging is followed
   only on its own address, as the mail cursor is. `check:calendar-busy`.
 
   Proving it red found the same shape as a swallowed database error: the

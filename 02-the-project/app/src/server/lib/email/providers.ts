@@ -306,10 +306,22 @@ export async function busyTimes(p: Provider, token: string, from: Date, to: Date
       signal: AbortSignal.timeout(20_000),
     });
     if (res.status === 401) throw new TokenError("unauthorized");
-    if (res.status === 403) throw new CalendarNotShared();
+    // Google answers 403 for a rate limit as well as for a missing scope.
+    // Read as "not shared", a busy minute would clear the agent's busy
+    // times and tell them to reconnect a mailbox that is fine; read as a
+    // passing failure, the last read stands and the next sync retries.
+    if (res.status === 403) {
+      const why = await res.text().catch(() => "");
+      if (/rate ?limit|quota/i.test(why)) throw new Error("GOOGLE calendar rate limited");
+      throw new CalendarNotShared();
+    }
     if (!res.ok) throw new Error(`GOOGLE calendar ${res.status}`);
-    const b = await res.json() as { calendars?: { primary?: { busy?: { start: string; end: string }[]; errors?: unknown[] } } };
-    if (b.calendars?.primary?.errors?.length) throw new CalendarNotShared();
+    const b = await res.json() as { calendars?: { primary?: { busy?: { start: string; end: string }[]; errors?: { reason?: string }[] } } };
+    const errs = b.calendars?.primary?.errors ?? [];
+    // Per calendar, the same distinction: `backendError` is Google having a
+    // bad moment, not the agent having withheld anything.
+    if (errs.some((e) => /backend|internal/i.test(e.reason ?? ""))) throw new Error("GOOGLE calendar backend error");
+    if (errs.length) throw new CalendarNotShared();
     for (const x of b.calendars?.primary?.busy ?? []) keep(x.start, x.end);
     return out;
   }

@@ -88,6 +88,15 @@ async function lockup(url) {
       // Both on one line: their vertical centres within a few pixels.
       sameLine: sb ? Math.abs((sb.top + sb.height / 2) - (wb.top + wb.height / 2)) < 8 : false,
       overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+      // What pushes it, so a failure names an element rather than a width.
+      widest: (() => {
+        const W = document.documentElement.clientWidth;
+        const e = [...document.querySelectorAll("body *")]
+          .filter((x) => x.getBoundingClientRect().right > W + 1)
+          .pop();
+        return e ? `${e.tagName.toLowerCase()} "${(e.innerText || "").trim().slice(0, 40)}" ` +
+          `to ${Math.round(e.getBoundingClientRect().right)}px` : null;
+      })(),
     };
   });
 }
@@ -136,7 +145,7 @@ for (const w of [320, 375, 390, 414, 430, 768, 834, 1024, 1440]) {
   // Square viewBox, square box. Anything else is a distorted potato.
   const square = l.markRatio !== null && Math.abs(l.markRatio - 1) < 0.02;
   ok(`${w}px — square and unclipped`, square && !l.overflow && l.markSize >= 20,
-     `ratio ${l.markRatio}, ${l.markSize}px${l.overflow ? ", PAGE SCROLLS SIDEWAYS" : ""}`);
+     `ratio ${l.markRatio}, ${l.markSize}px${l.overflow ? `, PAGE SCROLLS SIDEWAYS — ${l.widest}` : ""}`);
 }
 await p.setViewportSize({width:1280, height:900});
 

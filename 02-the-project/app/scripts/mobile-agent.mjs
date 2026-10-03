@@ -57,15 +57,26 @@ try {
   ok("tapping a lead opens them", !p.url().endsWith("/leads"), `${name} → ${p.url().replace(BASE, "")}`);
   await noSideways("the lead");
   // B8: ringing or writing to them is one tap, without scrolling.
-  await p.waitForSelector("[data-quick-actions]", { timeout: 15000 }).catch(() => {});
+  //
+  // On whichever page the row opened. A lead with a conversation opens
+  // the thread, whose header carries Call and WhatsApp (`ContactRow`);
+  // one without opens their page, with the quick-actions bar under the
+  // name. This looked only for the bar, so it failed whenever the first
+  // lead on the list had a conversation — which is most of them, and was
+  // never seen because no gate ran this suite.
+  await p.waitForSelector('main a[href^="tel:"], [data-quick-actions]', { timeout: 15000 }).catch(() => {});
   const quick = await p.evaluate(() => {
-    const nav = document.querySelector("[data-quick-actions]");
-    const call = nav?.querySelector('a[href^="tel:"]');
-    const r = nav?.getBoundingClientRect();
-    return { call: call?.getAttribute("href") ?? null, bottom: r ? Math.round(r.bottom) : null, labels: nav ? [...nav.children].map((c) => c.textContent) : [] };
+    const seen = (e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0 && r.bottom <= window.innerHeight; };
+    const call = [...document.querySelectorAll('a[href^="tel:"]')].find(seen);
+    const write = [...document.querySelectorAll('a[href*="wa.me"], [data-quick-actions] a, textarea')].find(seen);
+    return {
+      call: call?.getAttribute("href") ?? null,
+      write: write ? (write.tagName === "TEXTAREA" ? "the composer" : write.textContent.trim()) : null,
+      where: document.querySelector("[data-quick-actions]") ? "their page" : "the thread",
+    };
   });
-  ok("Call and Message are on the first screen", !!quick.call && quick.bottom !== null && quick.bottom <= 844,
-     `${quick.labels.join(" / ")} · ends at ${quick.bottom}px · ${quick.call}`);
+  ok("Call and Message are on the first screen", !!quick.call && !!quick.write,
+     `${quick.where} · call ${quick.call ?? "none in view"} · write: ${quick.write ?? "none in view"}`);
 
   console.log("\n=== A task, added and done ===");
   await open("/tasks", "h1");

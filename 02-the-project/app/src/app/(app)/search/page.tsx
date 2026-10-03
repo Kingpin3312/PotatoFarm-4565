@@ -65,7 +65,7 @@ export default function SearchPage() {
           maxLength={200}
           aria-label="What are you looking for?"
           placeholder="Emirati investor in Downtown around 4 million"
-          className="min-h-11 flex-1 rounded-lg border border-rule bg-raised px-3.5 text-control text-ink placeholder:text-ink-3 focus:border-ink focus:outline-none"
+          className="min-h-11 min-w-0 flex-1 rounded-lg border border-rule bg-raised px-3.5 text-control text-ink placeholder:text-ink-3 focus:border-ink focus:outline-none"
         />
         <button
           type="submit"

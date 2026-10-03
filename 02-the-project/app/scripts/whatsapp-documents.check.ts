@@ -53,7 +53,11 @@ const media: Record<string, { bytes?: Buffer; mime: string; declare?: number; aw
   "m-big": { bytes: JPEG, mime: "image/jpeg", declare: BIG },
   "m-stream": { mime: "image/jpeg", stream: BIG },
   "m-away": { bytes: JPEG, mime: "image/jpeg", away: true },
+  // Held until two requests are waiting for it, so the two filings below
+  // are both past the "already filed?" look before either writes.
+  "m-race": { bytes: JPEG, mime: "image/jpeg" },
 };
+const raceHeld: (() => void)[] = [];
 const fetched: string[] = [];
 const awayHits: (string | undefined)[] = [];
 
@@ -103,6 +107,12 @@ const standIn = createServer((req, res) => {
       };
       res.on("error", () => {});
       more();
+      return;
+    }
+    if (id === "m-race") {
+      raceHeld.push(() => res.writeHead(200, { "content-type": m.mime }).end(m.bytes));
+      const go = () => raceHeld.splice(0).forEach((f) => f());
+      if (raceHeld.length >= 2) go(); else setTimeout(go, 5000);
       return;
     }
     res.writeHead(200, { "content-type": m.mime }).end(m.bytes);
@@ -226,6 +236,20 @@ async function main() {
      JSON.stringify(trail?.after));
   const twice = await code(A.documentFromMessage({ messageId: photo.id, type: "PASSPORT" }));
   ok("the same message cannot be filed twice", twice === "CONFLICT", twice);
+  // And not at the same moment either: two tabs pressing "Add" both pass
+  // the look-before-you-leap check while Meta is still answering (the
+  // stand-in holds this download until both have asked). One row, one
+  // CONFLICT — and the object stays, because it is the winner's.
+  const again = await arrive({ type: "image", image: { id: "m-race", mime_type: "image/jpeg" } });
+  const both = await Promise.all([
+    code(A.documentFromMessage({ messageId: again.id, type: "PASSPORT" })),
+    code(A.documentFromMessage({ messageId: again.id, type: "PASSPORT" })),
+  ]);
+  const againKey = `kyc/${org.id}/${kyc.id}/wa-${again.id}`;
+  const againRows = await root.kycDocument.count({ where: { storageRef: againKey } });
+  ok("filed from two tabs at once, it is filed once and the copy is kept",
+     againRows === 1 && both.filter((c) => c === "CONFLICT").length === 1 && objects.has(againKey),
+     `${againRows} row(s), ${both.join(" / ")}, object ${objects.has(againKey) ? "kept" : "gone"}`);
   const after = await T.thread({ conversationId: convoId });
   ok("the thread now says it is in the file", after.messages.find((m) => m.id === photo.id)?.file?.filed === true);
 

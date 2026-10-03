@@ -11,7 +11,10 @@ and building is not what this project needs.
 
 The gate is green: `tsc` clean, 432 unit assertions, 66 check suites, 23
 audit scripts, all browser suites, and a production build that succeeds.
-CI runs the lot on every push.
+CI runs the lot on every push — **as of 3 October 2026, and not before**:
+sixteen of the check suites and four of the browser suites had never run in CI while
+this line said they did. `CLAUDE.md` (*Run the tests*) has the account,
+and `crm-audit.py` now fails the build on a suite no job runs.
 
 **What is left is accounts, agreements and a phone call — no code the pilot needs.** They are listed
 under *Still needed from the business* at the end of this file, and

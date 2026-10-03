@@ -153,6 +153,23 @@ async function exactLocation(locationId: string) {
   return { locationId: r.id, ...listingNames(r) };
 }
 
+/**
+ * A listing's photo order, read under a row lock.
+ *
+ * The order lives in `descriptions.photos` and each change reads it,
+ * edits it and writes it back. Two of those at once — two people adding
+ * photos to one property, or a removal racing an upload — each read the
+ * same list and the second write drops the first's change: a photo
+ * stored, billed and on nobody's page. Taking the row first makes the
+ * second wait for the first and read what it wrote.
+ */
+async function lockedPhotos(tx: any, orgId: string, listingId: string) {
+  await tx.$executeRaw`SELECT 1 FROM "Listing" WHERE id = ${listingId} FOR UPDATE`;
+  const row = await tx.listing.findFirstOrThrow({ where: { id: listingId }, select: { descriptions: true } });
+  const ids = (await realPhotos(orgId, listingId, row.descriptions)).map((p: { id: string }) => p.id);
+  return { descriptions: (row.descriptions ?? {}) as object, ids };
+}
+
 export const listingsRouter = router({
   list: orgProcedure
     .input(z.object({
@@ -735,8 +752,7 @@ export const listingsRouter = router({
       }
 
       const id = await ctx.db.$transaction(async (tx) => {
-        const row = await tx.listing.findFirstOrThrow({ where: { id: listing.id }, select: { descriptions: true } });
-        const kept = (await realPhotos(ctx.orgId, listing.id, row.descriptions)).map((p) => p.id);
+        const { descriptions, ids: kept } = await lockedPhotos(tx, ctx.orgId, listing.id);
         if (kept.length >= PHOTO_LIMIT) {
           throw new TRPCError({ code: "BAD_REQUEST", message: `A property can have ${PHOTO_LIMIT} photos. Remove one to add another.` });
         }
@@ -750,7 +766,7 @@ export const listingsRouter = router({
         });
         await tx.listing.update({
           where: { id: listing.id },
-          data: { descriptions: { ...((row.descriptions ?? {}) as object), photos: [...kept, photo.id] } },
+          data: { descriptions: { ...descriptions, photos: [...kept, photo.id] } },
         });
         await audit(tx as never, ctx.orgId, {
           actorId: ctx.userId, action: "listing.photo_added", entity: "Listing", entityId: listing.id,
@@ -769,14 +785,16 @@ export const listingsRouter = router({
         where: { id: input.listingId, deletedAt: null }, select: { id: true, descriptions: true },
       });
       if (!listing) throw new TRPCError({ code: "NOT_FOUND", message: "No such property." });
-      const ids = (await realPhotos(ctx.orgId, listing.id, listing.descriptions)).map((p) => p.id);
-      if (!ids.includes(input.photoId)) throw new TRPCError({ code: "NOT_FOUND", message: "That photo is no longer on the property." });
-      await ctx.db.listing.update({
-        where: { id: listing.id },
-        data: { descriptions: { ...((listing.descriptions ?? {}) as object), photos: [input.photoId, ...ids.filter((x) => x !== input.photoId)] } },
-      });
-      await audit(ctx.db, ctx.orgId, {
-        actorId: ctx.userId, action: "listing.photo_cover", entity: "Listing", entityId: listing.id, after: { photoId: input.photoId },
+      await ctx.db.$transaction(async (tx) => {
+        const { descriptions, ids } = await lockedPhotos(tx, ctx.orgId, listing.id);
+        if (!ids.includes(input.photoId)) throw new TRPCError({ code: "NOT_FOUND", message: "That photo is no longer on the property." });
+        await tx.listing.update({
+          where: { id: listing.id },
+          data: { descriptions: { ...descriptions, photos: [input.photoId, ...ids.filter((x: string) => x !== input.photoId)] } },
+        });
+        await audit(tx as never, ctx.orgId, {
+          actorId: ctx.userId, action: "listing.photo_cover", entity: "Listing", entityId: listing.id, after: { photoId: input.photoId },
+        });
       });
       return { ok: true };
     }),
@@ -799,12 +817,12 @@ export const listingsRouter = router({
         where: { id: input.photoId, listingId: listing.id, kind: "PHOTO" }, select: { id: true, storageRef: true },
       });
       if (!photo) throw new TRPCError({ code: "NOT_FOUND", message: "That photo is no longer on the property." });
-      const ids = (await realPhotos(ctx.orgId, listing.id, listing.descriptions)).map((p) => p.id);
       await ctx.db.$transaction(async (tx) => {
+        const { descriptions, ids } = await lockedPhotos(tx, ctx.orgId, listing.id);
         await tx.attachment.delete({ where: { id: photo.id } });
         await tx.listing.update({
           where: { id: listing.id },
-          data: { descriptions: { ...((listing.descriptions ?? {}) as object), photos: ids.filter((x) => x !== photo.id) } },
+          data: { descriptions: { ...descriptions, photos: ids.filter((x: string) => x !== photo.id) } },
         });
         await audit(tx as never, ctx.orgId, {
           actorId: ctx.userId, action: "listing.photo_removed", entity: "Listing", entityId: listing.id, after: { photoId: photo.id },
