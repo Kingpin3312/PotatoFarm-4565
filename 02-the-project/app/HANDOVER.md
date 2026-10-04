@@ -9,7 +9,7 @@ the single most important sentence in this document, because the natural
 instinct on arriving at a large codebase is to find something to build,
 and building is not what this project needs.
 
-The gate is green: `tsc` clean, 440 unit assertions, 67 check suites, 23
+The gate is green: `tsc` clean, 447 unit assertions, 67 check suites, 23
 audit scripts, all browser suites, and a production build that succeeds.
 CI runs the lot on every push — **as of 3 October 2026, and not before**:
 sixteen of the check suites and four of the browser suites had never run in CI while

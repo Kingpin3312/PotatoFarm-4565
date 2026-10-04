@@ -17,11 +17,53 @@
  * re-filed, gets one enquiry per new property and none for asking again;
  * and a redelivered message adds nothing.
  *
+ * And by email: a portal's new-lead email in a connected mailbox, through
+ * the real sync against a Gmail stand-in. Only the portal's own domain
+ * counts, a lookalike does not; the buyer already known from WhatsApp is
+ * one lead with a second enquiry; a new buyer is filed under the portal
+ * with the property they asked about, on a channel per portal that the
+ * silence alarm watches; an email with nothing to go on lands on the
+ * agent's list; a second sync adds nothing; no body is stored.
+ *
  *     npm run check:portal-leads
  */
+import http from "node:http";
+import type { AddressInfo } from "node:net";
 import { crossTenant } from "../src/server/db/client";
 import { ingest } from "../src/server/lib/ingest";
+import { syncAccount } from "../src/server/lib/email/sync";
+import { writeSecret } from "../src/server/lib/secrets/vault";
 import { fatal } from "./fatal";
+
+/** A Gmail mailbox holding these messages, and nothing else. */
+type Mail = { id: string; from: string; subject: string; body: string; html?: boolean; replyTo?: string };
+const inbox: Mail[] = [];
+const bodiesFetched: string[] = [];
+const b64 = (t: string) => Buffer.from(t, "utf8").toString("base64url");
+const gmail = http.createServer((req, res) => {
+  const url = new URL(req.url!, "http://x");
+  const json = (status: number, v: unknown) => { res.writeHead(status, { "content-type": "application/json" }); res.end(JSON.stringify(v)); };
+  if (req.headers.authorization !== "Bearer g-token") return json(401, {});
+  const api = "/gmail/v1/users/me";
+  if (url.pathname === `${api}/profile`) return json(200, { historyId: "1" });
+  if (url.pathname === `${api}/messages`) return json(200, { messages: inbox.map((m) => ({ id: m.id })) });
+  if (url.pathname === "/calendar/v3/freeBusy") return json(200, { calendars: { primary: { busy: [] } } });
+  const m = inbox.find((x) => url.pathname === `${api}/messages/${x.id}`);
+  if (!m) return json(404, {});
+  if (url.searchParams.get("format") === "full") {
+    bodiesFetched.push(m.id);
+    return json(200, { id: m.id, payload: { mimeType: "multipart/alternative", parts: [
+      { mimeType: m.html ? "text/html" : "text/plain", body: { data: b64(m.body) } },
+    ] } });
+  }
+  return json(200, {
+    id: m.id, threadId: `t-${m.id}`, snippet: m.body.slice(0, 40), internalDate: String(Date.now()),
+    payload: { headers: [
+      { name: "From", value: m.from }, { name: "To", value: "agent@realty.test" }, { name: "Subject", value: m.subject },
+      ...(m.replyTo ? [{ name: "Reply-To", value: m.replyTo }] : []),
+    ] },
+  });
+});
 
 const root = crossTenant("sweep");
 const SLUG = "portal-leads-check-";
@@ -58,6 +100,10 @@ async function cleanup() {
     await root.followUp.deleteMany({ where });
     await root.aiAction.deleteMany({ where }).catch(() => {});
     await root.enquiry.deleteMany({ where });
+    await root.emailMessage.deleteMany({ where });
+    await root.calendarBusy.deleteMany({ where });
+    await root.emailAccount.deleteMany({ where });
+    await root.secret.deleteMany({ where }).catch(() => {});
     await root.message.deleteMany({ where });
     await root.conversation.deleteMany({ where });
     await root.leadOwnership.deleteMany({ where });
@@ -158,9 +204,61 @@ async function main() {
   await send(b, "redelivered", ids[1]);
   ok("a redelivered message adds nothing", (await root.enquiry.count({ where: { orgId: org.id } })) === before);
 
+  console.log("\n=== a portal's new-lead email ===");
+  const gBase = await new Promise<string>((ok) => gmail.listen(0, "127.0.0.1", () => ok(`http://127.0.0.1:${(gmail.address() as AddressInfo).port}`)));
+  process.env.GOOGLE_OAUTH_BASE = gBase;
+  const ref = `portal-leads-${RUN}`;
+  await writeSecret({ orgId: org.id, ref, value: JSON.stringify({ accessToken: "g-token", refreshToken: "r", expiresAt: Date.now() + 3_600_000 }) });
+  const acct = await root.emailAccount.create({ data: { orgId: org.id, agentId: sales!.id, provider: "GOOGLE", address: "agent@realty.test", secretRef: ref } });
+  const fresh = phone(6);
+  const leadsBefore = await root.lead.count({ where: { orgId: org.id } });
+  inbox.push(
+    // The Bayut buyer we already have from WhatsApp, written the local way.
+    { id: "m-bayut", from: "Bayut <leads@bayut.com>", subject: "New lead on MG-202",
+      body: `You have a new lead.\nName: Buyer\nPhone: 0${a.slice(4)}\nMessage: Can I view it on Saturday?` },
+    // Somebody new, from Dubizzle, as an HTML table.
+    { id: "m-dubizzle", from: "dubizzle <no-reply@dubizzle.com>", subject: "Enquiry for DH-509", html: true, replyTo: "hana@example.com",
+      body: `<table><tr><td>Name:</td><td>Hana Ali</td></tr><tr><td>Mobile:</td><td>${fresh}</td></tr></table>` },
+    // Property Finder with nothing to go on.
+    { id: "m-pf-empty", from: "leads@propertyfinder.ae", subject: "Somebody is interested",
+      body: "Log in to Property Finder to see the details of this lead." },
+    // Not Bayut, however it is dressed.
+    { id: "m-fake", from: "Bayut Leads <bayut.leads@gmail.com>", subject: "New lead on MG-202",
+      body: `Name: Spoof\nPhone: ${phone(7)}` },
+  );
+  const r1 = await syncAccount(acct.id);
+  ok("the sync reports two portal leads", (r1 as { portalLeads?: number }).portalLeads === 2, JSON.stringify(r1));
+
+  const ea3 = await enquiriesOf(la.id);
+  const byEmail = ea3.find((x) => x.externalId === `email:${acct.id}:m-bayut`);
+  ok("the buyer already known from WhatsApp is one lead, with the email as a second enquiry",
+     (await root.lead.count({ where: { orgId: org.id, phone: a } })) === 1 && byEmail?.campaign === "Bayut, by email" && byEmail.listingId === marina.id,
+     JSON.stringify(byEmail && { campaign: byEmail.campaign, listing: byEmail.listingId === marina.id }));
+  const hana = await root.lead.findUnique({ where: { orgId_phone: { orgId: org.id, phone: fresh } } });
+  const hanaEnq = hana ? await enquiriesOf(hana.id) : [];
+  ok("a new buyer by email is a Dubizzle lead, named, with their address and the property",
+     hana?.source === "DUBIZZLE" && hana.name === "Hana Ali" && hana.email === "hana@example.com" && hanaEnq[0]?.listingId === hills.id,
+     JSON.stringify(hana && { source: hana.source, name: hana.name, email: hana.email }));
+  const ch = await root.channel.findFirst({ where: { orgId: org.id, type: "DUBIZZLE", identifier: "lead-email" } });
+  ok("on a Dubizzle lead-email channel the silence alarm can watch", ch?.label === "Dubizzle lead emails" && !!ch.lastSyncAt);
+  ok("a lookalike sender makes no lead", !(await root.lead.findUnique({ where: { orgId_phone: { orgId: org.id, phone: phone(7) } } })));
+  const todo = await root.followUp.findMany({ where: { orgId: org.id, agentId: sales!.id, title: { contains: "Property Finder lead email" } } });
+  ok("an email with nothing to go on is on the mailbox owner's list, not lost", todo.length === 1, String(todo.length));
+  ok("only the portals' emails were opened", JSON.stringify(bodiesFetched.sort()) === JSON.stringify(["m-bayut", "m-dubizzle", "m-pf-empty"]), JSON.stringify(bodiesFetched));
+  ok("and no email text was stored", (await root.emailMessage.count({ where: { accountId: acct.id } })) === 0);
+  ok("the only new person is Hana; the spoof and the empty email made nobody", (await root.lead.count({ where: { orgId: org.id } })) === leadsBefore + 1);
+
+  const enquiriesNow = await root.enquiry.count({ where: { orgId: org.id } });
+  await root.emailAccount.update({ where: { id: acct.id }, data: { cursor: null } });
+  await syncAccount(acct.id);
+  ok("syncing the same mail again adds nothing",
+     (await root.enquiry.count({ where: { orgId: org.id } })) === enquiriesNow
+       && (await root.followUp.count({ where: { orgId: org.id, title: { contains: "lead email" } } })) === 1);
+
   await cleanup();
+  gmail.close();
   console.log(bad ? `\n${bad} FAILURE(S)\n` : "\nAll checks passed.\n");
   process.exit(bad ? 1 : 0);
 }
 
-main().catch(async (e) => { await cleanup().catch(() => {}); fatal(e); });
+main().catch(async (e) => { await cleanup().catch(() => {}); gmail.close(); fatal(e); });

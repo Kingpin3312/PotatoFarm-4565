@@ -102,7 +102,7 @@ What is verified today, measured rather than assumed:
   `/api/health` returns `200 {"ok":true}` against a real Postgres.
 - The boot log names every unconfigured service with its consequence —
   six of them in a bare development environment.
-- 440 assertions in 32 files, 67 check suites, 23 audits, all green —
+- 447 assertions in 33 files, 67 check suites, 23 audits, all green —
   and since 3 October 2026, **all of them run in CI**, which was not
   true before it. See *Run the tests*.
 
@@ -936,7 +936,7 @@ send path read it.
 
 ## Run the tests
 
-    npm test          # 440 assertions, pure functions, no database
+    npm test          # 447 assertions, pure functions, no database
     npm run verify    # tsc, eslint, the tests, 67 check suites, 23 audits
 
 **Until 3 October 2026, sixteen of the check suites and four of the browser suites
@@ -1019,7 +1019,7 @@ skip as a pass, and for a long time it reported two:
   leaving you to guess.
 
 `npm test` was declared from day one with no test files behind it, so it
-exited 1 and said "No test files found". There are 32 test files now, and
+exited 1 and said "No test files found". There are 33 test files now, and
 they cover the pure logic where being wrong is silent: the fils unit, the
 24-hour window on both sides of the boundary, Dubai sending hours, the
 search parser's plural intents and budget bands, lead scoring, deal
@@ -1326,6 +1326,23 @@ with an empirical floor under it.
   the same one again. `check:portal-leads`. **This is not a Bayut or
   Dubizzle integration** — those still need each portal's partner
   documents; it is the share of their buyers that never needed one.
+
+  **And their new-lead emails become leads.** Every portal emails the
+  brokerage when somebody fills in its form, and a connected mailbox
+  already reads that inbox. `email/sync.ts` sends mail from a portal's
+  own domain — the sender alone decides; `bayut.leads@gmail.com` is not
+  Bayut — to `leadFromEmail`, which reads the body (the one exception to
+  "never the body", and nothing of it is stored), takes the phone,
+  address, name, message and a reference the brokerage has
+  (`portals/lead-email.ts`), and calls `ingestEnquiry` as a portal
+  delivery would: one person across WhatsApp and the portals is one
+  lead, routed by the portal's rules, counted on a "Bayut lead emails"
+  channel made on the first one and marked healthy on each, so the
+  silence alarm notices when they stop. An email with no phone and no
+  address goes on the mailbox owner's list, once. **The portals publish
+  no notification format and no sample has been supplied**, so the
+  reading is generic; real samples change `lead-email.ts` only.
+  `check:portal-leads`.
 - ~~**Editing a lead.**~~ **Built.** `leads.detail` and `leads.update`
   behind the person page, which until then never said who the person
   was. The phone number stays fixed (it is the WhatsApp identity), the

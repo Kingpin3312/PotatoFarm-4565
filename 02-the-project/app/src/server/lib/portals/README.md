@@ -111,6 +111,16 @@ source apply) and records an `Enquiry` on the quoted property with the
 campaign "Bayut, via WhatsApp". It needs no agreement, because it reads
 only what the buyer wrote. `check:portal-leads`.
 
+## Buyers whose lead arrives as an email
+
+Each portal emails the brokerage a notification for every form lead. A
+connected mailbox (Settings → Email) is already being read, so mail from
+a portal's own domain becomes an enquiry through `ingestEnquiry`
+(`lead-email.ts` reads it; `email/sync.ts` `leadFromEmail` files it).
+The layout is read generically until real samples arrive — that file is
+the only one that changes when they do. Unreadable ones go on the
+agent's list rather than vanishing. `check:portal-leads`.
+
 ## Still to build
 
 - **Outbound listing feed.** Portals take XML on a schedule. Generate it
