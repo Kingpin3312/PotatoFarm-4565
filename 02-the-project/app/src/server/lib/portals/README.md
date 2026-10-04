@@ -100,6 +100,17 @@ reason naming the command, in the publish check, the publish itself and
 the queue. The feed carries the tree by name either way, and the id when
 there is one. `check:locations`.
 
+## Buyers who come from a portal by WhatsApp
+
+Not every portal buyer reaches us through the portal's delivery. Most
+press the advert's WhatsApp button and write to the agent, and that
+message arrives at the WhatsApp webhook, not here. `mention.ts` reads the
+first message for the portal it names and the reference it quotes;
+`lib/ingest.ts` files the lead under that portal (so routing rules by
+source apply) and records an `Enquiry` on the quoted property with the
+campaign "Bayut, via WhatsApp". It needs no agreement, because it reads
+only what the buyer wrote. `check:portal-leads`.
+
 ## Still to build
 
 - **Outbound listing feed.** Portals take XML on a schedule. Generate it
@@ -107,7 +118,8 @@ there is one. `check:locations`.
   rather than a log line.
 - **Bayut and Dubizzle adapters.** Both are Dubizzle Group and in practice
   likely share a mechanism — confirm that against the agreement rather
-  than assuming it.
+  than assuming it. Their buyers who write on WhatsApp are already
+  credited (above); this is the portal's own delivery of form leads.
 - **Replay.** Every raw payload kept for seven days, so a parsing bug can
   be fixed and the affected window reprocessed instead of the leads being
   gone.

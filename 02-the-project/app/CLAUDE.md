@@ -102,7 +102,7 @@ What is verified today, measured rather than assumed:
   `/api/health` returns `200 {"ok":true}` against a real Postgres.
 - The boot log names every unconfigured service with its consequence —
   six of them in a bare development environment.
-- 432 assertions in 31 files, 66 check suites, 23 audits, all green —
+- 440 assertions in 32 files, 67 check suites, 23 audits, all green —
   and since 3 October 2026, **all of them run in CI**, which was not
   true before it. See *Run the tests*.
 
@@ -936,8 +936,8 @@ send path read it.
 
 ## Run the tests
 
-    npm test          # 432 assertions, pure functions, no database
-    npm run verify    # tsc, eslint, the tests, 66 check suites, 23 audits
+    npm test          # 440 assertions, pure functions, no database
+    npm run verify    # tsc, eslint, the tests, 67 check suites, 23 audits
 
 **Until 3 October 2026, sixteen of the check suites and four of the browser suites
 had never run in CI, while this file said the gate ran "every check
@@ -1019,7 +1019,7 @@ skip as a pass, and for a long time it reported two:
   leaving you to guess.
 
 `npm test` was declared from day one with no test files behind it, so it
-exited 1 and said "No test files found". There are 31 test files now, and
+exited 1 and said "No test files found". There are 32 test files now, and
 they cover the pure logic where being wrong is silent: the fils unit, the
 24-hour window on both sides of the boundary, Dubai sending hours, the
 search parser's plural intents and budget bands, lead scoring, deal
@@ -1310,6 +1310,22 @@ with an empirical floor under it.
   tell a brokerage their property is live when it is not. Both competitors
   lead on portal distribution, so this is the commercial step that decides
   whether the product competes.
+- **Portal buyers who write on WhatsApp are credited to the portal.**
+  Most Bayut, Dubizzle and Property Finder buyers press the advert's
+  WhatsApp button rather than fill in a form, and every one was filed
+  `WHATSAPP_AD` with no property: the report of where leads come from
+  credited WhatsApp with what the portal was paid for, and a routing rule
+  for Bayut leads never matched them. The first message is now read
+  (`portals/mention.ts`): a portal **named** — by name, address, or an
+  Arabic name that means nothing else (Bayut's means "houses", so it is
+  not read) — sets `Lead.source` and routes by it, and a quoted
+  reference this brokerage has (compacted as search compacts it) becomes
+  an `Enquiry` on that property, campaign "Bayut, via WhatsApp", which
+  is what `reports.byChannel` groups on. A returning buyer is never
+  re-filed, gets one enquiry per new property, and none for asking about
+  the same one again. `check:portal-leads`. **This is not a Bayut or
+  Dubizzle integration** — those still need each portal's partner
+  documents; it is the share of their buyers that never needed one.
 - ~~**Editing a lead.**~~ **Built.** `leads.detail` and `leads.update`
   behind the person page, which until then never said who the person
   was. The phone number stays fixed (it is the WhatsApp identity), the

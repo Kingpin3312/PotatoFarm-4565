@@ -7,6 +7,8 @@ import { assignmentFor } from "@/server/lib/routing/apply";
 import { normalisePhone } from "@/server/lib/portals/normalise";
 import { reply } from "@/server/assistant/run";
 import { detectLanguage } from "@/server/lib/language";
+import { mentionedPortal, referenceCandidates, PORTAL_LABEL } from "@/server/lib/portals/mention";
+import { refVariants } from "@/lib/reference";
 
 /**
  * Inbound WhatsApp.
@@ -153,9 +155,22 @@ async function inbound(
       }
     }
 
+    /**
+     * Which portal sent them, when the message says so.
+     *
+     * A buyer who pressed WhatsApp on a Bayut advert arrives here, not at
+     * a portal webhook, and was filed as `WHATSAPP_AD` — so the report of
+     * where leads come from credited WhatsApp with what the portal was
+     * paid for, and a routing rule for Bayut leads never matched them.
+     * Read off the first message only: a returning buyer is already
+     * filed, and "I also saw one on Bayut" months later says nothing about
+     * where they came from. `portals/mention.ts` says what counts.
+     */
+    const portal = known ? null : mentionedPortal(body);
+    const source = portal ?? "WHATSAPP_AD";
     const assignment = known
       ? null
-      : await assignmentFor(tx, { orgId: channel.orgId, source: "WHATSAPP_AD" });
+      : await assignmentFor(tx, { orgId: channel.orgId, source });
 
     const lead = await tx.lead.upsert({
       where: { orgId_phone: { orgId: channel.orgId, phone: from } },
@@ -167,7 +182,7 @@ async function inbound(
         // is in it too. See `lib/language.ts`.
         language: detectLanguage(body) ?? "en",
         status: "NEW",
-        source: "WHATSAPP_AD",
+        source,
         ...(stageId ? { stageId } : {}),
         ...(assignment?.userId
           ? { assignedToId: assignment.userId, assignedAt: new Date() }
@@ -224,7 +239,59 @@ async function inbound(
 
     const conversation = await arrived(tx, { leadId: lead.id }, channel, sentAt);
     const message = await store(tx, channel.orgId, conversation.id, msg.id, body, sentAt, media);
+    await enquiryFromMessage(tx, {
+      orgId: channel.orgId, channelId: channel.id, leadId: lead.id, isNew: !known,
+      portal, body, externalId: msg.id, sentAt,
+    });
     return { conversationId: conversation.id, messageId: message.id };
+  });
+}
+
+/**
+ * The enquiry a WhatsApp message makes, when it names a portal or one of
+ * this brokerage's properties.
+ *
+ * The same row a portal's own delivery writes, so the property's
+ * enquiries, "who wants this property" and the report of where leads
+ * come from all count it. Its campaign is "Bayut, via WhatsApp": the
+ * report groups on campaign before channel, so the portal is credited
+ * and the way it arrived is still said.
+ *
+ * A reference counts only when this brokerage has a live listing with
+ * it. A returning buyer makes a new enquiry only for a property they
+ * have not enquired about — every "is it still available?" about the
+ * same flat is one enquiry, not a column of them. Keyed on the message,
+ * so a redelivery adds nothing.
+ */
+async function enquiryFromMessage(tx: any, m: {
+  orgId: string; channelId: string; leadId: string; isNew: boolean;
+  portal: ReturnType<typeof mentionedPortal>; body: string; externalId: string; sentAt: Date;
+}) {
+  const refs = referenceCandidates(m.body);
+  const listing = refs.length
+    ? await tx.listing.findFirst({
+        where: {
+          orgId: m.orgId, deletedAt: null,
+          OR: refs.flatMap(refVariants).map((r) => ({ reference: { equals: r, mode: "insensitive" } })),
+        },
+        select: { id: true },
+      })
+    : null;
+  if (!listing && !(m.isNew && m.portal)) return;
+  if (!m.isNew && listing) {
+    const already = await tx.enquiry.findFirst({
+      where: { orgId: m.orgId, leadId: m.leadId, listingId: listing.id }, select: { id: true },
+    });
+    if (already) return;
+  }
+  await tx.enquiry.create({
+    data: {
+      orgId: m.orgId, leadId: m.leadId, listingId: listing?.id ?? null, channelId: m.channelId,
+      externalId: `wa:${m.externalId}`,
+      message: m.body.slice(0, 2000),
+      campaign: m.portal ? `${PORTAL_LABEL[m.portal]}, via WhatsApp` : null,
+      createdAt: m.sentAt,
+    },
   });
 }
 

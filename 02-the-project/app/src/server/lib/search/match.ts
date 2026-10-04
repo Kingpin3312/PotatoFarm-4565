@@ -27,13 +27,6 @@ export function hasWord(text: string | null | undefined, term: string): boolean 
   return false;
 }
 
-/** A reference with everything but letters and digits taken out. */
-export const compactRef = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
-
-/** The ways a compacted reference is written in a record: AR-508, AR508, AR 508. */
-export function refVariants(compact: string): string[] {
-  const m = compact.match(/^([a-z]+)(\d+)$/);
-  if (!m) return [compact];
-  return [`${m[1]}-${m[2]}`, `${m[1]}${m[2]}`, `${m[1]} ${m[2]}`];
-}
+/** Reference comparison lives in `lib/reference`; re-exported for search's callers. */
+export { compactRef, refVariants } from "@/lib/reference";
 
