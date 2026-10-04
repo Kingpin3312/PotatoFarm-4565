@@ -82,10 +82,16 @@ async function siteFor(orgId: string, user: { id: string; name: string | null; p
 
 type Site = Awaited<ReturnType<typeof siteFor>>;
 
+/**
+ * Waiting for approval outranks live: a live site whose changes were sent
+ * for approval is still live (its previous version stays up), but the
+ * thing anybody needs to know — the agent and the admin who must act — is
+ * that something is waiting. `isLive` says the rest.
+ */
 function status(site: Site): "LIVE" | "DRAFT" | "AWAITING_APPROVAL" | "TAKEN_DOWN" {
   if (site.disabledAt) return "TAKEN_DOWN";
-  if (site.publishedAt) return "LIVE";
   if (site.submittedAt) return "AWAITING_APPROVAL";
+  if (site.publishedAt) return "LIVE";
   return "DRAFT";
 }
 
@@ -94,19 +100,19 @@ const sameContent = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JS
 async function describe(orgId: string, site: Site, user: { name: string | null; phone: string | null; email: string | null }) {
   const org = await crossTenant("global-key").organisation.findUnique({
     where: { id: orgId },
-    select: { slug: true, name: true, micrositesEnabled: true, micrositeApproval: true, micrositeOwnWhatsapp: true, micrositeAccents: true },
+    select: { slug: true, name: true, micrositesEnabled: true, micrositeApproval: true, micrositeOwnWhatsapp: true, micrositeAccents: true, demo: true },
   });
   if (!org) throw new TRPCError({ code: "NOT_FOUND" });
   const draft = readContent(site.draft, emptyContent(user));
   const path = micrositePath(org.slug, site.slug);
   const parts = await resolveParts(
-    { id: orgId, name: org.name, slug: org.slug, micrositeAccents: org.micrositeAccents, micrositeOwnWhatsapp: org.micrositeOwnWhatsapp },
+    { id: orgId, name: org.name, slug: org.slug, micrositeAccents: org.micrositeAccents, micrositeOwnWhatsapp: org.micrositeOwnWhatsapp, demo: org.demo },
     { slug: site.slug, userId: site.userId }, draft, { preview: true },
   );
   const featuredShown = draft.featured.filter((id) => parts.cards[id]).length;
   return {
     site: {
-      slug: site.slug, path, url: `${appOrigin()}${path}`, status: status(site),
+      slug: site.slug, path, url: `${appOrigin()}${path}`, status: status(site), isLive: !!site.publishedAt && !site.disabledAt,
       publishedAt: site.publishedAt, submittedAt: site.submittedAt, updatedAt: site.updatedAt,
       disabledReason: site.disabledAt ? site.disabledReason : null,
       unpublishedChanges: !!site.publishedAt && !sameContent(site.draft, site.live),
@@ -243,10 +249,17 @@ export const micrositeRouter = router({
 
       const before = readContent(site.draft, emptyContent(t.user));
       const draft: MicrositeContent = { ...c, photo: before.photo, cover: before.cover };
-      await crossTenant("global-key").agentMicrosite.update({
-        where: { id: site.id },
-        data: { draft: draft as never, slug: input.slug },
-      });
+      try {
+        await crossTenant("global-key").agentMicrosite.update({
+          where: { id: site.id },
+          data: { draft: draft as never, slug: input.slug },
+        });
+      } catch (e) {
+        // Two agents taking the same address at once: the second is told,
+        // not shown a server error.
+        if ((e as { code?: string }).code === "P2002") return { ok: false as const, field: "slug", problem: "Another agent here has that address. Try adding your surname." };
+        throw e;
+      }
       if (input.slug !== site.slug || t.acting) {
         await audit(crossTenant("global-key") as never, ctx.orgId, {
           actorId: ctx.userId, action: t.acting ? "microsite.edited_by_admin" : "microsite.address_changed",

@@ -24,6 +24,7 @@ const STATUS: Record<string, { label: string; say: string }> = {
   LIVE: { label: "Live", say: "Anyone with the link can see it." },
   DRAFT: { label: "Draft", say: "Only you can see it. Publish when you're ready." },
   AWAITING_APPROVAL: { label: "Waiting for approval", say: "Your brokerage approves microsites before they go live. You'll see it here when it's approved." },
+  AWAITING_LIVE: { label: "Changes waiting for approval", say: "The version already live stays up until your brokerage approves the new one." },
   TAKEN_DOWN: { label: "Taken down", say: "Your brokerage has taken this microsite down." },
 };
 
@@ -39,7 +40,7 @@ function Dashboard() {
   if (!mine.data) return <div className="max-w-[1080px] mx-auto px-6 pt-10"><div className="h-64 bg-sunk rounded-sm" aria-busy /></div>;
 
   const m = mine.data;
-  const s = STATUS[m.site.status]!;
+  const s = STATUS[m.site.status === "AWAITING_APPROVAL" && m.site.isLive ? "AWAITING_LIVE" : m.site.status]!;
   const edit = `/microsite/edit${userId ? `?user=${userId}` : ""}`;
   const preview = `/microsite/preview${userId ? `?user=${userId}` : ""}`;
   const rate = stats.data && stats.data.visitors > 0 ? `${Math.round((stats.data.leads / stats.data.visitors) * 100)}%` : "—";
@@ -83,7 +84,7 @@ function Dashboard() {
           <span className="text-sm text-ink-2">{s.say}</span>
         </div>
         {m.site.disabledReason && <p className="mt-3 text-sm text-ink">Reason given: {m.site.disabledReason}</p>}
-        {m.site.unpublishedChanges && (
+        {m.site.unpublishedChanges && m.site.status !== "AWAITING_APPROVAL" && (
           <p className="mt-3 text-sm text-ink">
             You have changes that aren&apos;t live yet.{" "}
             <button type="button" className="underline underline-offset-4" disabled={publish.isPending} onClick={() => publish.mutate(q)}>
@@ -100,8 +101,8 @@ function Dashboard() {
         <div className="mt-5 flex flex-wrap gap-2">
           <a href={edit} className={buttonStyles({ variant: "primary" })}>Edit microsite</a>
           <a href={preview} className={buttonStyles({ variant: "secondary" })}>Preview</a>
-          {m.site.status === "LIVE" && <a href={m.site.path} target="_blank" rel="noopener" className={buttonStyles({ variant: "secondary" })}>View live site</a>}
-          <ShareMenu url={m.site.url} name={m.content.name} live={m.site.status === "LIVE"} userId={userId} />
+          {m.site.isLive && <a href={m.site.path} target="_blank" rel="noopener" className={buttonStyles({ variant: "secondary" })}>View live site</a>}
+          <ShareMenu url={m.site.url} name={m.content.name} live={m.site.isLive} userId={userId} />
         </div>
         {m.site.updatedAt && <p className="mt-4 text-note text-ink-3">Last updated {new Date(m.site.updatedAt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Dubai" })}</p>}
       </section>
@@ -120,7 +121,7 @@ function Dashboard() {
           </dl>
           {stats.data && stats.data.views === 0 && (
             <p className="mt-3 text-sm text-ink-2">
-              {m.site.status === "LIVE"
+              {m.site.isLive
                 ? "Nothing yet. Share the link on WhatsApp, in your email signature or on Instagram, and visits will show here."
                 : "Numbers start when the page is live."}
             </p>

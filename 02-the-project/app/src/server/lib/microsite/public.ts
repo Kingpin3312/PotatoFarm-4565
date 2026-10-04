@@ -40,7 +40,7 @@ export const appOrigin = () => (process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/
 const version = (key: string) => createHash("sha256").update(key).digest("hex").slice(0, 10);
 
 type Loaded = {
-  org: { id: string; name: string; slug: string; micrositeAccents: string[]; micrositeOwnWhatsapp: boolean };
+  org: { id: string; name: string; slug: string; micrositeAccents: string[]; micrositeOwnWhatsapp: boolean; demo: boolean };
   site: { id: string; slug: string; userId: string };
   content: MicrositeContent;
 };
@@ -49,7 +49,7 @@ type Loaded = {
 export async function loadLive(orgSlug: string, agentSlug: string): Promise<Loaded | null> {
   const org = await db().organisation.findUnique({
     where: { slug: orgSlug },
-    select: { id: true, name: true, slug: true, deletedAt: true, micrositesEnabled: true, micrositeAccents: true, micrositeOwnWhatsapp: true },
+    select: { id: true, name: true, slug: true, deletedAt: true, micrositesEnabled: true, micrositeAccents: true, micrositeOwnWhatsapp: true, demo: true },
   });
   if (!org || org.deletedAt || !org.micrositesEnabled) return null;
   const site = await db().agentMicrosite.findUnique({
@@ -63,7 +63,7 @@ export async function loadLive(orgSlug: string, agentSlug: string): Promise<Load
   });
   if (!member || !can(member.role, "microsite:own")) return null;
   return {
-    org: { id: org.id, name: org.name, slug: org.slug, micrositeAccents: org.micrositeAccents, micrositeOwnWhatsapp: org.micrositeOwnWhatsapp },
+    org: { id: org.id, name: org.name, slug: org.slug, micrositeAccents: org.micrositeAccents, micrositeOwnWhatsapp: org.micrositeOwnWhatsapp, demo: org.demo },
     site: { id: site.id, slug: site.slug, userId: site.userId },
     content: readContent(site.live, emptyContent(member.user)),
   };
@@ -79,11 +79,13 @@ async function whatsappFor(org: Loaded["org"], c: MicrositeContent) {
   return brokerageWhatsapp(org.id);
 }
 
-/** Completed deals this agent had a share of. */
+/** Completed deals this agent had a share of: how many, and their value. */
 export async function completedDeals(orgId: string, userId: string) {
-  return db().deal.count({
+  const r = await db().deal.aggregate({
     where: { orgId, stage: "COMPLETED", commissions: { some: { splits: { some: { userId } } } } },
+    _count: { _all: true }, _sum: { valueFils: true },
   });
+  return { count: r._count._all, valueFils: r._sum.valueFils ?? 0n };
 }
 
 async function areaNames(ids: string[]) {
@@ -143,7 +145,9 @@ export async function resolveParts(
     cards: Object.fromEntries(chosen.map((c) => [c.id, toCard(c)])),
     own: own.map((c) => ({ id: c.id, card: toCard(c) })),
     sold,
-    deals,
+    deals: deals.count,
+    dealValueFils: deals.valueFils.toString(),
+    demo: org.demo,
     photo: media("photo"),
     cover: media("cover"),
   };
@@ -163,7 +167,7 @@ export async function publicMicrosite(orgSlug: string, agentSlug: string) {
 export async function orgForMicrosites(orgId: string) {
   return db().organisation.findUnique({
     where: { id: orgId },
-    select: { id: true, name: true, slug: true, micrositeAccents: true, micrositeOwnWhatsapp: true },
+    select: { id: true, name: true, slug: true, micrositeAccents: true, micrositeOwnWhatsapp: true, demo: true },
   });
 }
 
@@ -245,8 +249,13 @@ export async function micrositeContext(orgSlug: string, agentSlug: string | unde
   };
 }
 
-/** Whether a brokerage has any live microsite, for the link to its team page. */
+/**
+ * Whether a brokerage has any live microsite, for the link to its team
+ * page. One query; a site whose agent has since left still counts, which
+ * at worst links to a team page showing the others.
+ */
 export async function hasTeamPage(orgSlug: string) {
-  const t = await micrositeTeam(orgSlug);
-  return !!t && t.agents.length > 0;
+  const org = await db().organisation.findUnique({ where: { slug: orgSlug }, select: { id: true, deletedAt: true, micrositesEnabled: true } });
+  if (!org || org.deletedAt || !org.micrositesEnabled) return false;
+  return (await db().agentMicrosite.count({ where: { orgId: org.id, publishedAt: { not: null }, disabledAt: null } })) > 0;
 }

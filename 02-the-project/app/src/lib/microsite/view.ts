@@ -1,4 +1,5 @@
 import type { BioBlock, SocialKey } from "./content";
+import type { Picture } from "./imagery";
 
 /**
  * Everything an agent's microsite shows, and nothing else.
@@ -24,6 +25,8 @@ export type MicrositeCard = {
   excerpt: string | null;
   cover: string | null;
   href: string;
+  /** What the card shows: `cover`, or the fallback `imagery.ts` chose. */
+  picture?: Picture;
 };
 
 export type SoldCard = {
@@ -53,7 +56,16 @@ export type MicrositeViewModel = {
     photo: string | null;
     cover: string | null;
     social: { key: SocialKey; label: string; url: string }[];
+    /** The portrait, or null — drawn as the monogram, never a stranger's face. */
+    portrait: Picture | null;
   };
+  /** The big pictures: behind the name, beside the introduction, behind the call to action. */
+  pictures: { hero: Picture; mood: Picture; cta: Picture };
+  /** Figures that are true: the agent's own profile and the CRM's records, nothing estimated. */
+  stats: { value: string; label: string }[];
+  areaTiles: { name: string; blurb: string | null; count: number; picture: Picture }[];
+  services: { key: string; title: string; text: string }[];
+  seo: { title: string; description: string };
   contact: {
     phone: string | null;
     email: string | null;

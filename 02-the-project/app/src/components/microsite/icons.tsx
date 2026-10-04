@@ -41,3 +41,21 @@ export function SocialMark({ network, className }: P & { network: string }) {
     </span>
   );
 }
+
+const line = (d: string) => function LineIcon({ className }: P) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className={`${base} ${className ?? "size-5"}`} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d={d} />
+    </svg>
+  );
+};
+
+export const BedMark = line("M3 18v-7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v7M3 15h18M6 9V6.5A1.5 1.5 0 0 1 7.5 5h3A1.5 1.5 0 0 1 12 6.5V9M3 18v2M21 18v2");
+export const BathMark = line("M4 12h16v3a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4v-3ZM6 12V6a2 2 0 0 1 3.5-1.3M7 19l-1 2M17 19l1 2");
+export const SizeMark = line("M4 9V4h5M20 15v5h-5M4 4l6 6M20 20l-6-6");
+export const ArrowMark = line("M5 12h14M13 6l6 6-6 6");
+export const KeyMark = line("M14.5 9.5a4 4 0 1 1-1.2 2.9L4 21.7V18h2.5v-2.5H9l1.6-1.6M16.5 7.5h.01");
+export const TagMark = line("M3 12V4h8l10 10-8 8L3 12ZM7.5 7.5h.01");
+export const BuildingMark = line("M4 21V5l8-3 8 3v16M4 21h16M9 8h1M14 8h1M9 12h1M14 12h1M9 16h1M14 16h1");
+export const ChartMark = line("M4 20V4M4 20h16M8 16l4-5 3 3 5-7");
+export const PlaneMark = line("M10.5 13.5 3 11l1-2 8 1 5-6a1.5 1.5 0 0 1 2.2 2L14 11l1 8-2 1-2.5-6.5L7 17l.5 2.5L6 21l-1.5-3.5L1 16l1.5-1.5L5 15l3.5-3.5");

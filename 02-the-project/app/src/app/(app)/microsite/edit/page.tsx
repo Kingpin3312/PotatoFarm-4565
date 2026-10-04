@@ -350,10 +350,10 @@ function Editor() {
       <div className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] lg:bottom-0 z-40 border-t border-rule bg-ground/95 backdrop-blur lg:pb-[env(safe-area-inset-bottom)]" data-editor-bar>
         <div className="max-w-[1440px] mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center gap-x-4 gap-y-2">
           <p role="status" className="text-note text-ink-2 min-w-0 basis-full sm:basis-auto sm:flex-1">
-            {note ?? (dirty ? "Unsaved changes" : status === "LIVE" ? (m.site.unpublishedChanges ? "Saved — not live yet" : "Live and up to date") : status === "AWAITING_APPROVAL" ? "Waiting for approval" : status === "TAKEN_DOWN" ? "Taken down by your brokerage" : "Draft — only you can see it")}
+            {note ?? (dirty ? "Unsaved changes" : status === "LIVE" ? (m.site.unpublishedChanges ? "Saved — not live yet" : "Live and up to date") : status === "AWAITING_APPROVAL" ? (m.site.isLive ? "Changes waiting for approval — the live version stays up" : "Waiting for approval") : status === "TAKEN_DOWN" ? "Taken down by your brokerage" : "Draft — only you can see it")}
           </p>
           <div className="flex flex-wrap gap-2">
-            {status === "LIVE" && (
+            {m.site.isLive && (
               <Button type="button" variant="quiet" size="sm" loading={unpublish.isPending}
                 onClick={() => { if (confirm("Take your microsite off the web? Links you've shared will stop working until you publish again.")) unpublish.mutate(q, { onSuccess: () => { void utils.microsite.invalidate(); setNote("Unpublished. Your draft is kept."); } }); }}>
                 Unpublish

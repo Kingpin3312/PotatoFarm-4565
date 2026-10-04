@@ -180,7 +180,7 @@ async function main() {
   ok("only properties the property page itself would show, featured first",
      JSON.stringify(cards(live.html)) === JSON.stringify(["CR-101", "CR-102", "CR-105"]), cards(live.html).join(", "));
   ok("each card leads to the property page as this agent's", live.html.includes(`href="/p/${SLUG}/CR-101?agent=amira-haddad"`));
-  ok("an off-plan property says so", /data-card="CR-105"[\s\S]{0,600}Off-plan/.test(live.html));
+  ok("an off-plan property says so", live.html.includes('data-card="CR-105" data-status="Off-plan"'));
   const soldText = visible(live.html);
   ok("a sold property is a record, without its price", soldText.includes("Recently sold and let") && soldText.includes("Sold") && !soldText.includes("9,876,500"));
   // Outside Next's own script payloads, the agent's text appears only escaped.
@@ -272,7 +272,9 @@ async function main() {
   const deal = await db.deal.create({ data: { orgId: org.id, reference: `D-${RUN}`, type: "SALE", valueFils: 310_000_000n, stage: "COMPLETED", completedAt: new Date(), listingId: listing["CR-104"]!.id } });
   const com = await db.commission.create({ data: { orgId: org.id, dealId: deal.id, rateBp: 200, grossFils: 6_200_000n, vatFils: 0n, netFils: 6_200_000n } });
   await db.commissionSplit.create({ data: { orgId: org.id, commissionId: com.id, userId: amira.id, role: "LISTING_AGENT", shareBp: 5000, amountFils: 3_100_000n } });
-  ok("completed transactions are counted from the CRM's deals", visible((await page(`/p/${SLUG}/agents/amira-haddad`)).html).includes("1 transaction"));
+  const figures = visible((await page(`/p/${SLUG}/agents/amira-haddad`)).html);
+  ok("completed transactions, and their value, are counted from the CRM's deals",
+     /Transaction completed\s+1\b/.test(figures) && /Transacted\s+AED 3\.1M/.test(figures), figures.match(/Transact[^0-9]*[0-9.A-Z ]{0,12}/g)?.join(" | "));
 
   console.log("\n=== the brokerage's control ===");
   const siteId = (await db.agentMicrosite.findFirst({ where: { orgId: org.id, userId: amira.id } }))!.id;
@@ -300,6 +302,14 @@ async function main() {
   const bens = await page(`/p/${SLUG}/agents/ben-carter`);
   ok("approving puts it live, with the agent's own WhatsApp now that the brokerage allows it",
      bens.status === 200 && bens.html.includes("wa.me/971558887766"));
+  await A.save({ slug: "amira-haddad", content: { ...good, headline: "A headline waiting for the brokerage." } });
+  await A.publish();
+  ok("a live site's changes wait for approval while the live version stays up",
+     (await A.mine()).site.status === "AWAITING_APPROVAL" && (await A.mine()).site.isLive
+     && !visible((await page(`/p/${SLUG}/agents/amira-haddad`)).html).includes("waiting for the brokerage")
+     && (await ADM.all()).find((r) => r.userId === amira.id)?.status === "AWAITING_APPROVAL");
+  await ADM.approve({ siteId });
+  ok("and approving them puts them live", visible((await page(`/p/${SLUG}/agents/amira-haddad`)).html).includes("waiting for the brokerage"));
   await ADM.updateSettings({ enabled: false, approval: true, ownWhatsapp: true, accents: ["brand"] });
   ok("switching microsites off takes every one down", (await get(`/p/${SLUG}/agents/amira-haddad`)).status === 404 && (await get(`/p/${SLUG}/agents/ben-carter`)).status === 404);
   await ADM.updateSettings({ enabled: true, approval: false, ownWhatsapp: false, accents: ["brand"] });

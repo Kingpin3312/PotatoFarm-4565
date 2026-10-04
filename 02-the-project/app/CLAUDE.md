@@ -102,7 +102,7 @@ What is verified today, measured rather than assumed:
   `/api/health` returns `200 {"ok":true}` against a real Postgres.
 - The boot log names every unconfigured service with its consequence —
   six of them in a bare development environment.
-- 485 assertions in 36 files, 70 check suites, 23 audits, all green —
+- 494 assertions in 37 files, 70 check suites, 23 audits, all green —
   and since 3 October 2026, **all of them run in CI**, which was not
   true before it. See *Run the tests*.
 
@@ -424,6 +424,28 @@ acting, refused without `microsite:manage`) and `microsite:manage`
 (admin/owner: rules, approve, take down, edit). Accents are only the
 company palette (`lib/microsite/palette.ts` — pink, pearl, silver;
 `palette.py` refuses anything else). `check:microsite` covers it.
+
+**Microsite pictures: real, then honest, never misleading.** The page is
+image-led, and `lib/microsite/imagery.ts` decides where every picture
+comes from, in order: the agent's or property's own photograph; area
+photography from the photo pack, labelled as the area (true for any
+brokerage); stand-in portraits, hero and property photos **only for
+`Organisation.demo` brokerages** — a stranger's face on a real agent's
+page, or a stock flat on a real listing, would misrepresent them; and
+finally drawn scenes (`components/microsite/art.tsx`, dusk Dubai in the
+brand's greys and pink), which never pretend to be a photograph of
+anything. A real agent with no portrait gets their monogram. The photo
+pack (`lib/microsite/demo-photos.ts`, files in `public/microsite/demo/`)
+is written by `npm run microsite:photos`, which needs `unsplash.com` and
+`images.unsplash.com` allowed in the environment's network policy — this
+container's policy denied them, so the pack is empty and every slot
+draws. Its portrait search is for figures seen from behind, so no
+stranger's face is given an agent's name. Statistics are only the
+agent's own profile and the CRM's records (deals with the agent's
+commission split, their value, listings, areas, languages); "How I can
+help" is derived from specialisms and what they list. Motion is one
+fade-up (`reveal.tsx` + `.ms-js` in `globals.css`), script-gated and off
+under `prefers-reduced-motion`.
 
 **A WhatsApp channel's `identifier` is Meta's phone number ID, not a
 phone number.** The public pages used to build their `wa.me` links from
@@ -1078,7 +1100,7 @@ skip as a pass, and for a long time it reported two:
   leaving you to guess.
 
 `npm test` was declared from day one with no test files behind it, so it
-exited 1 and said "No test files found". There are 36 test files now, and
+exited 1 and said "No test files found". There are 37 test files now, and
 they cover the pure logic where being wrong is silent: the fils unit, the
 24-hour window on both sides of the boundary, Dubai sending hours, the
 search parser's plural intents and budget bands, lead scoring, deal

@@ -8,6 +8,8 @@ import { isKnownProblem } from "@/server/lib/listings/enquiry-form";
 import { micrositeContext } from "@/server/lib/microsite/public";
 import { spacedPhone, whatsappText } from "@/lib/microsite/content";
 import { MicrositeTracker } from "@/components/microsite/tracker";
+import { Pic } from "@/components/microsite/art";
+import { areaPicture } from "@/lib/microsite/imagery";
 
 type Params = { params: Promise<{ slug: string; reference: string }> };
 
@@ -157,6 +159,12 @@ export default async function PropertyPage({ params, searchParams }: Params & {
             address — so a gallery never outlives its page. Lazy past the
             cover, because a buyer on a phone in a lift pays for every
             one they never scroll to. */}
+        {/* No photographs yet: the community, labelled as the area, so the
+            page is never a wall of text and never passes a picture off as
+            this property. */}
+        {l.photos.length === 0 && l.community && (
+          <Pic picture={{ ...areaPicture(l.community), label: `${l.community} · area` }} showLabel className="mt-10 aspect-[3/2] rounded-md" />
+        )}
         {l.photos.length > 0 && (
           <section className="mt-10" aria-label="Photographs" data-photos>
             {/* Plain images, not next/image: each address redirects to a

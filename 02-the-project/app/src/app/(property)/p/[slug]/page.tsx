@@ -64,9 +64,9 @@ export default async function BrokeragePage({ params, searchParams }: Props) {
   return (
     <>
       <header className="border-b border-rule">
-        <div className="mx-auto max-w-[1080px] px-6 py-6 flex items-center justify-between gap-4">
+        <div className="mx-auto max-w-[1080px] px-6 py-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
           <a href={home} className="text-note font-medium text-ink uppercase tracking-[0.24em] no-underline">{b.brokerage}</a>
-          <div className="flex items-center gap-6">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
             {team && <a href={`${home}/agents`} className="text-note text-ink-3 uppercase tracking-[0.18em] no-underline hover:text-ink">Our agents</a>}
             {b.whatsapp && (
               <a href={wa(b.whatsapp, `Hello ${b.brokerage}, I'm looking for a property.`)}

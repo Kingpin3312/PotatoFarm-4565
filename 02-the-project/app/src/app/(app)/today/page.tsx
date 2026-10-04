@@ -98,8 +98,11 @@ export default function Today() {
       <header className="pt-10 pb-6">
         {/* The manual, one tap from where every day starts. Beside the
             greeting rather than in a menu: a new agent's first question is
-            "how do I…", and the answer should be on the first screen. */}
-        <div className="flex items-start justify-between gap-4">
+            "how do I…", and the answer should be on the first screen.
+            It wraps under the greeting on a narrow phone: "Good afternoon"
+            beside it is wider than 320px, so the page scrolled sideways in
+            the afternoon only. */}
+        <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
         <h1 className="font-sans text-page font-semibold text-ink">
           {/* "day" while it loads, not a guess at "morning". It is
               correct English at any hour, so the one-word settle when
