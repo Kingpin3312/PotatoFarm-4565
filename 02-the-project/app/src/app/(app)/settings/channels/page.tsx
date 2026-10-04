@@ -4,6 +4,7 @@ import { useState } from "react";
 import { api } from "@/lib/trpc";
 import { QueryError } from "@/components/ui/query-state";
 import { cn } from "@/lib/cn";
+import { Button } from "@/components/ui/button";
 import { ConnectChannel } from "./connect";
 
 /**
@@ -132,6 +133,7 @@ export default function Channels() {
             <p className="font-mono text-label text-ink-3 mt-1">
               {ch.identifierLabel}: {ch.identifier}
             </p>
+            {ch.type === "WHATSAPP" && ch.active && <BuyersNumber id={ch.id} number={ch.displayNumber} />}
 
             {/* The half-connected state, spelled out where it is
                 discovered rather than at the moment an agent presses
@@ -187,5 +189,36 @@ function Tag({ children, warn }: { children: React.ReactNode; warn?: boolean }) 
     )}>
       {children}
     </span>
+  );
+}
+
+/**
+ * The number buyers message on a WhatsApp line. It is not the phone
+ * number ID above, and without it the public pages and the agents'
+ * microsites show no WhatsApp button — so its absence is said in words.
+ */
+function BuyersNumber({ id, number }: { id: string; number: string | null }) {
+  const utils = api.useUtils();
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(number ?? "");
+  const save = api.channels.setNumber.useMutation({
+    onSuccess: () => { setEditing(false); void utils.channels.list.invalidate(); },
+  });
+  if (!editing) {
+    return (
+      <p className="text-sm text-ink-2 mt-1.5 flex flex-wrap items-center gap-x-3">
+        {number ? <>Buyers message <span className="text-ink tabular">{number}</span></> : <>No buyer-facing number yet, so your public pages show no WhatsApp button.</>}
+        <button type="button" className="min-h-11 underline underline-offset-4 text-ink" onClick={() => setEditing(true)}>{number ? "Change" : "Add it"}</button>
+      </p>
+    );
+  }
+  return (
+    <form className="mt-2 flex flex-wrap items-center gap-2" onSubmit={(e) => { e.preventDefault(); save.mutate({ id, displayNumber: value }); }}>
+      <input value={value} onChange={(e) => setValue(e.target.value)} type="tel" inputMode="tel" placeholder="+971 55 123 4567" aria-label="The number buyers message"
+        className="min-h-11 px-3 text-control bg-ground border border-rule rounded-[3px] text-ink outline-none focus:border-ink" />
+      <Button type="submit" size="sm" variant="primary" loading={save.isPending}>Save</Button>
+      <Button type="button" size="sm" variant="quiet" onClick={() => setEditing(false)}>Cancel</Button>
+      {save.error && <span role="alert" className="text-note text-danger basis-full">{save.error.message}</span>}
+    </form>
   );
 }

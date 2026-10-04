@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { normalisePhone } from "@/lib/phone";
 import { TRPCError } from "@trpc/server";
 import { Prisma } from "@prisma/client";
 import { randomBytes } from "node:crypto";
@@ -167,7 +168,7 @@ export const channelsRouter = router({
   list: requirePermission("channel:read").query(async ({ ctx }) => {
     const rows = await ctx.db.channel.findMany({
       select: {
-        id: true, type: true, label: true, identifier: true, secretRef: true,
+        id: true, type: true, label: true, identifier: true, secretRef: true, displayNumber: true,
         webhookToken: true, active: true, lastSyncAt: true, lastError: true, createdAt: true,
       },
       orderBy: [{ active: "desc" }, { createdAt: "asc" }],
@@ -224,6 +225,28 @@ export const channelsRouter = router({
    * `WHATSAPP_APP_SECRET` and routed by phone number, so somebody who
    * has not got their token to hand can connect now and send later.
    */
+  /**
+   * The number buyers message on a WhatsApp line — what every "WhatsApp
+   * us" button on the brokerage's public pages and its agents'
+   * microsites opens. Empty clears it, and the buttons go.
+   */
+  setNumber: requirePermission("channel:write")
+    .input(z.object({ id: z.string(), displayNumber: z.string().trim().max(30) }))
+    .mutation(async ({ ctx, input }) => {
+      const ch = await ctx.db.channel.findFirst({ where: { id: input.id, type: "WHATSAPP" }, select: { id: true, displayNumber: true } });
+      if (!ch) throw new TRPCError({ code: "NOT_FOUND", message: "No such WhatsApp line." });
+      const displayNumber = input.displayNumber ? normalisePhone(input.displayNumber) : null;
+      if (input.displayNumber && !displayNumber) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "That WhatsApp number doesn't look right. Include the country code if it isn't a UAE number." });
+      }
+      await ctx.db.channel.update({ where: { id: ch.id }, data: { displayNumber } });
+      await audit(ctx.db, ctx.orgId, {
+        actorId: ctx.userId, action: "channel.number_set", entity: "Channel", entityId: ch.id,
+        before: { displayNumber: ch.displayNumber }, after: { displayNumber },
+      });
+      return { displayNumber };
+    }),
+
   connect: requirePermission("channel:write")
     .input(z.object({
       type: z.enum(TYPES),
@@ -235,8 +258,14 @@ export const channelsRouter = router({
        * including the audit entry and the response, ever sees it again.
        */
       accessToken: z.string().trim().min(20).max(500).optional(),
+      /** WhatsApp: the number buyers message. See `Channel.displayNumber`. */
+      displayNumber: z.string().trim().max(30).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
+      const displayNumber = input.type === "WHATSAPP" && input.displayNumber ? normalisePhone(input.displayNumber) : null;
+      if (input.type === "WHATSAPP" && input.displayNumber && !displayNumber) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "That WhatsApp number doesn't look right. Include the country code if it isn't a UAE number." });
+      }
       /**
        * Refused if nothing can deliver to it.
        *
@@ -316,6 +345,7 @@ export const channelsRouter = router({
             type: input.type,
             label: input.label,
             identifier: input.identifier,
+            ...(displayNumber ? { displayNumber } : {}),
             ...(secretRef ? { secretRef } : {}),
             ...(TOKENED.has(input.type)
               ? { webhookToken: randomBytes(24).toString("base64url") }

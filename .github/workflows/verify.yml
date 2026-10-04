@@ -373,6 +373,8 @@ jobs:
       # scrolled sideways there and nothing had measured them.
       - name: Every screen fits a small phone
         run: npm run browser:narrow
+      - name: An agent's microsite, edited and opened at every width
+        run: npm run browser:microsite
       - name: Accessibility
         run: npm run browser:a11y
 
@@ -432,6 +434,8 @@ jobs:
         run: npm run check:public-listing
       - name: A brokerage's own page, and its enquiry form
         run: npm run check:listings-page
+      - name: Agent microsites — the page, its leads, its numbers and who may change it
+        run: npm run check:microsite
       - name: A reportable transaction reaches the compliance officer
         run: npm run check:rear
       - name: A new enquiry reaches the right agent

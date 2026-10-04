@@ -102,7 +102,7 @@ What is verified today, measured rather than assumed:
   `/api/health` returns `200 {"ok":true}` against a real Postgres.
 - The boot log names every unconfigured service with its consequence —
   six of them in a bare development environment.
-- 467 assertions in 35 files, 69 check suites, 23 audits, all green —
+- 485 assertions in 36 files, 70 check suites, 23 audits, all green —
   and since 3 October 2026, **all of them run in CI**, which was not
   true before it. See *Run the tests*.
 
@@ -392,6 +392,45 @@ would show it. The enquiry goes through `ingestEnquiry` like every
 other source, on a `WEBSITE_FORM` channel "Your listings page" made on
 first use, so it dedupes by phone and appears in the by-channel report.
 `check:listings-page` covers all of it over HTTP.
+
+**Every agent can have a microsite: `/p/<brokerage>/agents/<agent>`.**
+`AgentMicrosite` holds two copies of `MicrositeContent` (validated by
+`lib/microsite/content.ts` on every write): `draft`, which the editor
+saves, and `live`, made on publish — so editing never changes the public
+page half-way. Properties are listing ids resolved through
+`advertisedCards` (the property page's own gate) on every view, never
+copies; sold/let ones are a record without price or photo; the
+transactions figure is counted from COMPLETED deals the agent has a
+`CommissionSplit` on, never typed in. `server/lib/microsite/public.ts`
+`loadLive` is the one gate — org exists and has `micrositesEnabled`,
+`publishedAt` set, no `disabledAt`, the agent still a member with
+`microsite:own` — and every miss is the same 404. The page is built from
+`MicrositeViewModel` field by field by `assembleView`
+(`lib/microsite/assemble.ts`), which the editor's live preview calls in
+the browser on the unsaved form, so the preview *is* the page;
+`MicrositeView` lays out by container queries (`@container`, `cqi`) so it
+draws correctly in the phone-width preview pane. Leads: the form posts to
+`agents/[agent]/enquire` → `micrositeEnquiry` → `pageEnquiry` →
+`ingestEnquiry(..., directed)`, which gives a *new* lead to that agent as
+`AGENT_MICROSITE` with `Enquiry.micrositeId`; a buyer another agent has
+keeps their agent. "WhatsApp me" writes the page's address into the
+message and `lib/ingest.ts` `micrositeFromMessage` routes a first message
+carrying a live site of *this* brokerage the same way. Analytics are
+`MicrositeEvent` rows from the page's own beacon (`agents/[agent]/event`;
+link-preview bots and foreign origins ignored; visitor = daily-salted
+hash, no address kept); leads are counted from enquiries. Permissions:
+`microsite:own` (agents and up — `?user=` on the CRM screens is an admin
+acting, refused without `microsite:manage`) and `microsite:manage`
+(admin/owner: rules, approve, take down, edit). Accents are only the
+company palette (`lib/microsite/palette.ts` — pink, pearl, silver;
+`palette.py` refuses anything else). `check:microsite` covers it.
+
+**A WhatsApp channel's `identifier` is Meta's phone number ID, not a
+phone number.** The public pages used to build their `wa.me` links from
+it, which in production opens a chat with a number that does not exist.
+They now use `Channel.displayNumber` — the number buyers message, asked
+for on connect and editable under Settings → Channels — through
+`brokerageWhatsapp`, and show no WhatsApp button while it is unset.
 
 **Every new listing has an exact place, and the tree is not the
 brokerage's.** `Location` is shared reference data — no `orgId`, no RLS —
@@ -956,8 +995,8 @@ send path read it.
 
 ## Run the tests
 
-    npm test          # 467 assertions, pure functions, no database
-    npm run verify    # tsc, eslint, the tests, 69 check suites, 23 audits
+    npm test          # 485 assertions, pure functions, no database
+    npm run verify    # tsc, eslint, the tests, 70 check suites, 23 audits
 
 **Until 3 October 2026, sixteen of the check suites and four of the browser suites
 had never run in CI, while this file said the gate ran "every check
@@ -1039,7 +1078,7 @@ skip as a pass, and for a long time it reported two:
   leaving you to guess.
 
 `npm test` was declared from day one with no test files behind it, so it
-exited 1 and said "No test files found". There are 35 test files now, and
+exited 1 and said "No test files found". There are 36 test files now, and
 they cover the pure logic where being wrong is silent: the fils unit, the
 24-hour window on both sides of the boundary, Dubai sending hours, the
 search parser's plural intents and budget bands, lead scoring, deal

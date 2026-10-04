@@ -23,11 +23,24 @@ const SOURCE: Record<PortalKey, Prisma.LeadCreateInput["source"]> = {
  * which is the single fastest way for a brokerage to look disorganised to
  * a buyer holding two and a half million dirhams.
  */
+/**
+ * An enquiry made to one agent in particular — through their microsite.
+ *
+ * The buyer chose the agent, so a new lead goes to them rather than
+ * through the routing rules, and is filed as `AGENT_MICROSITE` with the
+ * microsite on the enquiry. A buyer the brokerage already knows keeps
+ * their agent — moving a lead somebody is working because a page was
+ * visited would split one client between two agents — unless nobody has
+ * them, in which case the agent whose page they used takes them.
+ */
+export type DirectedTo = { userId: string; why: string; micrositeId: string };
+
 export async function ingestEnquiry(
   orgId: string,
   channelId: string,
   portal: PortalKey,
-  raw: RawEnquiry
+  raw: RawEnquiry,
+  directed?: DirectedTo,
 ) {
   const db = forOrg(orgId);
 
@@ -73,12 +86,14 @@ export async function ingestEnquiry(
     // portal re-sending an enquiry for somebody an agent is already
     // working must not move them.
     const assignment = existing
-      ? null
-      : await assignmentFor(tx, {
-          orgId,
-          source: SOURCE[portal] ?? null,
-          language: normaliseLanguage(raw.language),
-        });
+      ? (directed && !existing.assignedToId ? { userId: directed.userId, why: directed.why } : null)
+      : directed
+        ? { userId: directed.userId, why: directed.why }
+        : await assignmentFor(tx, {
+            orgId,
+            source: SOURCE[portal] ?? null,
+            language: normaliseLanguage(raw.language),
+          });
 
     const lead = existing
       ? await tx.lead.update({
@@ -89,6 +104,7 @@ export async function ingestEnquiry(
             name: existing.name ?? raw.name,
             email: existing.email ?? email,
             language: existing.language ?? normaliseLanguage(raw.language),
+            ...(assignment?.userId ? { assignedToId: assignment.userId, assignedAt: new Date() } : {}),
           },
         })
       : await tx.lead.create({
@@ -104,7 +120,7 @@ export async function ingestEnquiry(
             name: raw.name,
             email,
             language: normaliseLanguage(raw.language),
-            source: SOURCE[portal],
+            source: directed ? "AGENT_MICROSITE" : SOURCE[portal],
             status: "NEW",
             notes: phone && isProxyNumber(phone)
               // Flagged rather than silently trusted. A masked number
@@ -117,7 +133,7 @@ export async function ingestEnquiry(
 
     // The record `routing.history` reads to answer "why did that lead not
     // come to me".
-    if (!existing && assignment?.userId) {
+    if (assignment?.userId) {
       await tx.leadOwnership.create({
         data: {
           orgId,
@@ -154,6 +170,7 @@ export async function ingestEnquiry(
          * `check:meta-inbound` asserts both ends.
          */
         campaign: raw.source ?? null,
+        micrositeId: directed?.micrositeId ?? null,
         createdAt: raw.receivedAt,
       },
     });

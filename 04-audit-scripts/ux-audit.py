@@ -172,6 +172,14 @@ if _os.path.exists(_css_path):
                       # `.ms-auto{margin-inline-start:auto}` and the rest
                       # are all in `.next/static/css`.
                       r'|ms|me|ps|pe|start|end'
+                      # `break-all`, `break-words` and `content-start`, for
+                      # an agent's microsite: a long email address or
+                      # broker-card line wraps instead of widening a phone
+                      # screen, and an aside packs to the top of its grid
+                      # cell. Verified in the compiled stylesheet first —
+                      # `.break-all {`, `.break-words {` and
+                      # `.content-start {` are all in `/_next/static/css`.
+                      r'|break|content'
                       # `align-top`, for the invoice table's cells, on the
                       # same terms: `.align-top{vertical-align:top}` was
                       # found in the compiled stylesheet before this line.

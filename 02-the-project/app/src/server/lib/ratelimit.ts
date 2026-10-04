@@ -82,6 +82,13 @@ const RULES: Record<string, { short: [number, number]; long: [number, number] }>
    * the phone, so one buyer asking about three properties is fine.
    */
   "property.enquiry":  { short: [5, 600], long: [20, 86_400] },
+  /**
+   * What a visitor did on an agent's microsite — a view, a WhatsApp tap.
+   * Nothing is sent and nothing is created but a counter, so the limit is
+   * generous; it exists so one script cannot make an agent's numbers say
+   * whatever it likes.
+   */
+  "microsite.event":   { short: [60, 600], long: [400, 86_400] },
 
   /**
    * Voice notes. Looser than the forms, because an agent legitimately

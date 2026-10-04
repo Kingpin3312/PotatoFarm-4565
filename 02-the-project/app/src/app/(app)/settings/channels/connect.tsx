@@ -95,7 +95,9 @@ export function ConnectChannel() {
     setError(null);
     const f = new FormData(e.currentTarget);
     const token = String(f.get("accessToken") ?? "").trim();
+    const number = String(f.get("displayNumber") ?? "").trim();
     connect.mutate({
+      ...(number ? { displayNumber: number } : {}),
       type: type as "WHATSAPP",
       label: String(f.get("label") ?? "").trim(),
       identifier: String(f.get("identifier") ?? "").trim(),
@@ -237,6 +239,23 @@ export function ConnectChannel() {
                     something else. */}
                 <span className="text-note text-ink-3 leading-snug">{meta.hint}</span>
               </label>
+
+              {type === "WHATSAPP" && (
+                <label className="flex flex-col gap-1.5">
+                  <span className="t-label text-ink-3">The number buyers message</span>
+                  <input
+                    name="displayNumber"
+                    type="tel"
+                    inputMode="tel"
+                    autoComplete="off"
+                    placeholder="+971 55 123 4567"
+                    className="min-h-11 px-3 text-control bg-ground border border-rule rounded-[3px] text-ink outline-none focus:border-ink"
+                  />
+                  <span className="text-note text-ink-3 leading-snug">
+                    The phone number itself. Every &ldquo;WhatsApp us&rdquo; button on your public pages and your agents&rsquo; microsites opens a chat with it.
+                  </span>
+                </label>
+              )}
             </div>
 
             <div className="flex gap-2.5 mt-7">

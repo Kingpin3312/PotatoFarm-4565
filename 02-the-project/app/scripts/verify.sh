@@ -156,7 +156,7 @@ printf '\n%sChecks%s\n' "$bold" "$off"
 # runs is the light switch wired to nothing, in the gate itself.** Now
 # a new `check:*` script runs here unless it is named below as one that
 # needs the application, which runs further down with the app up.
-APP_CHECKS=" whatsapp-inbound website-form listing-feed calendar-feed voice-note meta-inbound routing availability blocking billing two-step email-connect revenue ownership public-listing listings-page rear "
+APP_CHECKS=" whatsapp-inbound website-form listing-feed calendar-feed voice-note meta-inbound routing availability blocking billing two-step email-connect revenue ownership public-listing listings-page microsite rear "
 # The few that need neither Postgres nor the application.
 NO_DB=" voice deals bands sigv4 storage limits preflight "
 DB_CHECKS=$(node -e 'const s=require("./package.json").scripts; console.log(Object.keys(s).filter(k=>k.startsWith("check:")).map(k=>k.slice(6)).sort().join(" "))')
@@ -314,6 +314,7 @@ else
   step "check:public-listing" npm run --silent check:public-listing
   # A brokerage's own page and its enquiry form, over HTTP.
   step "check:listings-page" npm run --silent check:listings-page
+  step "check:microsite" npm run --silent check:microsite
   step "check:rear" npm run --silent check:rear
   # The logo as a browser draws it. `consistency.py` reads the source
   # and fingerprints the potato; it cannot see that the wordmark beside

@@ -7,17 +7,25 @@
  * what to fix. `website` is hidden from people and filled only by
  * scripts (`enquiry-form.ts`).
  */
-export function EnquiryForm({ slug, back, reference, sent, problem, heading }: {
+export function EnquiryForm({ slug, back, reference, sent, problem, heading, action, thanks, inContainer, preview }: {
   slug: string; back: string; reference?: string; sent: boolean; problem: string | null; heading: string;
+  /** Where it posts. An agent's microsite posts to its own route, so the lead reaches that agent. */
+  action?: string;
+  thanks?: string;
+  /** Lay out by the surrounding container rather than the window — for the editor's preview pane. */
+  inContainer?: boolean;
+  /** Drawn in the editor's preview: shown, never sent. */
+  preview?: boolean;
 }) {
   const field = "w-full min-h-12 px-4 rounded-md bg-raised border border-rule-strong text-ui text-ink placeholder:text-ink-3 focus:outline-none focus:border-ink";
   return (
     <section id="enquire" className="mt-16 scroll-mt-6" aria-labelledby="enquire-h">
       <h2 id="enquire-h" className="text-note text-ink-3 uppercase tracking-[0.18em]">{heading}</h2>
       {sent ? (
-        <p role="status" className="mt-4 text-body-lg text-ink">Thank you — we have your message and will be in touch shortly.</p>
+        <p role="status" className="mt-4 text-body-lg text-ink">{thanks ?? "Thank you — we have your message and will be in touch shortly."}</p>
       ) : (
-        <form method="post" action={`/p/${encodeURIComponent(slug)}/enquire`} className="mt-4 grid gap-3 max-w-[560px]">
+        <form method="post" action={preview ? undefined : action ?? `/p/${encodeURIComponent(slug)}/enquire`} className="mt-4 grid gap-3 max-w-[560px]"
+              {...(preview ? { onSubmit: (e: { preventDefault: () => void }) => e.preventDefault() } : {})}>
           {problem && <p role="alert" className="text-sm text-danger">{problem}</p>}
           <input type="hidden" name="back" value={back} />
           {reference && <input type="hidden" name="reference" value={reference} />}
@@ -25,7 +33,7 @@ export function EnquiryForm({ slug, back, reference, sent, problem, heading }: {
             <span className="text-sm text-ink-2">Your name</span>
             <input name="name" required maxLength={120} autoComplete="name" className={field} />
           </label>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className={`grid gap-3 ${inContainer ? "@lg:grid-cols-2" : "sm:grid-cols-2"}`}>
             <label className="grid gap-1.5">
               <span className="text-sm text-ink-2">Phone or WhatsApp</span>
               <input name="phone" type="tel" maxLength={30} autoComplete="tel" inputMode="tel" className={field} />

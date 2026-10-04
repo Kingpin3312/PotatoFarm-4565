@@ -55,7 +55,7 @@ const made = { users: [], orgs: [], leads: [], viewings: [], memberships: [] };
 
 async function agent(orgId, label) {
   const user = await db.user.create({
-    data: { name: `Cal ${label} ${STAMP}`, email: `cal.${label}.${STAMP}@example.com` },
+    data: { name: `Cal ${label} ${STAMP}`, email: `cal.${label}.${STAMP}@example.invalid` },
   });
   made.users.push(user.id);
   const m = await db.membership.create({

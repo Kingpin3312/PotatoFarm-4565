@@ -8,6 +8,8 @@ import { normalisePhone } from "@/server/lib/portals/normalise";
 import { reply } from "@/server/assistant/run";
 import { detectLanguage } from "@/server/lib/language";
 import { mentionedPortal, referenceCandidates, PORTAL_LABEL } from "@/server/lib/portals/mention";
+import { micrositeInText } from "@/lib/microsite/content";
+import { loadLive } from "@/server/lib/microsite/public";
 import { refVariants } from "@/lib/reference";
 import { handlePick } from "@/server/lib/viewings/offer";
 
@@ -178,10 +180,20 @@ async function inbound(
      * where they came from. `portals/mention.ts` says what counts.
      */
     const portal = known ? null : mentionedPortal(body);
-    const source = portal ?? "WHATSAPP_AD";
+    /**
+     * Which agent's microsite sent them, when the message carries its
+     * address — which the site's "WhatsApp me" button writes in. The
+     * buyer chose that agent, so the lead goes to them rather than
+     * through the rotation. First message only, for the same reason as
+     * the portal: a returning buyer already has an agent.
+     */
+    const site = known ? null : await micrositeFromMessage(channel.orgId, body);
+    const source = site ? "AGENT_MICROSITE" : portal ?? "WHATSAPP_AD";
     const assignment = known
       ? null
-      : await assignmentFor(tx, { orgId: channel.orgId, source });
+      : site
+        ? { userId: site.userId, why: `Messaged from ${site.name}'s microsite.` }
+        : await assignmentFor(tx, { orgId: channel.orgId, source });
 
     const lead = await tx.lead.upsert({
       where: { orgId_phone: { orgId: channel.orgId, phone: from } },
@@ -252,7 +264,7 @@ async function inbound(
     const message = await store(tx, channel.orgId, conversation.id, msg.id, body, sentAt, media);
     await enquiryFromMessage(tx, {
       orgId: channel.orgId, channelId: channel.id, leadId: lead.id, isNew: !known,
-      portal, body, externalId: msg.id, sentAt,
+      portal, site, body, externalId: msg.id, sentAt,
     });
     return { conversationId: conversation.id, messageId: message.id };
   });
@@ -276,7 +288,8 @@ async function inbound(
  */
 async function enquiryFromMessage(tx: any, m: {
   orgId: string; channelId: string; leadId: string; isNew: boolean;
-  portal: ReturnType<typeof mentionedPortal>; body: string; externalId: string; sentAt: Date;
+  portal: ReturnType<typeof mentionedPortal>; site: Awaited<ReturnType<typeof micrositeFromMessage>>;
+  body: string; externalId: string; sentAt: Date;
 }) {
   const refs = referenceCandidates(m.body);
   const listing = refs.length
@@ -288,7 +301,7 @@ async function enquiryFromMessage(tx: any, m: {
         select: { id: true },
       })
     : null;
-  if (!listing && !(m.isNew && m.portal)) return;
+  if (!listing && !(m.isNew && (m.portal || m.site))) return;
   if (!m.isNew && listing) {
     const already = await tx.enquiry.findFirst({
       where: { orgId: m.orgId, leadId: m.leadId, listingId: listing.id }, select: { id: true },
@@ -300,10 +313,27 @@ async function enquiryFromMessage(tx: any, m: {
       orgId: m.orgId, leadId: m.leadId, listingId: listing?.id ?? null, channelId: m.channelId,
       externalId: `wa:${m.externalId}`,
       message: m.body.slice(0, 2000),
-      campaign: m.portal ? `${PORTAL_LABEL[m.portal]}, via WhatsApp` : null,
+      campaign: m.site ? `Agent microsite · ${m.site.name}, via WhatsApp` : m.portal ? `${PORTAL_LABEL[m.portal]}, via WhatsApp` : null,
+      micrositeId: m.site?.micrositeId ?? null,
       createdAt: m.sentAt,
     },
   });
+  if (m.site) {
+    await tx.micrositeEvent.create({ data: { orgId: m.orgId, micrositeId: m.site.micrositeId, kind: "LEAD", listingId: listing?.id ?? null } });
+  }
+}
+
+/**
+ * The live microsite of *this* brokerage whose address the message
+ * carries, or null. An address of another brokerage's agent, a draft, or
+ * a site an admin took down gives nothing.
+ */
+async function micrositeFromMessage(orgId: string, body: string) {
+  const found = micrositeInText(body);
+  if (!found) return null;
+  const l = await loadLive(found.orgSlug, found.agentSlug);
+  if (!l || l.org.id !== orgId) return null;
+  return { userId: l.site.userId, micrositeId: l.site.id, name: l.content.name };
 }
 
 /**

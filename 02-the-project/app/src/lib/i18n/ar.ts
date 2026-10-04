@@ -49,6 +49,8 @@ export const ar: Messages = {
   "nav.reports": "التقارير",
   "nav.revenue": "الإيرادات",
   "nav.mine": "ما يخصني",
+  "nav.microsite": "موقعي المصغّر",
+  "nav.microsites": "المواقع المصغّرة",
   "nav.tasks": "المهام",
   "nav.leads": "العملاء المحتملون",
   "nav.listings": "العقارات",

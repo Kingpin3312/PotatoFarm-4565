@@ -74,6 +74,8 @@ export const SETTINGS_NAV: NavItem[] = [
   // down, rather than being hidden from a nav everybody shares.
   { href: "/reports/revenue", labelKey: "nav.revenue" },
   { href: "/me", labelKey: "nav.mine" },
+  // The agent's own website. Visited to edit and share, not lived in.
+  { href: "/microsite", labelKey: "nav.microsite" },
   // Every follow-up, not just today's, and the ones handed to others.
   { href: "/tasks", labelKey: "nav.tasks" },
   { href: "/blackbook", labelKey: "nav.blackbook" },
@@ -86,6 +88,7 @@ export const SETTINGS_NAV: NavItem[] = [
   { href: "/documents", labelKey: "nav.documents" },
   { href: "/settings/privacy", labelKey: "nav.privacy" },
   { href: "/settings/access", labelKey: "nav.access" },
+  { href: "/settings/microsites", labelKey: "nav.microsites" },
   { href: "/settings/security", labelKey: "nav.security" },
   { href: "/settings/email", labelKey: "nav.email" },
   { href: "/settings/assistant", labelKey: "nav.assistantQuestions" },
@@ -111,6 +114,7 @@ export const MORE: NavItem[] = [
   { href: "/offers", labelKey: "nav.offers" },
   { href: "/leads", labelKey: "nav.leads" },
   { href: "/listings", labelKey: "nav.listings" },
+  { href: "/microsite", labelKey: "nav.microsite" },
   { href: "/commission", labelKey: "nav.commission" },
   { href: "/compliance", labelKey: "nav.compliance" },
   { href: "/documents", labelKey: "nav.documents" },

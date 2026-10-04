@@ -106,6 +106,11 @@ export const PERMISSIONS = [
    * with `lead:update` may put their own lead on one, pause it or stop it.
    */
   "plan:manage",
+
+  // Agent microsites: an agent's own site, and the brokerage's control
+  // over all of them (approve, take down, edit, set the rules).
+  "microsite:own",
+  "microsite:manage",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -121,6 +126,9 @@ const AGENT: Permission[] = [
   // the document most likely to lapse unnoticed because it belongs to a
   // person rather than to a property.
   "document:read",
+  // Their own microsite: their profile, their chosen properties, their
+  // numbers. Never anybody else's.
+  "microsite:own",
 ];
 
 const MANAGER: Permission[] = [
@@ -137,6 +145,9 @@ const ADMIN: Permission[] = [
   ...MANAGER, "org:update", "commission:settle",
   "member:update", "member:remove", "channel:write", "export:all",
   "kyc:approve",
+  // Every agent's microsite: approve, take down, edit, and the rules.
+  // The brokerage's name is on each one.
+  "microsite:manage",
   // Deliberately absent: compliance:read and compliance:file. An admin
   // can run the brokerage without being able to read a suspicious
   // transaction report, and that separation is the whole reason the

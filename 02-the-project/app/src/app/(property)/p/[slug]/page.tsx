@@ -5,6 +5,7 @@ import { aedWhole } from "@/lib/money";
 import { Logo } from "@/components/brand/logo";
 import { EnquiryForm } from "../enquiry-form";
 import { isKnownProblem } from "@/server/lib/listings/enquiry-form";
+import { hasTeamPage } from "@/server/lib/microsite/public";
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -51,6 +52,7 @@ export default async function BrokeragePage({ params, searchParams }: Props) {
   const b = await publicBrokerage(slug, purpose);
   if (!b) notFound();
   const home = `/p/${encodeURIComponent(slug)}`;
+  const team = await hasTeamPage(slug);
 
   const tabs: [string, string, number][] = [
     ["All", home, b.counts.all],
@@ -64,10 +66,13 @@ export default async function BrokeragePage({ params, searchParams }: Props) {
       <header className="border-b border-rule">
         <div className="mx-auto max-w-[1080px] px-6 py-6 flex items-center justify-between gap-4">
           <a href={home} className="text-note font-medium text-ink uppercase tracking-[0.24em] no-underline">{b.brokerage}</a>
-          {b.whatsapp && (
-            <a href={wa(b.whatsapp, `Hello ${b.brokerage}, I'm looking for a property.`)}
-               className="text-note text-ink-3 uppercase tracking-[0.18em] no-underline hover:text-ink">WhatsApp us</a>
-          )}
+          <div className="flex items-center gap-6">
+            {team && <a href={`${home}/agents`} className="text-note text-ink-3 uppercase tracking-[0.18em] no-underline hover:text-ink">Our agents</a>}
+            {b.whatsapp && (
+              <a href={wa(b.whatsapp, `Hello ${b.brokerage}, I'm looking for a property.`)}
+                 className="text-note text-ink-3 uppercase tracking-[0.18em] no-underline hover:text-ink">WhatsApp us</a>
+            )}
+          </div>
         </div>
       </header>
 

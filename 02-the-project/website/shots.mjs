@@ -50,6 +50,10 @@ const SHOTS = [
   // brokerage, and an empty board photographs as a broken product. The
   // 500-character guard caught that on the first run.
   { file: "shot-leads-desktop.webp", path: "/leads", w: 1040, h: 760, cap: [1600, 1600] },
+  // An agent's microsite, as a client opens it — the public page, so the
+  // session cookie is simply ignored. Lena's is live in the seed.
+  { file: "shot-microsite-desktop.webp", path: "/p/seed-marina/agents/lena-popescu", w: 1040, h: 760, cap: [1600, 1600] },
+  { file: "shot-microsite-phone.webp", path: "/p/seed-marina/agents/lena-popescu", w: 390, h: 844, cap: [760, 1400], mobile: true },
 ];
 
 const b = await pw.chromium.launch({ executablePath: chromePath() });

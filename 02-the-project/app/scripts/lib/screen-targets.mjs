@@ -50,6 +50,10 @@ const [lead, kyc, listing, convo, orgSlug, publicListing, vendor, invoice] = awa
   db.vendor.findFirst({ where: { orgId: org.id }, select: { id: true } }),
   db.invoice.findFirst({ where: { orgId: org.id }, orderBy: { issuedAt: "desc" }, select: { number: true } }),
 ]);
+// A live agent microsite, which the seed publishes for Lena.
+const site = await db.agentMicrosite.findFirst({
+  where: { orgId: org.id, publishedAt: { not: null }, disabledAt: null }, orderBy: { slug: "asc" }, select: { slug: true },
+});
 
 /**
  * Keyed by the token the folder uses, which is why the folders are
@@ -76,6 +80,8 @@ const SUBST = {
   // mounted, because nothing here knew how to fill the token — honest,
   // and it meant the one screen an owner is shown was never walked.
   "[vendorId]": vendor?.id,
+  // An agent's microsite: `/p/<brokerage>/agents/<agent>`.
+  "[agent]": site?.slug,
   // The invoice document. The seed issues one through the real
   // invoicing code, so this is a real number from the real series.
   "[number]": invoice?.number,
