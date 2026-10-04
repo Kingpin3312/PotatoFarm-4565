@@ -108,7 +108,11 @@ async function main() {
   const matched = await L.buyers({ listingId: flat.id });
   ok("matched: the flat finds her", json(matched).includes("Priya Nair"), json(matched).slice(0, 120));
   const T = as(tasksRouter, agent.id, "AGENT");
-  const due = new Date(Date.now() + 2 * 3_600_000).toISOString();
+  // Two hours from now, but never past the end of the Dubai day (UTC+4,
+  // no daylight saving): after 22:00 there, "in two hours" is tomorrow and
+  // correctly not on Today, so the check failed every evening.
+  const dubaiMidnight = Math.ceil((Date.now() + 4 * 3_600_000) / 86_400_000) * 86_400_000 - 4 * 3_600_000;
+  const due = new Date(Math.min(Date.now() + 2 * 3_600_000, dubaiMidnight - 60_000)).toISOString();
   await T.create({ title: "Send Priya the Marina Gate floor plan", dueAt: due, leadId: lead.id });
   const onToday = await as(todayRouter, agent.id, "AGENT").followUps();
   ok("follow-up: on the agent's Today, named", onToday.some((f) => f.title.includes("Priya") && f.lead?.name === "Priya Nair"));
