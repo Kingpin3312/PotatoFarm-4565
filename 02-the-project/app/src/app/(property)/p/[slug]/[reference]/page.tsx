@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { publicListing, enquiryText, viewingText } from "@/server/lib/listings/public";
 import { aedWhole } from "@/lib/money";
 import { Logo } from "@/components/brand/logo";
+import { EnquiryForm } from "../../enquiry-form";
+import { isKnownProblem } from "@/server/lib/listings/enquiry-form";
 
 type Params = { params: Promise<{ slug: string; reference: string }> };
 
@@ -68,8 +70,11 @@ function facts(l: NonNullable<Awaited<ReturnType<typeof publicListing>>>) {
 const wa = (number: string, text: string) =>
   `https://wa.me/${number.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(text)}`;
 
-export default async function PropertyPage({ params }: Params) {
+export default async function PropertyPage({ params, searchParams }: Params & {
+  searchParams: Promise<{ sent?: string; problem?: string }>;
+}) {
   const { slug, reference } = await params;
+  const sp = await searchParams;
   const l = await publicListing(slug, decodeURIComponent(reference));
   if (!l) notFound();
 
@@ -87,7 +92,8 @@ export default async function PropertyPage({ params }: Params) {
           its name on a brochure: small, spaced, and first. */}
       <header className="border-b border-rule">
         <div className="mx-auto max-w-[880px] px-6 py-6 flex items-center justify-between gap-4">
-          <p className="text-note font-medium text-ink uppercase tracking-[0.24em]">{l.brokerage}</p>
+          {/* The brokerage's name is the way to everything else it has. */}
+          <a href={`/p/${encodeURIComponent(slug)}`} className="text-note font-medium text-ink uppercase tracking-[0.24em] no-underline hover:underline">{l.brokerage}</a>
           <p className="text-note text-ink-3 uppercase tracking-[0.18em]">
             {l.purpose === "RENT" ? "To let" : "For sale"}
           </p>
@@ -186,6 +192,11 @@ export default async function PropertyPage({ params }: Params) {
           </dl>
         </section>
 
+        {/* For the buyer who will not open WhatsApp from a web page. */}
+        <EnquiryForm slug={slug} back={`/p/${encodeURIComponent(slug)}/${encodeURIComponent(l.reference)}`} reference={l.reference}
+                     sent={sp.sent === "1"} problem={sp.problem && isKnownProblem(sp.problem) ? sp.problem : null}
+                     heading={l.whatsapp ? "Or leave your details" : "Ask about this property"} />
+
         {(l.agent || l.reraBrokerCard) && (
           <section className="mt-14" aria-labelledby="agent">
             <h2 id="agent" className="text-note text-ink-3 uppercase tracking-[0.18em]">Your agent</h2>
@@ -206,7 +217,7 @@ export default async function PropertyPage({ params }: Params) {
          */}
         <footer className="mt-16 pt-6 border-t border-rule flex flex-wrap justify-between gap-4 text-label text-ink-3">
           <p>Trakheesi permit {l.permitNumber}</p>
-          <p>{l.brokerage}</p>
+          <a href={`/p/${encodeURIComponent(slug)}`} className="no-underline hover:underline text-ink-3">All properties from {l.brokerage}</a>
         </footer>
         <a href="https://potatofarm.io" rel="noopener"
            className="mt-8 inline-flex items-center gap-3 no-underline text-note text-ink-3 hover:text-ink-2 focus-visible:outline-none focus-visible:shadow-[var(--ring)] rounded-sm">

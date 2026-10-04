@@ -430,6 +430,8 @@ jobs:
         run: npm run check:ownership
       - name: The buyer's property page
         run: npm run check:public-listing
+      - name: A brokerage's own page, and its enquiry form
+        run: npm run check:listings-page
       - name: A reportable transaction reaches the compliance officer
         run: npm run check:rear
       - name: A new enquiry reaches the right agent

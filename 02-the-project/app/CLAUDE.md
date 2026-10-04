@@ -102,7 +102,7 @@ What is verified today, measured rather than assumed:
   `/api/health` returns `200 {"ok":true}` against a real Postgres.
 - The boot log names every unconfigured service with its consequence —
   six of them in a bare development environment.
-- 459 assertions in 34 files, 68 check suites, 23 audits, all green —
+- 467 assertions in 35 files, 69 check suites, 23 audits, all green —
   and since 3 October 2026, **all of them run in CI**, which was not
   true before it. See *Run the tests*.
 
@@ -372,6 +372,26 @@ is byte-for-byte the card of one that never existed —
 on Listings and **Send a property** in the composer (`listings.share`,
 which calls `publicListing` exactly as a stranger's browser does, so the
 button cannot offer a link the page then refuses).
+
+**A brokerage's own page, and the form on it.** `/p/<slug>` lists every
+property the brokerage may advertise — `publicBrokerage` takes the same
+rows the single page would (AVAILABLE, a permit, `PUBLIC_REQUIREMENTS`)
+and 404s when there are none, so a new brokerage has no empty shop
+window. Agents reach it from **Share your listings page** on Listings
+(`listings.sharePage`, which calls `publicBrokerage` for the same
+reason as Share link). Both pages carry an enquiry form: a plain HTML
+POST to `p/[slug]/enquire`, answered with a 303 back to the page —
+`back` must be the brokerage's own path, so the route is not an open
+redirect. `readEnquiryForm` (pure, unit-tested) reads it; a filled
+honeypot is answered as a success and recorded as nothing; a link in
+the message is refused; `property.enquiry` limits by IP and by phone.
+The page shows a problem only if `isKnownProblem` says it is one of the
+form's own sentences, so a crafted `?problem=` cannot put words on a
+brokerage's page. A posted reference is attached only if `publicListing`
+would show it. The enquiry goes through `ingestEnquiry` like every
+other source, on a `WEBSITE_FORM` channel "Your listings page" made on
+first use, so it dedupes by phone and appears in the by-channel report.
+`check:listings-page` covers all of it over HTTP.
 
 **Every new listing has an exact place, and the tree is not the
 brokerage's.** `Location` is shared reference data — no `orgId`, no RLS —
@@ -936,8 +956,8 @@ send path read it.
 
 ## Run the tests
 
-    npm test          # 459 assertions, pure functions, no database
-    npm run verify    # tsc, eslint, the tests, 68 check suites, 23 audits
+    npm test          # 467 assertions, pure functions, no database
+    npm run verify    # tsc, eslint, the tests, 69 check suites, 23 audits
 
 **Until 3 October 2026, sixteen of the check suites and four of the browser suites
 had never run in CI, while this file said the gate ran "every check
@@ -1019,7 +1039,7 @@ skip as a pass, and for a long time it reported two:
   leaving you to guess.
 
 `npm test` was declared from day one with no test files behind it, so it
-exited 1 and said "No test files found". There are 34 test files now, and
+exited 1 and said "No test files found". There are 35 test files now, and
 they cover the pure logic where being wrong is silent: the fils unit, the
 24-hour window on both sides of the boundary, Dubai sending hours, the
 search parser's plural intents and budget bands, lead scoring, deal

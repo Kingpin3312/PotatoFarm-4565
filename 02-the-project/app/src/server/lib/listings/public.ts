@@ -222,3 +222,82 @@ export function viewingText(l: Pick<PublicListing, "reference" | "title">) {
 
 /** Where a property's page lives. One place builds it: `lib/listing-paths`. */
 export { propertyPath };
+
+/** One property on the brokerage's page: enough to choose, and the way in. */
+export type PublicCard = {
+  reference: string;
+  title: string;
+  purpose: "SALE" | "RENT";
+  priceFils: bigint | null;
+  community: string | null;
+  bedrooms: number | null;
+  bathrooms: number | null;
+  areaSqft: number | null;
+  /** The cover photograph's address under the property's own page, or null. */
+  cover: string | null;
+  href: string;
+};
+
+const PAGE_LIMIT = 200;
+
+/**
+ * Every property a brokerage advertises, as a stranger may see them.
+ *
+ * The brokerage's own page: what it has, under its name, with a way to
+ * ask. Kendal builds brokerages a website; most of what a buyer wants
+ * from one is this list and that form, and both come from rows the
+ * brokerage already keeps.
+ *
+ * **Each card passes the property page's own gate** — available, not
+ * deleted, a permit, a photo — so nothing is listed here that its page
+ * would refuse, and a property withdrawn from one is withdrawn from both.
+ * A brokerage with nothing it may advertise gets the same answer as one
+ * that does not exist, so the address cannot be used to find out who is
+ * a customer.
+ */
+export async function publicBrokerage(slug: string, purpose: "SALE" | "RENT" | null = null) {
+  const db = crossTenant("global-key");
+  const org = await db.organisation.findUnique({ where: { slug }, select: { id: true, name: true, deletedAt: true } });
+  if (!org || org.deletedAt) return null;
+
+  const rows = await db.listing.findMany({
+    where: { orgId: org.id, deletedAt: null, status: "AVAILABLE", permitNumber: { not: null } },
+    orderBy: { updatedAt: "desc" },
+    take: PAGE_LIMIT,
+    select: {
+      id: true, status: true, reference: true, title: true, purpose: true, priceFils: true,
+      community: true, building: true, bedrooms: true, bathrooms: true, areaSqft: true,
+      permitNumber: true, permitExpiresAt: true, reraBrokerCard: true, descriptions: true,
+    },
+  });
+  const shown = rows.filter((r) =>
+    !blocking(validateForPublish(r as never, PUBLIC_REQUIREMENTS, photoList(r.descriptions).length)).length);
+  if (!shown.length) return null;
+
+  // Covers in one query rather than one per card: the first id in each
+  // listing's order that names a stored photograph of that listing.
+  const photos = await db.attachment.findMany({
+    where: { orgId: org.id, kind: "PHOTO", listingId: { in: shown.map((r) => r.id) } },
+    select: { id: true, listingId: true },
+  });
+  const stored = new Set(photos.map((p) => `${p.listingId}:${p.id}`));
+
+  const all: PublicCard[] = shown.map((r) => {
+    const href = propertyPath(slug, r.reference);
+    const coverId = photoList(r.descriptions).find((id) => stored.has(`${r.id}:${id}`));
+    return {
+      reference: r.reference, title: r.title, purpose: r.purpose === "RENT" ? "RENT" : "SALE",
+      priceFils: r.priceFils, community: r.community, bedrooms: r.bedrooms, bathrooms: r.bathrooms,
+      areaSqft: r.areaSqft, cover: coverId ? photoPath(href, coverId) : null, href,
+    };
+  });
+  const channel = await db.channel.findFirst({
+    where: { orgId: org.id, type: "WHATSAPP", active: true }, select: { identifier: true },
+  });
+  return {
+    brokerage: org.name,
+    whatsapp: channel?.identifier ?? null,
+    cards: purpose ? all.filter((c) => c.purpose === purpose) : all,
+    counts: { all: all.length, sale: all.filter((c) => c.purpose === "SALE").length, rent: all.filter((c) => c.purpose === "RENT").length },
+  };
+}

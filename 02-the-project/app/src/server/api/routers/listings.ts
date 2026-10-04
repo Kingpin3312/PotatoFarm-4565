@@ -10,7 +10,7 @@ import { aedToFils, filsToAed } from "@/lib/money";
 import { toCsv } from "@/lib/csv";
 import type { Prisma } from "@prisma/client";
 import { placesIn, storedVariants } from "@/server/lib/places";
-import { publicListing, propertyPath, PUBLIC_REQUIREMENTS } from "@/server/lib/listings/public";
+import { publicBrokerage, publicListing, propertyPath, PUBLIC_REQUIREMENTS } from "@/server/lib/listings/public";
 import { resolveLocation, listingNames } from "@/server/lib/locations";
 import {
   PHOTO_LIMIT, PHOTO_MAX_BYTES, PHOTO_TYPES, PHOTO_URL_SECONDS, photoList, photoPrefix, realPhotos,
@@ -614,6 +614,20 @@ export const listingsRouter = router({
    * The listing is read through the scoped client first, so an id from
    * another brokerage is simply not found.
    */
+  /**
+   * The brokerage's own page (`/p/<slug>`), for an agent to send — or why
+   * there is none yet. Asked of `publicBrokerage` exactly as a stranger's
+   * browser asks it, so the button cannot offer a page that then 404s.
+   */
+  sharePage: requirePermission("listing:read").query(async ({ ctx }) => {
+    const org = await crossTenant("user-scoped").organisation.findUnique({ where: { id: ctx.orgId }, select: { slug: true } });
+    const page = org ? await publicBrokerage(org.slug) : null;
+    if (!org || !page) {
+      return { ok: false as const, reason: "Nothing can be advertised yet. A property needs to be available, with a permit and a photo, to appear on your page." };
+    }
+    return { ok: true as const, path: `/p/${encodeURIComponent(org.slug)}`, count: page.counts.all, brokerage: page.brokerage };
+  }),
+
   share: requirePermission("listing:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {

@@ -16,6 +16,7 @@ import { EditListing } from "./edit-listing";
 import { Photos } from "./photos";
 import { CheckCopy } from "./check-copy";
 import { ShareLink } from "./share-link";
+import { SharePage } from "./share-page";
 import { download } from "@/lib/download";
 import { TYPE_OPTIONS } from "./add-property";
 
@@ -140,7 +141,8 @@ function Listings() {
         {/* `ms-auto` so it sits at the end of the header on a desktop
             and wraps under the heading on a phone, where the flex-wrap
             above puts it on its own line at full reach of a thumb. */}
-        <div className="ms-auto flex items-center gap-4">
+        <div className="ms-auto flex flex-wrap items-center justify-end gap-x-4 min-w-0">
+          <SharePage />
           {manager && (
             <button type="button" className="btn-inline min-h-11" disabled={exporter.isPending}
               onClick={() => exporter.mutate(filters)}>

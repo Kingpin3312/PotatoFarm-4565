@@ -9,7 +9,7 @@ the single most important sentence in this document, because the natural
 instinct on arriving at a large codebase is to find something to build,
 and building is not what this project needs.
 
-The gate is green: `tsc` clean, 459 unit assertions, 68 check suites, 23
+The gate is green: `tsc` clean, 467 unit assertions, 69 check suites, 23
 audit scripts, all browser suites, and a production build that succeeds.
 CI runs the lot on every push — **as of 3 October 2026, and not before**:
 sixteen of the check suites and four of the browser suites had never run in CI while
@@ -142,7 +142,7 @@ After the build, four passes that each found real faults:
 | Security | 131 undeclared RLS bypasses, all safe, none announced | `SECURITY-REVIEW.md` |
 | Board audit | An unthrottled sign-in endpoint; alerts that never left the process; two checks that had been passing while measuring nothing | this file, `OPERATIONS.md`, and the commit log |
 
-All 68 check suites are green. Read the reports before changing
+All 69 check suites are green. Read the reports before changing
 anything structural — several of the fixes look like preferences and are
 not.
 

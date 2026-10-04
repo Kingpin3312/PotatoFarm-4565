@@ -74,6 +74,14 @@ const RULES: Record<string, { short: [number, number]; long: [number, number] }>
    */
   "website.demo":      { short: [3, 300], long: [15, 86_400] },
   "website.subscribe": { short: [3, 300], long: [15, 86_400] },
+  /**
+   * A buyer's enquiry from a brokerage's own pages (`/p/<slug>`). Each
+   * one becomes a lead and lands on an agent's list, so the thing worth
+   * protecting is the agents' attention: a flood of invented buyers is a
+   * brokerage that stops trusting its own leads. Keyed on the address and
+   * the phone, so one buyer asking about three properties is fine.
+   */
+  "property.enquiry":  { short: [5, 600], long: [20, 86_400] },
 
   /**
    * Voice notes. Looser than the forms, because an agent legitimately
