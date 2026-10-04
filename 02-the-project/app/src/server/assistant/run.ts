@@ -11,7 +11,9 @@ import { buildSystemPrompt, PROMPT_VERSION, type GenerationTrace } from "./promp
 import { screenInbound, screenOutbound } from "./guardrails";
 import { extraction, sane, needsConfirmation, EXTRACTION_SHAPE } from "./extract";
 import { requirementFromExtraction } from "@/server/lib/requirements/save";
-import { storeAnswers } from "./answers";
+import { qualificationState, storeAnswers } from "./answers";
+import { moveLeadTo } from "@/server/lib/pipeline/advance";
+import { makeOffer, sendOnThread } from "@/server/lib/viewings/offer";
 import { HANDOVER_TRIGGERS, type HandoverReason } from "./policy";
 import { gate, isMuted, record } from "./controls";
 import { dispatch } from "@/server/lib/notify/dispatch";
@@ -567,12 +569,65 @@ async function extractAndStore(
     // reason `profileId` is a parameter. `answers.ts` has the account of
     // what was missing when it was not used.
     await storeAnswers(db, { orgId, leadId, profileId, extracted: parsed });
+    /**
+     * And the lead moves on as the script is answered — forward only, so
+     * an agent's own move is never undone and a closed file never
+     * reopens (`moveLeadTo`). `qualificationState` has the account of
+     * why nothing did this before.
+     */
+    const reached = await qualificationState(db, leadId, profileId);
+    if (reached) {
+      const moved = await db.$transaction(async (tx) => {
+        const did = await moveLeadTo(tx as never, leadId, reached, { forwardOnly: true });
+        if (did) {
+          await audit(tx, orgId, { actorId: null, action: "lead.qualified_by_assistant", entity: "Lead", entityId: leadId, after: { status: reached } });
+        }
+        return did;
+      });
+      if (moved && reached === "QUALIFIED") await onQualified(orgId, leadId);
+    }
     // And what they are looking for, as a requirement matching can use.
     await requirementFromExtraction(db, orgId, leadId, parsed);
   } catch (err) {
     // Extraction failing is a degraded lead record, not a failed
     // conversation. Never let it surface to the person messaging.
     report(err, { orgId }, { leadId, stage: "extraction" });
+  }
+}
+
+/**
+ * The buyer has answered the script: offer them real times.
+ *
+ * Only where the owner has let the assistant send by itself, and only
+ * through the same stops every assistant message meets — the kill
+ * switch, "I've got this", a handover, an agent already in the thread,
+ * the 24-hour window (`sendOnThread`). Everywhere else the agent offers
+ * times from the thread with one tap (`viewings.offerTimes`). Either way
+ * nothing is booked until the agent confirms the buyer's pick.
+ */
+async function onQualified(orgId: string, leadId: string) {
+  try {
+    const settings = await crossTenant("sweep").assistantSettings.findUnique({
+      where: { orgId }, select: { autoReply: true, autoReplyOutOfHours: true },
+    });
+    if (!settings?.autoReply) return;
+    if (settings.autoReplyOutOfHours && (await isOpen(orgId))) return;
+    if (!(await gate(orgId)).allowed) return;
+    const convo = await forOrg(orgId).conversation.findFirst({
+      where: { leadId },
+      select: { id: true, humanHandover: true, _count: { select: { messages: { where: { author: "AGENT" } } } } },
+    });
+    if (!convo || convo.humanHandover || convo._count.messages > 0 || (await isMuted(convo.id))) return;
+    const offer = await makeOffer(orgId, convo.id);
+    if (!offer.ok) return;
+    const sent = await sendOnThread(orgId, convo.id, offer.text, { author: "ASSISTANT" });
+    // An offer the buyer never saw is no offer: close it, so a later "2"
+    // is not read against times they were never sent.
+    if (!sent.sent) {
+      await forOrg(orgId).viewingOffer.update({ where: { id: offer.offerId }, data: { closedAt: new Date() } });
+    }
+  } catch (err) {
+    report(err, { orgId }, { leadId, stage: "viewing_offer" });
   }
 }
 

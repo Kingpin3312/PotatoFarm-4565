@@ -486,6 +486,7 @@ model Conversation {
 
   org      Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
   drafts   ReplyDraft[]
+  viewingOffers ViewingOffer[]
   lead     Lead?        @relation(fields: [leadId], references: [id], onDelete: Cascade)
   vendor   Vendor?      @relation(fields: [vendorId], references: [id], onDelete: Cascade)
   channel  Channel      @relation(fields: [channelId], references: [id])
@@ -924,6 +925,10 @@ model Viewing {
   /// Slots the assistant has offered but nobody has accepted yet. Without
   /// a hold, two leads offered the same 10:00 both take it.
   heldUntil DateTime?
+  /// Set when the hold is a buyer's pick from the assistant's offer, waiting
+  /// for the agent to confirm. Such a hold is never silently released: a
+  /// lapsed request goes on the agent's list (`reminders.ts`).
+  requestedAt DateTime?
 
   /// Reminder state. Nulls mean not yet sent; this is what stops a retry
   /// sending the same reminder twice.
@@ -3715,4 +3720,25 @@ model Opportunity {
   @@index([orgId, leadId])
   @@index([orgId, stageId])
   @@index([orgId, agentId])
+}
+
+/// Up to three of an agent's real free times, offered to a buyer on
+/// WhatsApp, and the viewing the buyer's pick became. At most one open
+/// offer per conversation; a newer one closes the older. Nothing here is
+/// a booking — the agent confirms (`viewings.confirmRequest`).
+model ViewingOffer {
+  id             String     @id @default(cuid())
+  orgId          String
+  conversationId String
+  leadId         String
+  listingId      String?
+  agentId        String
+  slots          DateTime[]
+  createdAt      DateTime   @default(now())
+  closedAt       DateTime?
+  viewingId      String?
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, conversationId, closedAt])
 }

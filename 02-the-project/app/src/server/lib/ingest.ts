@@ -9,6 +9,7 @@ import { reply } from "@/server/assistant/run";
 import { detectLanguage } from "@/server/lib/language";
 import { mentionedPortal, referenceCandidates, PORTAL_LABEL } from "@/server/lib/portals/mention";
 import { refVariants } from "@/lib/reference";
+import { handlePick } from "@/server/lib/viewings/offer";
 
 /**
  * Inbound WhatsApp.
@@ -57,6 +58,16 @@ export async function ingest(payload: any) {
          * rest (kill switch, handover, mute, the window) in `prepare`.
          */
         if (fresh) {
+          /**
+           * A pick from the viewing times they were offered becomes a
+           * held request for the agent (`viewings/offer.ts`) — before the
+           * reply, so the reply is drafted knowing it.
+           */
+          const text = msg.text?.body ?? msg.button?.text ?? msg.interactive?.list_reply?.title;
+          if (text) {
+            await handlePick(channel.orgId, fresh.conversationId, text).catch((err) =>
+              log.error("[whatsapp] could not read a viewing pick", { orgId: channel.orgId }, { reason: String(err).slice(0, 200) }));
+          }
           await reply(channel.orgId, fresh.conversationId, fresh.messageId, msg.id).catch((err) =>
             log.error("[whatsapp] could not reply", { orgId: channel.orgId }, { reason: String(err).slice(0, 200) }));
         }

@@ -66,3 +66,28 @@ export async function storeAnswers(
   }
   return written;
 }
+
+/**
+ * Where the buyer is in the brokerage's script, from the answers stored.
+ *
+ * Nothing moved a lead on when the assistant had its answers: no code
+ * set QUALIFYING or QUALIFIED from this side, so the board's "Qualified"
+ * column filled only by hand, a brokerage with automatic replies on kept
+ * qualifying a buyer for ever (`sendsItself` reads NEW or QUALIFYING), and
+ * "qualified and unclaimed" could never fire for anybody the assistant
+ * qualified. Every required question answered is QUALIFIED; any answered
+ * is QUALIFYING; none is no change. A profile with no required questions
+ * qualifies nobody — it has said nothing about what qualified means.
+ */
+export async function qualificationState(
+  db: ReturnType<typeof forOrg>, leadId: string, profileId: string,
+): Promise<"QUALIFIED" | "QUALIFYING" | null> {
+  const [required, answered] = await Promise.all([
+    db.question.findMany({ where: { profileId, required: true }, select: { id: true } }),
+    db.answer.findMany({ where: { leadId, profileId }, select: { questionId: true } }),
+  ]);
+  if (!answered.length) return null;
+  const have = new Set(answered.map((a) => a.questionId));
+  if (required.length && required.every((q) => have.has(q.id))) return "QUALIFIED";
+  return "QUALIFYING";
+}

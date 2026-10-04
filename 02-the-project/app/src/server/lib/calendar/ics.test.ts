@@ -199,6 +199,11 @@ describe("a cancelled viewing", () => {
   it("and a live one is confirmed", () => {
     expect(ics()).toContain("STATUS:CONFIRMED");
   });
+
+  it("but one only held — a buyer's pick nobody has confirmed — is tentative", () => {
+    expect(ics({ tentative: true })).toContain("STATUS:TENTATIVE");
+    expect(ics({ tentative: true })).not.toContain("STATUS:CONFIRMED");
+  });
 });
 
 describe("what the agent reads on the lock screen", () => {

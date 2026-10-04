@@ -81,7 +81,7 @@ export async function GET(
     orderBy: { scheduledAt: "asc" },
     select: {
       id: true, scheduledAt: true, durationMins: true, address: true,
-      building: true, accessNote: true, status: true, updatedAt: true,
+      building: true, accessNote: true, status: true, updatedAt: true, heldUntil: true,
       lead: { select: { name: true, phone: true } },
       listing: { select: { reference: true } },
     },
@@ -96,6 +96,7 @@ export async function GET(
       building: v.building,
       accessNote: v.accessNote,
       status: v.status,
+      tentative: v.status === "SCHEDULED" && v.heldUntil !== null,
       updatedAt: v.updatedAt,
       leadName: v.lead?.name ?? null,
       leadPhone: v.lead?.phone ?? null,

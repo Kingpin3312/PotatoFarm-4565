@@ -198,8 +198,11 @@ async function main() {
   await send(a, "Also interested in DH-509");
   await send(a, "And is MG-202 still free?");
   const ea2 = await enquiriesOf(la.id);
+  // As a set: WhatsApp stamps whole seconds, so two messages a moment
+  // apart can share a timestamp and come back in either order.
   ok("gets one enquiry for a new property and none for asking about the same one again",
-     ea2.length === 2 && ea2[1]!.listingId === hills.id, JSON.stringify(ea2.map((x) => x.listingId)));
+     ea2.length === 2 && new Set(ea2.map((x) => x.listingId)).size === 2 && ea2.some((x) => x.listingId === hills.id),
+     JSON.stringify(ea2.map((x) => x.listingId)));
   const before = await root.enquiry.count({ where: { orgId: org.id } });
   await send(b, "redelivered", ids[1]);
   ok("a redelivered message adds nothing", (await root.enquiry.count({ where: { orgId: org.id } })) === before);

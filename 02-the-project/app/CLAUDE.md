@@ -102,7 +102,7 @@ What is verified today, measured rather than assumed:
   `/api/health` returns `200 {"ok":true}` against a real Postgres.
 - The boot log names every unconfigured service with its consequence —
   six of them in a bare development environment.
-- 447 assertions in 33 files, 67 check suites, 23 audits, all green —
+- 459 assertions in 34 files, 68 check suites, 23 audits, all green —
   and since 3 October 2026, **all of them run in CI**, which was not
   true before it. See *Run the tests*.
 
@@ -936,8 +936,8 @@ send path read it.
 
 ## Run the tests
 
-    npm test          # 447 assertions, pure functions, no database
-    npm run verify    # tsc, eslint, the tests, 67 check suites, 23 audits
+    npm test          # 459 assertions, pure functions, no database
+    npm run verify    # tsc, eslint, the tests, 68 check suites, 23 audits
 
 **Until 3 October 2026, sixteen of the check suites and four of the browser suites
 had never run in CI, while this file said the gate ran "every check
@@ -1019,7 +1019,7 @@ skip as a pass, and for a long time it reported two:
   leaving you to guess.
 
 `npm test` was declared from day one with no test files behind it, so it
-exited 1 and said "No test files found". There are 33 test files now, and
+exited 1 and said "No test files found". There are 34 test files now, and
 they cover the pure logic where being wrong is silent: the fils unit, the
 24-hour window on both sides of the boundary, Dubai sending hours, the
 search parser's plural intents and budget bands, lead scoring, deal
@@ -1394,6 +1394,20 @@ with an empirical floor under it.
   (the default), outside working hours only, or always (the demo
   brokerage). Past qualification, and in any
   thread an agent has written in, every reply is still a draft.
+- **Real viewing times, confirmed by the agent.** The assistant's script
+  ended "say an agent will confirm the time" with no time, and — the
+  shape again — **nothing ever moved a lead to Qualified**: no code set
+  QUALIFYING or QUALIFIED from the assistant's side, so the board's
+  Qualified column filled only by hand and an assistant with automatic
+  replies on qualified a buyer for ever. Now the lead moves as the
+  required answers arrive, and a qualified buyer is offered up to three
+  of the agent's actual free times (code writes the times, never the
+  model); their pick is held as a request (`Viewing.requestedAt`) on the
+  agent's Viewings, and **only the agent's Confirm books it and tells the
+  buyer** — the owner's decision of 4 October 2026. A request nobody
+  answers lands on the agent's list instead of lapsing silently, and the
+  calendar feed publishes any held slot TENTATIVE rather than CONFIRMED.
+  `assistant/README.md` (Booking), `check:viewing-offers`.
 - ~~**Erasure and data export for owners.**~~ **Built**, with two faults
   found on the way that were not about owners at all. Erasure left every
   name that later work had written — follow-up titles, alerts, private

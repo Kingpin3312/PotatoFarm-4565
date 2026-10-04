@@ -25,6 +25,13 @@ export function ThreadControls({ conversationId, muted, windowOpen, handover, ow
   const mute = api.conversations.mute.useMutation();
   const takeover = api.conversations.takeover.useMutation();
   const sendTemplate = api.conversations.sendTemplate.useMutation();
+  const utils = api.useUtils();
+  // Real free times from the agent's diary and calendar, sent as the
+  // agent's own message; the buyer's pick comes back to Viewings to
+  // confirm (`viewings.offerTimes`).
+  const offerTimes = api.viewings.offerTimes.useMutation({
+    onSuccess: () => void utils.conversations.thread.invalidate({ conversationId }),
+  });
   const [picking, setPicking] = useState(false);
 
   return (
@@ -36,6 +43,15 @@ export function ThreadControls({ conversationId, muted, windowOpen, handover, ow
           {muted ? "Assistant is off here" : "I've got this"}
         </Button>
       )}
+
+      {!owner && windowOpen && (
+        <Button variant="secondary" loading={offerTimes.isPending}
+          onClick={() => offerTimes.mutate({ conversationId })}>
+          Offer viewing times
+        </Button>
+      )}
+      {offerTimes.isSuccess && <span role="status" className="text-sm text-ink-2">Sent {offerTimes.data.slots.length} times. Their pick waits for you on Viewings.</span>}
+      {offerTimes.isError && <span role="alert" className="text-sm text-danger">{offerTimes.error.message}</span>}
 
       {handover && !owner && (
         <Button variant="secondary" loading={takeover.isPending}

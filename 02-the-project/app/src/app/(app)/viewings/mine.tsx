@@ -30,7 +30,7 @@ export function MyViewings() {
              className="flex items-baseline gap-3 py-3 border-b border-rule no-underline">
             <span className="font-mono text-label text-ink-3 tabular w-24 shrink-0">
               {new Date(v.scheduledAt).toLocaleString("en-GB",
-                { weekday: "short", hour: "2-digit", minute: "2-digit" })}
+                { weekday: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Dubai" })}
             </span>
             <span className="text-ui text-ink flex-1">{v.building ?? "—"}</span>
             <span className="text-sm text-ink-2 shrink-0">{(v.lead.name ?? v.lead.phone)}</span>
