@@ -59,6 +59,8 @@ const shots = [
   ["pub-two-step", "/sign-in/two-step", OWNER, D],
   ["pub-signup", "/signup", null, D],
   ["pub-listing", "/p/seed-marina/MG-202", null, D],
+  ["pub-brokerage", "/p/seed-marina", null, D],
+  ["pub-microsite", "/p/seed-marina/agents/lena-popescu", null, D],
   // owner desktop
   ["today", "/today", OWNER, T],
   ["inbox", "/inbox", OWNER, D],
@@ -102,6 +104,17 @@ const shots = [
   ["set-privacy", "/settings/privacy", OWNER, D],
   ["set-routing", "/settings/routing", OWNER, D],
   ["set-security", "/settings/security", OWNER, D],
+  ["set-microsites", "/settings/microsites", OWNER, D],
+  // an agent's own website, as the agent sees it
+  // The link as agents see it in the real product, not this development
+  // server's address (as in "x-send-property").
+  ["microsite", "/microsite", AGENT, D, async (p) => {
+    await p.evaluate(() => {
+      const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      for (let n; (n = w.nextNode());) n.nodeValue = n.nodeValue.replace("http://localhost:3000", "https://app.potatofarm.io");
+    });
+  }],
+  ["microsite-edit", "/microsite/edit", AGENT, D],
   // compliance officer
   ["compliance", "/compliance", MLRO, D],
   ["compliance-file", "/compliance/cmty36uqm00db7dxy4n6c2cio", MLRO, D],

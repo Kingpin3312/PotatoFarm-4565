@@ -6,6 +6,8 @@ import { Logo } from "@/components/brand/logo";
 import { EnquiryForm } from "../enquiry-form";
 import { isKnownProblem } from "@/server/lib/listings/enquiry-form";
 import { hasTeamPage } from "@/server/lib/microsite/public";
+import { Pic } from "@/components/microsite/art";
+import { propertyPicture } from "@/lib/microsite/imagery";
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -100,12 +102,10 @@ export default async function BrokeragePage({ params, searchParams }: Props) {
             return (
               <li key={c.reference} data-card={c.reference}>
                 <a href={c.href} className="block no-underline group">
-                  {c.cover ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={c.cover} alt={c.title} loading="lazy" className="w-full aspect-[3/2] object-cover rounded-md bg-sunk" />
-                  ) : (
-                    <div className="w-full aspect-[3/2] rounded-md bg-sunk" aria-hidden="true" />
-                  )}
+                  {/* The photo, else the area it is in, labelled as the area:
+                      never an empty grey box, never a stranger's property. */}
+                  <Pic picture={propertyPicture({ cover: c.cover, title: c.title, community: c.community, propertyType: c.propertyType, demo: false, seed: c.reference })}
+                       showLabel sizes="(min-width: 768px) 33vw, 100vw" className="w-full aspect-[3/2] rounded-md" />
                   {c.community && <p className="mt-4 text-note text-ink-3 uppercase tracking-[0.18em]">{c.community}</p>}
                   <p className="mt-2 text-body-lg text-ink group-hover:underline">{c.title}</p>
                   {facts && <p className="mt-1 text-sm text-ink-2 tabular">{facts}</p>}

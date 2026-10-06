@@ -445,7 +445,10 @@ agent's own profile and the CRM's records (deals with the agent's
 commission split, their value, listings, areas, languages); "How I can
 help" is derived from specialisms and what they list. Motion is one
 fade-up (`reveal.tsx` + `.ms-js` in `globals.css`), script-gated and off
-under `prefers-reduced-motion`.
+under `prefers-reduced-motion`. The brokerage's own listings page
+(`/p/<slug>`) uses the same `propertyPicture` for its cards, with
+`demo: false`: it showed empty grey boxes for unphotographed properties
+until the training manual's capture of it put one in print.
 
 **A WhatsApp channel's `identifier` is Meta's phone number ID, not a
 phone number.** The public pages used to build their `wa.me` links from
