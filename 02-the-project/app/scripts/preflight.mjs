@@ -128,6 +128,7 @@ if (process.env.PREFLIGHT_ENV !== "1") {
   skip("connection pooler", "set PREFLIGHT_ENV=1 to check a real environment");
   skip("secrets",           "set PREFLIGHT_ENV=1 to check a real environment");
   skip("file storage",      "set PREFLIGHT_ENV=1 to check a real environment");
+  skip("phone alerts",      "set PREFLIGHT_ENV=1 to check a real environment");
 } else {
   const env = (k) => (process.env[k] ?? "").trim();
 
@@ -183,6 +184,19 @@ if (process.env.PREFLIGHT_ENV !== "1") {
   const s3 = ["S3_BUCKET", "S3_ENDPOINT", "S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY"].filter((k) => !env(k));
   ok("file storage is configured", s3.length === 0,
      s3.length ? `${s3.join(", ")} unset — no listing can be published and no identity file completed` : "");
+
+  /**
+   * Phone alerts. Without the pair nothing fails — alerts land on the
+   * in-app list — which is exactly why it is checked here: a pilot whose
+   * agents' phones never buzz looks, from the inside, like a quiet week.
+   * Half a pair is worse than none (every subscribe is refused), and the
+   * checks-only stand-in origin must never reach production.
+   */
+  const vapid = ["VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY"].filter((k) => !env(k));
+  ok("phone alerts (web push) are configured", vapid.length === 0,
+     vapid.length ? `${vapid.join(", ")} unset — alerts reach the in-app list and no phone` : "");
+  ok("no test push service in production", !env("PUSH_TEST_ORIGIN"),
+     env("PUSH_TEST_ORIGIN") ? "PUSH_TEST_ORIGIN is for checks only; unset it" : "");
 
   /**
    * Development values are the ones that reach production, because they

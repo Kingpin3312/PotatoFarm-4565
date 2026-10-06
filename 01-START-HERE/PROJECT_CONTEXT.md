@@ -101,13 +101,17 @@ auth. **It cannot build.** No `app.json`, no `tsconfig.json`, no
 `babel.config.js`, no assets, and it targets Expo SDK 51 / React Native
 0.74. Its sign-in flow expects the web app to hand back a `?session=`
 token, which the web app cannot do. Treat it as a design sketch.
+Phone alerts no longer depend on it: since October 2026 they go to the
+installed web app by Web Push (`notify/web-push.ts`; turned on from
+Mine → Phone alerts). Whether a store app is built at all was left to
+the owner to decide from what the pilot shows.
 
 ---
 
 ## 4. What is built
 
-**86 database models · 69 enums · 39 API routers · 252 procedures ·
-53 screens · 30 scheduled jobs · 23 audit scripts · 70 check suites.**
+**86 database models · 69 enums · 39 API routers · 257 procedures ·
+53 screens · 30 scheduled jobs · 23 audit scripts · 71 check suites.**
 
 **Five procedures have no screen, and every one of them deliberately:**
 `aml.checkRear`, `aml.visibilityPolicy`, `onboarding.previewImport`,
@@ -436,8 +440,8 @@ Ask — an agent can see what they asked for earlier and what came back.
   parser, lead scoring, deal risk, the assistant's guardrails and the
   interface's Arabic — the
   pure logic where being wrong is expensive and silent. Everything
-  stateful is still covered only by the 70 check suites and the
-  30 browser checks, which is not the same thing as a test suite. What is
+  stateful is still covered only by the 71 check suites and the
+  31 browser checks, which is not the same thing as a test suite. What is
   left untested in `assistant/` is everything that needs a model:
   `run.ts` and `prompt.ts` are exercised only through `check:autonomy`
   and by replaying real transcripts. `extract.ts`'s mapping to answers

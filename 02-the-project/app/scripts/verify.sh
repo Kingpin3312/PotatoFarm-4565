@@ -343,6 +343,10 @@ else
   step "browser:mobile-agent" npm run --silent browser:mobile-agent
   # Every screen at 320px. Three scrolled sideways before it existed.
   step "browser:narrow" npm run --silent browser:narrow
+  step "browser:microsite" npm run --silent browser:microsite
+  # Phone alerts: the worker turning a push into a notification, a tap
+  # that never leaves the app, and the switch on the Me page.
+  step "browser:alerts" npm run --silent browser:alerts
 fi
 
 printf '\n%sAudits%s\n' "$bold" "$off"

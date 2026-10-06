@@ -102,7 +102,7 @@ What is verified today, measured rather than assumed:
   `/api/health` returns `200 {"ok":true}` against a real Postgres.
 - The boot log names every unconfigured service with its consequence —
   six of them in a bare development environment.
-- 494 assertions in 37 files, 70 check suites, 23 audits, all green —
+- 494 assertions in 37 files, 71 check suites, 23 audits, all green —
   and since 3 October 2026, **all of them run in CI**, which was not
   true before it. See *Run the tests*.
 
@@ -449,6 +449,32 @@ under `prefers-reduced-motion`. The brokerage's own listings page
 (`/p/<slug>`) uses the same `propertyPicture` for its cards, with
 `demo: false`: it showed empty grey boxes for unphotographed properties
 until the training manual's capture of it put one in print.
+
+**Phone alerts are web push to the installed web app, not a native app**
+(the owner's choice, 6 Oct 2026). Before it, no alert had ever reached a
+phone: `sendPush` only knew Expo, and the Expo app cannot build. Now
+`notify/web-push.ts` sends by the Web Push standard (VAPID-signed,
+payload encrypted to the browser's keys, so Google and Apple carry it
+unread) and `push.ts` sends to both kinds of device. Rules that must
+survive edits: **the endpoint is checked against the push services'
+hosts** (https, port 443, no credentials) on registration *and* before
+every send, because the server POSTs to a URL a browser handed it —
+`PUSH_TEST_ORIGIN` widens that for the check suite only and is ignored
+in production; **a browser subscription is tied to its sign-in
+session**, so ending the session (Settings → Security) stops that
+phone's alerts, and only the person who turned alerts on there can
+revive them (`refreshBrowser` filters by user); **404/410 means the
+browser dropped it** and it is never sent to again; and **"Push to my
+phone" off means no push** — `dispatch.ts` pushed regardless until
+this change, harmless only because nothing could receive it. iPhones
+get alerts only from the Home Screen app (iOS 16.4+), and the Me page
+says so instead of offering a button that cannot work. Keys:
+`VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`, one pair per deployment, never
+rotated casually (`check:preflight` names them when missing). Proved
+by `check:web-push` (a stand-in push service that verifies the
+signature and decrypts with its own RFC 8291 code; broken six ways to
+show each assertion bites) and `browser:alerts` (the worker, the tap
+that never leaves the app, and every state of the Me page section).
 
 **A WhatsApp channel's `identifier` is Meta's phone number ID, not a
 phone number.** The public pages used to build their `wa.me` links from
@@ -1021,7 +1047,7 @@ send path read it.
 ## Run the tests
 
     npm test          # 485 assertions, pure functions, no database
-    npm run verify    # tsc, eslint, the tests, 70 check suites, 23 audits
+    npm run verify    # tsc, eslint, the tests, 71 check suites, 23 audits
 
 **Until 3 October 2026, sixteen of the check suites and four of the browser suites
 had never run in CI, while this file said the gate ran "every check
@@ -1347,7 +1373,9 @@ with an empirical floor under it.
 - The Expo screens. `mobile/` has push, offline policy and auth, and
   cannot build: no `app.json`, no `tsconfig.json`, no `babel.config.js`,
   no assets, an Expo SDK two years old, and a sign-in flow expecting a
-  `?session=` token the web app cannot issue.
+  `?session=` token the web app cannot issue. Phone alerts no longer
+  wait on it (web push, above); whether to build a store app at all is
+  to be decided from what the pilot shows.
 - **A screening provider.** The write path exists now — `aml/screen.ts`,
   the nightly `aml.screening` sweep and `aml.rescreen` — and there is no
   vendor behind the `Screener` interface, because Dow Jones, Refinitiv

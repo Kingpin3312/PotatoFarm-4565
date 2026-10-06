@@ -132,7 +132,16 @@ export async function dispatch(args: {
      * Today that is every brokerage: nothing calls `registerDevice`
      * and `PushDevice` has never had a row.
      */
-    const delivery = await push(t.userId, args);
+    /**
+     * "Push to my phone" off means no phone, and until web push it was
+     * read only by the digest. This line pushed regardless — harmless
+     * while no phone could receive anything, and an alert to somebody
+     * who had switched them off the moment one could. Recorded either
+     * way, with `suppressed` left empty so the digest does not push it
+     * later: it is on the agent's notification list in the app, which
+     * is the route they kept.
+     */
+    const delivery = p.push ? await push(t.userId, args) : { sent: 0 };
     await record(args, { ...t, escalation: rung }, null, delivery.sent > 0);
     if (delivery.sent > 0) sent += 1;
   }

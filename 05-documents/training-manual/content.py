@@ -216,8 +216,10 @@ sec("me", "day", "My figures, availability and alerts", ["agent"],
     ["See what you are owed, what has been paid and what is forecast.",
      "<b>Send me new leads</b>: switch off and routing skips you. Leads you already have are not taken away.",
      "<b>Away</b>: set the first and last day you are off, with an optional note.",
+     "<b>Phone alerts</b>: on your phone, press <b>Turn on alerts on this phone</b> and choose Allow, then <b>Send a test</b>. A new lead, a buyer waiting and a viewing coming up then buzz your phone.",
      "<b>When not to buzz you</b>: quiet hours and days off. Anything that arrives then is held and sent once you are back, in one message. <b>Let urgent things through anyway</b> keeps a buyer waiting mid-conversation from being held."],
-    ["Quiet hours are in Dubai time, so they do not move when you travel."])
+    ["Quiet hours are in Dubai time, so they do not move when you travel.",
+     "Lost a phone? Sign it out in Settings → Security, and its alerts stop too."])
 
 # ----------------------------------------------------------------- deals
 sec("listings", "deals", "Listings", ["agent", "manager"],
@@ -537,7 +539,7 @@ sec("phone", "phone", "Using PotatoFarm.io on your phone", ["agent"],
     [("m-today", "Today."), ("m-inbox", "The Inbox."), ("m-person", "A person: Call, Message and Next step first."), ("x-m-more", "More: everything else.")],
     "Everything works on a phone, in the browser, and it installs to your home screen like an app. Navigation moves to a bar at the bottom, within reach of your thumb: <b>Today</b>, <b>Inbox</b>, <b>Diary</b>, <b>Pipeline</b> and <b>More</b>.",
     ["<b>Install it</b>: open PotatoFarm.io in Safari (iPhone) or Chrome (Android), then choose <b>Share → Add to Home Screen</b> (iPhone) or <b>Install app</b> (Android). It opens full-screen from the icon.",
-     "Turn on notifications when asked, so a buyer waiting reaches you.",
+     "<b>Turn on alerts</b>: from the installed app, open <b>Mine</b> (under More) → <b>Phone alerts</b>, press <b>Turn on alerts on this phone</b> and choose Allow. On an iPhone this works only from the Home Screen app.",
      "In the Inbox, open a conversation; <b>← All conversations</b> takes you back.",
      "On a person's page, <b>Call</b>, <b>Message</b> and <b>Next step</b> are the first things under the name.",
      "<b>More</b> opens everything else: Leads, Listings, Offers, Deals, Commission, Reports and Settings.",

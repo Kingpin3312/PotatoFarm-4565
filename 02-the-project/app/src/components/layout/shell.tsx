@@ -9,6 +9,7 @@ import { CommandPalette, PaletteButton } from "@/components/ui/command-palette";
 import { api } from "@/lib/trpc";
 import { Logo } from "@/components/brand/logo";
 import { useT } from "@/lib/i18n/provider";
+import { AlertsKeeper } from "./alerts-keeper";
 
 /**
  * The frame every screen sits in.
@@ -31,6 +32,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-dvh flex flex-col">
+      {/* Only inside a brokerage: alerts belong to a membership. */}
+      {active && <AlertsKeeper />}
       <header className="sticky top-0 z-50 bg-ground border-b border-rule-strong print:hidden">
         <div className="flex items-center gap-5 px-5 h-14">
           <Link href="/today" className="flex min-h-11 items-center no-underline">

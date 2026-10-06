@@ -333,6 +333,14 @@ jobs:
           done
           echo "the site server never came up"; exit 1
 
+      # Phone alerts need a signing key pair before `browser:alerts` can
+      # turn them on. A throwaway pair per run, written to the job's
+      # environment so `npm run start` below inherits it: nothing it
+      # signs can reach a real phone, and no key ever sits in the
+      # repository.
+      - name: Phone alert keys for this run
+        run: node -e 'const k=require("web-push").generateVAPIDKeys();require("fs").appendFileSync(process.env.GITHUB_ENV,"VAPID_PUBLIC_KEY="+k.publicKey+"\nVAPID_PRIVATE_KEY="+k.privateKey+"\nVAPID_SUBJECT=mailto:ci@example.invalid\n")'
+
       - name: Start the application
         run: |
           npm run build
@@ -375,6 +383,8 @@ jobs:
         run: npm run browser:narrow
       - name: An agent's microsite, edited and opened at every width
         run: npm run browser:microsite
+      - name: Phone alerts, from the push to the tap
+        run: npm run browser:alerts
       - name: Accessibility
         run: npm run browser:a11y
 

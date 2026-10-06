@@ -1664,13 +1664,28 @@ model PushDevice {
   failedAt   DateTime?
   failReason String?
 
+  /// A browser subscription's keys (RFC 8291): its payloads are encrypted
+  /// to these, so the push service carries them without reading them.
+  /// Null on Expo rows.
+  p256dh String?
+  auth   String?
+  /// The sign-in a browser subscription belongs to. Alerts go to it only
+  /// while that session lives, so signing a lost phone out — from any
+  /// other device — also stops its alerts. Null on Expo rows.
+  sessionId String?
+  /// What the agent sees in their list of devices: "iPhone", "Android".
+  label     String?
+
   @@index([userId, failedAt])
   @@index([orgId])
+  @@index([sessionId])
 }
 
 enum DevicePlatform {
   IOS
   ANDROID
+  /// The installed web app (or any browser), by the Web Push protocol.
+  WEB
 }
 
 // ---------------------------------------------------------------- money

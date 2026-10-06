@@ -97,6 +97,9 @@ const RULES: Record<string, { short: [number, number]; long: [number, number] }>
    * from anybody with a session.
    */
   "voice.transcribe":  { short: [20, 300], long: [200, 86_400] },
+
+  /** A test alert: enough to try it twice, not enough to spam a phone. */
+  "push.test":         { short: [3, 60], long: [30, 86_400] },
 };
 
 export async function limit(action: string, key: string): Promise<Verdict> {
