@@ -118,7 +118,8 @@ export function MyNotifications() {
           <span>
             <span className="block text-ui text-ink">Push to my phone</span>
             <span className="block text-note text-ink-3 max-w-[46ch] leading-snug">
-              Off means nothing reaches you at all. Quiet hours are the gentler version.
+              Off means no phone alerts. Everything is still on your list in the app, and quiet
+              hours are the gentler version.
             </span>
           </span>
         </label>
@@ -126,7 +127,12 @@ export function MyNotifications() {
         <label className="flex items-start gap-3">
           <input type="checkbox" checked={email} onChange={(e) => setEmail(e.target.checked)}
                  className="size-5 mt-0.5 accent-[var(--accent)]" />
-          <span className="block text-ui text-ink">Email me as well</span>
+          <span>
+            <span className="block text-ui text-ink">Email me as well</span>
+            <span className="block text-note text-ink-3 max-w-[46ch] leading-snug">
+              The same alerts, to the address you sign in with. Quiet hours apply to these too.
+            </span>
+          </span>
         </label>
 
         <div>

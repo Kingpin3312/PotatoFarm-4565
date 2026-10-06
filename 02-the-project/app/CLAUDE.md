@@ -475,6 +475,13 @@ by `check:web-push` (a stand-in push service that verifies the
 signature and decrypts with its own RFC 8291 code; broken six ways to
 show each assertion bites) and `browser:alerts` (the worker, the tap
 that never leaves the app, and every state of the Me page section).
+**"Email me as well" sends email now** (`notify/email.ts`, the same
+title, words and a button to the page), from the dispatcher and the
+digest; until then it was a checkbox that saved and did nothing. An
+alert counts as delivered if it reached the person by either route.
+**Both routes off still records the alert on the in-app list** — the
+dispatcher used to `continue` there, so an agent who wanted a quieter
+phone lost the alerts altogether.
 
 **A WhatsApp channel's `identifier` is Meta's phone number ID, not a
 phone number.** The public pages used to build their `wa.me` links from

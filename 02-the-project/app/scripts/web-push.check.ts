@@ -5,6 +5,7 @@ import { crossTenant } from "../src/server/db/client";
 import { orgRouter } from "../src/server/api/routers/org";
 import { sendPush } from "../src/server/lib/notify/push";
 import { dispatch } from "../src/server/lib/notify/dispatch";
+import { releaseHeld } from "../src/server/lib/notify/digest";
 import { pushEndpointProblem } from "../src/server/lib/notify/web-push";
 import { fatal } from "./fatal";
 
@@ -190,8 +191,8 @@ async function main() {
   console.log("\n=== Push to my phone, off ===");
   await root.notificationPrefs.upsert({
     where: { orgId_userId: { orgId: org.id, userId: agent.id } },
-    create: { orgId: org.id, userId: agent.id, push: false, email: true },
-    update: { push: false, email: true },
+    create: { orgId: org.id, userId: agent.id, push: false, email: false },
+    update: { push: false, email: false },
   });
   hits.length = 0;
   await dispatch({
@@ -202,7 +203,50 @@ async function main() {
   ok("nothing reaches the phone", hits.length === 0, `${hits.length} received`);
   ok("it is on the in-app list, not delivered, and not queued for the digest",
      !!quiet && !quiet.deliveredAt && quiet.suppressed === null, quiet ? `delivered ${!!quiet.deliveredAt}, suppressed ${quiet.suppressed}` : "no row");
-  await root.notificationPrefs.update({ where: { orgId_userId: { orgId: org.id, userId: agent.id } }, data: { push: true } });
+
+  console.log("\n=== Email me as well ===");
+  // The same stand-in plays the mail service: it records the POST to
+  // /emails, the way Resend would receive it.
+  process.env.RESEND_API_BASE = origin;
+  const heldKey = process.env.RESEND_API_KEY;
+  process.env.RESEND_API_KEY = "check-only-not-a-key";
+  const mails = () => hits.filter((h) => h.path === "/emails").map((h) => JSON.parse(h.body.toString()));
+  await root.notificationPrefs.update({ where: { orgId_userId: { orgId: org.id, userId: agent.id } }, data: { push: false, email: true } });
+  hits.length = 0;
+  await dispatch({
+    orgId: org.id, kind: "VIEWING_SOON", subjectId: `v3-${RUN}`, title: "Viewing in an hour",
+    body: "Palm Jumeirah, <b>4-bed</b> villa.", deeplink: "/viewings", assignedToId: agent.id, since: new Date(),
+  });
+  const mail = mails()[0];
+  ok("push off, email on: the alert arrives by email, and only by email",
+     mails().length === 1 && hits.filter((h) => h.path.startsWith("/push/")).length === 0, `${mails().length} email(s)`);
+  ok("to the agent's own address, titled as the alert",
+     mail?.to === agent.email && mail?.subject === "Viewing in an hour", `${mail?.to} · ${mail?.subject}`);
+  ok("with a button to the page it is about, and the words escaped",
+     String(mail?.html).includes("/viewings\"") && String(mail?.html).includes("&lt;b&gt;4-bed&lt;/b&gt;") && !String(mail?.html).includes("<b>4-bed"));
+  const byMail = await root.notification.findFirst({ where: { userId: agent.id, subjectId: `v3-${RUN}` } });
+  ok("and it counts as delivered", !!byMail?.deliveredAt);
+
+  // The morning summary of what was held, by email when push is off.
+  await root.notification.create({ data: {
+    orgId: org.id, userId: agent.id, kind: "PERMIT_EXPIRING", subjectId: `held-${RUN}`,
+    title: "Permit expires in 14 days", body: "MG-202", deeplink: "/listings", suppressed: "held for the digest",
+  } });
+  hits.length = 0;
+  await releaseHeld();
+  ok("what was held overnight is summarised by email", mails().some((m) => m.to === agent.email && /Permit expires/.test(m.subject)),
+     mails().map((m) => m.subject).join(" · "));
+
+  await root.notificationPrefs.update({ where: { orgId_userId: { orgId: org.id, userId: agent.id } }, data: { push: false, email: false } });
+  hits.length = 0;
+  await dispatch({
+    orgId: org.id, kind: "VIEWING_SOON", subjectId: `v4-${RUN}`, title: "Viewing in an hour",
+    body: "x", deeplink: "/viewings", assignedToId: agent.id, since: new Date(),
+  });
+  ok("both off: nothing is sent by either route", hits.length === 0, `${hits.length} request(s)`);
+  if (heldKey === undefined) delete process.env.RESEND_API_KEY; else process.env.RESEND_API_KEY = heldKey;
+  delete process.env.RESEND_API_BASE;
+  await root.notificationPrefs.update({ where: { orgId_userId: { orgId: org.id, userId: agent.id } }, data: { push: true, email: false } });
 
   console.log("\n=== signing a phone out ===");
   await root.session.delete({ where: { id: s1.id } });

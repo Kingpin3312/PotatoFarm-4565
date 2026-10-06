@@ -2,6 +2,7 @@ import { crossTenant } from "@/server/db/client";
 import type { NotificationKind } from "@prisma/client";
 import { RULES, inQuietHours } from "./rules";
 import { log } from "@/lib/log";
+import { sendAlertEmail } from "./email";
 
 /**
  * Deciding who gets told, and when to stop asking them.
@@ -64,9 +65,16 @@ export async function dispatch(args: {
       push: true, email: false, quietFromMin: null, quietToMin: null,
       daysOff: [], urgentOverridesQuiet: false,
     };
-    if (!p.push && !p.email) continue;
+    /**
+     * Push and email both off still puts it on the agent's list in the
+     * app. This line used to `continue`, so an agent who wanted a quieter
+     * phone lost the alerts altogether — the lead waiting, the deal at
+     * risk — and the Me page said otherwise. Nothing is held for later
+     * either, because a later send would have no route to take.
+     */
+    const silent = !p.push && !p.email;
 
-    const quiet = inQuietHours(new Date(), p, tz);
+    const quiet = !silent && inQuietHours(new Date(), p, tz);
     if (quiet && !(rule.urgency === "urgent" && p.urgentOverridesQuiet)) {
       // Held rather than dropped. `notify.digest` releases it once they
       // are no longer quiet, in one message rather than eleven.
@@ -91,7 +99,7 @@ export async function dispatch(args: {
      * and `health/jobs.ts` alarms if that job stops — which is the whole
      * reason the release was built before this line was written.
      */
-    if (rule.urgency === "digest") {
+    if (!silent && rule.urgency === "digest") {
       await record(args, t, "held for the digest");
       continue;
     }
@@ -142,8 +150,14 @@ export async function dispatch(args: {
      * is the route they kept.
      */
     const delivery = p.push ? await push(t.userId, args) : { sent: 0 };
-    await record(args, { ...t, escalation: rung }, null, delivery.sent > 0);
-    if (delivery.sent > 0) sent += 1;
+    // "Email me as well": as well as the phone, never instead of the
+    // in-app list. Delivered means it reached the person by either route.
+    const emailed = p.email
+      ? await sendAlertEmail(t.userId, { title: args.title, body: args.body, deeplink: args.deeplink })
+      : false;
+    const reached = delivery.sent > 0 || emailed;
+    await record(args, { ...t, escalation: rung }, null, reached);
+    if (reached) sent += 1;
   }
 
   return { sent, rung };
