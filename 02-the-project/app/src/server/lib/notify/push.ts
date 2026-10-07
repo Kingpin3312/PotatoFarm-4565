@@ -124,8 +124,10 @@ async function sendExpo(devices: { id: string; token: string }[], msg: Msg) {
         // delivery. Reserved for the two urgent kinds so it keeps working.
         priority: msg.urgent ? "high" : "normal",
         sound: msg.urgent ? "default" : null,
-        // iOS shows this on the lock screen. A lead's name never goes in
-        // the title — a locked phone on a table is a screen anyone can read.
+        // iOS shows this on the lock screen, and titles carry the client's
+        // name, or their number when there is none: the owner's decision
+        // (7 Oct 2026), so an agent can act without unlocking. Agents who
+        // want them hidden use the phone's own "show previews" setting.
         channelId: msg.urgent ? "urgent" : "default",
       }))
     ),

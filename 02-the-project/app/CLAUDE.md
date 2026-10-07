@@ -482,6 +482,9 @@ alert counts as delivered if it reached the person by either route.
 **Both routes off still records the alert on the in-app list** — the
 dispatcher used to `continue` there, so an agent who wanted a quieter
 phone lost the alerts altogether.
+**Alert titles name the client — name, or number when there is none —
+and that shows on a locked phone. The owner's decision (7 Oct 2026),
+not an oversight; do not anonymise them without asking.**
 
 **A WhatsApp channel's `identifier` is Meta's phone number ID, not a
 phone number.** The public pages used to build their `wa.me` links from
