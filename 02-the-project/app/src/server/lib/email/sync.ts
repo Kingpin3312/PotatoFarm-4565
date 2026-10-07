@@ -1,7 +1,11 @@
 import { forOrg, crossTenant } from "@/server/db/client";
 import { fetchSecret, writeSecret } from "@/server/lib/secrets/vault";
-import { busyTimes, CalendarNotShared, fetchNew, refresh, TokenError, type Provider, type Tokens } from "./providers";
+import { busyTimes, CalendarNotShared, fetchNew, messageText, refresh, TokenError, type Provider, type Raw, type Tokens } from "./providers";
 import { log } from "@/lib/log";
+import { portalOfSender, readLeadEmail } from "@/server/lib/portals/lead-email";
+import { PORTAL_LABEL, type MentionedPortal } from "@/server/lib/portals/mention";
+import { ingestEnquiry, markChannelHealthy } from "@/server/lib/portals/ingest";
+import { refVariants } from "@/lib/reference";
 
 /**
  * Email sync.
@@ -25,6 +29,12 @@ import { log } from "@/lib/log";
  *
  * We keep enough to show a timeline and link back to the original. The
  * body stays where it already is.
+ *
+ * **One exception, read and never kept:** a portal's new-lead email,
+ * from the portal's own domain (`portals/lead-email.ts`). The buyer's
+ * details are in its body and nowhere else, so `leadFromEmail` reads it,
+ * takes out what an agent typing the lead in would type, and drops the
+ * text. No other message's body is ever requested.
  */
 const SNIPPET_CHARS = 200;
 
@@ -100,8 +110,21 @@ export async function syncAccount(accountId: string) {
     throw e;
   }
   let saved = 0;
+  let portalLeads = 0;
 
   for (const m of page.messages) {
+    /**
+     * A portal's new-lead email, before the known-person rule: the buyer
+     * is by definition somebody we do not know yet. Only a From address on
+     * the portal's own domain counts (`portals/lead-email.ts`), and not
+     * mail the agent sent themselves.
+     */
+    const portal = portalOfSender(m.from);
+    if (portal && m.from.toLowerCase() !== acct.address.toLowerCase()) {
+      if (await leadFromEmail(acct, provider, tokens.accessToken, portal, m)) portalLeads += 1;
+      continue;
+    }
+
     const participants = [m.from, ...m.to].map((a) => a.toLowerCase());
     const hit = participants.map((a) => known.get(a)).find(Boolean);
     // Not about anyone we know. Discarded here — never written.
@@ -155,8 +178,69 @@ export async function syncAccount(accountId: string) {
   }
 
   log.info("email synced", { orgId: acct.orgId },
-           { account: acct.address, seen: page.messages.length, stored: saved, busy });
-  return { synced: saved, seen: page.messages.length, busy };
+           { account: acct.address, seen: page.messages.length, stored: saved, busy, portalLeads });
+  return { synced: saved, seen: page.messages.length, busy, portalLeads };
+}
+
+/**
+ * A portal's new-lead email, into the portal pipeline.
+ *
+ * Through `ingestEnquiry`, exactly as a portal's own delivery would go, so
+ * the buyer is matched by phone (one person across the portals and
+ * WhatsApp is one lead), routed by the portal's rules, and counted under
+ * a channel per portal — "Bayut lead emails", made on the first one, and
+ * marked healthy on each, so the silence alarm notices when they stop.
+ *
+ * The body is read here and dropped; nothing of it is stored but what an
+ * agent typing the lead in would have typed. An email with neither a
+ * phone number nor an address goes on the agent's list rather than
+ * becoming nothing, once per email.
+ */
+async function leadFromEmail(
+  acct: { id: string; orgId: string; agentId: string },
+  provider: Provider, token: string, portal: MentionedPortal, m: Raw,
+): Promise<boolean> {
+  const db = forOrg(acct.orgId);
+  const label = PORTAL_LABEL[portal];
+  const externalId = `email:${acct.id}:${m.id}`;
+  if (await db.enquiry.findFirst({ where: { externalId }, select: { id: true } })) return false;
+
+  const fields = readLeadEmail({ subject: m.subject, body: await messageText(provider, token, m.id), replyTo: m.replyTo });
+
+  if (!fields.phone && !fields.email) {
+    const marker = `(${externalId})`;
+    if (await db.followUp.findFirst({ where: { agentId: acct.agentId, body: { contains: marker } }, select: { id: true } })) return false;
+    await db.followUp.create({
+      data: {
+        orgId: acct.orgId, agentId: acct.agentId, dueAt: new Date(),
+        title: `A ${label} lead email we could not read`,
+        body: `"${(m.subject ?? "No subject").slice(0, 200)}" arrived from ${label} with no phone number or address we could find. Open it in your mailbox and add the buyer by hand. ${marker}`,
+      },
+    });
+    log.warn("portal lead email unreadable", { orgId: acct.orgId }, { portal });
+    return false;
+  }
+
+  const listing = fields.refs.length
+    ? await db.listing.findFirst({
+        where: { deletedAt: null, OR: fields.refs.flatMap(refVariants).map((r) => ({ reference: { equals: r, mode: "insensitive" as const } })) },
+        select: { reference: true },
+      })
+    : null;
+  const channel = await db.channel.upsert({
+    where: { orgId_type_identifier: { orgId: acct.orgId, type: portal, identifier: "lead-email" } },
+    create: { orgId: acct.orgId, type: portal, identifier: "lead-email", label: `${label} lead emails` },
+    update: {},
+    select: { id: true },
+  });
+  const result = await ingestEnquiry(acct.orgId, channel.id, portal, {
+    externalId, receivedAt: m.sentAt,
+    name: fields.name, phone: fields.phone, email: fields.email, message: fields.message,
+    listingRef: listing?.reference, source: `${label}, by email`,
+    raw: { via: "email", account: acct.id },
+  });
+  await markChannelHealthy(channel.id);
+  return result.reason === "ok";
 }
 
 /** As far ahead as the booking screen looks (`viewings.slots`, 21 days). */

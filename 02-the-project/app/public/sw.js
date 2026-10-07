@@ -109,3 +109,62 @@ self.addEventListener("fetch", (event) => {
     }),
   );
 });
+
+/* ---------------------------------------------------------------------
+ * PHONE ALERTS
+ *
+ * The one thing a browser tab could not do: buzz a phone in a pocket.
+ * The server encrypts each alert to this browser's keys (Web Push), so
+ * the push service in between cannot read a lead's name.
+ *
+ * **Every push shows a notification, always.** Safari withdraws push
+ * permission from a site whose pushes arrive without one, and Chrome
+ * shows its own "this site has been updated in the background" in its
+ * place. A payload that will not parse still gets a plain alert that
+ * opens the app, rather than nothing.
+ *
+ * **A tap only ever opens a page of this app.** The address rides in
+ * the payload, and a payload is input: anything that is not a path on
+ * this origin opens Today instead.
+ * ------------------------------------------------------------------- */
+
+/** A path inside this app, or Today. Never another site. */
+function safePath(p) {
+  return typeof p === "string" && p.startsWith("/") && !p.startsWith("//") && !p.includes("\\") ? p : "/today";
+}
+
+self.addEventListener("push", (event) => {
+  let data = {};
+  try { data = event.data ? event.data.json() : {}; } catch { data = {}; }
+  const title = typeof data.title === "string" && data.title ? data.title : "PotatoFarm.io";
+  const tag = typeof data.tag === "string" && data.tag ? data.tag : undefined;
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body: typeof data.body === "string" ? data.body : "Open the app to see what happened.",
+      icon: "/icon-192.png",
+      badge: "/icon-192.png",
+      tag,
+      // A second alert about the same thing replaces the first; an urgent
+      // one still buzzes again rather than updating silently.
+      renotify: Boolean(tag && data.urgent),
+      data: { url: safePath(data.url) },
+    }),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = new URL(safePath(event.notification.data && event.notification.data.url), self.location.origin).href;
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((wins) => {
+      // The app already open: bring it forward and take it there, rather
+      // than stacking a second copy behind the first.
+      const open = wins.find((w) => new URL(w.url).origin === self.location.origin);
+      if (open) {
+        return open.focus().then((w) => (w && "navigate" in w ? w.navigate(url) : self.clients.openWindow(url)));
+      }
+      return self.clients.openWindow(url);
+    }),
+  );
+});
+

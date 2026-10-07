@@ -88,13 +88,39 @@ export async function sendDueReminders() {
   return { considered: due.length, sent };
 }
 
-/** Releases slots the lead never answered about. Runs every few minutes. */
+/**
+ * Releases slots the lead never answered about. Runs every few minutes.
+ *
+ * An agent's own fifteen-minute hold is simply let go. A **buyer's
+ * request** (`requestedAt`) is different: they picked that time from the
+ * ones they were offered and are waiting to hear. Deleting it here would
+ * be the buyer forgotten in silence — so it goes on the agent's list as
+ * a lapse, in the same transaction that frees the slot.
+ */
 export async function expireHolds() {
-  const { count } = await crossTenant("sweep").viewing.deleteMany({
-    where: { heldUntil: { lt: new Date() }, status: "SCHEDULED" },
+  const db = crossTenant("sweep");
+  const now = new Date();
+  const lapsed = await db.viewing.findMany({
+    where: { heldUntil: { lt: now }, status: "SCHEDULED", requestedAt: { not: null } },
+    select: { id: true, orgId: true, agentId: true, leadId: true, listingId: true, scheduledAt: true, lead: { select: { name: true, phone: true } } },
   });
-  if (count) log.info(`[scheduling] released ${count} expired holds`);
-  return count;
+  for (const v of lapsed) {
+    await db.$transaction(async (tx) => {
+      const gone = await tx.viewing.deleteMany({ where: { id: v.id, status: "SCHEDULED", heldUntil: { lt: now } } });
+      if (!gone.count || !v.agentId) return;
+      await tx.followUp.updateMany({ where: { viewingId: v.id, completedAt: null }, data: { completedAt: now } });
+      await tx.followUp.create({ data: {
+        orgId: v.orgId, agentId: v.agentId, leadId: v.leadId, listingId: v.listingId, dueAt: now,
+        title: `${v.lead.name ?? v.lead.phone}'s viewing request lapsed`,
+        body: `They asked for ${humanSlot({ start: v.scheduledAt, end: v.scheduledAt })} and it was never confirmed, so the time has passed. Get back to them with new times.`,
+      } });
+    });
+  }
+  const { count } = await db.viewing.deleteMany({
+    where: { heldUntil: { lt: now }, status: "SCHEDULED", requestedAt: null },
+  });
+  if (count || lapsed.length) log.info(`[scheduling] released ${count} expired holds, ${lapsed.length} lapsed requests`);
+  return count + lapsed.length;
 }
 
 /**

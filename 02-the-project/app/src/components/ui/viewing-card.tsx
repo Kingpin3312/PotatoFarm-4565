@@ -44,6 +44,8 @@ export function ViewingCard({
     agentId?: string | null;
     listingId?: string | null;
     status?: string;
+    /** A buyer's pick waiting for the agent: shown, and not as booked. */
+    awaitingConfirmation?: boolean;
   };
   /** Refetch the day after an outcome or a move. */
   onChanged?: () => void;
@@ -99,6 +101,9 @@ export function ViewingCard({
           {viewing.durationMins}m
         </span>
       </div>
+      {viewing.awaitingConfirmation && (
+        <p className="t-label text-accent-deep mt-1">Waiting for you to confirm — see the top of Viewings</p>
+      )}
 
       {/* Building first. It is the thing an agent reads while driving. */}
       {viewing.building && (

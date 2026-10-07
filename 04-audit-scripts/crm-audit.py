@@ -576,6 +576,46 @@ for _sp in glob.glob(os.path.join(ROOT, "scripts/**/*.*s"), recursive=True):
                  f"__Secure-authjs.session-token; send both "
                  f"(scripts/lib/session-cookie.mjs)")
 
+# ---------------------------------------------------------------------
+# A check suite that no CI job runs.
+#
+# `verify.sh` listed its suites by hand, and twelve were never on the
+# list while every document said "every check suite"; four more were
+# on it, in the block that needs the application, which the verify job
+# reaches with no application up — so they skipped on every push, the
+# WhatsApp inbound path among them. All sixteen passed on a laptop and
+# none had run in CI. `verify.sh` now
+# runs every `check:*` from package.json except those it names in
+# `APP_CHECKS`, and each of those must be a step of the job that starts
+# the application. This is that rule, so a seventeenth cannot be added.
+import json as _json
+_pkg = _json.load(open(os.path.join(ROOT, "package.json")))
+_checks = {k[6:] for k in _pkg.get("scripts", {}) if k.startswith("check:")}
+_vsh = os.path.join(ROOT, "scripts", "verify.sh")
+_vyml = os.path.join(ROOT, "..", "..", ".github", "workflows", "verify.yml")
+if os.path.exists(_vsh) and os.path.exists(_vyml):
+    _vs, _vy = read(_vsh), read(_vyml)
+    _m = re.search(r'^APP_CHECKS="([^"]*)"', _vs, re.M)
+    if not _m:
+        fail("scripts/verify.sh has no APP_CHECKS line — cannot tell which "
+             "check suites are left to the job that starts the application")
+    else:
+        for _n in _m.group(1).split():
+            if _n not in _checks:
+                fail(f"verify.sh APP_CHECKS names check:{_n}, which package.json does not have")
+            if not re.search(rf"npm run check:{re.escape(_n)}\s*$", _vy, re.M):
+                fail(f"check:{_n} needs the application and no CI job runs it — "
+                     f"add a step to the browser job in .github/workflows/verify.yml")
+    # And every browser suite. Four were in package.json and no job ran
+    # them; `browser:brand` failed on its first full run.
+    for _k in sorted(_pkg.get("scripts", {})):
+        if _k.startswith("browser:") and not re.search(rf"npm run {re.escape(_k)}\s*$", _vy, re.M):
+            fail(f"{_k} is a browser suite no CI job runs — add a step to the "
+                 f"browser job in .github/workflows/verify.yml")
+    if "DB_CHECKS=$(node" not in _vs:
+        fail("scripts/verify.sh no longer discovers its check suites from "
+             "package.json — a hand-written list is how sixteen never ran in CI")
+
 if __name__ == "__main__":
     print(f"{len(src)} source files, {len(models)} models, {len(routers)} routers\n")
     print(f"{len(FAILS)} failure(s)")

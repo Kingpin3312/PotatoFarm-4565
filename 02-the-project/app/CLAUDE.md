@@ -102,7 +102,9 @@ What is verified today, measured rather than assumed:
   `/api/health` returns `200 {"ok":true}` against a real Postgres.
 - The boot log names every unconfigured service with its consequence —
   six of them in a bare development environment.
-- 432 assertions in 31 files, 66 check suites, 23 audits, all green.
+- 494 assertions in 37 files, 71 check suites, 23 audits, all green —
+  and since 3 October 2026, **all of them run in CI**, which was not
+  true before it. See *Run the tests*.
 
 Type errors on a fresh checkout are no longer expected. If you get one,
 it is new.
@@ -370,6 +372,126 @@ is byte-for-byte the card of one that never existed —
 on Listings and **Send a property** in the composer (`listings.share`,
 which calls `publicListing` exactly as a stranger's browser does, so the
 button cannot offer a link the page then refuses).
+
+**A brokerage's own page, and the form on it.** `/p/<slug>` lists every
+property the brokerage may advertise — `publicBrokerage` takes the same
+rows the single page would (AVAILABLE, a permit, `PUBLIC_REQUIREMENTS`)
+and 404s when there are none, so a new brokerage has no empty shop
+window. Agents reach it from **Share your listings page** on Listings
+(`listings.sharePage`, which calls `publicBrokerage` for the same
+reason as Share link). Both pages carry an enquiry form: a plain HTML
+POST to `p/[slug]/enquire`, answered with a 303 back to the page —
+`back` must be the brokerage's own path, so the route is not an open
+redirect. `readEnquiryForm` (pure, unit-tested) reads it; a filled
+honeypot is answered as a success and recorded as nothing; a link in
+the message is refused; `property.enquiry` limits by IP and by phone.
+The page shows a problem only if `isKnownProblem` says it is one of the
+form's own sentences, so a crafted `?problem=` cannot put words on a
+brokerage's page. A posted reference is attached only if `publicListing`
+would show it. The enquiry goes through `ingestEnquiry` like every
+other source, on a `WEBSITE_FORM` channel "Your listings page" made on
+first use, so it dedupes by phone and appears in the by-channel report.
+`check:listings-page` covers all of it over HTTP.
+
+**Every agent can have a microsite: `/p/<brokerage>/agents/<agent>`.**
+`AgentMicrosite` holds two copies of `MicrositeContent` (validated by
+`lib/microsite/content.ts` on every write): `draft`, which the editor
+saves, and `live`, made on publish — so editing never changes the public
+page half-way. Properties are listing ids resolved through
+`advertisedCards` (the property page's own gate) on every view, never
+copies; sold/let ones are a record without price or photo; the
+transactions figure is counted from COMPLETED deals the agent has a
+`CommissionSplit` on, never typed in. `server/lib/microsite/public.ts`
+`loadLive` is the one gate — org exists and has `micrositesEnabled`,
+`publishedAt` set, no `disabledAt`, the agent still a member with
+`microsite:own` — and every miss is the same 404. The page is built from
+`MicrositeViewModel` field by field by `assembleView`
+(`lib/microsite/assemble.ts`), which the editor's live preview calls in
+the browser on the unsaved form, so the preview *is* the page;
+`MicrositeView` lays out by container queries (`@container`, `cqi`) so it
+draws correctly in the phone-width preview pane. Leads: the form posts to
+`agents/[agent]/enquire` → `micrositeEnquiry` → `pageEnquiry` →
+`ingestEnquiry(..., directed)`, which gives a *new* lead to that agent as
+`AGENT_MICROSITE` with `Enquiry.micrositeId`; a buyer another agent has
+keeps their agent. "WhatsApp me" writes the page's address into the
+message and `lib/ingest.ts` `micrositeFromMessage` routes a first message
+carrying a live site of *this* brokerage the same way. Analytics are
+`MicrositeEvent` rows from the page's own beacon (`agents/[agent]/event`;
+link-preview bots and foreign origins ignored; visitor = daily-salted
+hash, no address kept); leads are counted from enquiries. Permissions:
+`microsite:own` (agents and up — `?user=` on the CRM screens is an admin
+acting, refused without `microsite:manage`) and `microsite:manage`
+(admin/owner: rules, approve, take down, edit). Accents are only the
+company palette (`lib/microsite/palette.ts` — pink, pearl, silver;
+`palette.py` refuses anything else). `check:microsite` covers it.
+
+**Microsite pictures: real, then honest, never misleading.** The page is
+image-led, and `lib/microsite/imagery.ts` decides where every picture
+comes from, in order: the agent's or property's own photograph; area
+photography from the photo pack, labelled as the area (true for any
+brokerage); stand-in portraits, hero and property photos **only for
+`Organisation.demo` brokerages** — a stranger's face on a real agent's
+page, or a stock flat on a real listing, would misrepresent them; and
+finally drawn scenes (`components/microsite/art.tsx`, dusk Dubai in the
+brand's greys and pink), which never pretend to be a photograph of
+anything. A real agent with no portrait gets their monogram. The photo
+pack (`lib/microsite/demo-photos.ts`, files in `public/microsite/demo/`)
+is written by `npm run microsite:photos`, which needs `unsplash.com` and
+`images.unsplash.com` allowed in the environment's network policy — this
+container's policy denied them, so the pack is empty and every slot
+draws. Its portrait search is for figures seen from behind, so no
+stranger's face is given an agent's name. Statistics are only the
+agent's own profile and the CRM's records (deals with the agent's
+commission split, their value, listings, areas, languages); "How I can
+help" is derived from specialisms and what they list. Motion is one
+fade-up (`reveal.tsx` + `.ms-js` in `globals.css`), script-gated and off
+under `prefers-reduced-motion`. The brokerage's own listings page
+(`/p/<slug>`) uses the same `propertyPicture` for its cards, with
+`demo: false`: it showed empty grey boxes for unphotographed properties
+until the training manual's capture of it put one in print.
+
+**Phone alerts are web push to the installed web app, not a native app**
+(the owner's choice, 6 Oct 2026). Before it, no alert had ever reached a
+phone: `sendPush` only knew Expo, and the Expo app cannot build. Now
+`notify/web-push.ts` sends by the Web Push standard (VAPID-signed,
+payload encrypted to the browser's keys, so Google and Apple carry it
+unread) and `push.ts` sends to both kinds of device. Rules that must
+survive edits: **the endpoint is checked against the push services'
+hosts** (https, port 443, no credentials) on registration *and* before
+every send, because the server POSTs to a URL a browser handed it —
+`PUSH_TEST_ORIGIN` widens that for the check suite only and is ignored
+in production; **a browser subscription is tied to its sign-in
+session**, so ending the session (Settings → Security) stops that
+phone's alerts, and only the person who turned alerts on there can
+revive them (`refreshBrowser` filters by user); **404/410 means the
+browser dropped it** and it is never sent to again; and **"Push to my
+phone" off means no push** — `dispatch.ts` pushed regardless until
+this change, harmless only because nothing could receive it. iPhones
+get alerts only from the Home Screen app (iOS 16.4+), and the Me page
+says so instead of offering a button that cannot work. Keys:
+`VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`, one pair per deployment, never
+rotated casually (`check:preflight` names them when missing). Proved
+by `check:web-push` (a stand-in push service that verifies the
+signature and decrypts with its own RFC 8291 code; broken six ways to
+show each assertion bites) and `browser:alerts` (the worker, the tap
+that never leaves the app, and every state of the Me page section).
+**"Email me as well" sends email now** (`notify/email.ts`, the same
+title, words and a button to the page), from the dispatcher and the
+digest; until then it was a checkbox that saved and did nothing. An
+alert counts as delivered if it reached the person by either route.
+**Both routes off still records the alert on the in-app list** — the
+dispatcher used to `continue` there, so an agent who wanted a quieter
+phone lost the alerts altogether.
+**Alert titles name the client — name, or number when there is none —
+and that shows on a locked phone. The owner's decision (7 Oct 2026),
+not an oversight; do not anonymise them without asking.**
+
+**A WhatsApp channel's `identifier` is Meta's phone number ID, not a
+phone number.** The public pages used to build their `wa.me` links from
+it, which in production opens a chat with a number that does not exist.
+They now use `Channel.displayNumber` — the number buyers message, asked
+for on connect and editable under Settings → Channels — through
+`brokerageWhatsapp`, and show no WhatsApp button while it is unset.
 
 **Every new listing has an exact place, and the tree is not the
 brokerage's.** `Location` is shared reference data — no `orgId`, no RLS —
@@ -934,8 +1056,31 @@ send path read it.
 
 ## Run the tests
 
-    npm test          # 432 assertions, pure functions, no database
-    npm run verify    # tsc, eslint, the tests, 66 check suites, 23 audits
+    npm test          # 485 assertions, pure functions, no database
+    npm run verify    # tsc, eslint, the tests, 71 check suites, 23 audits
+
+**Until 3 October 2026, sixteen of the check suites and four of the browser suites
+had never run in CI, while this file said the gate ran "every check
+suite".** `verify.sh` listed its suites by hand and twelve were never on
+the list — every suite added for listing photos, identity documents,
+documents sent on WhatsApp, the upload sweep and the calendar among
+them. Four more were on it, in the block that needs the application,
+which the verify job reaches with no application up, so they skipped on
+every push: the WhatsApp inbound path, routing, availability and broker
+card blocking. The browser job steps its suites by hand too, and four
+browser suites were in neither job. All of them passed locally; none had
+run on a push. The summary at the end of `verify.sh` printed the skips,
+and a green job does not get its log read.
+
+What changed: `verify.sh` runs every `check:*` in `package.json` except
+those it names in `APP_CHECKS`, and `crm-audit.py` fails the build on any
+`APP_CHECKS` suite or any `browser:*` suite that is not a step of the
+browser job. Running those four in full for the first time
+found pages that scrolled sideways on a 320px phone — the leads list
+once a manager's Import and Export loaded, search, and import — and
+`browser:narrow` now walks every screen at that width as an owner and as
+an agent. **"It passed" and "it ran" are different claims; a gate's
+skip list is part of its result.**
 
 **The gate is now green end to end, including the two things that used
 to skip.** `verify` reports what it did not run rather than counting a
@@ -994,7 +1139,7 @@ skip as a pass, and for a long time it reported two:
   leaving you to guess.
 
 `npm test` was declared from day one with no test files behind it, so it
-exited 1 and said "No test files found". There are 31 test files now, and
+exited 1 and said "No test files found". There are 37 test files now, and
 they cover the pure logic where being wrong is silent: the fils unit, the
 24-hour window on both sides of the boundary, Dubai sending hours, the
 search parser's plural intents and budget bands, lead scoring, deal
@@ -1126,7 +1271,7 @@ development cookie name. **Run a new HTTP check against `npm run start`
 at least once**, not only against the dev server.
 
 `scripts/_browser.mjs` is now the only thing that answers "where is
-Chromium", with thirty-one importers. A new browser script imports it
+Chromium", with thirty-three importers. A new browser script imports it
 rather than writing its own, and **an absolute path to anything outside
 the repository is the smell** — derive the root from `import.meta.url`,
 not from where the author happened to be standing.
@@ -1238,7 +1383,9 @@ with an empirical floor under it.
 - The Expo screens. `mobile/` has push, offline policy and auth, and
   cannot build: no `app.json`, no `tsconfig.json`, no `babel.config.js`,
   no assets, an Expo SDK two years old, and a sign-in flow expecting a
-  `?session=` token the web app cannot issue.
+  `?session=` token the web app cannot issue. Phone alerts no longer
+  wait on it (web push, above); whether to build a store app at all is
+  to be decided from what the pilot shows.
 - **A screening provider.** The write path exists now — `aml/screen.ts`,
   the nightly `aml.screening` sweep and `aml.rescreen` — and there is no
   vendor behind the `Screener` interface, because Dow Jones, Refinitiv
@@ -1285,6 +1432,39 @@ with an empirical floor under it.
   tell a brokerage their property is live when it is not. Both competitors
   lead on portal distribution, so this is the commercial step that decides
   whether the product competes.
+- **Portal buyers who write on WhatsApp are credited to the portal.**
+  Most Bayut, Dubizzle and Property Finder buyers press the advert's
+  WhatsApp button rather than fill in a form, and every one was filed
+  `WHATSAPP_AD` with no property: the report of where leads come from
+  credited WhatsApp with what the portal was paid for, and a routing rule
+  for Bayut leads never matched them. The first message is now read
+  (`portals/mention.ts`): a portal **named** — by name, address, or an
+  Arabic name that means nothing else (Bayut's means "houses", so it is
+  not read) — sets `Lead.source` and routes by it, and a quoted
+  reference this brokerage has (compacted as search compacts it) becomes
+  an `Enquiry` on that property, campaign "Bayut, via WhatsApp", which
+  is what `reports.byChannel` groups on. A returning buyer is never
+  re-filed, gets one enquiry per new property, and none for asking about
+  the same one again. `check:portal-leads`. **This is not a Bayut or
+  Dubizzle integration** — those still need each portal's partner
+  documents; it is the share of their buyers that never needed one.
+
+  **And their new-lead emails become leads.** Every portal emails the
+  brokerage when somebody fills in its form, and a connected mailbox
+  already reads that inbox. `email/sync.ts` sends mail from a portal's
+  own domain — the sender alone decides; `bayut.leads@gmail.com` is not
+  Bayut — to `leadFromEmail`, which reads the body (the one exception to
+  "never the body", and nothing of it is stored), takes the phone,
+  address, name, message and a reference the brokerage has
+  (`portals/lead-email.ts`), and calls `ingestEnquiry` as a portal
+  delivery would: one person across WhatsApp and the portals is one
+  lead, routed by the portal's rules, counted on a "Bayut lead emails"
+  channel made on the first one and marked healthy on each, so the
+  silence alarm notices when they stop. An email with no phone and no
+  address goes on the mailbox owner's list, once. **The portals publish
+  no notification format and no sample has been supplied**, so the
+  reading is generic; real samples change `lead-email.ts` only.
+  `check:portal-leads`.
 - ~~**Editing a lead.**~~ **Built.** `leads.detail` and `leads.update`
   behind the person page, which until then never said who the person
   was. The phone number stays fixed (it is the WhatsApp identity), the
@@ -1336,6 +1516,20 @@ with an empirical floor under it.
   (the default), outside working hours only, or always (the demo
   brokerage). Past qualification, and in any
   thread an agent has written in, every reply is still a draft.
+- **Real viewing times, confirmed by the agent.** The assistant's script
+  ended "say an agent will confirm the time" with no time, and — the
+  shape again — **nothing ever moved a lead to Qualified**: no code set
+  QUALIFYING or QUALIFIED from the assistant's side, so the board's
+  Qualified column filled only by hand and an assistant with automatic
+  replies on qualified a buyer for ever. Now the lead moves as the
+  required answers arrive, and a qualified buyer is offered up to three
+  of the agent's actual free times (code writes the times, never the
+  model); their pick is held as a request (`Viewing.requestedAt`) on the
+  agent's Viewings, and **only the agent's Confirm books it and tells the
+  buyer** — the owner's decision of 4 October 2026. A request nobody
+  answers lands on the agent's list instead of lapsing silently, and the
+  calendar feed publishes any held slot TENTATIVE rather than CONFIRMED.
+  `assistant/README.md` (Booking), `check:viewing-offers`.
 - ~~**Erasure and data export for owners.**~~ **Built**, with two faults
   found on the way that were not about owners at all. Erasure left every
   name that later work had written — follow-up titles, alerts, private
@@ -1381,7 +1575,10 @@ with an empirical floor under it.
   `Attachment` of the listing; the order stays in `descriptions.photos`
   as attachment ids, first is the cover, and pre-upload placeholders are
   counted as before and dropped at the first real photo
-  (`lib/listings/photos.ts`). Buyers reach a photo through
+  (`lib/listings/photos.ts`). Every change to that order reads it under
+  a row lock (`lockedPhotos`): without it, three photos confirmed at once
+  kept one, and a removal racing an upload lost the upload — stored,
+  billed and on nobody's page. Buyers reach a photo through
   `/p/<slug>/<ref>/photos/<id>`, which asks the page's own gate and then
   redirects to a URL signed for ten minutes — the bucket stays private and
   a withheld property's photos go dark with it. The preview card uses the
@@ -1416,7 +1613,10 @@ with an empirical floor under it.
   fetches it from Meta **straight into the file's storage**, never
   through the agent's device, with the upload's checks: a person the
   agent can open, an open file, bytes that prove the type, the 15MB cap
-  whatever Meta declares, once per message. **The channel token goes
+  whatever Meta declares, once per message — enforced by a unique
+  `storageRef`, since two tabs both pass the "already filed?" look while
+  Meta is answering, and the loser must not delete the object, which is
+  the winner's. **The channel token goes
   only to Meta's media hosts** — the download address arrives in a
   response body, so it is checked, and redirects are refused. A file Meta
   no longer holds says "ask them to send it again". The browser never
@@ -1464,7 +1664,11 @@ with an empirical floor under it.
   working-elsewhere and cancelled time does not block. A mailbox
   connected before the scope was asked for records `calendarError`,
   blocks nothing, and Settings → Email offers to connect again;
-  disconnecting forgets the busy times. Microsoft's paging is followed
+  disconnecting forgets the busy times. Google answers 403 for a rate
+  limit as well as for a missing scope, so only a refusal of permission
+  reads as "not shared"; a rate limit or a `backendError` keeps the last
+  read rather than clearing it and asking the agent to reconnect a
+  mailbox that is fine. Microsoft's paging is followed
   only on its own address, as the mail cursor is. `check:calendar-busy`.
 
   Proving it red found the same shape as a swallowed database error: the

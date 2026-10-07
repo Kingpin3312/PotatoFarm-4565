@@ -3,6 +3,13 @@ import { notFound } from "next/navigation";
 import { publicListing, enquiryText, viewingText } from "@/server/lib/listings/public";
 import { aedWhole } from "@/lib/money";
 import { Logo } from "@/components/brand/logo";
+import { EnquiryForm } from "../../enquiry-form";
+import { isKnownProblem } from "@/server/lib/listings/enquiry-form";
+import { micrositeContext } from "@/server/lib/microsite/public";
+import { spacedPhone, whatsappText } from "@/lib/microsite/content";
+import { MicrositeTracker } from "@/components/microsite/tracker";
+import { Pic } from "@/components/microsite/art";
+import { areaPicture } from "@/lib/microsite/imagery";
 
 type Params = { params: Promise<{ slug: string; reference: string }> };
 
@@ -68,10 +75,27 @@ function facts(l: NonNullable<Awaited<ReturnType<typeof publicListing>>>) {
 const wa = (number: string, text: string) =>
   `https://wa.me/${number.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(text)}`;
 
-export default async function PropertyPage({ params }: Params) {
+export default async function PropertyPage({ params, searchParams }: Params & {
+  searchParams: Promise<{ sent?: string; problem?: string; agent?: string }>;
+}) {
   const { slug, reference } = await params;
+  const sp = await searchParams;
   const l = await publicListing(slug, decodeURIComponent(reference));
   if (!l) notFound();
+  /**
+   * Opened from an agent's microsite (`?agent=`): that agent is the one to
+   * talk to. Only a live site of this brokerage counts — anything else in
+   * the parameter is ignored and the page is the brokerage's as usual.
+   * The buttons then open the agent's WhatsApp line with the property and
+   * their page's address in the message, the form reaches them, and the
+   * visit counts on their numbers.
+   */
+  const via = await micrositeContext(slug, sp.agent);
+  const whatsapp = via ? via.whatsapp : l.whatsapp;
+  const askText = via ? whatsappText({ firstName: via.firstName, pageUrl: via.pageUrl, property: l }) : enquiryText(l);
+  const viewText = via
+    ? whatsappText({ firstName: via.firstName, pageUrl: via.pageUrl, property: l }).replace("I'm interested in", "I'd like to arrange a private viewing of")
+    : viewingText(l);
 
   const price = l.priceFils === null ? null : aedWhole(l.priceFils);
   const details = [
@@ -87,12 +111,24 @@ export default async function PropertyPage({ params }: Params) {
           its name on a brochure: small, spaced, and first. */}
       <header className="border-b border-rule">
         <div className="mx-auto max-w-[880px] px-6 py-6 flex items-center justify-between gap-4">
-          <p className="text-note font-medium text-ink uppercase tracking-[0.24em]">{l.brokerage}</p>
+          {/* The brokerage's name is the way to everything else it has. */}
+          <a href={`/p/${encodeURIComponent(slug)}`} className="text-note font-medium text-ink uppercase tracking-[0.24em] no-underline hover:underline">{l.brokerage}</a>
           <p className="text-note text-ink-3 uppercase tracking-[0.18em]">
             {l.purpose === "RENT" ? "To let" : "For sale"}
           </p>
         </div>
       </header>
+      {via && (
+        <div className="border-b border-rule">
+          <div className="mx-auto max-w-[880px] px-6 py-3">
+            <a href={via.path} className="min-h-11 inline-flex items-center gap-3 text-sm text-ink-2 no-underline hover:text-ink">
+              <span aria-hidden="true" className="h-[2px] w-6 rounded-full" style={{ background: via.accent }} />
+              Shared by {via.name}
+            </a>
+          </div>
+        </div>
+      )}
+      {via && <MicrositeTracker endpoint={via.event} onLoad={{ k: "property", ref: l.reference }} />}
 
       <main id="main" className="mx-auto max-w-[880px] px-6 pt-14 pb-20">
         {l.community && (
@@ -123,6 +159,12 @@ export default async function PropertyPage({ params }: Params) {
             address — so a gallery never outlives its page. Lazy past the
             cover, because a buyer on a phone in a lift pays for every
             one they never scroll to. */}
+        {/* No photographs yet: the community, labelled as the area, so the
+            page is never a wall of text and never passes a picture off as
+            this property. */}
+        {l.photos.length === 0 && l.community && (
+          <Pic picture={{ ...areaPicture(l.community), label: `${l.community} · area` }} showLabel className="mt-10 aspect-[3/2] rounded-md" />
+        )}
         {l.photos.length > 0 && (
           <section className="mt-10" aria-label="Photographs" data-photos>
             {/* Plain images, not next/image: each address redirects to a
@@ -147,13 +189,13 @@ export default async function PropertyPage({ params }: Params) {
             moves them forward. Both open the brokerage's own WhatsApp
             with the reference already in the message, so the assistant
             and the agent know which property at once. */}
-        {l.whatsapp && (
+        {whatsapp && (
           <div className="mt-10 flex flex-wrap gap-3">
-            <a href={wa(l.whatsapp, viewingText(l))}
+            <a href={wa(whatsapp, viewText)} data-track="whatsapp" data-ref={l.reference}
                className="inline-flex items-center justify-center min-h-12 px-7 rounded-full bg-accent text-on-accent border border-[color:var(--accent-edge)] font-medium text-ui no-underline hover:bg-accent-hover focus-visible:outline-none focus-visible:shadow-[var(--ring)]">
               Arrange a private viewing
             </a>
-            <a href={wa(l.whatsapp, enquiryText(l))}
+            <a href={wa(whatsapp, askText)} data-track="whatsapp" data-ref={l.reference}
                className="inline-flex items-center justify-center min-h-12 px-7 rounded-full border border-rule-strong text-ink font-medium text-ui no-underline hover:border-ink focus-visible:outline-none focus-visible:shadow-[var(--ring)]">
               Ask a question
             </a>
@@ -186,7 +228,34 @@ export default async function PropertyPage({ params }: Params) {
           </dl>
         </section>
 
-        {(l.agent || l.reraBrokerCard) && (
+        {/* For the buyer who will not open WhatsApp from a web page. */}
+        <EnquiryForm slug={slug} back={`/p/${encodeURIComponent(slug)}/${encodeURIComponent(l.reference)}`} reference={l.reference}
+                     action={via?.enquire}
+                     thanks={via ? `Thank you — ${via.firstName} has your message and will be in touch shortly.` : undefined}
+                     sent={sp.sent === "1"} problem={sp.problem && isKnownProblem(sp.problem) ? sp.problem : null}
+                     heading={whatsapp ? "Or leave your details" : "Ask about this property"} />
+
+        {via ? (
+          <section className="mt-14" aria-labelledby="agent">
+            <h2 id="agent" className="text-note text-ink-3 uppercase tracking-[0.18em]">Your agent</h2>
+            <div className="mt-4 flex items-center gap-4">
+              {via.photo && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={via.photo} alt="" className="size-16 rounded-full object-cover bg-sunk" />
+              )}
+              <div className="min-w-0">
+                <p className="text-body-lg text-ink">{via.name}</p>
+                <p className="mt-1 text-sm text-ink-3">
+                  {via.title} · {l.brokerage}{via.brn ? ` · RERA card ${via.brn}` : ""}
+                </p>
+              </div>
+            </div>
+            <p className="mt-4 flex flex-wrap gap-x-6">
+              <a href={via.path} className="min-h-11 inline-flex items-center text-ui text-ink underline underline-offset-4 decoration-rule-strong hover:decoration-ink">More from {via.firstName}</a>
+              {via.phone && <a href={`tel:${via.phone}`} data-track="phone" data-ref={l.reference} className="min-h-11 inline-flex items-center text-ui text-ink-2 no-underline hover:text-ink tabular">Call {spacedPhone(via.phone)}</a>}
+            </p>
+          </section>
+        ) : (l.agent || l.reraBrokerCard) && (
           <section className="mt-14" aria-labelledby="agent">
             <h2 id="agent" className="text-note text-ink-3 uppercase tracking-[0.18em]">Your agent</h2>
             <p className="mt-4 text-body-lg text-ink">{l.agent ?? l.brokerage}</p>
@@ -206,7 +275,7 @@ export default async function PropertyPage({ params }: Params) {
          */}
         <footer className="mt-16 pt-6 border-t border-rule flex flex-wrap justify-between gap-4 text-label text-ink-3">
           <p>Trakheesi permit {l.permitNumber}</p>
-          <p>{l.brokerage}</p>
+          <a href={`/p/${encodeURIComponent(slug)}`} className="no-underline hover:underline text-ink-3">All properties from {l.brokerage}</a>
         </footer>
         <a href="https://potatofarm.io" rel="noopener"
            className="mt-8 inline-flex items-center gap-3 no-underline text-note text-ink-3 hover:text-ink-2 focus-visible:outline-none focus-visible:shadow-[var(--ring)] rounded-sm">

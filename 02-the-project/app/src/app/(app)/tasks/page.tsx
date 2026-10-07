@@ -118,7 +118,7 @@ export default function Tasks() {
                 <div className="min-w-0 flex-1">
                   <p className="text-ui text-ink">{t.title}</p>
                   <p className="text-sm text-ink-3 mt-0.5">
-                    {new Date(t.dueAt).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                    {new Date(t.dueAt).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Dubai" })}
                     {t.lead && <> · <Link href={`/blackbook/${t.lead.id}`} className="text-ink-2">{t.lead.name}</Link></>}
                     {t.listing && <> · <Link href={`/listings?q=${encodeURIComponent(t.listing.reference)}`} className="text-ink-2">{t.listing.reference}</Link></>}
                     {!t.mine && t.assignee && <> · for {t.assignee}</>}

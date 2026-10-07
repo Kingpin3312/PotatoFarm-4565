@@ -333,6 +333,14 @@ jobs:
           done
           echo "the site server never came up"; exit 1
 
+      # Phone alerts need a signing key pair before `browser:alerts` can
+      # turn them on. A throwaway pair per run, written to the job's
+      # environment so `npm run start` below inherits it: nothing it
+      # signs can reach a real phone, and no key ever sits in the
+      # repository.
+      - name: Phone alert keys for this run
+        run: node -e 'const k=require("web-push").generateVAPIDKeys();require("fs").appendFileSync(process.env.GITHUB_ENV,"VAPID_PUBLIC_KEY="+k.publicKey+"\nVAPID_PRIVATE_KEY="+k.privateKey+"\nVAPID_SUBJECT=mailto:ci@example.invalid\n")'
+
       - name: Start the application
         run: |
           npm run build
@@ -358,6 +366,25 @@ jobs:
         run: npm run browser:type
       - name: Palette
         run: npm run browser:option1
+      # No job ran these four. `verify.sh` steps three of them
+      # in the block that needs the application, which the verify job
+      # skips, and the fourth was in neither.
+      - name: The logo, on every surface and width
+        run: npm run browser:brand
+      - name: The training manual, on a desk and a phone
+        run: npm run browser:manual
+      - name: An agent's day on a phone
+        run: npm run browser:mobile-agent
+      - name: The document register, form to nightly alarm
+        run: npm run browser:documents
+      # Every screen at 320px, as an owner and as an agent. Three pages
+      # scrolled sideways there and nothing had measured them.
+      - name: Every screen fits a small phone
+        run: npm run browser:narrow
+      - name: An agent's microsite, edited and opened at every width
+        run: npm run browser:microsite
+      - name: Phone alerts, from the push to the tap
+        run: npm run browser:alerts
       - name: Accessibility
         run: npm run browser:a11y
 
@@ -399,6 +426,34 @@ jobs:
       # procedure over HTTP, which needs the application up.
       - name: What the brokerage earned
         run: npm run check:revenue
+
+      # Seven suites that need the application and that no job ran. Three
+      # were never on `verify.sh`'s hand-written list; the other four
+      # were, in its end-to-end block — which the verify job reaches with
+      # no application up, so it skipped them on every push. One of the
+      # four is the WhatsApp inbound path, the product's front door: the
+      # verify job sets its secret precisely so it would not skip, and
+      # it skipped for want of a server instead. `verify.sh`
+      # now finds every `check:*` itself; these need the app, which is up
+      # here and not in the verify job.
+      - name: A WhatsApp message becomes a lead
+        run: npm run check:whatsapp-inbound
+      - name: Who held a lead, and when
+        run: npm run check:ownership
+      - name: The buyer's property page
+        run: npm run check:public-listing
+      - name: A brokerage's own page, and its enquiry form
+        run: npm run check:listings-page
+      - name: Agent microsites — the page, its leads, its numbers and who may change it
+        run: npm run check:microsite
+      - name: A reportable transaction reaches the compliance officer
+        run: npm run check:rear
+      - name: A new enquiry reaches the right agent
+        run: npm run check:routing
+      - name: An agent who is away gets no new leads
+        run: npm run check:availability
+      - name: A lapsed broker card stops a deal
+        run: npm run check:blocking
 
       # And whether the company can take money at all. Here rather than
       # in the verify job for the same reason as the line above: the

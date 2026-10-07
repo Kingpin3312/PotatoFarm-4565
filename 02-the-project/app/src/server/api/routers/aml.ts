@@ -13,7 +13,7 @@ import { DEMO_TOKEN, downloadMedia, MediaGoneError, MediaTooLargeError } from "@
 import { getChannelCredentials } from "@/server/lib/secrets";
 import { matchesType } from "@/server/lib/files/signature";
 import { personScope } from "@/server/auth/rbac";
-import type { Role } from "@prisma/client";
+import { Prisma, type Role } from "@prisma/client";
 
 /**
  * The open file of a person the caller can open, or NOT_FOUND.
@@ -389,6 +389,12 @@ export const amlRouter = router({
           after: { type: input.type, documentId: created.id },
         });
         return created;
+      }).catch((err: unknown) => {
+        // The same upload confirmed twice, by a double submit or a retry.
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+          throw new TRPCError({ code: "CONFLICT", message: "That document is already in the file." });
+        }
+        throw err;
       });
       return { id: doc.id };
     }),
@@ -471,6 +477,12 @@ export const amlRouter = router({
         });
         return { id: doc.id };
       } catch (err) {
+        // Filed by another request in the meantime — two tabs, or two
+        // people. The object under this key is that document's now, so
+        // it stays; deleting it here would empty the file that won.
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+          throw new TRPCError({ code: "CONFLICT", message: "That document is already in the file." });
+        }
         // Not left for the weekly sweep: this is somebody's passport.
         await deleteObject(key).catch(() => {});
         throw err;

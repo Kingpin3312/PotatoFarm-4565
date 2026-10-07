@@ -5,6 +5,7 @@ import { api } from "@/lib/trpc";
 import { ViewingCard } from "@/components/ui/viewing-card";
 import { QueryError } from "@/components/ui/query-state";
 import { MyViewings } from "./mine";
+import { ViewingRequests } from "./requests";
 
 /**
  * The day.
@@ -72,6 +73,8 @@ export default function Viewings({ searchParams }: {
           {list.length === 0 ? (isToday ? "Nothing today." : "Nothing that day.") : `${list.length} viewing${list.length === 1 ? "" : "s"}.`}
         </h1>
       </header>
+
+      <ViewingRequests onChanged={() => void refetch()} />
 
       {list.length === 0 ? (
         <p className="text-sub text-ink-2 max-w-[42ch]">

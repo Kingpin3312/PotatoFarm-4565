@@ -164,10 +164,7 @@ async function loadPublic(slug: string, reference: string) {
    * blank chat, or worse somebody else's number, is worse than no
    * button. The page renders without it.
    */
-  const channel = await crossTenant("global-key").channel.findFirst({
-    where: { orgId: row.orgId, type: "WHATSAPP", active: true },
-    select: { identifier: true },
-  });
+  const whatsapp = await brokerageWhatsapp(row.orgId);
 
   // Only someone who still belongs to this brokerage: a listing whose
   // agent has left must not advertise a person the buyer cannot reach.
@@ -194,7 +191,7 @@ async function loadPublic(slug: string, reference: string) {
     photos: real.map((p) => photoPath(path, p.id)),
     photosOnRequest: real.length === 0 && listed.length > 0,
     brokerage: org.name,
-    whatsapp: channel?.identifier ?? null,
+    whatsapp,
     agent: agent?.user.name ?? null,
   };
   return { view, orgId: row.orgId, listingId: row.id, descriptions: row.descriptions, cover: real[0] ?? null };
@@ -222,3 +219,136 @@ export function viewingText(l: Pick<PublicListing, "reference" | "title">) {
 
 /** Where a property's page lives. One place builds it: `lib/listing-paths`. */
 export { propertyPath };
+
+/** One property on the brokerage's page: enough to choose, and the way in. */
+export type PublicCard = {
+  reference: string;
+  title: string;
+  purpose: "SALE" | "RENT";
+  priceFils: bigint | null;
+  community: string | null;
+  bedrooms: number | null;
+  bathrooms: number | null;
+  areaSqft: number | null;
+  propertyType: string | null;
+  offPlan: boolean;
+  /** The opening of the English description, for a card that has room. */
+  excerpt: string | null;
+  /** The cover photograph's address under the property's own page, or null. */
+  cover: string | null;
+  href: string;
+};
+
+const PAGE_LIMIT = 200;
+
+const excerptOf = (descriptions: unknown) => {
+  const en = ((descriptions ?? {}) as { en?: string }).en?.replace(/\s+/g, " ").trim();
+  if (!en) return null;
+  return en.length <= 140 ? en : `${en.slice(0, 137).replace(/\s+\S*$/, "")}…`;
+};
+
+/**
+ * A brokerage's advertisable properties, as cards, through the property
+ * page's own gate — available, not deleted, a permit, a photo — so
+ * nothing is shown on a list that its page would refuse.
+ *
+ * `where` narrows (an agent's own, or a chosen few by id); it cannot
+ * widen, because the gate's conditions are applied after it. `ids`
+ * keeps the caller's order, for an agent's featured properties.
+ */
+export async function advertisedCards(org: { id: string; slug: string }, opts: {
+  ids?: string[]; agentId?: string; take?: number; hrefSuffix?: string;
+} = {}): Promise<(PublicCard & { id: string })[]> {
+  const db = crossTenant("global-key");
+  if (opts.ids && !opts.ids.length) return [];
+  const rows = await db.listing.findMany({
+    where: {
+      orgId: org.id, deletedAt: null, status: "AVAILABLE", permitNumber: { not: null },
+      ...(opts.ids ? { id: { in: opts.ids } } : {}),
+      ...(opts.agentId ? { agentId: opts.agentId } : {}),
+    },
+    orderBy: { updatedAt: "desc" },
+    take: opts.take ?? PAGE_LIMIT,
+    select: {
+      id: true, status: true, reference: true, title: true, purpose: true, priceFils: true,
+      community: true, building: true, bedrooms: true, bathrooms: true, areaSqft: true,
+      permitNumber: true, permitExpiresAt: true, reraBrokerCard: true, descriptions: true,
+      propertyType: true, completion: true,
+    },
+  });
+  const shown = rows.filter((r) =>
+    !blocking(validateForPublish(r as never, PUBLIC_REQUIREMENTS, photoList(r.descriptions).length)).length);
+  if (opts.ids) {
+    const at = new Map(opts.ids.map((id, i) => [id, i]));
+    shown.sort((a, b) => (at.get(a.id) ?? 0) - (at.get(b.id) ?? 0));
+  }
+  if (!shown.length) return [];
+
+  // Covers in one query rather than one per card: the first id in each
+  // listing's order that names a stored photograph of that listing.
+  const photos = await db.attachment.findMany({
+    where: { orgId: org.id, kind: "PHOTO", listingId: { in: shown.map((r) => r.id) } },
+    select: { id: true, listingId: true },
+  });
+  const stored = new Set(photos.map((p) => `${p.listingId}:${p.id}`));
+
+  return shown.map((r) => {
+    const page = propertyPath(org.slug, r.reference);
+    const coverId = photoList(r.descriptions).find((id) => stored.has(`${r.id}:${id}`));
+    return {
+      id: r.id,
+      reference: r.reference, title: r.title, purpose: r.purpose === "RENT" ? "RENT" : "SALE",
+      priceFils: r.priceFils, community: r.community, bedrooms: r.bedrooms, bathrooms: r.bathrooms,
+      areaSqft: r.areaSqft, propertyType: r.propertyType, offPlan: r.completion === "OFF_PLAN",
+      excerpt: excerptOf(r.descriptions),
+      cover: coverId ? photoPath(page, coverId) : null, href: page + (opts.hrefSuffix ?? ""),
+    };
+  });
+}
+
+/**
+ * The number buyers message on the brokerage's WhatsApp line, or null.
+ *
+ * `displayNumber`, never `identifier`: the identifier is Meta's phone
+ * number ID, which the webhook routes by, and a wa.me link built from it
+ * opens a chat with a number that does not exist. A line whose number
+ * nobody has entered gives null, and the pages show no WhatsApp button
+ * rather than a broken one.
+ */
+export async function brokerageWhatsapp(orgId: string) {
+  const channel = await crossTenant("global-key").channel.findFirst({
+    where: { orgId, type: "WHATSAPP", active: true, displayNumber: { not: null } },
+    orderBy: { createdAt: "asc" },
+    select: { displayNumber: true },
+  });
+  return channel?.displayNumber ?? null;
+}
+
+/**
+ * Every property a brokerage advertises, as a stranger may see them.
+ *
+ * The brokerage's own page: what it has, under its name, with a way to
+ * ask. Kendal builds brokerages a website; most of what a buyer wants
+ * from one is this list and that form, and both come from rows the
+ * brokerage already keeps.
+ *
+ * **Each card passes the property page's own gate** (`advertisedCards`),
+ * so nothing is listed here that its page would refuse, and a property
+ * withdrawn from one is withdrawn from both. A brokerage with nothing it
+ * may advertise gets the same answer as one that does not exist, so the
+ * address cannot be used to find out who is a customer.
+ */
+export async function publicBrokerage(slug: string, purpose: "SALE" | "RENT" | null = null) {
+  const db = crossTenant("global-key");
+  const org = await db.organisation.findUnique({ where: { slug }, select: { id: true, name: true, deletedAt: true } });
+  if (!org || org.deletedAt) return null;
+  // Without the listing ids: this page has no use for them.
+  const all: PublicCard[] = (await advertisedCards({ id: org.id, slug })).map(({ id: _id, ...card }) => card);
+  if (!all.length) return null;
+  return {
+    brokerage: org.name,
+    whatsapp: await brokerageWhatsapp(org.id),
+    cards: purpose ? all.filter((c) => c.purpose === purpose) : all,
+    counts: { all: all.length, sale: all.filter((c) => c.purpose === "SALE").length, rent: all.filter((c) => c.purpose === "RENT").length },
+  };
+}

@@ -74,6 +74,21 @@ const RULES: Record<string, { short: [number, number]; long: [number, number] }>
    */
   "website.demo":      { short: [3, 300], long: [15, 86_400] },
   "website.subscribe": { short: [3, 300], long: [15, 86_400] },
+  /**
+   * A buyer's enquiry from a brokerage's own pages (`/p/<slug>`). Each
+   * one becomes a lead and lands on an agent's list, so the thing worth
+   * protecting is the agents' attention: a flood of invented buyers is a
+   * brokerage that stops trusting its own leads. Keyed on the address and
+   * the phone, so one buyer asking about three properties is fine.
+   */
+  "property.enquiry":  { short: [5, 600], long: [20, 86_400] },
+  /**
+   * What a visitor did on an agent's microsite — a view, a WhatsApp tap.
+   * Nothing is sent and nothing is created but a counter, so the limit is
+   * generous; it exists so one script cannot make an agent's numbers say
+   * whatever it likes.
+   */
+  "microsite.event":   { short: [60, 600], long: [400, 86_400] },
 
   /**
    * Voice notes. Looser than the forms, because an agent legitimately
@@ -82,6 +97,9 @@ const RULES: Record<string, { short: [number, number]; long: [number, number] }>
    * from anybody with a session.
    */
   "voice.transcribe":  { short: [20, 300], long: [200, 86_400] },
+
+  /** A test alert: enough to try it twice, not enough to spam a phone. */
+  "push.test":         { short: [3, 60], long: [30, 86_400] },
 };
 
 export async function limit(action: string, key: string): Promise<Verdict> {

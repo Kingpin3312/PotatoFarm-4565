@@ -2,7 +2,9 @@ import { z } from "zod";
 import { can } from "@/server/auth/rbac";
 import { randomBytes, createHash, timingSafeEqual } from "node:crypto";
 import { TRPCError } from "@trpc/server";
-import { limitAll, keysFor } from "@/server/lib/ratelimit";
+import { limit, limitAll, keysFor } from "@/server/lib/ratelimit";
+import { vapidKeys } from "@/server/lib/notify/web-push";
+import { browsersOf, forgetBrowser, refreshBrowser, registerBrowser, sendPush } from "@/server/lib/notify/push";
 import { router, orgProcedure, publicProcedure, requirePermission } from "../trpc";
 import { switchOrg } from "@/server/auth/session";
 import { crossTenant } from "@/server/db/client";
@@ -826,6 +828,77 @@ export const orgRouter = router({
       // phone's. Said on the screen so 22:00 is unambiguous.
       timezone: org?.timezone ?? "Asia/Dubai",
     };
+  }),
+
+  /**
+   * Alerts on this phone: the key a browser subscribes with (null while
+   * web push is not set up on this server), and every browser this
+   * person has alerts on, with the one they are using marked.
+   */
+  pushSetup: orgProcedure.query(async ({ ctx }) => ({
+    publicKey: vapidKeys()?.publicKey ?? null,
+    // Who turned alerts on is remembered on the phone, so an app open
+    // can repair this person's subscription and never adopt somebody
+    // else's.
+    me: ctx.userId,
+    devices: await browsersOf(ctx.userId, ctx.session?.sid ?? null),
+  })),
+
+  /** Turn alerts on in this browser, for this sign-in. */
+  pushSubscribe: orgProcedure
+    .input(z.object({
+      endpoint: z.string().url().max(1024),
+      keys: z.object({
+        // An uncompressed P-256 point and a 16-byte secret, base64url.
+        p256dh: z.string().regex(/^[A-Za-z0-9_-]{80,100}$/),
+        auth: z.string().regex(/^[A-Za-z0-9_-]{16,32}$/),
+      }),
+      label: z.enum(["iPhone", "iPad", "Android", "Mac", "Windows", "Linux", "This browser"]),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      if (!vapidKeys()) {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Phone alerts are not set up on this server yet." });
+      }
+      if (!ctx.session?.sid) throw new TRPCError({ code: "UNAUTHORIZED" });
+      const r = await registerBrowser({
+        orgId: ctx.orgId, userId: ctx.userId, sessionId: ctx.session?.sid,
+        endpoint: input.endpoint, p256dh: input.keys.p256dh, auth: input.keys.auth, label: input.label,
+      });
+      if (!r.ok) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "This browser's alert service isn't one we can send to." });
+      }
+      await audit(ctx.db, ctx.orgId, { actorId: ctx.userId, action: "push.subscribed", entity: "User", entityId: ctx.userId, after: { label: input.label } });
+      return { ok: true };
+    }),
+
+  /** On every app open: keeps this browser's alerts tied to this sign-in. */
+  pushRefresh: orgProcedure
+    .input(z.object({ endpoint: z.string().url().max(1024) }))
+    .mutation(async ({ ctx, input }) => {
+      if (!ctx.session?.sid) return { known: false };
+      return refreshBrowser({ userId: ctx.userId, sessionId: ctx.session?.sid, endpoint: input.endpoint });
+    }),
+
+  /** Alerts off: this browser by its address, or one from the list. */
+  pushForget: orgProcedure
+    .input(z.object({ endpoint: z.string().url().max(1024).optional(), id: z.string().max(40).optional() }))
+    .mutation(async ({ ctx, input }) => {
+      const r = await forgetBrowser({ userId: ctx.userId, endpoint: input.endpoint, id: input.id });
+      if (r.removed) await audit(ctx.db, ctx.orgId, { actorId: ctx.userId, action: "push.removed", entity: "User", entityId: ctx.userId, after: r });
+      return r;
+    }),
+
+  /** A test alert to every phone this person has alerts on. */
+  pushTest: orgProcedure.mutation(async ({ ctx }) => {
+    const v = await limit("push.test", `user:${ctx.userId}`);
+    if (!v.ok) throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "Give it a minute before sending another test." });
+    const r = await sendPush(ctx.userId, {
+      title: "Alerts are on",
+      body: "This is how a new lead or a buyer waiting for you will reach this phone.",
+      deeplink: "/me",
+      urgent: false,
+    });
+    return { sent: r.sent, noDevice: "noDevice" in r && !!r.noDevice };
   }),
 
   setNotifications: orgProcedure

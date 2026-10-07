@@ -178,6 +178,8 @@ export async function mailboxAddress(p: Provider, accessToken: string): Promise<
 export type Raw = {
   id: string; threadId: string; from: string; to: string[];
   subject?: string; snippet?: string; sentAt: Date; webLink?: string;
+  /** Where a reply goes. A portal's lead email puts the buyer here. */
+  replyTo?: string[];
 };
 
 const PER_SYNC = 100;
@@ -214,7 +216,7 @@ export async function fetchNew(p: Provider, token: string, cursor: string | null
     // if it is on Microsoft's own API — the request carries the mailbox's
     // token, and a stored link pointing anywhere else would send it there.
     const fromMicrosoft = cursor && cursor.startsWith(`${u.api}/`) ? cursor : null;
-    const url = fromMicrosoft ?? `${u.api}/messages/delta?$select=subject,from,toRecipients,bodyPreview,sentDateTime,webLink,conversationId`;
+    const url = fromMicrosoft ?? `${u.api}/messages/delta?$select=subject,from,toRecipients,replyTo,bodyPreview,sentDateTime,webLink,conversationId`;
     const res = await get(url, token);
     if (!res.ok) throw new Error(`MICROSOFT ${res.status}`);
     const b = await res.json() as Record<string, unknown>;
@@ -225,6 +227,7 @@ export async function fetchNew(p: Provider, token: string, cursor: string | null
         from: String(m.from?.emailAddress?.address ?? "").toLowerCase(),
         to: ((m.toRecipients ?? []) as any[]).map((r) => String(r.emailAddress?.address ?? "").toLowerCase()).filter(Boolean),
         subject: m.subject, snippet: m.bodyPreview, sentAt: new Date(String(m.sentDateTime)), webLink: m.webLink,
+        replyTo: ((m.replyTo ?? []) as any[]).map((r) => String(r.emailAddress?.address ?? "").toLowerCase()).filter(Boolean),
       })),
       cursor: String(b["@odata.deltaLink"] ?? b["@odata.nextLink"] ?? cursor ?? ""),
     };
@@ -257,7 +260,7 @@ export async function fetchNew(p: Provider, token: string, cursor: string | null
 
   const messages: Raw[] = [];
   for (const id of ids.slice(0, PER_SYNC)) {
-    const res = await get(`${u.api}/messages/${encodeURIComponent(id)}?format=metadata&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Subject`, token);
+    const res = await get(`${u.api}/messages/${encodeURIComponent(id)}?format=metadata&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Subject&metadataHeaders=Reply-To`, token);
     if (!res.ok) continue;
     const m = await res.json() as { id: string; threadId: string; snippet?: string; internalDate?: string; payload?: { headers?: { name: string; value: string }[] } };
     const h = (n: string) => m.payload?.headers?.find((x) => x.name.toLowerCase() === n)?.value;
@@ -265,12 +268,49 @@ export async function fetchNew(p: Provider, token: string, cursor: string | null
       id: m.id, threadId: m.threadId,
       from: addresses(h("from"))[0] ?? "",
       to: addresses(h("to")),
-      subject: h("subject"), snippet: m.snippet,
+      subject: h("subject"), snippet: m.snippet, replyTo: addresses(h("reply-to")),
       sentAt: new Date(Number(m.internalDate ?? Date.now())),
       webLink: `https://mail.google.com/mail/u/0/#all/${m.threadId}`,
     });
   }
   return { messages, cursor: next };
+}
+
+/**
+ * One message's text, for a portal's lead email only.
+ *
+ * The sync's rule is headers and a snippet, never the body — and that
+ * still holds for everything else. A portal's new-lead notification is
+ * the exception because the buyer's details are in the body and nowhere
+ * else; `sync.ts` asks for it only when the sender is a portal's own
+ * domain, reads the details out, and stores none of the text.
+ */
+export async function messageText(p: Provider, token: string, id: string): Promise<string> {
+  const u = urls(p);
+  if (p === "MICROSOFT") {
+    const res = await fetch(`${u.api}/messages/${encodeURIComponent(id)}?$select=body`, {
+      headers: { Authorization: `Bearer ${token}`, Prefer: 'outlook.body-content-type="text"' },
+      signal: AbortSignal.timeout(20_000),
+    });
+    if (res.status === 401) throw new TokenError("unauthorized");
+    if (!res.ok) throw new Error(`MICROSOFT message ${res.status}`);
+    const b = await res.json() as { body?: { content?: string } };
+    return String(b.body?.content ?? "");
+  }
+  const res = await get(`${u.api}/messages/${encodeURIComponent(id)}?format=full`, token);
+  if (!res.ok) throw new Error(`GOOGLE message ${res.status}`);
+  type Part = { mimeType?: string; body?: { data?: string }; parts?: Part[] };
+  const m = await res.json() as { payload?: Part };
+  const found: Record<string, string> = {};
+  const walk = (part: Part | undefined) => {
+    if (!part) return;
+    if (part.body?.data && part.mimeType && !found[part.mimeType]) {
+      found[part.mimeType] = Buffer.from(part.body.data, "base64url").toString("utf8");
+    }
+    part.parts?.forEach(walk);
+  };
+  walk(m.payload);
+  return found["text/plain"] ?? found["text/html"] ?? "";
 }
 
 /* ------------------------------ calendar --------------------------- */
@@ -306,10 +346,22 @@ export async function busyTimes(p: Provider, token: string, from: Date, to: Date
       signal: AbortSignal.timeout(20_000),
     });
     if (res.status === 401) throw new TokenError("unauthorized");
-    if (res.status === 403) throw new CalendarNotShared();
+    // Google answers 403 for a rate limit as well as for a missing scope.
+    // Read as "not shared", a busy minute would clear the agent's busy
+    // times and tell them to reconnect a mailbox that is fine; read as a
+    // passing failure, the last read stands and the next sync retries.
+    if (res.status === 403) {
+      const why = await res.text().catch(() => "");
+      if (/rate ?limit|quota/i.test(why)) throw new Error("GOOGLE calendar rate limited");
+      throw new CalendarNotShared();
+    }
     if (!res.ok) throw new Error(`GOOGLE calendar ${res.status}`);
-    const b = await res.json() as { calendars?: { primary?: { busy?: { start: string; end: string }[]; errors?: unknown[] } } };
-    if (b.calendars?.primary?.errors?.length) throw new CalendarNotShared();
+    const b = await res.json() as { calendars?: { primary?: { busy?: { start: string; end: string }[]; errors?: { reason?: string }[] } } };
+    const errs = b.calendars?.primary?.errors ?? [];
+    // Per calendar, the same distinction: `backendError` is Google having a
+    // bad moment, not the agent having withheld anything.
+    if (errs.some((e) => /backend|internal/i.test(e.reason ?? ""))) throw new Error("GOOGLE calendar backend error");
+    if (errs.length) throw new CalendarNotShared();
     for (const x of b.calendars?.primary?.busy ?? []) keep(x.start, x.end);
     return out;
   }

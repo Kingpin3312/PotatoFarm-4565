@@ -37,6 +37,7 @@ import { viewsRouter } from "./routers/views";
 import { importsRouter } from "./routers/imports";
 import { tenanciesRouter } from "./routers/tenancies";
 import { tasksRouter } from "./routers/tasks";
+import { micrositeRouter } from "./routers/microsite";
 
 /**
  * The API surface.
@@ -106,6 +107,8 @@ export const appRouter = router({
   tenancies: tenanciesRouter,
   // Tasks a person writes, and hands to a colleague.
   tasks: tasksRouter,
+  // Every agent's own website, built from the CRM.
+  microsite: micrositeRouter,
 
   privacy: privacyRouter,
   support: supportRouter,

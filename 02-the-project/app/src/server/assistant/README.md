@@ -223,9 +223,37 @@ That is now real. `scheduling.ts` computes genuine availability, `hold`
 writes a row that a Postgres exclusion constraint refuses to overlap, and
 the hold lapses after fifteen minutes if the lead does not answer.
 
-The assistant offers **three slots across three different days**. Three
-consecutive Saturday-morning slots is one offer wearing three hats, and
-if the lead cannot do Saturday morning the conversation stalls.
+**The paragraph that stood here said the assistant offers three slots
+across three different days. It did not** — until 4 October 2026 only the
+agent's booking screen used them, and the assistant's script ended "say
+an agent will confirm the time" with no time at all. Now it does, and the
+agent always confirms (the owner's decision):
+
+1. When the buyer's answers cover every required question, the lead moves
+   to Qualified (`answers.ts` `qualificationState`; forward only, audited)
+   — nothing did that before, so the board's Qualified column filled only
+   by hand and an assistant with automatic replies on qualified a buyer
+   for ever.
+2. At a brokerage with automatic replies on, the assistant then sends up
+   to three real free times (`viewings/offer.ts`): `availableSlots` —
+   working hours, the diary, travel, the agent's own calendar — spread by
+   `offerable` across different days, worded by `viewings/pick.ts` in the
+   buyer's language. The times are written by code, not the model: a
+   model restating "Tuesday 11:00" will one day say Wednesday, and nothing
+   checks a day the way the guardrails check a price. Elsewhere the agent
+   sends the same offer from the thread ("Offer viewing times").
+3. The buyer's reply is read against the open offer (`readPick`, timid by
+   design: a number, an ordinal, or a day/time naming exactly one slot).
+   A pick holds the slot as a request (`Viewing.requestedAt`, held until
+   the slot itself) and puts "Confirm …" on the agent's list. Nothing is
+   said to the buyer yet.
+4. The agent answers on Viewings: **Confirm** books it, moves the lead to
+   Viewing booked and tells the buyer; **Can't make it** frees the slot
+   and tells them new times will follow. Both messages go only from that
+   tap. A request nobody answers is never silently released —
+   `expireHolds` puts the lapse on the agent's list.
+
+`check:viewing-offers`.
 
 ## What is still missing
 

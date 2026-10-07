@@ -2,13 +2,13 @@
 // Rebuild the manual, then run it again; the reader follows.
 
 export const EDITION = "e2";
-export const PAGE_COUNT = 64;
+export const PAGE_COUNT = 68;
 // Changes with every rebuild, and rides on every page and PDF address:
 // the files are cached for an hour, and the addresses do not otherwise
 // change, so without it a reader could see last edition's pages.
-export const VERSION = "6f61d74c0e";
+export const VERSION = "901000506c";
 export const PDF_URL = "/api/manual/pdf";
-export const PDF_BYTES = 6447405;
+export const PDF_BYTES = 6970784;
 
 export type Entry = { no: string; title: string; page: number; part: boolean };
 export const CONTENTS: Entry[] = [
@@ -170,212 +170,236 @@ export const CONTENTS: Entry[] = [
   },
   {
     "no": "3.4",
-    "title": "Owners (vendors)",
+    "title": "Your brokerage's listings page",
     "page": 29,
     "part": false
   },
   {
     "no": "3.5",
-    "title": "The pipeline",
+    "title": "Your own website: My microsite",
     "page": 30,
     "part": false
   },
   {
     "no": "3.6",
-    "title": "Offers",
+    "title": "Editing your microsite",
     "page": 31,
     "part": false
   },
   {
     "no": "3.7",
-    "title": "Recording an offer",
+    "title": "Owners (vendors)",
     "page": 32,
     "part": false
   },
   {
     "no": "3.8",
-    "title": "Deals",
+    "title": "The pipeline",
     "page": 33,
     "part": false
   },
   {
     "no": "3.9",
-    "title": "Commission",
+    "title": "Offers",
     "page": 34,
     "part": false
   },
   {
     "no": "3.10",
-    "title": "Revenue",
+    "title": "Recording an offer",
     "page": 35,
     "part": false
   },
   {
     "no": "3.11",
-    "title": "Documents: permits, cards and licences",
+    "title": "Deals",
     "page": 36,
+    "part": false
+  },
+  {
+    "no": "3.12",
+    "title": "Commission",
+    "page": 37,
+    "part": false
+  },
+  {
+    "no": "3.13",
+    "title": "Revenue",
+    "page": 38,
+    "part": false
+  },
+  {
+    "no": "3.14",
+    "title": "Documents: permits, cards and licences",
+    "page": 39,
     "part": false
   },
   {
     "no": "04",
     "title": "Running the brokerage",
-    "page": 37,
+    "page": 40,
     "part": true
   },
   {
     "no": "4.1",
     "title": "Reports",
-    "page": 38,
+    "page": 41,
     "part": false
   },
   {
     "no": "4.2",
     "title": "Where your enquiries come from",
-    "page": 39,
+    "page": 42,
     "part": false
   },
   {
     "no": "4.3",
     "title": "What the assistant did",
-    "page": 40,
+    "page": 43,
     "part": false
   },
   {
     "no": "4.4",
     "title": "Team",
-    "page": 41,
+    "page": 44,
     "part": false
   },
   {
     "no": "4.5",
     "title": "Compliance (for the compliance officer)",
-    "page": 42,
+    "page": 45,
     "part": false
   },
   {
     "no": "05",
     "title": "Settings",
-    "page": 43,
+    "page": 46,
     "part": true
   },
   {
     "no": "5.1",
     "title": "Settings: the assistant's brake, calendar and listing feed",
-    "page": 44,
+    "page": 47,
     "part": false
   },
   {
     "no": "5.2",
     "title": "How the assistant's drafts are received",
-    "page": 45,
+    "page": 48,
     "part": false
   },
   {
     "no": "5.3",
     "title": "The assistant: questions, tone and automatic replies",
-    "page": 46,
+    "page": 49,
     "part": false
   },
   {
     "no": "5.4",
     "title": "Channels",
-    "page": 47,
+    "page": 50,
     "part": false
   },
   {
     "no": "5.5",
     "title": "Lead routing",
-    "page": 48,
+    "page": 51,
     "part": false
   },
   {
     "no": "5.6",
     "title": "Working hours",
-    "page": 49,
+    "page": 52,
     "part": false
   },
   {
     "no": "5.7",
     "title": "Nurture plans",
-    "page": 50,
+    "page": 53,
     "part": false
   },
   {
     "no": "5.8",
     "title": "Commission plans",
-    "page": 51,
+    "page": 54,
     "part": false
   },
   {
     "no": "5.9",
     "title": "Email",
-    "page": 52,
+    "page": 55,
     "part": false
   },
   {
     "no": "5.10",
     "title": "Import your history",
-    "page": 53,
-    "part": false
-  },
-  {
-    "no": "5.11",
-    "title": "Security and two-step sign-in",
-    "page": 54,
-    "part": false
-  },
-  {
-    "no": "5.12",
-    "title": "Support access",
-    "page": 55,
-    "part": false
-  },
-  {
-    "no": "5.13",
-    "title": "Privacy requests",
     "page": 56,
     "part": false
   },
   {
-    "no": "5.14",
-    "title": "Billing and invoices",
+    "no": "5.11",
+    "title": "Microsites",
     "page": 57,
+    "part": false
+  },
+  {
+    "no": "5.12",
+    "title": "Security and two-step sign-in",
+    "page": 58,
+    "part": false
+  },
+  {
+    "no": "5.13",
+    "title": "Support access",
+    "page": 59,
+    "part": false
+  },
+  {
+    "no": "5.14",
+    "title": "Privacy requests",
+    "page": 60,
+    "part": false
+  },
+  {
+    "no": "5.15",
+    "title": "Billing and invoices",
+    "page": 61,
     "part": false
   },
   {
     "no": "06",
     "title": "On your phone",
-    "page": 58,
+    "page": 62,
     "part": true
   },
   {
     "no": "6.1",
     "title": "Using PotatoFarm.io on your phone",
-    "page": 59,
+    "page": 63,
     "part": false
   },
   {
     "no": "07",
     "title": "Routines and reference",
-    "page": 60,
+    "page": 64,
     "part": true
   },
   {
     "no": "7.1",
     "title": "Routines by role",
-    "page": 61,
+    "page": 65,
     "part": false
   },
   {
     "no": "7.2",
     "title": "When something looks wrong",
-    "page": 62,
+    "page": 66,
     "part": false
   },
   {
     "no": "7.3",
     "title": "Words we use",
-    "page": 63,
+    "page": 67,
     "part": false
   }
 ];

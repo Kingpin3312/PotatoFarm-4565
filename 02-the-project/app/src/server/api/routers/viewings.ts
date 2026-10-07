@@ -8,6 +8,9 @@ import { audit, type AuditWriter } from "@/server/lib/audit";
 import { availableSlots, offerable, humanSlot } from "@/server/lib/scheduling";
 import { VERDICTS, reasonsFor } from "@/server/lib/feedback/collect";
 import type { Role } from "@prisma/client";
+import { makeOffer, sendOnThread } from "@/server/lib/viewings/offer";
+import { confirmMessage, declineMessage, slotLabel } from "@/server/lib/viewings/pick";
+import { conversationScope } from "@/server/lib/conversations/party";
 
 /** Postgres raises this when the exclusion constraint refuses an overlap. */
 const EXCLUSION_VIOLATION = "23P01";
@@ -164,7 +167,7 @@ export const viewingsRouter = router({
           // it. `viewings.slots` needs both to know what is free and how
           // far away it is, and neither was on the wire — which is one
           // reason `reschedule.tsx` had never been mounted.
-          agentId: true, listingId: true, status: true,
+          agentId: true, listingId: true, status: true, requestedAt: true,
           address: true, building: true, lat: true, lng: true, accessNote: true,
           lead: { select: { name: true, phone: true } },
           listing: { select: { reference: true } },
@@ -184,6 +187,9 @@ export const viewingsRouter = router({
           lat: v.lat,
           lng: v.lng,
           accessNote: v.accessNote,
+          // A buyer's pick the agent has not confirmed: on the diary so the
+          // slot is visibly taken, marked so it is not read as booked.
+          awaitingConfirmation: v.status === "SCHEDULED" && !!v.requestedAt,
           agentId: v.agentId,
           listingId: v.listingId,
           status: v.status,
@@ -355,6 +361,103 @@ export const viewingsRouter = router({
       })
     ),
 
+  /**
+   * Offer the buyer real free times, from the thread, on the agent's tap.
+   *
+   * The same offer the assistant sends by itself where the owner allows
+   * it (`viewings/offer.ts`). Sent as the agent's message, because the
+   * agent pressed the button.
+   */
+  offerTimes: requirePermission("conversation:send")
+    .input(z.object({ conversationId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const c = await ctx.db.conversation.findFirst({
+        where: { id: input.conversationId, leadId: { not: null }, ...conversationScope(ctx.role, ctx.userId) }, select: { id: true },
+      });
+      if (!c) throw new TRPCError({ code: "NOT_FOUND" });
+      const offer = await makeOffer(ctx.orgId, c.id);
+      if (!offer.ok) {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message:
+          offer.reason === "no_agent" ? "Nobody is looking after this buyer yet. Assign them first, so the times are somebody's."
+          : offer.reason === "no_free_time" ? "There are no free times in the next week. Check working hours under Settings, or the diary."
+          : "This thread is not with a buyer." });
+      }
+      const sent = await sendOnThread(ctx.orgId, c.id, offer.text, { author: "AGENT", authorId: ctx.userId });
+      if (!sent.sent) {
+        await ctx.db.viewingOffer.update({ where: { id: offer.offerId }, data: { closedAt: new Date() } });
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: sent.reason === "window_closed"
+          ? "It has been more than 24 hours since they last wrote, so WhatsApp will not deliver this. Send a template, or ring them."
+          : "WhatsApp did not take the message. Try again in a minute." });
+      }
+      await audit(ctx.db, ctx.orgId, { actorId: ctx.userId, action: "viewing.offered", entity: "Conversation", entityId: c.id, after: { slots: offer.slots.length } });
+      return { slots: offer.slots };
+    }),
+
+  /** Buyers' picks waiting for the caller to confirm, soonest first. */
+  requests: orgProcedure.query(async ({ ctx }) => {
+    const rows = await ctx.db.viewing.findMany({
+      where: { status: "SCHEDULED", requestedAt: { not: null }, ...viewingScope(ctx.role, ctx.userId) },
+      orderBy: { scheduledAt: "asc" },
+      select: {
+        id: true, scheduledAt: true, requestedAt: true,
+        lead: { select: { id: true, name: true, phone: true } },
+        listing: { select: { reference: true, title: true } },
+        agent: { select: { name: true } },
+      },
+    });
+    return rows.map((r) => ({ ...r, label: slotLabel(r.scheduledAt, "en") }));
+  }),
+
+  /**
+   * The agent says yes: the viewing is booked, the buyer is told.
+   *
+   * The one place a buyer hears "confirmed", and only from this tap — the
+   * owner's decision that the agent always confirms. Booked in the same
+   * transaction that closes the task; the message goes after, and if
+   * WhatsApp's window has shut the booking still stands and the screen
+   * says to ring them.
+   */
+  confirmRequest: requirePermission("viewing:write")
+    .input(z.object({ viewingId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const v = await ctx.db.viewing.findFirst({
+        where: { id: input.viewingId, status: "SCHEDULED", requestedAt: { not: null }, ...viewingScope(ctx.role, ctx.userId) },
+        select: { id: true, leadId: true, scheduledAt: true, listing: { select: { title: true } }, agent: { select: { name: true } }, lead: { select: { language: true } } },
+      });
+      if (!v) throw new TRPCError({ code: "NOT_FOUND", message: "That request has already been answered or has lapsed." });
+      await ctx.db.$transaction(async (tx) => {
+        await tx.viewing.update({ where: { id: v.id }, data: { status: "CONFIRMED", heldUntil: null } });
+        await moveLeadTo(tx as unknown as Prisma.TransactionClient, v.leadId, "VIEWING_BOOKED", { forwardOnly: true });
+        await tx.followUp.updateMany({ where: { viewingId: v.id, completedAt: null }, data: { completedAt: new Date() } });
+        await audit(tx, ctx.orgId, { actorId: ctx.userId, action: "viewing.confirm", entity: "Viewing", entityId: v.id, after: { requested: true } });
+      });
+      const told = await tellBuyer(ctx, v.leadId, confirmMessage({
+        lang: v.lead.language === "ar" ? "ar" : "en", at: v.scheduledAt,
+        listingTitle: v.listing?.title ?? null, agentName: v.agent?.name?.split(" ")[0] ?? null,
+      }));
+      return { booked: true, told };
+    }),
+
+  /** The agent cannot make it: the slot is freed and the buyer told new times will follow. */
+  declineRequest: requirePermission("viewing:write")
+    .input(z.object({ viewingId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const v = await ctx.db.viewing.findFirst({
+        where: { id: input.viewingId, status: "SCHEDULED", requestedAt: { not: null }, ...viewingScope(ctx.role, ctx.userId) },
+        select: { id: true, leadId: true, scheduledAt: true, agent: { select: { name: true } }, lead: { select: { language: true } } },
+      });
+      if (!v) throw new TRPCError({ code: "NOT_FOUND", message: "That request has already been answered or has lapsed." });
+      await ctx.db.$transaction(async (tx) => {
+        await tx.viewing.delete({ where: { id: v.id } });
+        await tx.followUp.updateMany({ where: { viewingId: v.id, completedAt: null }, data: { completedAt: new Date() } });
+        await audit(tx, ctx.orgId, { actorId: ctx.userId, action: "viewing.request_declined", entity: "Viewing", entityId: v.id });
+      });
+      const told = await tellBuyer(ctx, v.leadId, declineMessage({
+        lang: v.lead.language === "ar" ? "ar" : "en", at: v.scheduledAt, agentName: v.agent?.name?.split(" ")[0] ?? null,
+      }));
+      return { freed: true, told };
+    }),
+
   reschedule: requirePermission("viewing:write")
     .input(z.object({ viewingId: z.string(), start: z.date() }))
     .mutation(async ({ ctx, input }) => {
@@ -489,3 +592,12 @@ export const viewingsRouter = router({
       })
     ),
 });
+
+
+/** The buyer's thread, told on the agent's tap. False when WhatsApp's window has shut. */
+async function tellBuyer(ctx: { orgId: string; userId: string; db: any }, leadId: string, body: string) {
+  const convo = await ctx.db.conversation.findFirst({ where: { leadId }, select: { id: true } });
+  if (!convo) return false;
+  const sent = await sendOnThread(ctx.orgId, convo.id, body, { author: "AGENT", authorId: ctx.userId });
+  return sent.sent;
+}

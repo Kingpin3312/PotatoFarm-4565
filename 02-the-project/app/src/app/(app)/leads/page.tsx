@@ -190,7 +190,10 @@ function Leads() {
           <span className="t-label text-ink-3">
             {f.view === "archived" ? "Archived leads" : f.view === "deleted" ? "Deleted leads" : "Leads"}
           </span>
-          <div className="flex items-center gap-4">
+          {/* Wraps: a manager's Import and Export arrive with their
+              permissions, and at 320px the three no longer fit beside the
+              label — the page scrolled sideways once the role loaded. */}
+          <div className="flex flex-wrap items-center justify-end gap-x-4 min-w-0">
             {/* A book in and a book out — managers only, both logged. */}
             {manager && (
               <>

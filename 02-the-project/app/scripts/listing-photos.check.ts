@@ -196,6 +196,22 @@ async function main() {
   const audited = await root.auditLog.count({ where: { orgId: org.id, action: { startsWith: "listing.photo_" } } });
   ok("every change is in the audit log", audited === 4, String(audited));
 
+  console.log("\n=== two people at once ===");
+  // The order is read, edited and written back. Two at once read the same
+  // list, and without the row lock the second write drops the first's photo
+  // — stored, billed, and on nobody's page.
+  const batch = await Promise.all(["a", "b", "c"].map((n) => add(M, other.id, JPEG, "image/jpeg", `${n}.jpg`)));
+  const kept = await Promise.all(batch.map((b) => b.confirm()));
+  const orderOf = async () => ((await root.listing.findUniqueOrThrow({ where: { id: other.id } })).descriptions as { photos: string[] }).photos;
+  const together = await orderOf();
+  ok("three confirmed at the same moment are all in the order",
+     together.length === 3 && kept.every((k) => together.includes(k.id)), JSON.stringify(together));
+  const late = await add(M, other.id, PNG, "image/png", "d.png");
+  const [, added] = await Promise.all([M.photoRemove({ listingId: other.id, photoId: kept[0]!.id }), late.confirm()]);
+  const after = await orderOf();
+  ok("a removal racing an upload loses neither change",
+     after.length === 3 && !after.includes(kept[0]!.id) && after.includes(added.id), JSON.stringify(after));
+
   await cleanup();
   s3.close();
   console.log(bad ? `\n${bad} FAILURE(S)\n` : "\nAll checks passed.\n");

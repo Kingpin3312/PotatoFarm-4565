@@ -101,13 +101,17 @@ auth. **It cannot build.** No `app.json`, no `tsconfig.json`, no
 `babel.config.js`, no assets, and it targets Expo SDK 51 / React Native
 0.74. Its sign-in flow expects the web app to hand back a `?session=`
 token, which the web app cannot do. Treat it as a design sketch.
+Phone alerts no longer depend on it: since October 2026 they go to the
+installed web app by Web Push (`notify/web-push.ts`; turned on from
+Mine → Phone alerts). Whether a store app is built at all was left to
+the owner to decide from what the pilot shows.
 
 ---
 
 ## 4. What is built
 
-**83 database models · 68 enums · 38 API routers · 228 procedures ·
-53 screens · 30 scheduled jobs · 23 audit scripts · 66 check suites.**
+**86 database models · 69 enums · 39 API routers · 257 procedures ·
+53 screens · 30 scheduled jobs · 23 audit scripts · 71 check suites.**
 
 **Five procedures have no screen, and every one of them deliberately:**
 `aml.checkRear`, `aml.visibilityPolicy`, `onboarding.previewImport`,
@@ -254,7 +258,7 @@ thing it checks and confirming it fails.
 ### The unit tests
 
 ```bash
-npm test                    # 432 assertions, no database, ~3 seconds
+npm test                    # 485 assertions, no database, ~3 seconds
 ```
 
 `package.json` declared `"test": "vitest run"` from the beginning with no
@@ -262,7 +266,7 @@ test files and no config behind it, so the command exited 1 and said "No
 test files found" — a command claiming to run tests that could not, which
 is the same shape as a button that does not do what it says.
 
-31 test files, and the selection is not "whatever was easy to test". Every
+37 test files, and the selection is not "whatever was easy to test". Every
 case is a bug that actually happened here or a rule whose failure would
 be silent:
 
@@ -431,13 +435,13 @@ Ask — an agent can see what they asked for earlier and what came back.
 - **Voice recipes** `BOOK_VIEWING` and `COMPARABLES` return a follow-up
   question rather than completing in one step. Deliberate, but the second
   step is not wired to the booking screen.
-**Unit tests cover the pure logic, not the codebase.** 432 assertions in 31 files,
+**Unit tests cover the pure logic, not the codebase.** 494 assertions in 37 files,
   across money, the 24-hour window, Dubai sending hours, the search
   parser, lead scoring, deal risk, the assistant's guardrails and the
   interface's Arabic — the
   pure logic where being wrong is expensive and silent. Everything
-  stateful is still covered only by the 66 check suites and the
-  28 browser checks, which is not the same thing as a test suite. What is
+  stateful is still covered only by the 71 check suites and the
+  31 browser checks, which is not the same thing as a test suite. What is
   left untested in `assistant/` is everything that needs a model:
   `run.ts` and `prompt.ts` are exercised only through `check:autonomy`
   and by replaying real transcripts. `extract.ts`'s mapping to answers
@@ -758,8 +762,8 @@ Full spec: `03-brand/logo/SPEC.md`.
 
 ## 10. Database, API, auth, integrations
 
-**Database:** PostgreSQL via Prisma. `app/prisma/schema.prisma`, 83
-models. 42 migrations in `app/prisma/migrations/`. **`rls.sql` is
+**Database:** PostgreSQL via Prisma. `app/prisma/schema.prisma`, 86
+models. 44 migrations in `app/prisma/migrations/`. **`rls.sql` is
 appended to the init migration** — it is not a file somebody has to
 remember to run, because the tenant boundary is not something to leave to
 memory.

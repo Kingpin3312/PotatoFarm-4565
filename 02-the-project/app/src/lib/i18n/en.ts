@@ -38,6 +38,8 @@ export const en = {
   "nav.reports": "Reports",
   "nav.revenue": "Revenue",
   "nav.mine": "Mine",
+  "nav.microsite": "My microsite",
+  "nav.microsites": "Microsites",
   "nav.tasks": "Tasks",
   "nav.leads": "Leads",
   "nav.listings": "Listings",

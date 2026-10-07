@@ -24,6 +24,12 @@ export type CalendarViewing = {
   building: string | null;
   accessNote: string | null;
   status: string;
+  /**
+   * Held, not booked: an agent's own short hold, or a buyer's pick the
+   * agent has not confirmed. Published TENTATIVE, so the phone shows the
+   * slot as pencilled in rather than as an appointment somebody agreed.
+   */
+  tentative?: boolean;
   updatedAt: Date;
   leadName: string | null;
   leadPhone: string | null;
@@ -128,7 +134,7 @@ function event(v: CalendarViewing, now: Date): string[] {
    * it keeps what it has. `STATUS:CANCELLED` is the only thing that
    * actually takes it off the phone.
    */
-  out.push(line("STATUS", v.status === "CANCELLED" ? "CANCELLED" : "CONFIRMED"));
+  out.push(line("STATUS", v.status === "CANCELLED" ? "CANCELLED" : v.tentative ? "TENTATIVE" : "CONFIRMED"));
 
   out.push("END:VEVENT");
   return out;

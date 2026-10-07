@@ -7,6 +7,11 @@ import { assignmentFor } from "@/server/lib/routing/apply";
 import { normalisePhone } from "@/server/lib/portals/normalise";
 import { reply } from "@/server/assistant/run";
 import { detectLanguage } from "@/server/lib/language";
+import { mentionedPortal, referenceCandidates, PORTAL_LABEL } from "@/server/lib/portals/mention";
+import { micrositeInText } from "@/lib/microsite/content";
+import { loadLive } from "@/server/lib/microsite/public";
+import { refVariants } from "@/lib/reference";
+import { handlePick } from "@/server/lib/viewings/offer";
 
 /**
  * Inbound WhatsApp.
@@ -55,6 +60,16 @@ export async function ingest(payload: any) {
          * rest (kill switch, handover, mute, the window) in `prepare`.
          */
         if (fresh) {
+          /**
+           * A pick from the viewing times they were offered becomes a
+           * held request for the agent (`viewings/offer.ts`) — before the
+           * reply, so the reply is drafted knowing it.
+           */
+          const text = msg.text?.body ?? msg.button?.text ?? msg.interactive?.list_reply?.title;
+          if (text) {
+            await handlePick(channel.orgId, fresh.conversationId, text).catch((err) =>
+              log.error("[whatsapp] could not read a viewing pick", { orgId: channel.orgId }, { reason: String(err).slice(0, 200) }));
+          }
           await reply(channel.orgId, fresh.conversationId, fresh.messageId, msg.id).catch((err) =>
             log.error("[whatsapp] could not reply", { orgId: channel.orgId }, { reason: String(err).slice(0, 200) }));
         }
@@ -153,9 +168,32 @@ async function inbound(
       }
     }
 
+    /**
+     * Which portal sent them, when the message says so.
+     *
+     * A buyer who pressed WhatsApp on a Bayut advert arrives here, not at
+     * a portal webhook, and was filed as `WHATSAPP_AD` — so the report of
+     * where leads come from credited WhatsApp with what the portal was
+     * paid for, and a routing rule for Bayut leads never matched them.
+     * Read off the first message only: a returning buyer is already
+     * filed, and "I also saw one on Bayut" months later says nothing about
+     * where they came from. `portals/mention.ts` says what counts.
+     */
+    const portal = known ? null : mentionedPortal(body);
+    /**
+     * Which agent's microsite sent them, when the message carries its
+     * address — which the site's "WhatsApp me" button writes in. The
+     * buyer chose that agent, so the lead goes to them rather than
+     * through the rotation. First message only, for the same reason as
+     * the portal: a returning buyer already has an agent.
+     */
+    const site = known ? null : await micrositeFromMessage(channel.orgId, body);
+    const source = site ? "AGENT_MICROSITE" : portal ?? "WHATSAPP_AD";
     const assignment = known
       ? null
-      : await assignmentFor(tx, { orgId: channel.orgId, source: "WHATSAPP_AD" });
+      : site
+        ? { userId: site.userId, why: `Messaged from ${site.name}'s microsite.` }
+        : await assignmentFor(tx, { orgId: channel.orgId, source });
 
     const lead = await tx.lead.upsert({
       where: { orgId_phone: { orgId: channel.orgId, phone: from } },
@@ -167,7 +205,7 @@ async function inbound(
         // is in it too. See `lib/language.ts`.
         language: detectLanguage(body) ?? "en",
         status: "NEW",
-        source: "WHATSAPP_AD",
+        source,
         ...(stageId ? { stageId } : {}),
         ...(assignment?.userId
           ? { assignedToId: assignment.userId, assignedAt: new Date() }
@@ -224,8 +262,78 @@ async function inbound(
 
     const conversation = await arrived(tx, { leadId: lead.id }, channel, sentAt);
     const message = await store(tx, channel.orgId, conversation.id, msg.id, body, sentAt, media);
+    await enquiryFromMessage(tx, {
+      orgId: channel.orgId, channelId: channel.id, leadId: lead.id, isNew: !known,
+      portal, site, body, externalId: msg.id, sentAt,
+    });
     return { conversationId: conversation.id, messageId: message.id };
   });
+}
+
+/**
+ * The enquiry a WhatsApp message makes, when it names a portal or one of
+ * this brokerage's properties.
+ *
+ * The same row a portal's own delivery writes, so the property's
+ * enquiries, "who wants this property" and the report of where leads
+ * come from all count it. Its campaign is "Bayut, via WhatsApp": the
+ * report groups on campaign before channel, so the portal is credited
+ * and the way it arrived is still said.
+ *
+ * A reference counts only when this brokerage has a live listing with
+ * it. A returning buyer makes a new enquiry only for a property they
+ * have not enquired about — every "is it still available?" about the
+ * same flat is one enquiry, not a column of them. Keyed on the message,
+ * so a redelivery adds nothing.
+ */
+async function enquiryFromMessage(tx: any, m: {
+  orgId: string; channelId: string; leadId: string; isNew: boolean;
+  portal: ReturnType<typeof mentionedPortal>; site: Awaited<ReturnType<typeof micrositeFromMessage>>;
+  body: string; externalId: string; sentAt: Date;
+}) {
+  const refs = referenceCandidates(m.body);
+  const listing = refs.length
+    ? await tx.listing.findFirst({
+        where: {
+          orgId: m.orgId, deletedAt: null,
+          OR: refs.flatMap(refVariants).map((r) => ({ reference: { equals: r, mode: "insensitive" } })),
+        },
+        select: { id: true },
+      })
+    : null;
+  if (!listing && !(m.isNew && (m.portal || m.site))) return;
+  if (!m.isNew && listing) {
+    const already = await tx.enquiry.findFirst({
+      where: { orgId: m.orgId, leadId: m.leadId, listingId: listing.id }, select: { id: true },
+    });
+    if (already) return;
+  }
+  await tx.enquiry.create({
+    data: {
+      orgId: m.orgId, leadId: m.leadId, listingId: listing?.id ?? null, channelId: m.channelId,
+      externalId: `wa:${m.externalId}`,
+      message: m.body.slice(0, 2000),
+      campaign: m.site ? `Agent microsite · ${m.site.name}, via WhatsApp` : m.portal ? `${PORTAL_LABEL[m.portal]}, via WhatsApp` : null,
+      micrositeId: m.site?.micrositeId ?? null,
+      createdAt: m.sentAt,
+    },
+  });
+  if (m.site) {
+    await tx.micrositeEvent.create({ data: { orgId: m.orgId, micrositeId: m.site.micrositeId, kind: "LEAD", listingId: listing?.id ?? null } });
+  }
+}
+
+/**
+ * The live microsite of *this* brokerage whose address the message
+ * carries, or null. An address of another brokerage's agent, a draft, or
+ * a site an admin took down gives nothing.
+ */
+async function micrositeFromMessage(orgId: string, body: string) {
+  const found = micrositeInText(body);
+  if (!found) return null;
+  const l = await loadLive(found.orgSlug, found.agentSlug);
+  if (!l || l.org.id !== orgId) return null;
+  return { userId: l.site.userId, micrositeId: l.site.id, name: l.content.name };
 }
 
 /**

@@ -24,6 +24,8 @@ TREAT = {
     "setup": {"crop": .42, "wide": True}, "today": {"crop": .52}, "thread": {"crop": .42, "wide": True},
     "leads": {"crop": .5}, "person": {"crop": .47, "wide": True}, "listings": {"crop": .46}, "addprop": {"crop": .405},
     "reports": {"crop": .58}, "reports-sources": {"crop": .5}, "public": {"wide": True}, "set-drafts": {"crop": .5}, "compliance": {"w": 108}, "set-assistant": {"crop": .6, "wide": True}, "layout": {"crop": .6}, "phone": {"wide": True},
+    "diary": {"crop": .5, "wide": True}, "microsite": {"crop": .5, "wide": True},
+    "microsite-edit": {"crop": .5, "wide": True}, "set-microsites": {"crop": .55}, "me": {"crop": .5, "wide": True},
 }
 CROP = {}
 

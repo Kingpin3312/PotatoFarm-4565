@@ -129,6 +129,20 @@ model Organisation {
   /// brokerage only once this has been set at least once.
   feedFetchedAt   DateTime?
 
+  /// Agent microsites. On by default; off takes every agent's site down
+  /// at once without touching what they wrote.
+  micrositesEnabled        Boolean  @default(true)
+  /// Publishing sends the site to an admin, who approves it before it
+  /// goes live. Off by default.
+  micrositeApproval        Boolean  @default(false)
+  /// Whether an agent may put their own WhatsApp number on their site.
+  /// Off by default, so enquiries reach the brokerage's line — where the
+  /// assistant answers and the CRM keeps the conversation.
+  micrositeOwnWhatsapp     Boolean  @default(false)
+  /// The accent colours agents may choose from (`lib/microsite/palette.ts`
+  /// keys). Empty means all of them.
+  micrositeAccents         String[] @default([])
+
   @@index([deletedAt])
 }
 
@@ -425,6 +439,9 @@ enum LeadSource {
   /// an instant lead form filled in without leaving Facebook or Instagram.
   META_LEAD_ADS
   WHATSAPP_AD
+  /// Asked through an agent's own microsite: its form, or a WhatsApp
+  /// message carrying its address.
+  AGENT_MICROSITE
   REFERRAL
   WALK_IN
   UNKNOWN
@@ -486,6 +503,7 @@ model Conversation {
 
   org      Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
   drafts   ReplyDraft[]
+  viewingOffers ViewingOffer[]
   lead     Lead?        @relation(fields: [leadId], references: [id], onDelete: Cascade)
   vendor   Vendor?      @relation(fields: [vendorId], references: [id], onDelete: Cascade)
   channel  Channel      @relation(fields: [channelId], references: [id])
@@ -601,8 +619,16 @@ model Channel {
   orgId      String
   type       ChannelType
   label      String
-  /// WhatsApp: the display number. Portal: the account identifier.
+  /// WhatsApp: Meta's phone number ID — the long number the webhook
+  /// routes by, *not* the phone number. Portal: the account identifier.
   identifier String
+  /// WhatsApp only: the number buyers actually message, in E.164 — what a
+  /// "WhatsApp us" button on a public page opens. It is not the
+  /// identifier above, and the public pages used to put the identifier in
+  /// their wa.me links, which in production opens a chat with a number
+  /// that does not exist. Null until the brokerage says what it is; the
+  /// pages then show no WhatsApp button rather than a wrong one.
+  displayNumber String?
   secretRef  String?
 
   /**
@@ -876,6 +902,8 @@ model Enquiry {
   /// only Meta sets it today; the portals have one source and it is
   /// already the channel.
   campaign   String?
+  /// The agent microsite it was asked through, if any.
+  micrositeId String?
   createdAt  DateTime @default(now())
 
   lead    Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
@@ -924,6 +952,10 @@ model Viewing {
   /// Slots the assistant has offered but nobody has accepted yet. Without
   /// a hold, two leads offered the same 10:00 both take it.
   heldUntil DateTime?
+  /// Set when the hold is a buyer's pick from the assistant's offer, waiting
+  /// for the agent to confirm. Such a hold is never silently released: a
+  /// lapsed request goes on the agent's list (`reminders.ts`).
+  requestedAt DateTime?
 
   /// Reminder state. Nulls mean not yet sent; this is what stops a retry
   /// sending the same reminder twice.
@@ -1632,13 +1664,28 @@ model PushDevice {
   failedAt   DateTime?
   failReason String?
 
+  /// A browser subscription's keys (RFC 8291): its payloads are encrypted
+  /// to these, so the push service carries them without reading them.
+  /// Null on Expo rows.
+  p256dh String?
+  auth   String?
+  /// The sign-in a browser subscription belongs to. Alerts go to it only
+  /// while that session lives, so signing a lost phone out — from any
+  /// other device — also stops its alerts. Null on Expo rows.
+  sessionId String?
+  /// What the agent sees in their list of devices: "iPhone", "Android".
+  label     String?
+
   @@index([userId, failedAt])
   @@index([orgId])
+  @@index([sessionId])
 }
 
 enum DevicePlatform {
   IOS
   ANDROID
+  /// The installed web app (or any browser), by the Web Push protocol.
+  WEB
 }
 
 // ---------------------------------------------------------------- money
@@ -1925,7 +1972,8 @@ model KycDocument {
 
   type         IdDocType
   /// Pointer into object storage. The file never lives in Postgres.
-  storageRef   String
+  /// Unique: one row per stored object, so a message cannot be filed twice.
+  storageRef   String    @unique
   fileName     String
   expiresAt    DateTime?
   /// How it arrived. Most will say WHATSAPP.
@@ -3714,4 +3762,99 @@ model Opportunity {
   @@index([orgId, leadId])
   @@index([orgId, stageId])
   @@index([orgId, agentId])
+}
+
+/// Up to three of an agent's real free times, offered to a buyer on
+/// WhatsApp, and the viewing the buyer's pick became. At most one open
+/// offer per conversation; a newer one closes the older. Nothing here is
+/// a booking — the agent confirms (`viewings.confirmRequest`).
+model ViewingOffer {
+  id             String     @id @default(cuid())
+  orgId          String
+  conversationId String
+  leadId         String
+  listingId      String?
+  agentId        String
+  slots          DateTime[]
+  createdAt      DateTime   @default(now())
+  closedAt       DateTime?
+  viewingId      String?
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, conversationId, closedAt])
+}
+
+/// An agent's own website: their profile, the properties they choose from
+/// the brokerage's stock, and a way to reach them — `/p/<brokerage>/agents/<slug>`.
+///
+/// One per agent per brokerage. Nothing here copies a CRM record: the
+/// properties are listing ids, resolved through the property page's own
+/// gate on every view, so a price change or a withdrawal shows at once.
+///
+/// `draft` is what the agent is editing; `live` is the copy the public
+/// sees, made when they publish (or when an admin approves, if the
+/// brokerage asks to approve). Both are `MicrositeContent`, validated by
+/// `lib/microsite/content.ts` on every write — JSON so a new field is not
+/// a migration, and two copies so editing never changes the live site
+/// half-way through. `publishedAt` null means not live, whatever `live`
+/// holds. An admin's `disabledAt` takes it down and the agent cannot put
+/// it back.
+model AgentMicrosite {
+  id     String @id @default(cuid())
+  orgId  String
+  userId String
+  /// The last part of the address. Lower-case letters, digits and single
+  /// hyphens; unique within the brokerage.
+  slug   String
+
+  draft Json
+  live  Json?
+
+  publishedAt   DateTime?
+  publishedById String?
+  /// Sent for approval and not yet approved, when the brokerage approves.
+  submittedAt   DateTime?
+
+  disabledAt     DateTime?
+  disabledById   String?
+  disabledReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  events MicrositeEvent[]
+
+  @@unique([orgId, userId])
+  @@unique([orgId, slug])
+}
+
+/// One thing a visitor did on a microsite, for the agent's numbers.
+///
+/// `visitor` is a one-way hash of the address and browser with a salt
+/// that changes daily, so a visitor can be counted once a day and never
+/// identified or followed across days. No address is stored.
+model MicrositeEvent {
+  id          String             @id @default(cuid())
+  orgId       String
+  micrositeId String
+  kind        MicrositeEventKind
+  /// The property, for a property view or a property's WhatsApp button.
+  listingId   String?
+  visitor     String?
+  createdAt   DateTime           @default(now())
+
+  microsite AgentMicrosite @relation(fields: [micrositeId], references: [id], onDelete: Cascade)
+
+  @@index([micrositeId, createdAt])
+  @@index([orgId, createdAt])
+}
+
+enum MicrositeEventKind {
+  VIEW
+  PROPERTY_VIEW
+  WHATSAPP_CLICK
+  PHONE_CLICK
+  EMAIL_CLICK
+  LEAD
 }

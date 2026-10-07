@@ -180,9 +180,12 @@ sec("diary", "day", "The diary and booking viewings", ["agent", "manager"],
     ["Open <b>Diary</b> to see today's viewings in order: the time, the client, the property and its reference.",
      "Each viewing has <b>Directions</b>, <b>WhatsApp</b> and <b>Call</b>. <b>Move it</b> changes the time.",
      "To book, pick a time from the offered slots and press <b>Book it</b>.",
+     "When a buyer picks one of the times they were offered on WhatsApp, it waits at the top under <b>Waiting for you to confirm</b>. The slot is held and nothing is booked until you answer: <b>Confirm</b> books it and tells them; <b>Can't make it</b> frees the slot and tells them other times are coming.",
+     "Times are offered by the assistant once a buyer is qualified, or by you: <b>Offer viewing times</b> in their conversation, while WhatsApp's reply window is open.",
      "After the viewing, record what happened: they came, they did not, and what they thought. Today reminds you (\"How did the viewing go?\") until you do.",
      "The owner's weekly report counts the feedback; the buyer's own words stay with you."],
-    ["Your viewings can appear in your own phone calendar: Settings → <b>Create my calendar link</b>."])
+    ["Your viewings can appear in your own phone calendar: Settings → <b>Create my calendar link</b>.",
+     "If WhatsApp's 24 hours have passed, <b>Confirm</b> still books it and tells you to ring them, because the message cannot go."])
 
 sec("ask", "day", "Say it: record by voice or text", ["agent"],
     [("ask", "Say it: tell it what happened, and it works out what should happen next.")],
@@ -213,8 +216,10 @@ sec("me", "day", "My figures, availability and alerts", ["agent"],
     ["See what you are owed, what has been paid and what is forecast.",
      "<b>Send me new leads</b>: switch off and routing skips you. Leads you already have are not taken away.",
      "<b>Away</b>: set the first and last day you are off, with an optional note.",
+     "<b>Phone alerts</b>: on your phone, press <b>Turn on alerts on this phone</b> and choose Allow, then <b>Send a test</b>. A new lead, a buyer waiting and a viewing coming up then buzz your phone.",
      "<b>When not to buzz you</b>: quiet hours and days off. Anything that arrives then is held and sent once you are back, in one message. <b>Let urgent things through anyway</b> keeps a buyer waiting mid-conversation from being held."],
-    ["Quiet hours are in Dubai time, so they do not move when you travel."])
+    ["Quiet hours are in Dubai time, so they do not move when you travel.",
+     "Lost a phone? Sign it out in Settings → Security, and its alerts stop too."])
 
 # ----------------------------------------------------------------- deals
 sec("listings", "deals", "Listings", ["agent", "manager"],
@@ -246,6 +251,41 @@ sec("public", "deals", "The page a buyer sees", ["all"],
      "<b>Arrange a private viewing</b> and <b>Ask a question</b> open WhatsApp to your brokerage's number with the property already named, so it arrives in the Inbox as an enquiry about the right property."],
     ["A property that is not available, or has no valid permit, has no page. <b>Share link</b> says why instead of sending a dead link.",
      "The price on the page is always the current one. Change it on Listings and every link you have sent shows the new price."])
+
+sec("listings-page", "deals", "Your brokerage's listings page", ["all"],
+    [("pub-brokerage", "Your listings page: every property you may advertise, in your brokerage's name."),
+     ("listings", "Share your listings page, at the top of Listings.")],
+    "One page with every property the brokerage may advertise, in its name, and a form at the foot for a buyer who cannot see the right one. It is the link for an Instagram bio, an email signature, or a buyer who asks what else you have.",
+    ["On Listings, press <b>Share your listings page</b>. At a desk the link is copied, with how many properties are on it; on a phone your share sheet opens.",
+     "Buyers see <b>All</b>, <b>For sale</b> and <b>To let</b>, each property with its price, and its own page one tap away.",
+     "<b>WhatsApp us</b> opens WhatsApp to your brokerage's number. The form at the foot becomes a lead, shown in Reports as <i>Your listings page</i>.",
+     "<b>Our agents</b> appears once any agent's microsite is live, and leads to the team page."],
+    ["The same rules as a property's own page decide what appears: available, with a valid permit. Nothing else is shown, whatever its status on Listings.",
+     "A property without photos shows a picture of its area, labelled as the area, never a photograph that could be mistaken for the property. Add photos and they replace it.",
+     "With nothing to advertise there is no page, and the button says so instead of copying a dead link."])
+
+sec("microsite", "deals", "Your own website: My microsite", ["agent"],
+    [("microsite", "My microsite: the link, how it is doing, and what is still missing."),
+     ("pub-microsite", "What a buyer sees: you, your properties and the ways to reach you.")],
+    "Every agent can have a personal website in the brokerage's name, built from the CRM: your profile and the properties you choose, always at today's prices. Enquiries from it come straight to you.",
+    ["Open <b>My microsite</b> from More, or search. The badge says whether it is <b>Live</b>, a draft only you can see, or waiting for an admin's approval.",
+     "<b>Copy link</b>, or <b>Share</b> to send it by WhatsApp or email. <b>QR code</b> downloads a PNG or SVG for a business card, a brochure or a board.",
+     "<b>Performance · last 30 days</b> counts views, visitors, property views, WhatsApp taps, calls, emails, and the leads it brought you.",
+     "<b>Profile completeness</b> lists what is still missing, such as your photo.",
+     "An enquiry from your page, by its form or its WhatsApp button, arrives as a lead assigned to you, shown as <i>Agent microsite</i>. A buyer who already has an agent keeps them."],
+    ["Figures on the page come from the CRM, never typed in: transactions are counted from completed deals, and are hidden while there are none. Properties you have sold or let show as a record, without price or address.",
+     "Without your photo the page shows your initials. It never shows somebody else's face."])
+
+sec("microsite-edit", "deals", "Editing your microsite", ["agent"],
+    [("microsite-edit", "Edit microsite: a tab for each part of the page.")],
+    "What you write is a draft until you publish it, so you can work on it between viewings without a half-finished page going out.",
+    ["Press <b>Edit microsite</b>. <b>Profile</b> holds your name, title, headline and how to reach you; <b>About</b> your introduction, biography and specialisms; <b>Branding</b> your photos and accent colour.",
+     "<b>Properties</b>: search and add the ones to feature, and order them with the arrows. Underneath, choose whether to add your other listings automatically, your sold and let record, and your number of completed transactions.",
+     "<b>Areas</b>: the communities you cover. <b>Social</b>: only the networks you fill in appear. <b>Search &amp; sharing</b>: how the page reads in a search result.",
+     "<b>Save draft</b> keeps your work without changing the live page. <b>Publish changes</b> puts it live. <b>Unpublish</b> takes the page down; what you wrote is kept.",
+     "<b>Open full preview</b> shows the page exactly as a buyer will see it, before anyone else does."],
+    ["If your brokerage approves sites first, the button says <b>Send for approval</b>. Your live page stays up, unchanged, until the changes are approved.",
+     "Changing <b>Your address</b> breaks every link you have already shared. Choose it once."])
 
 sec("owners", "deals", "Owners (vendors)", ["agent", "manager"],
     [("vendor", "An owner's page: their properties, and what has happened since you last spoke."), ("vendor-new", "Add an owner, and how they want to hear from you.")],
@@ -449,6 +489,17 @@ sec("set-import", "settings", "Import your history", ["owner"],
      "Match the columns and check the preview.",
      "Press <b>Import</b>."])
 
+sec("set-microsites", "settings", "Microsites", ["owner"],
+    [("set-microsites", "Settings → Microsites: the rules, and every agent's site.")],
+    "Whether agents may have their own websites, and on what terms. Every site carries the brokerage's name, and every enquiry from one comes into the CRM.",
+    ["<b>Agents can have microsites</b>. Off takes every agent's site down at once; what they wrote is kept.",
+     "<b>An admin approves each site before it goes live</b>. Publishing then sends it to you, and it goes live when you approve it here.",
+     "<b>Agents may use their own WhatsApp number</b>. Off sends every WhatsApp enquiry to the brokerage's line, where the assistant answers and the conversation stays in the CRM.",
+     "<b>Accent colours agents may choose</b>, for their own details only. Buttons always stay the brand colour.",
+     "Under <b>Agents</b>: each site's status and its views and leads in 30 days, with <b>View</b>, <b>Analytics</b>, <b>Edit</b>, <b>Review</b> and <b>Approve</b>, and <b>Take down</b> or <b>Turn back on</b>."],
+    ["A site taken down shows the same “not found” as one that never existed, so nobody learns why.",
+     "<b>Your team page</b>, linked at the top, lists every live site."])
+
 sec("set-security", "settings", "Security and two-step sign-in", ["all"],
     [("set-security", "Security: two-step sign-in, and every device you are signed in on.")],
     "Protect your account. Two-step sign-in adds a code from an app on your phone, so somebody who gets into your email still cannot get in here.",
@@ -488,7 +539,7 @@ sec("phone", "phone", "Using PotatoFarm.io on your phone", ["agent"],
     [("m-today", "Today."), ("m-inbox", "The Inbox."), ("m-person", "A person: Call, Message and Next step first."), ("x-m-more", "More: everything else.")],
     "Everything works on a phone, in the browser, and it installs to your home screen like an app. Navigation moves to a bar at the bottom, within reach of your thumb: <b>Today</b>, <b>Inbox</b>, <b>Diary</b>, <b>Pipeline</b> and <b>More</b>.",
     ["<b>Install it</b>: open PotatoFarm.io in Safari (iPhone) or Chrome (Android), then choose <b>Share → Add to Home Screen</b> (iPhone) or <b>Install app</b> (Android). It opens full-screen from the icon.",
-     "Turn on notifications when asked, so a buyer waiting reaches you.",
+     "<b>Turn on alerts</b>: from the installed app, open <b>Mine</b> (under More) → <b>Phone alerts</b>, press <b>Turn on alerts on this phone</b> and choose Allow. On an iPhone this works only from the Home Screen app.",
      "In the Inbox, open a conversation; <b>← All conversations</b> takes you back.",
      "On a person's page, <b>Call</b>, <b>Message</b> and <b>Next step</b> are the first things under the name.",
      "<b>More</b> opens everything else: Leads, Listings, Offers, Deals, Commission, Reports and Settings.",

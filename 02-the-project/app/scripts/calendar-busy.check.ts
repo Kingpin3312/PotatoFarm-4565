@@ -55,7 +55,7 @@ const graphTime = (d: Date) => d.toISOString().replace("Z", "").replace(/\.\d+$/
 
 /* ------------------------------ stand-ins ------------------------------ */
 
-const google = { busy: [] as { start: string; end: string }[], refuse: false, asked: [] as { timeMin: string; timeMax: string; items: { id: string }[] }[] };
+const google = { busy: [] as { start: string; end: string }[], refuse: false as false | "scope" | "rate" | "backend", asked: [] as { timeMin: string; timeMax: string; items: { id: string }[] }[] };
 const googleServer = http.createServer(async (req, res) => {
   const url = new URL(req.url!, "http://x");
   if (req.headers.authorization !== "Bearer g-token") return json(res, 401, {});
@@ -64,7 +64,9 @@ const googleServer = http.createServer(async (req, res) => {
   if (url.pathname === "/gmail/v1/users/me/history") return json(res, 200, { historyId: "1" });
   if (req.method === "POST" && url.pathname === "/calendar/v3/freeBusy") {
     google.asked.push(JSON.parse(await readBody(req)));
-    if (google.refuse) return json(res, 403, { error: { message: "Request had insufficient authentication scopes." } });
+    if (google.refuse === "scope") return json(res, 403, { error: { code: 403, message: "Request had insufficient authentication scopes.", errors: [{ reason: "insufficientPermissions" }], status: "PERMISSION_DENIED" } });
+    if (google.refuse === "rate") return json(res, 403, { error: { code: 403, message: "Rate Limit Exceeded", errors: [{ domain: "usageLimits", reason: "rateLimitExceeded" }] } });
+    if (google.refuse === "backend") return json(res, 200, { calendars: { primary: { busy: [], errors: [{ domain: "global", reason: "backendError" }] } } });
     return json(res, 200, { calendars: { primary: { busy: google.busy } } });
   }
   json(res, 404, {});
@@ -172,7 +174,7 @@ async function main() {
      JSON.stringify({ rows: await root.calendarBusy.count({ where: { accountId: gAcct.id } }) }));
 
   console.log("\n=== a mailbox connected before the calendar was asked for ===");
-  google.refuse = true;
+  google.refuse = "scope";
   await syncAccount(gAcct.id);
   const refused = await root.emailAccount.findUniqueOrThrow({ where: { id: gAcct.id } });
   ok("it says the calendar is not shared, and mail still syncs",
@@ -186,6 +188,19 @@ async function main() {
   google.refuse = false;
   await syncAccount(gAcct.id);
   ok("once shared, the message clears", (await root.emailAccount.findUniqueOrThrow({ where: { id: gAcct.id } })).calendarError === null);
+
+  console.log("\n=== Google having a bad minute is not the agent withholding anything ===");
+  // Google answers 403 for a rate limit too, and reports `backendError`
+  // inside a 200. Neither may clear what was read or ask for a reconnect.
+  for (const mode of ["rate", "backend"] as const) {
+    google.refuse = mode;
+    await syncAccount(gAcct.id);
+    const acct = await root.emailAccount.findUniqueOrThrow({ where: { id: gAcct.id } });
+    ok(`a ${mode === "rate" ? "rate limit" : "backend error"} keeps the last busy times and asks nobody to reconnect`,
+       acct.calendarError === null && !offered(await slotsFor(ahmed.id), dubai(3, 15)),
+       `${acct.calendarError ?? "no message"} · ${await root.calendarBusy.count({ where: { accountId: gAcct.id } })} row(s)`);
+  }
+  google.refuse = false;
 
   console.log("\n=== Microsoft ===");
   const mAcct = await connect(omar.id, "MICROSOFT", "m-token", "omar@outlook.test");

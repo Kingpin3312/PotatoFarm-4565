@@ -12,6 +12,7 @@ import { openKycFile } from "../src/server/lib/aml/open";
 import { accept } from "../src/server/lib/offers/negotiate";
 import { sweepIntelligence } from "../src/server/lib/intelligence/sweep";
 import { generateInvoice } from "../src/server/lib/billing/invoice";
+import { emptyContent, type MicrositeContent } from "../src/lib/microsite/content";
 
 /**
  * A development brokerage, from nothing — or the one already there.
@@ -328,10 +329,10 @@ async function main() {
         orgId: org.id, type: "WHATSAPP", identifier: BROKERAGE_WHATSAPP,
       },
     },
-    update: { active: true, label: "Main sales number" },
+    update: { active: true, label: "Main sales number", displayNumber: BROKERAGE_WHATSAPP },
     create: {
       orgId: org.id, type: "WHATSAPP", label: "Main sales number",
-      identifier: BROKERAGE_WHATSAPP, active: true,
+      identifier: BROKERAGE_WHATSAPP, displayNumber: BROKERAGE_WHATSAPP, active: true,
     },
   });
 
@@ -1040,6 +1041,7 @@ async function main() {
   await seedDrafts(org.id);
   await seedProfiles(org.id);
   await seedWeek(org.id);
+  await seedMicrosites(org.id);
   // The demo shows what the owner chose: replies sent by the assistant
   // while a new buyer is qualified. A real brokerage turns this on in
   // Settings → Assistant; it is off by default.
@@ -2008,11 +2010,73 @@ async function seedLocations(orgId: string) {
   if (placed) console.log(`  locations — ${placed} listings placed on the tree`);
 }
 
+/**
+ * Two agents' microsites, live, so the demo shows one: Lena's, with the
+ * properties she looks after featured, and Omar's. No photographs — the
+ * seed has none to give, and a stock face would be a person who does not
+ * exist; the pages draw the monogram instead, which is what an agent who
+ * has not uploaded one sees.
+ */
+async function seedMicrosites(orgId: string) {
+  const people = await db.membership.findMany({
+    where: { orgId, user: { email: { in: ["lena@marinabay.ae", "omar@marinabay.ae"] } } },
+    select: { userId: true, user: { select: { email: true, name: true, phone: true } } },
+  });
+  const place = async (names: string[]) =>
+    (await db.location.findMany({ where: { level: "COMMUNITY", name: { in: names } }, select: { id: true, name: true } }))
+      .sort((a, b) => names.indexOf(a.name) - names.indexOf(b.name)).map((l) => l.id);
+  for (const p of people) {
+    const lena = p.user.email === "lena@marinabay.ae";
+    const listings = await db.listing.findMany({
+      // Any of the brokerage's advertisable properties: an agent can
+      // feature the firm's stock, not only what they hold themselves.
+      where: { orgId, deletedAt: null, status: "AVAILABLE", permitNumber: { not: null } },
+      orderBy: { reference: lena ? "asc" : "desc" }, take: 3, select: { id: true },
+    });
+    const content: MicrositeContent = {
+      ...emptyContent({ name: p.user.name, phone: lena ? "+971501234501" : "+971501234500", email: p.user.email }),
+      ...(lena ? {
+        title: "Senior property consultant",
+        headline: "Dubai Marina and JBR, bought and let with the whole market in view.",
+        intro: "I help buyers, investors and tenants find the right home on the waterfront — and owners let and sell well.",
+        bio: "## About me\nI have worked the Marina and JBR towers since 2016, first in leasing and now across sales and investment. I know which buildings hold their value, which service charges are about to rise, and which views will be built out.\n\n## How I work\n- One clear shortlist, not forty links\n- Viewings arranged around your diary, evenings and weekends included\n- **Straight answers** on price, fees and timelines",
+        languages: ["English", "Russian", "French"],
+        yearsExperience: 9,
+        specialisms: ["Resale", "Investment", "Leasing", "Off-plan"],
+        brn: "45120",
+        credentials: ["RERA certified broker", "DLD Certified Training"],
+        areas: await place(["Dubai Marina", "Business Bay", "Dubai Hills Estate"]),
+        social: { instagram: "https://instagram.com/marinabay.lena", linkedin: "https://linkedin.com/in/lena-popescu-marina", facebook: null, tiktok: null, x: null, youtube: null },
+        accent: "brand",
+        showSold: true, showDeals: true,
+      } : {
+        title: "Managing director",
+        headline: "Twenty years of Dubai property, and a team that answers in minutes.",
+        intro: "I founded Marina Bay Properties to give buyers and owners one straight-talking team from first viewing to title deed.",
+        languages: ["English", "Arabic"],
+        yearsExperience: 20,
+        specialisms: ["Luxury homes", "Investment", "Portfolio management"],
+        areas: await place(["Dubai Marina", "Emirates Hills", "Arabian Ranches"]),
+        accent: "pearl",
+      }),
+      featured: listings.map((l) => l.id),
+    };
+    await db.agentMicrosite.upsert({
+      where: { orgId_userId: { orgId, userId: p.userId } },
+      create: { orgId, userId: p.userId, slug: lena ? "lena-popescu" : "omar-haddad", draft: content as never, live: content as never, publishedAt: new Date(), publishedById: p.userId },
+      update: { draft: content as never, live: content as never, publishedAt: new Date(), disabledAt: null, disabledReason: null, submittedAt: null },
+    });
+  }
+  if (people.length) console.log(`  microsites — ${people.length} live`);
+}
+
 async function tidyCheckDebris(orgId: string) {
   // Channels, enquiries and leads the HTTP checks leave when they die early.
   await clearCheckDebris(db, orgId);
   const stray = await db.membership.findMany({
-    where: { orgId, user: { email: { endsWith: "@example.invalid" } } },
+    // `cal.*@example.com` is what `calendar-feed.mjs` used before it moved
+    // to the reserved domain, and a run that died early left them here.
+    where: { orgId, OR: [{ user: { email: { endsWith: "@example.invalid" } } }, { user: { email: { startsWith: "cal.", endsWith: "@example.com" } } }] },
     select: { userId: true },
   });
   const ids = stray.map((m) => m.userId);

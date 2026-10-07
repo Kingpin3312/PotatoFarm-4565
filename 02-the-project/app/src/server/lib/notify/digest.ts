@@ -1,5 +1,6 @@
 import { crossTenant } from "@/server/db/client";
 import { sendPush } from "./push";
+import { sendAlertEmail } from "./email";
 import { inQuietHours } from "./rules";
 import { log } from "@/lib/log";
 
@@ -106,17 +107,20 @@ export async function releaseHeld(now = new Date()) {
       : false;
     if (stillQuiet) continue;
 
-    // Push switched off entirely is a decision, not a quiet period. The
-    // rows are still cleared so they do not accumulate for ever, but
-    // nothing is sent.
-    if (prefs && !prefs.push) {
+    // Push and email both switched off is a decision, not a quiet
+    // period: the rows are still cleared so they do not accumulate for
+    // ever, but nothing is sent. Push off with email on still sends the
+    // summary — by email.
+    const wantPush = !prefs || prefs.push;
+    const wantEmail = !!prefs?.email;
+    if (!wantPush && !wantEmail) {
       await clear(items.map((i) => i.id));
       released += items.length;
       continue;
     }
 
     const first = items[items.length - 1]!;   // the most recent
-    await sendPush(userId, {
+    const summary = {
       title: headline(items.length, first),
       body: items.length === 1
         ? "Held while you were off. "
@@ -124,8 +128,9 @@ export async function releaseHeld(now = new Date()) {
       // One item deep-links to the thing; several link to the list,
       // because picking one of eleven for somebody is a guess.
       deeplink: items.length === 1 ? first.deeplink : "/today",
-      urgent: false,
-    });
+    };
+    if (wantPush) await sendPush(userId, { ...summary, urgent: false });
+    if (wantEmail) await sendAlertEmail(userId, summary);
 
     /**
      * Cleared whether or not the push landed, and that is correct now

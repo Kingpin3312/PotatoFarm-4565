@@ -45,10 +45,11 @@ for a in "$@"; do [ "$a" = "--load" ] && WITH_LOAD=1; done
 
 bold=$'\033[1m'; red=$'\033[31m'; green=$'\033[32m'; yellow=$'\033[33m'; off=$'\033[0m'
 
-# Suites that open a connection. Kept as a list rather than inferred,
-# because inferring it from imports is the sort of cleverness that goes
-# quietly wrong the day somebody adds a query to a pure check.
-NEEDS_DB="tenancy notify-isolation intake intelligence autonomy killswitch buyers search qualification quiet migration vault visibility load agent-tasks team-changes commission-lifecycle job-runner lead-editing listing-agent viewing-feedback nurture-plans owner-conversations reply-drafts vat-threshold requirements lead-lists import-export listing-model journeys opportunities demo-mode auto-reply locations"
+# Which suites need Postgres is no longer a list of the ones that do —
+# that list went stale with every suite added after it. It is now the
+# short list of the ones that do not (`NO_DB`, below), so a new suite is
+# assumed to need a database: skipped when there is none, never run
+# against a missing one and reported as a failure of the product.
 # `billing` needs Postgres *and* the application — it posts a signed
 # payment webhook at the real route — so it sits in the end-to-end block
 # below rather than here. It was in this loop, which is why the first CI
@@ -144,11 +145,27 @@ step "eslint" npm run --silent lint
 step "vitest" npm run --silent test
 
 printf '\n%sChecks%s\n' "$bold" "$off"
-for name in tenancy notify-isolation intake intelligence voice deals autonomy killswitch buyers agent-tasks team-changes commission-lifecycle job-runner lead-editing listing-agent viewing-feedback nurture-plans owner-conversations reply-drafts vat-threshold requirements lead-lists import-export listing-model journeys opportunities demo-mode auto-reply locations search qualification quiet migration vault visibility bands sigv4 storage limits preflight load; do
+# Every check suite in package.json, found rather than listed.
+#
+# This loop was a hand-written list, and it went stale exactly the way
+# the counts in the docs used to: twelve suites were never in it —
+# among them every one added for listing photos, identity documents,
+# documents sent on WhatsApp, the upload sweep and the calendar — while
+# this file, the PR and CLAUDE.md all said "every check suite". Each of
+# them passed locally and none had ever run in CI. **A suite nobody
+# runs is the light switch wired to nothing, in the gate itself.** Now
+# a new `check:*` script runs here unless it is named below as one that
+# needs the application, which runs further down with the app up.
+APP_CHECKS=" whatsapp-inbound website-form listing-feed calendar-feed voice-note meta-inbound routing availability blocking billing two-step email-connect revenue ownership public-listing listings-page microsite rear "
+# The few that need neither Postgres nor the application.
+NO_DB=" voice deals bands sigv4 storage limits preflight "
+DB_CHECKS=$(node -e 'const s=require("./package.json").scripts; console.log(Object.keys(s).filter(k=>k.startsWith("check:")).map(k=>k.slice(6)).sort().join(" "))')
+for name in $DB_CHECKS; do
+  [[ "$APP_CHECKS" == *" $name "* ]] && continue
   if [ "$name" = "load" ] && [ "$WITH_LOAD" -eq 0 ]; then
     skipped+=("check:load (use --load; it seeds a database)"); continue
   fi
-  if [ "$DB" -eq 0 ] && [[ " $NEEDS_DB " == *" $name "* ]]; then
+  if [ "$DB" -eq 0 ] && [[ "$NO_DB" != *" $name "* ]]; then
     skipped+=("check:$name (no database)"); continue
   fi
   step "check:$name" npm run --silent "check:$name"
@@ -290,6 +307,15 @@ else
   # reports a year's earnings at twice its value, with no error
   # anywhere, in front of whoever is reading the number.
   step "check:revenue" npm run --silent check:revenue
+  # Three that read the running app over HTTP and were run by nothing:
+  # who held a lead and when, the buyer's property page itself, and a
+  # reportable transaction reaching the compliance officer.
+  step "check:ownership" npm run --silent check:ownership
+  step "check:public-listing" npm run --silent check:public-listing
+  # A brokerage's own page and its enquiry form, over HTTP.
+  step "check:listings-page" npm run --silent check:listings-page
+  step "check:microsite" npm run --silent check:microsite
+  step "check:rear" npm run --silent check:rear
   # The logo as a browser draws it. `consistency.py` reads the source
   # and fingerprints the potato; it cannot see that the wordmark beside
   # it is the wrong colour on every screen, which it was.
@@ -313,6 +339,14 @@ else
   # faults in this codebase were hiding.
   step "browser:screens" npm run --silent browser:screens
   step "browser:manual" npm run --silent browser:manual
+  # An agent's day at phone width. It was in package.json and in no gate.
+  step "browser:mobile-agent" npm run --silent browser:mobile-agent
+  # Every screen at 320px. Three scrolled sideways before it existed.
+  step "browser:narrow" npm run --silent browser:narrow
+  step "browser:microsite" npm run --silent browser:microsite
+  # Phone alerts: the worker turning a push into a notification, a tap
+  # that never leaves the app, and the switch on the Me page.
+  step "browser:alerts" npm run --silent browser:alerts
 fi
 
 printf '\n%sAudits%s\n' "$bold" "$off"
